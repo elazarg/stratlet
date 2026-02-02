@@ -54,4 +54,12 @@ def pure (a : α) : WDist α := [(a, (1 : W))]
 def guard (b : Bool) : WDist Unit :=
   if b then pure () else zero
 
+@[simp] theorem bind_pure (a : α) (f : α → WDist β) :
+    WDist.bind (WDist.pure a) f = f a := by
+  simp [WDist.bind, WDist.pure, WDist.scale]
+
+@[simp] theorem bind_nil (f : α → WDist β) :
+    WDist.bind ([] : WDist α) f = [] := by
+  simp [WDist.bind]
+
 end WDist

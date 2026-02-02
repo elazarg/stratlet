@@ -210,16 +210,16 @@ Key theorem: behavioral evaluation + running under σ coincides with the direct 
 -/
 theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : Env Γ) :
     runBeh σ (behEval p env) = evalS σ p env := by
-  simp only [evalS, StratSem, EffWDist, ProbLet.EffWDist, WDist.pure]
   induction p with
   | ret e => rfl
   | letDet e k ih => apply ih
   | doStmt s k ih =>
       cases s with
       | observe cond =>
-          simp [behEval]
+          simp only [evalS, behEval]
           by_cases h : evalExpr cond env
-          · simp [h, ih, WDist.bind, WDist.scale]
+          · simp [h, ih, StratSem, EffWDist, ProbLet.EffWDist]
+            rfl
           · simp [runBeh, h]
             simp [Bool.not_eq_true] at h
             rfl
@@ -227,7 +227,7 @@ theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : 
       cases c with
       | choose p A =>
           simp only [behEval, runBeh]
-          refine congrArg (fun f => WDist.bind ((σ.choose p A) env) f) ?_
+          refine congrArg (fun f => WDist.bind (σ.choose p A env) f) ?_
           funext v
           exact ih (v, env)
 
@@ -342,7 +342,6 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
       | observe cond =>
           by_cases h : evalExpr cond env
           · simp [evalOp, h, ih]
-            simp [WDist.pure, WDist.bind, WDist.scale]
           · simp [evalOp, h]
             simp_all only [Bool.not_eq_true]
             rfl
@@ -355,7 +354,7 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
           cases hm : arena.move (τ := _) p acts with
           | none =>
               -- kernel is []; op is none
-              simp [evalOp, Profile.ofArena, hm, acts, WDist.dirac, WDist.bind]
+              simp [evalOp, Profile.ofArena, hm, acts]
           | some a =>
               by_cases hmem : a ∈ acts
               · -- legal: kernel is dirac a; op continues with (a, env)
@@ -363,8 +362,7 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
                 simpa [evalOp, Profile.ofArena, hm, hmem, acts,
                        WDist.dirac, WDist.bind, WDist.scale] using ih (a, env)
               · -- illegal: kernel is []; op is none
-                simp [evalOp, Profile.ofArena, hm, hmem, acts,
-                      WDist.dirac, WDist.bind]
+                simp [evalOp, Profile.ofArena, hm, hmem, acts]
 
 /-!
 ## 8) Tiny runnable example
