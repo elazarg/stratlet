@@ -1,6 +1,10 @@
 import Vegas.Env
 import Vegas.Expr
 import Vegas.ProgCore
+import Vegas.ProgCoreLemmas
 import Vegas.WDist
+import Vegas.WDistLemmas
 import Vegas.ProbLet
+import Vegas.ProbLetLemmas
 import Vegas.FullInfoLet
+import Vegas.FullInfoLetLemmas
