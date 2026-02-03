@@ -9,6 +9,10 @@ import Vegas.Expr
 
 namespace ProbLet
 
+-- DESIGN NOTE: Kernel is history-dependent via `Env`.
+--              No provenance of randomness yet (public/private/shared).
+-- NOTE: `WDist` is intensional (List), not extensional (finite measure).
+--        Equalities are list equalities unless we later quotient/canonicalize.
 /-- A (finite-support) stochastic kernel from environments. -/
 abbrev Kernel (Γ : Ctx) (τ : Ty) := Env Γ → WDist (Val τ)
 
@@ -35,6 +39,8 @@ def ProbSem : ProgCore.LangSem CmdBindP CmdStmtP WDist where
     | .sample K, env => K env
   handleStmt
     | .observe cond, env =>
+        --  NOTE: This is *unnormalized* conditioning (hard rejection).
+        --  Posterior requires an explicit `normalize` layer
         if evalExpr cond env then WDist.pure () else EffWDist.fail
 
 @[simp] theorem ProbSem_handleBind_sample (K : Kernel Γ τ) (env : Env Γ) :
