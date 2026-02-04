@@ -16,19 +16,8 @@ open ProgCore
 
 /-! A few simp bridges so simp sees `WDist.bind/pure/zero`. -/
 
-@[simp] lemma EffWDist_pure {α} (x : α) :
-    (EffWDist.pure x : WDist α) = WDist.pure x := rfl
-
-@[simp] lemma EffWDist_fail {α} :
-    (EffWDist.fail : WDist α) = WDist.zero := rfl
-
-@[simp] lemma EffWDist_bind {α β} (xs : WDist α) (f : α → WDist β) :
-    EffWDist.bind xs f = WDist.bind xs f := rfl
-
-@[simp] lemma WDist_zero_def {α} : (WDist.zero : WDist α) = [] := rfl
-
 @[simp] lemma ProbSem_E_pure {α} (x : α) :
-    (ProbSem.E.pure x : WDist α) = WDist.pure x := rfl
+    ProbSem.E.pure x = WDist.pure x := rfl
 
 @[simp] lemma ProbSem_E_fail {α} :
     (ProbSem.E.fail : WDist α) = WDist.zero := rfl
@@ -40,13 +29,10 @@ open ProgCore
 @[simp] lemma evalP_observe {Γ τ} (c : Expr Γ .bool) (k : PProg Γ τ) (env : Env Γ) :
     evalP (.doStmt (.observe c) k) env
       =
-    if evalExpr c env then evalP k env else [] := by
-  -- unfold one step
-  simp [evalP, ProgCore.evalWith_doStmt, ProbSem_handleStmt_observe]
-  -- now split on the guard
-  by_cases h : evalExpr c env = true
-  · simp [h, WDist.bind_pure]
-  · simp [h, WDist.bind_nil]
+    if evalExpr c env then evalP k env else .zero := by
+  simp [evalP, ProgCore.evalWith_doStmt, ProbSem_handleStmt_observe, WDist.bind]
+  by_cases h : evalExpr c env = true <;> simp [h]
+  rfl
 
 /-! ## Observe-Fusion Law -/
 
@@ -73,15 +59,15 @@ def embedDProg : ProgCore.DProg Γ τ → PProg Γ τ
   | .doStmt (.observe cond) k => .doStmt (.observe cond) (embedDProg k)
 
 def liftOption : Option (Val τ) → WDist (Val τ)
-  | none => []
-  | some v => WDist.pure v
+  | none => .zero
+  | some v => .pure v
 
 -- helpful simp for Option→WDist + Option semantics of observe
 @[simp] lemma liftOption_bind_guard {α β}
     (b : Bool) (x : α) (k : α → Option (Val β)) :
     liftOption (Option.bind (if b then some x else none) k)
       =
-    if b then liftOption (k x) else ([] : WDist (Val β)) := by
+    if b then liftOption (k x) else .zero := by
   by_cases hb : b <;> simp [liftOption, hb]
 
 theorem evalP_embed_eq_lift {Γ τ} (p : ProgCore.DProg Γ τ) (env : Env Γ) :
@@ -135,37 +121,26 @@ theorem sample_observe_eq_cond {Γ τ} (K : Kernel Γ τ) (c : Expr (τ :: Γ) .
     WDist.bind (K env) (fun v =>
       if evalExpr c (v, env)
       then evalP k (v, env)
-      else []) := by
-  simp only [evalP, evalWith_doBind]
+      else .zero) := by
+  simp only [evalP, evalWith_doBind, evalWith_doStmt,
+    ProbSem_handleStmt_observe, ProbSem_E_bind]
   refine congrArg (fun f => WDist.bind (K env) f) ?_
   funext v
-  by_cases h : evalExpr c (v, env) = true
-  · simp [h, WDist.bind_pure]
-  · simp [h, WDist.bind_nil]
+  split
+  next h => simp [WDist.bind]
+  next h =>
+    simp_all only [Bool.not_eq_true]
+    rfl
 
 /-! ## Mass properties -/
 theorem mass_evalP_ret {Γ τ} (e : Expr Γ τ) (env : Env Γ) :
     WDist.mass (evalP (.ret e) env) = 1 := by
-  simp only [WDist.mass, evalP, evalWith_ret, ProbSem_E_pure, WDist.pure, List.foldl_cons]
-  exact_mod_cast
-  rfl
+  simp only [WDist.mass, evalP, evalWith_ret, ProbSem_E_pure, WDist.pure,
+    List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, add_zero]
 
 theorem mass_evalP_observe_le {Γ τ} (c : Expr Γ .bool) (k : PProg Γ τ) (env : Env Γ) :
     WDist.mass (evalP (.doStmt (.observe c) k) env) ≤ WDist.mass (evalP k env) := by
-  by_cases h : evalExpr c env
-  · -- observe succeeds, so both sides equal
-    simp [evalP_observe, h]
-    grind only
-  · -- observe fails, so LHS mass = 0
-    simp [evalP_observe, h, WDist.mass]
-    -- Γ : Ctx
-    -- τ : Ty
-    -- c : Expr Γ Ty.bool
-    -- k : PProg Γ τ
-    -- env : Env Γ
-    -- h : ¬evalExpr c env = true
-    -- ⊢ 0 ≤ List.foldl (fun acc aw ↦ acc + aw.snd) 0 (evalP k env)
-    sorry
+  by_cases h : evalExpr c env <;> simp [evalP_observe, h, WDist.mass]
 
 /-! ## Observe true/false -/
 
@@ -179,7 +154,7 @@ theorem observe_true {Γ τ} (k : PProg Γ τ) :
 theorem observe_false {Γ τ} (k : PProg Γ τ) :
     (fun env => evalP (.doStmt (.observe (Expr.constBool false)) k) env)
     =
-    (fun _ => []) := by
+    (fun _ => .zero) := by
   funext env
   simp [evalP_observe, evalExpr]
 
@@ -195,9 +170,9 @@ theorem sample_dirac_eq_letDet {Γ τ τ'} (e : Expr Γ τ') (k : PProg (τ' :: 
         ProgCore.evalWith_letDet]
 
 theorem sample_zero {Γ τ τ'} (k : PProg (τ' :: Γ) τ) :
-    (fun env => evalP (.doBind (.sample (fun _ => [])) k) env)
+    (fun env => evalP (.doBind (.sample (fun _ => WDist.zero)) k) env)
     =
-    (fun _ => []) := by
+    (fun _ => WDist.zero) := by
   funext env
   simp [evalP, ProgCore.evalWith_doBind, ProbSem_handleBind_sample]
 

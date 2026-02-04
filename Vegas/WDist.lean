@@ -161,4 +161,14 @@ noncomputable def toProbabilityMeasure (d : WDist α)
 
 end Semantics
 
+variable {α β : Type*}
+
+@[simp] lemma bind_pure (x : α) (f : α → WDist β) :
+    WDist.bind (WDist.pure x) f = f x := by
+  simp [WDist.bind, WDist.pure]
+
+@[simp] lemma bind_zero (f : α → WDist β) :
+    WDist.bind (WDist.zero : WDist α) f = WDist.zero := by
+  rfl
+
 end WDist

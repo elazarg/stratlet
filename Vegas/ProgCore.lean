@@ -13,6 +13,25 @@ inductive CmdStmtObs : CmdS where
   | observe {Γ} (cond : Expr Γ .bool) : CmdStmtObs Γ
 deriving Repr
 
+/--
+`Eff M` is the minimal "effect carrier" interface needed to interpret `Prog` into some semantic
+domain `M`.
+
+Why this exists (instead of using `Monad` / `Alternative` typeclasses):
+
+* `evalProg_gen` only needs three operations: `pure` (return), `bind` (sequence), and `fail`
+  (hard rejection for `observe`). No other structure is required to define evaluation.
+* Many intended semantic domains are awkward to express as lawful Lean typeclasses under
+  definitional equality (e.g. list-based weighted distributions, game/optimization evaluators),
+  and we do not want the core calculus to depend on typeclass inference or monad laws.
+* Keeping the interface explicit makes the "algebraic effects" separation clear:
+  `Prog` is syntax; a `LangSem` provides handlers into a chosen `M`; `Eff` supplies just enough
+  structure on `M` to compose handler results.
+
+In short: `Eff` avoids committing the core calculus to a particular library hierarchy or set of
+laws, while remaining expressive enough to plug in `Option`, weighted distributions, expectimax,
+equilibrium solvers, etc.
+-/
 structure Eff (M : Type u → Type v) where
   pure : {α : Type u} → α → M α
   bind : {α β : Type u} → M α → (α → M β) → M β
