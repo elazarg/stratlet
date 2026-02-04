@@ -16,6 +16,7 @@ open ProgCore
 
 /-! A few simp bridges so simp sees `WDist.bind/pure/zero`. -/
 
+
 @[simp] lemma ProbSem_E_pure {α} (x : α) :
     ProbSem.E.pure x = WDist.pure x := rfl
 
@@ -25,14 +26,14 @@ open ProgCore
 @[simp] lemma ProbSem_E_bind {α β} (xs : WDist α) (f : α → WDist β) :
     ProbSem.E.bind xs f = WDist.bind xs f := rfl
 
+lemma ProbSem_E_eq : ProbSem.E = EffWDist := rfl
+
 /-! A very useful derived simp lemma: observe is an if-then-else at evalP level. -/
 @[simp] lemma evalP_observe {Γ τ} (c : Expr Γ .bool) (k : PProg Γ τ) (env : Env Γ) :
-    evalP (.doStmt (.observe c) k) env
-      =
+    evalP (.doStmt (.observe c) k) env =
     if evalExpr c env then evalP k env else .zero := by
-  simp [evalP, ProgCore.evalWith_doStmt, ProbSem_handleStmt_observe, WDist.bind]
+  simp [evalP]
   by_cases h : evalExpr c env = true <;> simp [h]
-  rfl
 
 /-! ## Observe-Fusion Law -/
 

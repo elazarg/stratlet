@@ -97,16 +97,6 @@ This is NOT cryptographic; it’s a structural placeholder enabling the protocol
 (commit returns token; reveal checks it).
 -/
 
--- 1. Map your Ty enum to actual Lean Types
-def Ty.interp : Ty → Type
-  | .int  => Int
-  | .bool => Bool
-
--- Helper for the bool conversion
-def boolToInt : Bool → Int
-  | true  => 1
-  | false => 0
-
 -- 2. Define the function using dependent types
 def commitTag (who : Player) {τ : Ty} (x : Val τ) : Int :=
   match τ with
@@ -115,7 +105,7 @@ def commitTag (who : Player) {τ : Ty} (x : Val τ) : Int :=
 
 /-! ## 4) Denotational semantics for strategic programs (WDist) -/
 
-def EffWDist : ProgCore.Eff WDist := ProbLet.EffWDist
+abbrev EffWDist : ProgCore.Eff WDist := ProbLet.EffWDist
 
 def StratSem (σ : Profile) : ProgCore.LangSem CmdBindS CmdStmtS WDist where
   E := EffWDist
@@ -136,7 +126,7 @@ def StratSem (σ : Profile) : ProgCore.LangSem CmdBindS CmdStmtS WDist where
           WDist.zero
   handleStmt
     | .observe cond, env =>
-        if evalExpr cond env then WDist.pure () else WDist.zero
+        if evalExpr cond env then .pure () else .zero
 
 def evalS {Γ τ} (σ : Profile) : SProg Γ τ → Env Γ → WDist (Val τ) :=
   ProgCore.evalWith (StratSem σ)
@@ -254,11 +244,11 @@ def behEval {Γ τ} : SProg Γ τ → Env Γ → Beh τ
 
 def runBeh {τ} (σ : Profile) : Beh τ → WDist (Val τ)
   | .ret v => WDist.pure v
-  | .fail => []
+  | .fail => .zero
   | .choose _ _ d k => WDist.bind (d σ) (fun a => runBeh σ (k a))
   | .commit _ tok k => runBeh σ (k tok)
   | .reveal _ ok v k =>
-      if ok then runBeh σ (k v) else []
+      if ok then runBeh σ (k v) else .zero
 
 @[simp] lemma EffWDist_pure {α} (x : α) :
     EffWDist.pure x = (WDist.pure x : WDist α) := rfl
@@ -296,6 +286,10 @@ def runBeh {τ} (σ : Profile) : Beh τ → WDist (Val τ)
      then WDist.pure ((v.proj env).get x)
      else WDist.zero) := rfl
 
+@[simp] lemma StratSem_E_bind (σ : Profile) {α β}
+    (xs : WDist α) (f : α → WDist β) :
+    (StratSem σ).E.bind xs f = WDist.bind xs f := rfl
+
 theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : Env Γ) :
     runBeh σ (behEval p env) = evalS σ p env := by
   induction p with
@@ -315,19 +309,13 @@ theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : 
             simp [WDist.bind_pure]
           · -- cond false: both reject (mass 0)
             simp [behEval, runBeh, evalS, h, StratSem, EffWDist]
-            simp_all only [Bool.not_eq_true]
-            rfl
   | doBind c k ih =>
       cases c with
       | choose who v A =>
-          -- LHS = bind (σ.choose ...) (fun a => runBeh σ (behEval k (a, env)))
-          -- RHS = bind (σ.choose ...) (fun a => evalS σ k (a, env))
-          simp only [behEval]
-          -- `simp` leaves an equality of binds; prove pointwise with funext + IH
+          simp only [evalS, ProgCore.evalWith_doBind, StratSem_handleBind_choose, StratSem_E_bind]
           refine congrArg (fun f => WDist.bind (σ.choose who v A (v.proj env)) f) ?_
           funext a
-          -- IH expects env : Env (_ :: Γ), i.e. (a, env)
-          simpa using ih (a, env)
+          simpa [evalS] using ih (a, env)
       | commit who v x =>
           -- `commit` is deterministic: both sides just extend env with the token then continue
           -- simp uses WDist.bind_pure to drop the bind on RHS
@@ -369,15 +357,16 @@ def idView (Γ : Ctx) : View Γ where
   Δ := Γ
   proj := fun env => env
 
-def uniformProfile : Profile where
+-- TODO: move to WDist
+noncomputable def uniform (xs : List α) : WDist α :=
+  match xs.length with
+  | 0 => .zero
+  | n+1 => ⟨xs.map (fun a => (a, 1 / (n+1)))⟩
+
+noncomputable def uniformProfile : Profile where
   choose := by
     intro Γ τ who v A obs
-    let xs := A obs
-    match xs.length with
-    | 0 => exact []
-    | n =>
-        let w : W := (1 : W) / (n : W)
-        exact xs.map (fun a => (a, w))
+    exact uniform (A obs)
 
 def A24 : Act (v := idView Γ0) .int := fun _ => [2, 3, 4]
 
@@ -402,3 +391,50 @@ end Examples
 
 
 end PartialInfoLet
+
+/-!
+## What we might want to add (future extensions / characterization)
+
+This file defines a minimal core: syntax (`CmdBindS` + `ProgCore.Prog`) and one denotational
+semantics (`evalS`) parameterized by a `Profile`, plus compilation to `ProbLet`.
+
+Typical next additions (kept out on purpose):
+
+### A) Well-formedness / admissibility predicates
+* `WFView` / `WFAct`: basic sanity of views and action sets
+(e.g. actions finite, nonempty when required).
+* `WFProfile` (legality): for every choice point,
+the support of `σ.choose ... obs` is contained in `A obs`.
+* (Optional) normalization: require `mass = 1`
+(mixed strategies) or allow subprobability (rejection/quit).
+
+### B) Extensional equality and quotienting
+`WDist` is intensional (lists); many laws are intended up to reordering/combining equal outcomes.
+We may introduce an extensional equivalence (e.g. as a finite measure) and work modulo that.
+
+### C) Commit/reveal with real secrecy
+Current `commit`/`reveal` are a deterministic placeholder (no hiding).
+A secrecy-capable version likely needs:
+* committing to data not necessarily in the view (data in Γ outside v.Δ),
+* explicit randomness/salts (or an oracle),
+* an explicit commitment store / token discipline,
+* and a soundness statement: a revealed value verifies against the stored commitment.
+
+### D) Strategy classes and correlation assumptions
+The type of `Profile.choose` permits history-dependent randomization via `Env v.Δ`.
+If we want to enforce assumptions like "no common randomization"
+or "independent private randomness",
+we should define restricted strategy/profile classes
+(or additional structure) rather than changing the core.
+
+### E) Game-theoretic solution concepts / properties
+Once admissibility is pinned down, we can define and study properties such as:
+* best-response, (subgame-perfect) equilibrium notions relative to views,
+* refinement conditions (e.g. perfect recall-like constraints on views),
+* and semantic preservation theorems for compilation targets.
+
+### F) Small-step / interactive operational semantics
+The `Beh` interpreter gives an interaction-friendly big-step view.
+A small-step semantics (or trace semantics) may be useful
+for execution models and compilation proofs.
+-/

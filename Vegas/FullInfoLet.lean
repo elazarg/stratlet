@@ -12,7 +12,6 @@ Core idea:
 This is intentionally minimal: no `if-then-else`, no lambdas, and distributions are *only* those induced by strategies.
 -/
 
-import Mathlib.Data.Rat.Init
 import Mathlib.Data.Int.Basic
 import Mathlib.Data.List.Basic
 
@@ -128,16 +127,15 @@ namespace Examples1
 def Γ0 : Ctx := []
 
 /-- A simple profile: player picks uniformly among available actions. -/
-def uniformProfile : Profile where
+noncomputable def uniformProfile : Profile where
   choose := by
-    intro Γ τ p A env
+    intro Γ τ _p A env
     let xs := A env
     match xs.length with
     | 0 =>
-        exact []
-    | n =>
-        let w : W := (1 : W) / (n : W)
-        exact xs.map (fun a => (a, w))
+        exact .zero
+    | n + 1 =>
+        exact ⟨xs.map (fun a => (a, 1 / (n + 1)))⟩
 
 /-- Action set: choose an Int in [2,4]. -/
 def A24 : Act Γ0 .int := fun _ => [2, 3, 4]
@@ -147,11 +145,8 @@ def sEx : SProg Γ0 .bool :=
   SProg.letChoose 0 A24
     (SProg.ret (Expr.eqInt (Expr.var Var.vz) (Expr.constInt 3)))
 
-#eval evalS uniformProfile sEx ()
-#eval ProbLet.evalP (toProb uniformProfile sEx) ()
-
--- Both print: [(false, 1/3), (true, 1/3), (false, 1/3)]
--- (multiset semantics; use a separate combine if you want aggregation)
+-- #eval not available: uniformProfile is noncomputable (ℝ≥0 arithmetic)
+-- Both would yield: [(false, 1/3), (true, 1/3), (false, 1/3)]
 
 end Examples1
 
@@ -202,7 +197,7 @@ Run a behavior tree under a supplied profile, yielding the same `WDist` semantic
 -/
 def runBeh {τ} (σ : Profile) : Beh τ → WDist (Val τ)
   | Beh.ret v          => WDist.pure v
-  | Beh.fail           => []
+  | Beh.fail           => .zero
   | Beh.choose _ _ d k => WDist.bind (d σ) (fun v => runBeh σ (k v))
 
 /--
@@ -226,10 +221,9 @@ theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : 
   | doBind c k ih =>
       cases c with
       | choose p A =>
-          simp only [behEval, runBeh]
-          refine congrArg (fun f => WDist.bind (σ.choose p A env) f) ?_
-          funext v
-          exact ih (v, env)
+          simp only [behEval, runBeh, evalS, ProgCore.evalWith_doBind, StratSem_handleBind_choose]
+          simp_all only
+          rfl
 
 
 /--
@@ -256,8 +250,8 @@ We then build a deterministic profile induced by an arena:
 and prove:
   evalS (Profile.ofArena arena) p env =
     match evalOp arena p env with
-    | some v => [(v, 1)]
-    | none   => []
+    | some v => WDist.pure v
+    | none   => .zero
 -/
 
 /-- A tiny "arena": given a player and a list of legal actions, optionally pick an action. -/
@@ -293,16 +287,9 @@ def evalOp {Γ τ} (arena : Arena) : SProg Γ τ → Env Γ → Option (Val τ)
           else
             none
 
-namespace WDist
-
-/-- Dirac / point-mass distribution (as a weighted list). -/
-def dirac {α} (a : α) : WDist α := [(a, (1 : W))]
-
-end WDist
-
 /--
 A deterministic profile induced by an arena:
-- at each choice node, the kernel is a Dirac at the arena’s chosen action
+- at each choice node, the kernel is a Dirac at the arena's chosen action
 - if the arena refuses or chooses illegally, the kernel is empty
 -/
 def Profile.ofArena (arena : Arena) : Profile where
@@ -310,12 +297,12 @@ def Profile.ofArena (arena : Arena) : Profile where
     intro Γ τ p A env
     let acts := A env
     match arena.move (τ := τ) p acts with
-    | none => exact []
+    | none => exact .zero
     | some a =>
-        if h : a ∈ acts then
-          exact WDist.dirac a
+        if _ : a ∈ acts then
+          exact WDist.pure a
         else
-          exact []
+          exact .zero
 
 /--
 Main bridge theorem:
@@ -327,14 +314,14 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
     evalS (Profile.ofArena arena) p env
       =
     match evalOp arena p env with
-    | some v => WDist.dirac v
-    | none   => [] := by
+    | some v => WDist.pure v
+    | none   => .zero := by
   -- unfold evalS once so simp can see the generic evaluator
   simp only [evalS, StratSem, EffWDist, ProbLet.EffWDist]
   -- we need IH for all env because the evaluator extends env
   induction p with
   | ret e =>
-      simp [evalOp, WDist.dirac]
+      simp [evalOp, WDist.pure]
   | letDet e k ih =>
       simp [evalOp, ih]
   | doStmt s k ih =>
@@ -343,8 +330,6 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
           by_cases h : evalExpr cond env
           · simp [evalOp, h, ih]
           · simp [evalOp, h]
-            simp_all only [Bool.not_eq_true]
-            rfl
   | doBind c k ih =>
       cases c with
       | choose p A =>
@@ -353,17 +338,15 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
           -- split on arena.move
           cases hm : arena.move (τ := _) p acts with
           | none =>
-              -- kernel is []; op is none
+              -- kernel is zero; op is none
               simp [evalOp, Profile.ofArena, hm, acts]
           | some a =>
               by_cases hmem : a ∈ acts
-              · -- legal: kernel is dirac a; op continues with (a, env)
-                -- after simp this becomes exactly IH at (a, env)
+              · -- legal: kernel is pure a; op continues with (a, env)
                 simpa [evalOp, Profile.ofArena, hm, hmem, acts,
-                       WDist.dirac, WDist.bind, WDist.scale] using ih (a, env)
-              · -- illegal: kernel is []; op is none
+                       WDist.pure, WDist.bind] using ih (a, env)
+              · -- illegal: kernel is zero; op is none
                 simp [evalOp, Profile.ofArena, hm, hmem, acts]
-
 /-!
 ## 8) Tiny runnable example
 -/
@@ -389,7 +372,7 @@ def firstArena : Arena where
     | a :: _ => exact some a
 
 #eval evalOp firstArena sEx ()     -- should be: some false
-#eval evalS (Profile.ofArena firstArena) sEx ()  -- should be: [(false, 1)]
+-- #eval evalS: not available (ℝ≥0 has no computable Repr)
 
 end Examples2
 
