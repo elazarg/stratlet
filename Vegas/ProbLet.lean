@@ -18,8 +18,8 @@ attribute [instance] Language.decEqTy Language.decEqVal
 -- DESIGN NOTE: No explicit model of randomness provenance (public/private/shared);
 --              this is a parameter of the semantics / compilation layer.
 /-- A (finite-support) stochastic kernel from environments. -/
-abbrev Kernel (Γ : ProgCore.CtxL (L := L)) (τ : L.Ty) :=
-  ProgCore.EnvL Γ → WDist (L.Val τ)
+abbrev Kernel (Γ : L.Ctx) (τ : L.Ty) :=
+  L.Env Γ → WDist (L.Val τ)
 
 /-- Effect interface instance for `WDist`. -/
 def EffWDist : ProgCore.Eff WDist where
@@ -35,13 +35,13 @@ def EffWDist : ProgCore.Eff WDist where
 
 /-- Bind-commands for the probabilistic language: sampling from a kernel. -/
 inductive CmdBindP : ProgCore.CmdB (L := L) where
-  | sample {Γ : ProgCore.CtxL} {τ : L.Ty} (K : Kernel Γ τ) : CmdBindP Γ τ
+  | sample {Γ : L.Ctx} {τ : L.Ty} (K : Kernel Γ τ) : CmdBindP Γ τ
 
 /-- Statement-commands: hard evidence / rejection. -/
 abbrev CmdStmtP : ProgCore.CmdS (L := L) := ProgCore.CmdStmtObs
 
 /-- Probabilistic programs are `Prog` instantiated with these commands. -/
-abbrev PProg : ProgCore.CtxL (L := L) → L.Ty → Type :=
+abbrev PProg : L.Ctx → L.Ty → Type :=
   ProgCore.Prog (CB := CmdBindP) (CS := CmdStmtP)
 
 /-- Pack the semantics as a `LangSem`. -/
@@ -55,19 +55,19 @@ def ProbSem : ProgCore.LangSem (CmdBindP) (CmdStmtP (L := L)) WDist where
         if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero
 
 @[simp] theorem ProbSem_handleBind_sample
-    {Γ : ProgCore.CtxL} {τ : L.Ty}
-    (K : Kernel Γ τ) (env : ProgCore.EnvL Γ) :
+    {Γ : L.Ctx} {τ : L.Ty}
+    (K : Kernel Γ τ) (env : L.Env Γ) :
     (ProbSem |>.handleBind (CmdBindP.sample (Γ := Γ) (τ := τ) K) env) = K env := rfl
 
 @[simp] theorem ProbSem_handleStmt_observe
-    {Γ : ProgCore.CtxL}
-    (cond : L.Expr Γ L.bool) (env : ProgCore.EnvL Γ) :
+    {Γ : L.Ctx}
+    (cond : L.Expr Γ L.bool) (env : L.Env Γ) :
     (ProbSem |>.handleStmt (ProgCore.CmdStmtObs.observe (Γ := Γ) cond) env) =
       (if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero) := rfl
 
 /-- Evaluator for probabilistic programs. -/
-def evalP {Γ : ProgCore.CtxL} {τ : L.Ty} :
-    PProg Γ τ → ProgCore.EnvL Γ → WDist (L.Val τ) :=
+def evalP {Γ : L.Ctx} {τ : L.Ty} :
+    PProg Γ τ → L.Env Γ → WDist (L.Val τ) :=
   ProgCore.evalWith (ProbSem)
 
 end

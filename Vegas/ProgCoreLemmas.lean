@@ -4,12 +4,12 @@ import Vegas.ProgCore
 
 namespace ProgCore
 
-variable (EL : ExprLaws L)
+variable {L} (EL : ExprLaws L)
 
 open ProgCore
 
 @[simp] theorem evalProgOption_observe {Γ τ}
-    (c : L.Expr Γ L.bool) (k : DProg Γ τ) (env : EnvL Γ) :
+    (c : L.Expr Γ L.bool) (k : DProg Γ τ) (env : L.Env Γ) :
     evalProgOption (DProg.observe c k) env
       =
     if L.toBool (L.eval c env) then evalProgOption k env else none := by
@@ -39,7 +39,7 @@ theorem observe_hoist_letDet {Γ τ τ'} (e : L.Expr Γ τ') (c : L.Expr Γ L.bo
         ProgCore.evalWith, ProgCore.evalProg_gen, ProgCore.DetOptionSem, Eff.guard,
         EL.eval_weaken]
 
-@[simp] theorem evalProgOption_ret_weaken {Γ τ τ'} (e : L.Expr Γ τ) (env : EnvL Γ) (v : L.Val τ') :
+@[simp] theorem evalProgOption_ret_weaken {Γ τ τ'} (e : L.Expr Γ τ) (env : L.Env Γ) (v : L.Val τ') :
     evalProgOption (DProg.ret (EL.weaken e)) (v, env)
       =
     evalProgOption (DProg.ret e) env := by

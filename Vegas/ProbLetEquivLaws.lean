@@ -1,5 +1,6 @@
 import Mathlib.MeasureTheory.Measure.ProbabilityMeasure
 import Mathlib.MeasureTheory.Measure.MeasureSpaceDef
+import Mathlib.Data.List.Basic
 
 import Vegas.WDist
 import Vegas.WDistLemmas
@@ -9,6 +10,9 @@ import Vegas.ProbLetLemmas
 namespace ProbLet
 
 open MeasureTheory ENNReal
+open ProgCore
+
+variable {L : Language}
 
 /-!
 # Level 3: Equational Theory for Probabilistic Programs
@@ -28,41 +32,51 @@ def MeasEq [MeasurableSpace α] (d₁ d₂ : WDist α) : Prop :=
 infix:50 " ≈ₘ " => MeasEq
 
 /-- Two programs are observationally equivalent if they produce the same measure
-    in all environments. -/
-def ProgEq {Γ τ} [MeasurableSpace (Val τ)] (p q : PProg Γ τ) : Prop :=
+in all environments. -/
+def ProgEq {Γ τ} [MeasurableSpace (L.Val τ)] (p q : PProg Γ τ) : Prop :=
   ∀ env, MeasEq (evalP p env) (evalP q env)
 
 infix:50 " ≈ " => ProgEq
 
 end Definitions
 
+/-!
+## A canonical “zero program”
 
-/-- Canonical “zero program”: sample from the zero kernel, then return the sampled value.
-This has type `PProg Γ τ` for any `Γ τ`. -/
-def zeroProg {Γ : Ctx} {τ : Ty} : PProg Γ τ :=
-  ProgCore.Prog.doBind
-    (.sample (fun _ : Env Γ => (WDist.zero : WDist (Val τ))))
-    (.ret (Expr.var Var.vz))
+Sample from the zero kernel and return the sampled value. The continuation is irrelevant
+since `bind zero f = zero`, but we pick the simplest well-typed one.
+-/
+
+/-- Canonical “zero program”: sample from the zero kernel, then return `vz`. -/
+def zeroProg {EL : ExprLaws L} {Γ : L.Ctx} {τ : L.Ty} : PProg Γ τ :=
+  .doBind
+    (.sample (fun _ : L.Env Γ => (WDist.zero : WDist (L.Val τ))))
+    (.ret (EL.var .vz))
 
 section
 
-variable {Γ : Ctx} {τ : Ty}
+variable {Γ : L.Ctx} {τ : L.Ty}
 
-@[simp] lemma evalP_zeroProg (env : Env Γ) :
-    evalP (zeroProg (τ := τ)) env = (WDist.zero : WDist (Val τ)) := by
+@[simp] lemma evalP_zeroProg {EL : ExprLaws L} (env : L.Env Γ) :
+    evalP (zeroProg (EL := EL)) env = (WDist.zero : WDist (L.Val τ)) := by
   -- unfold and reduce doBind to WDist.bind, then bind_zero_left
   simp [zeroProg, evalP_sample_bind]
 
-@[simp] lemma toMeasure_evalP_zeroProg [MeasurableSpace (Val τ)] (env : Env Γ) :
-    (evalP (zeroProg (τ := τ)) env).toMeasure = 0 := by
-  simp [evalP_zeroProg]
+@[simp] lemma toMeasure_evalP_zeroProg {EL : ExprLaws L} [MeasurableSpace (L.Val τ)]
+    {env : L.Env Γ} :
+    (evalP (zeroProg (EL := EL) (τ := τ)) env).toMeasure = 0 := by
+  simp
   rfl
 
 end
 
+/-!
+## Equivalence structure
+-/
+
 section Equivalence
 
-variable {Γ τ} [MeasurableSpace (Val τ)]
+variable {Γ τ} [MeasurableSpace (L.Val τ)]
 
 @[refl] theorem ProgEq.refl (p : PProg Γ τ) : p ≈ p :=
   fun _ => rfl
@@ -78,131 +92,154 @@ end Equivalence
 /-!
 ## Congruence Lemmas
 
-We prove that `ProgEq` is preserved by all program constructors.
-This allows "rewriting deep inside" a program.
+`ProgEq` is preserved by all program constructors.
 -/
 
 section Congruence
 
 variable {Γ τ τ'}
--- We need measurable spaces for return types to talk about toMeasure
-variable [MeasurableSpace (Val τ)]
+variable [MeasurableSpace (L.Val τ)]
 
 /-- `ret` is congruent (trivial, but useful for automation). -/
-theorem ProgEq.ret {e : Expr Γ τ} : (.ret e : PProg Γ τ) ≈ (.ret e : PProg Γ τ) :=
+theorem ProgEq.ret {e : L.Expr Γ τ} : (.ret e : PProg Γ τ) ≈ (.ret e : PProg Γ τ) :=
   ProgEq.refl _
 
 /-- `letDet` congruence. -/
-theorem ProgEq.letDet (e : Expr Γ τ') (k₁ k₂ : PProg (τ' :: Γ) τ)
+theorem ProgEq.letDet (e : L.Expr Γ τ') (k₁ k₂ : PProg (τ' :: Γ) τ)
     (h : k₁ ≈ k₂) :
     (ProgCore.Prog.letDet e k₁) ≈ (.letDet e k₂) := by
   intro env
+  -- unfold ProgEq/MeasEq and the evaluator for letDet
   simp [MeasEq, evalP, ProgCore.evalWith_letDet]
-  simpa using h (env := (evalExpr e env, env))
+  -- reduce to the hypothesis in the extended environment
+  simpa using h (env := (L.eval e env, env))
 
 /-- `observe` congruence. -/
-theorem ProgEq.observe (c : Expr Γ .bool) (k₁ k₂ : PProg Γ τ)
+theorem ProgEq.observe (c : L.Expr Γ L.bool) (k₁ k₂ : PProg Γ τ)
     (h : k₁ ≈ k₂) :
     (ProgCore.Prog.doStmt (.observe c) k₁) ≈ (.doStmt (.observe c) k₂) := by
   intro env
-  -- unfold ProgEq/MeasEq
+  -- reduce both sides by the measure-level observe lemma
   simp only [MeasEq, toMeasure_evalP_observe]
-  -- reduce both sides by your measure lemma
-  by_cases hc : evalExpr c env
-  · simp only [hc, reduceIte]
-    apply h
+  by_cases hc : L.toBool (L.eval c env)
+  · simp only [hc, ↓reduceIte]
+    exact h env
   · simp [hc]
 
-/-- `sample` congruence.
-    This is the most involved proof, requiring `toMeasure_bind`. -/
+/-!
+`sample` congruence is the only one that genuinely needs a fold/measure argument.
+We avoid relying on a nonstandard `List.foldr_ext` and prove equality by induction
+on the kernel support list.
+-/
+private lemma foldr_congr
+    {α β : Type*} (ws : List α) (f g : α → β → β) (z : β)
+    (hfg : ∀ a b, f a b = g a b) :
+    List.foldr f z ws = List.foldr g z ws := by
+  induction ws with
+  | nil => simp
+  | cons a ws ih =>
+      simp [List.foldr, hfg, ih]
+
+/-- `sample` congruence. -/
 theorem ProgEq.sample (K : Kernel Γ τ') (k₁ k₂ : PProg (τ' :: Γ) τ)
     (h : k₁ ≈ k₂) :
     (ProgCore.Prog.doBind (.sample K) k₁) ≈ (.doBind (.sample K) k₂) := by
+  classical
   intro env
+  -- reduce evalP to WDist.bind
   simp only [MeasEq]
-  -- 1. Reduce evalP to WDist.bind
   rw [evalP_sample_bind, evalP_sample_bind]
-  -- 2. Apply measure-theoretic bind formula (discrete integration)
+  -- convert bind to foldr measure integration
   rw [WDist.toMeasure_bind, WDist.toMeasure_bind]
-  -- 3. Show the integrals are equal because the continuations are equal (h)
-  apply List.foldr_ext
-  intro (v, w) acc h_acc
-  -- The continuations match by hypothesis `h`:
-  have hk : (evalP k₁ (v, env)).toMeasure = (evalP k₂ (v, env)).toMeasure := h (v, env)
+  -- the foldr steps coincide pointwise because continuations coincide pointwise
+  refine foldr_congr (ws := (K env).weights)
+    (f := fun (vw : (L.Val τ' × NNReal)) μ =>
+      μ + (vw.2 : ℝ≥0∞) • (evalP k₁ (vw.1, env)).toMeasure)
+    (g := fun (vw : (L.Val τ' × NNReal)) μ =>
+      μ + (vw.2 : ℝ≥0∞) • (evalP k₂ (vw.1, env)).toMeasure)
+    (z := (0 : Measure (L.Val τ))) ?_
+  intro vw μ
+  -- use hypothesis at environment (v, env)
+  have hk : (evalP k₁ (vw.1, env)).toMeasure = (evalP k₂ (vw.1, env)).toMeasure :=
+    h (vw.1, env)
   simp [hk]
 
 end Congruence
 
 /-!
-## Algebraic Laws
-
-Derived equations stated at the `ProgEq` level.
+## Algebraic Laws at the `ProgEq` level
 -/
 
 section Laws
 
-variable {Γ τ τ'} [MeasurableSpace (Val τ)]
+variable {Γ τ τ'} [MeasurableSpace (L.Val τ)]
 
 /-- Sample from Dirac is equivalent to letDet. -/
-theorem ProgEq.sample_dirac_letDet (e : Expr Γ τ') (k : PProg (τ' :: Γ) τ) :
-    (ProgCore.Prog.doBind (.sample (fun env => WDist.pure (evalExpr e env))) k)
+theorem ProgEq.sample_dirac_letDet (e : L.Expr Γ τ') (k : PProg (τ' :: Γ) τ) :
+    (ProgCore.Prog.doBind (.sample (fun env => WDist.pure (L.eval e env))) k)
     ≈
     (.letDet e k) := by
   intro env
-  -- We already have this at the WDist level (extensional equality of lists)
-  -- so it certainly holds at measure level.
-  have := sample_dirac_eq_letDet (Γ := Γ) (τ := τ) e k
-  rw [congrFun this env]
-  rfl
+  -- we already have a WDist-level equality lemma; push it through `toMeasure`
+  have hev :
+      evalP (.doBind (.sample (fun env' => WDist.pure (L.eval e env'))) k) env
+        =
+      evalP (.letDet e k) env :=
+    congrFun (ProbLet.sample_dirac_eq_letDet e k) env
+  -- convert to measure equality
+  simp [MeasEq, hev]
 
-/-- Sampling from the zero kernel yields the zero program, regardless of continuation. -/
+variable (EL : ExprLaws L)
+
+/-- Sampling from the zero kernel yields `zeroProg`, regardless of continuation. -/
 theorem ProgEq.sample_zero (k : PProg (τ' :: Γ) τ) :
     ProgEq
-      (ProgCore.Prog.doBind (.sample (fun _ : Env Γ => (WDist.zero : WDist (Val τ')))) k)
-      (zeroProg (τ := τ)) := by
+      (ProgCore.Prog.doBind (.sample (fun _ : L.Env Γ => (WDist.zero : WDist (L.Val τ')))) k)
+      (zeroProg (EL := EL) (Γ := Γ) (τ := τ)) := by
   intro env
   simp [MeasEq, evalP_sample_bind, zeroProg]
 
 /-- Observe fusion: `observe c₁; observe c₂` ≈ `observe (c₁ && c₂)` -/
 theorem ProgEq.observe_fuse
-    {Γ τ} [MeasurableSpace (Val τ)]
-    (c₁ c₂ : Expr Γ .bool) (k : PProg Γ τ) :
+    {Γ : L.Ctx} {τ : L.Ty} [MeasurableSpace (L.Val τ)]
+    (c₁ c₂ : L.Expr Γ L.bool) (k : PProg Γ τ) :
     (ProgCore.Prog.doStmt (.observe c₁) (.doStmt (.observe c₂) k))
     ≈
-    (.doStmt (.observe (Expr.andBool c₁ c₂)) k) := by
+    (.doStmt (.observe (EL.andBool c₁ c₂)) k) := by
   intro env
-  -- unfold the observational equivalence
-  dsimp [ProgEq, MeasEq]
-  -- use the already-proved function equality lemma
+  -- reduce to equality of evalP, then push through toMeasure
   have hev :
       evalP (.doStmt (.observe c₁) (.doStmt (.observe c₂) k)) env
         =
-      evalP (.doStmt (.observe (Expr.andBool c₁ c₂)) k) env :=
-    congrFun (ProbLet.observe_fuse (Γ := Γ) (τ := τ) c₁ c₂ k) env
-  -- push equality through the measure interpretation
-  simp [hev]
+      evalP (.doStmt (.observe (EL.andBool c₁ c₂)) k) env :=
+    congrFun (ProbLet.observe_fuse EL) env
+  simp [MeasEq, hev]
 
 /-- Observe true is identity. -/
 theorem ProgEq.observe_true
-    {Γ τ} [MeasurableSpace (Val τ)]
+    {Γ τ} [MeasurableSpace (L.Val τ)]
     (k : PProg Γ τ) :
-    (.doStmt (.observe (Expr.constBool true)) k) ≈ k := by
+    (.doStmt (.observe (EL.constBool true)) k) ≈ k := by
   intro env
-  dsimp [ProgEq, MeasEq]
   have hev :
-      evalP (.doStmt (.observe (Expr.constBool true)) k) env
+      evalP (.doStmt (.observe (EL.constBool true)) k) env
         =
       evalP k env :=
-    congrFun (ProbLet.observe_true (Γ := Γ) (τ := τ) k) env
-  simp [hev]
+    congrFun (ProbLet.observe_true EL k) env
+  simp [MeasEq, hev]
 
 /-- `observe false; k` is observationally equivalent to `zeroProg`. -/
-theorem ProgEq.observe_false (k : PProg Γ τ) :
+theorem ProgEq.observe_false {Γ τ} [MeasurableSpace (L.Val τ)] (k : PProg Γ τ) :
     ProgEq
-      (.doStmt (.observe (Expr.constBool false)) k)
-      (zeroProg (Γ := Γ) (τ := τ)) := by
+      (.doStmt (.observe (EL.constBool false)) k)
+      (zeroProg (EL := EL)) := by
   intro env
-  simp [MeasEq, evalP_observe, evalExpr, zeroProg, evalP_sample_bind]
+  -- Left side becomes WDist.zero by evalP_observe + constBool law.
+  have hfalse : L.toBool (L.eval (EL.constBool false) env) = false :=
+    EL.toBool_eval_constBool (b := false) (env := env)
+  -- Right side is WDist.zero by evalP_zeroProg.
+  simp [MeasEq, evalP_observe, hfalse, zeroProg, evalP_sample_bind]
+
 
 end Laws
 

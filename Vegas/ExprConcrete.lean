@@ -11,7 +11,7 @@ abbrev Val : Ty → Type
   | .bool => Bool
 
 /-- Decidable equality for runtime values (Int/Bool). -/
-instance instDecEqVal (τ : Ty) : DecidableEq (Val τ) := by
+instance instDecEqVal {τ : Ty} : DecidableEq (Val τ) := by
   cases τ <;> infer_instance
 
 abbrev Ctx := Env.Ctx (Ty := Ty)

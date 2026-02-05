@@ -9,16 +9,16 @@ import Vegas.ProbLetLemmas
 namespace ProbLet
 
 open MeasureTheory ENNReal NNReal
+open ProgCore
+
+variable {L : Language}
+
 /-! ## 0. Instances for Runtime Values
-We define the discrete measurable space for `Val τ` globally.
-This is necessary so that `MeasurableSpace` resolution works for
-intermediate types (hidden inside `doBind`) during induction.
+
+We define the discrete measurable space for `L.Val τ` globally.
+This is necessary so that `MeasurableSpace` resolution works for intermediate
+types (hidden inside `doBind`) during induction.
 -/
-
-instance instMeasurableSpaceVal (τ : Ty) : MeasurableSpace (Val τ) := ⊤
-
-instance instMeasurableSingletonClassVal (τ : Ty) : MeasurableSingletonClass (Val τ) :=
-  ⟨fun _ => trivial⟩
 
 /-!
 # Measure-Transformer Semantics (Finite-Support / Discrete)
@@ -28,103 +28,102 @@ via the existing WDist ↔ Measure bridge lemmas.
 -/
 
 /-- A measure transformer for pure-output programs: environment ↦ measure on results. -/
-abbrev MT (Γ : Ctx) (τ : Ty) (ms : MeasurableSpace (Val τ)) : Type :=
-  Env Γ → @MeasureTheory.Measure (Val τ) ms
+abbrev MT (Γ : L.Ctx) (τ : L.Ty) [MeasurableSpace (L.Val τ)] : Type :=
+  L.Env Γ → Measure (L.Val τ)
 
 namespace MT
-variable {Γ : Ctx} {τ : Ty}
-variable {ms : MeasurableSpace (Val τ)}
 
-noncomputable def extendW {α : Type*} (d : WDist α) (k : α → MT Γ τ ms) : MT Γ τ ms :=
+variable {Γ : L.Ctx} {τ : L.Ty} [MeasurableSpace (L.Val τ)]
+
+/-- Discrete integration / extension along a finite-support weighted distribution. -/
+noncomputable def extendW {α : Type*}
+    (d : WDist α) (k : α → MT Γ τ) : MT Γ τ :=
   fun env =>
     d.weights.foldr
-      (fun (x : α × ℝ≥0) (μ : Measure (Val τ)) =>
-        μ + (x.2 : ENNReal) • (k x.1 env))
+      (fun (x : α × ℝ≥0) (μ : Measure (L.Val τ)) =>
+        μ + (x.2 : ℝ≥0∞) • (k x.1 env))
       0
 
 /-- `ret` transformer: Dirac at the returned value. -/
-noncomputable def ret (e : Expr Γ τ) : MT Γ τ ms :=
-  fun env => Measure.dirac (evalExpr e env)
+noncomputable def ret (e : L.Expr Γ τ) : MT Γ τ :=
+  fun env => Measure.dirac (L.eval e env)
 
 /-- `observe` transformer: keep or kill the measure. -/
-def observe (c : Expr Γ .bool) (m : MT Γ τ ms) : MT Γ τ ms :=
-  fun env => if evalExpr c env then m env else 0
+def observe (c : L.Expr Γ L.bool) (m : MT Γ τ) : MT Γ τ :=
+  fun env => if L.toBool (L.eval c env) then m env else 0
 
 end MT
 
 /-!
 ## Denotation
+
 Important: `denote` is parameterized by *fixed* `{Γ τ}` so induction on `p`
-does not generalize away the `MeasurableSpace (Val τ)` instance.
+does not generalize away the `MeasurableSpace (L.Val τ)` instance.
 -/
 
 /-- Denotational semantics into measure transformers (finite-support / discrete). -/
-noncomputable def denote {Γ : Ctx} {τ : Ty} {ms : MeasurableSpace (Val τ)} : PProg Γ τ → MT Γ τ ms
+noncomputable def denote
+    {Γ : L.Ctx} {τ : L.Ty} [MeasurableSpace (L.Val τ)] :
+    PProg Γ τ → MT Γ τ
   | .ret e =>
-      MT.ret  e
+      MT.ret e
   | .letDet e k =>
-      fun env => denote k (evalExpr e env, env)
+      fun env => denote k (L.eval e env, env)
   | .doStmt (.observe c) k =>
       MT.observe c (denote k)
   | .doBind (.sample K) k =>
       fun env =>
         MT.extendW (d := K env)
-          (fun v => fun env' => denote k (v, env') ) env
+          (fun v env' => denote k (v, env')) env
 
 section Correctness
 
+local instance instMeasurableSpaceVal (τ : L.Ty) : MeasurableSpace (L.Val τ) := ⊤
+
 theorem evalP_eq_denote :
-    ∀ {Γ : Ctx} {τ : Ty}
-      {p : PProg Γ τ} {env : Env Γ},
-      (evalP p env).toMeasure = denote p env := by
+  ∀ {Γ : L.Ctx} {τ : L.Ty}
+    (p : PProg Γ τ) (env : L.Env Γ),
+    (evalP p env).toMeasure = denote p env := by
   intro Γ τ p env
   induction p with
   | ret e =>
-      -- now `inst` is `MeasurableSpace (Val τ)` for THIS branch's τ
-      -- and simp/bridge lemmas typecheck.
-      simpa [denote, MT.ret] using (toMeasure_evalP_ret e env)
+      -- now both sides use the *same* MeasurableSpace instance (the global ⊤ one)
+      simpa [denote, MT.ret] using (toMeasure_evalP_ret (e := e) (env := env))
   | letDet e k ih =>
       simpa [denote, evalP, ProgCore.evalWith_letDet] using
-        ih (env := (evalExpr e env, env))
+        ih (env := (L.eval e env, env))
   | doStmt s k ih =>
-    cases s with
-    | observe c =>
-      -- goal: (evalP (doStmt (observe c) k) env).toMeasure = denote (doStmt (observe c) k) env
-      -- after unfolding denote it is MT.observe c (denote k) env,
-      -- i.e. if evalExpr c env then denote k env else 0
-      simp [denote, MT.observe]  -- makes RHS: if evalExpr c env then denote k env else 0
-      -- now use your observe bridge on the LHS
-      -- but it produces "if ... then (evalP k env).toMeasure else 0"
-      -- so split on the condition and use ih in the true branch
-      by_cases h : evalExpr c env
-      · -- true branch
-        -- LHS becomes (evalP k env).toMeasure, RHS becomes denote k env
-        simpa [evalP_observe, h] using ih
-      · -- false branch
-        -- both sides become 0
-        simp_all only [Bool.not_eq_true, Bool.false_eq_true, ↓reduceIte]
-        rfl
+      cases s with
+      | observe c =>
+          by_cases h : L.toBool (L.eval c env)
+          · -- true
+            simp [denote, MT.observe, h, ih]
+          · -- false
+            simp [denote, MT.observe, h, WDist.zero, WDist.toMeasure]
   | doBind c k ih =>
-    cases c with
+      cases c with
       | sample K =>
-          -- now τ' is a real identifier you can refer to
+          -- convert LHS to foldr form
           have h_eval :
               (evalP (.doBind (.sample K) k) env).toMeasure =
                 (K env).weights.foldr
-                  (fun vw μ =>
-                    μ + (vw.2 : ENNReal) • (evalP k (vw.1, env)).toMeasure)
+                  (fun (vw : (L.Val _ × ℝ≥0)) μ =>
+                    μ + (vw.2 : ℝ≥0∞) • (evalP k (vw.1, env)).toMeasure)
                   0 := by
-            -- if your lemma expects τ' explicitly, pass it:
             simpa using (toMeasure_evalP_sample (K := K) (k := k) (env := env))
+          -- put goal in the same “foldr” shape as RHS
           rw [h_eval]
+          -- unfold RHS denote/doBind/extendW
           simp only [denote, MT.extendW]
+          -- now rewrite the integrand pointwise using ih, by induction over the list
           induction (K env).weights with
           | nil =>
               simp
           | cons head tail ihTail =>
               rcases head with ⟨v, w⟩
-              have hk : (evalP k (v, env)).toMeasure = denote k (v, env) :=
-                ih (env := (v, env))
+              have hk :
+                  (evalP k (v, env)).toMeasure = denote k (v, env) := by
+                simpa using (ih (env := (v, env)))
               simp [hk, ihTail, add_comm]
 
 end Correctness

@@ -10,7 +10,7 @@ structure Language where
   /-- The interpretation of types into runtime values -/
   Val : Ty → Type
   /-- We need decidable equality on values for discrete probability support -/
-  decEqVal : (τ : Ty) → DecidableEq (Val τ)
+  decEqVal {τ : Ty} : DecidableEq (Val τ)
 
   /-- The abstract boolean type, required for `observe` conditions -/
   bool : Ty
@@ -19,12 +19,20 @@ structure Language where
   fromBool : Bool → Val bool
 
   /-- The Expression syntax, indexed by Context and Return Type -/
-  Expr : Env.Ctx (Ty := Ty) → Ty → Type
+  Expr : Env.Ctx → Ty → Type
 
   /-- The Evaluation function -/
-  eval {Γ : Env.Ctx (Ty := Ty)} {τ : Ty} : Expr Γ τ → Env.Env Val Γ → Val τ
+  eval {Γ} {τ : Ty} : Expr Γ τ → Env.Env Val Γ → Val τ
 
 attribute [instance] Language.decEqTy Language.decEqVal
+
+namespace Language
+
+abbrev Ctx (L : Language) : Type := Env.Ctx (Ty := L.Ty)
+abbrev Env (L : Language) (Γ : L.Ctx) : Type := Env.Env (Val := L.Val) Γ
+
+end Language
+
 
 /-- What ProgCore-lemmas need from expressions beyond `Language`. -/
 structure ExprLaws (L : Language) where
@@ -54,3 +62,23 @@ structure ExprLaws (L : Language) where
       L.toBool (L.eval (andBool (Γ := Γ) c₁ c₂) env)
         =
       (L.toBool (L.eval c₁ env) && L.toBool (L.eval c₂ env))
+
+  /-- variable expressions -/
+  var : {Γ : Env.Ctx} → Env.Var Γ τ → L.Expr Γ τ
+
+  /-- evaluation of variable expressions -/
+  eval_var :
+    ∀ {Γ τ} (x : Env.Var Γ τ) (env : Env.Env L.Val Γ),
+      L.eval (var x) env = env.get x
+
+namespace ExprLaws
+
+abbrev vz (EL : ExprLaws L) {Γ : Env.Ctx (Ty := L.Ty)} {τ : L.Ty} :
+    L.Expr (τ :: Γ) τ :=
+  EL.var Env.Var.vz
+
+@[simp] theorem eval_vz (EL : ExprLaws L) {Γ} {τ} (v : L.Val τ) (env : Env.Env (Val := L.Val) Γ) :
+    L.eval (EL.vz (L := L) (Γ := Γ) (τ := τ)) (v, env) = v := by
+  simpa [ExprLaws.vz] using (EL.eval_var (L := L) (x := (Env.Var.vz : Env.Var (τ :: Γ) τ)) (env := (v, env)))
+
+end ExprLaws
