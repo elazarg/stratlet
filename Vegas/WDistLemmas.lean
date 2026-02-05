@@ -8,8 +8,13 @@ open MeasureTheory ENNReal NNReal
 
 variable {α β γ : Type*}
 
-@[ext] theorem ext {α} {d₁ d₂ : WDist α} (h : d₁.weights = d₂.weights) : d₁ = d₂ := by
-  cases d₁; cases d₂
+@[simp] lemma mk_weights {ws : List (α × ℝ≥0)} :
+  (WDist.mk ws).weights = ws := rfl
+
+theorem ext_weights {d₁ d₂ : WDist α} (h : d₁.weights = d₂.weights) :
+    d₁ = d₂ := by
+  cases d₁
+  cases d₂
   cases h
   rfl
 
@@ -37,7 +42,7 @@ theorem bind_assoc (m : WDist α) (f : α → WDist β) (g : β → WDist γ) :
     bind (bind m f) g = bind m (fun x => bind (f x) g) := by
   cases m with
   | mk ws =>
-    apply ext
+    apply ext_weights
     simp only [bind]
     induction ws with
     | nil => simp
@@ -65,7 +70,7 @@ theorem bind_zero_right (m : WDist α) :
     bind m (fun _ => (zero : WDist β)) = (zero : WDist β) := by
   cases m with
   | mk ws =>
-    apply ext
+    apply ext_weights
     induction ws with
     | nil =>
         simp [WDist.bind, WDist.zero]
@@ -191,7 +196,7 @@ def scale (c : ℝ≥0) (d : WDist α) : WDist α :=
 theorem scale_one (xs : WDist α) : scale 1 xs = xs := by
   cases xs with
   | mk ws =>
-    apply ext
+    apply ext_weights
     simp [scale]
 
 theorem mass_scale (c : ℝ≥0) (xs : WDist α) :
@@ -215,7 +220,7 @@ theorem scale_bind (c : ℝ≥0) (m : WDist α) (f : α → WDist β) :
     scale c (bind m f) = bind (scale c m) f := by
   cases m with
   | mk ws =>
-    apply ext
+    apply ext_weights
     induction ws with
     | nil =>
         simp [WDist.bind, scale]
