@@ -248,8 +248,9 @@ theorem toMeasure_evalP_observe
   · -- condition true
     simp [evalP_observe, h]
   · -- condition false
-    -- evalP_observe gives WDist.zero; toMeasure_zero turns that into 0
-    simp [evalP_observe, h, WDist.toMeasure_zero]
+    simp [evalP_observe, h]
+    simp_all only [Bool.not_eq_true]
+    rfl
 
 /-- The posterior distribution for a closed probabilistic program.
 
