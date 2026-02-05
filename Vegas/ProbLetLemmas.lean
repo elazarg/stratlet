@@ -215,11 +215,7 @@ specialized to closed evaluation without state threading. -/
 theorem toMeasure_evalP_ret [MeasurableSingletonClass (Val τ)]
     (e : Expr Γ τ) (env : Env Γ) :
     (evalP (.ret e) env).toMeasure = Measure.dirac (evalExpr e env) := by
-  sorry
-  -- Proof:
-  --   evalP (.ret e) env = WDist.pure (evalExpr e env)
-  --     [by definition of evalP, evalWith, ProbSem]
-  --   Then apply WDist.toMeasure_pure.
+  simp [evalP, ProgCore.evalWith_ret, WDist.toMeasure, WDist.pure]
 
 /-- `evalP` through sampling decomposes as discrete integration: the output
 measure is the weighted sum of continuation measures, integrated over the
@@ -235,13 +231,8 @@ theorem toMeasure_evalP_sample [MeasurableSpace (Val τ')]
     (evalP (.doBind (.sample K) k) env).toMeasure =
       (K env).weights.foldr
         (fun (v, w) μ => μ + (w : ENNReal) • (evalP k (v, env)).toMeasure) 0 := by
-  sorry
-  -- Proof:
-  --   evalP (.doBind (.sample K) k) env
-  --     = WDist.bind (K env) (fun v => evalP k (v, env))
-  --     [by evalP_sample_bind]
-  --
-  --   Then apply WDist.toMeasure_bind to get the foldr form.
+  simpa [evalP_sample_bind] using
+    (WDist.toMeasure_bind (d := K env) (f := fun v => evalP k (v, env)))
 
 /-- `evalP` through observe either preserves or kills the measure, depending on
 the boolean condition.
@@ -253,12 +244,12 @@ theorem toMeasure_evalP_observe
     (c : Expr Γ .bool) (k : PProg Γ τ) (env : Env Γ) :
     (evalP (.doStmt (.observe c) k) env).toMeasure =
       if evalExpr c env then (evalP k env).toMeasure else 0 := by
-  sorry
-  -- Proof: By cases on (evalExpr c env).
-  --   true:  evalP_observe simplifies evalP to (evalP k env), so toMeasure
-  --          is preserved.
-  --   false: evalP_observe simplifies evalP to WDist.zero, whose toMeasure
-  --          is 0 by WDist.toMeasure_zero.
+  by_cases h : evalExpr c env
+  · -- condition true
+    simp [evalP_observe, h]
+  · -- condition false
+    -- evalP_observe gives WDist.zero; toMeasure_zero turns that into 0
+    simp [evalP_observe, h, WDist.toMeasure_zero]
 
 /-- The posterior distribution for a closed probabilistic program.
 
@@ -283,33 +274,17 @@ Concretely, for any measurable set B:
     posterior(B) = evalP(...).toMeasure(B) / evalP(...).toMeasure(Univ)
 which is exactly the conditional probability P[value ∈ B | valid]. -/
 theorem posterior_apply (p : PProg [] τ)
-    (h : (evalP p ()).mass ≠ 0) (B : Set (Val τ)) (hB : MeasurableSet B) :
+    (h : (evalP p ()).mass ≠ 0) (B : Set (Val τ)) :
     (posterior p h).val B =
       (evalP p ()).toMeasure B * ((evalP p ()).mass : ENNReal)⁻¹ := by
-  sorry
-  -- Proof: Unfold `posterior` and `toProbabilityMeasure`.
-  --   posterior p h
-  --     = { val := mass⁻¹ • (evalP p ()).toMeasure, ... }
-  --   So:
-  --     (posterior p h).val B
-  --       = (mass⁻¹ • (evalP p ()).toMeasure) B
-  --       = mass⁻¹ * (evalP p ()).toMeasure B
-  --       = (evalP p ()).toMeasure B * mass⁻¹
-  --   by Measure.smul_apply and mul_comm on ℝ≥0∞.
+  simp [posterior, WDist.toProbabilityMeasure, mul_comm]
 
 /-- The posterior of the full space is 1 (it is a probability measure).
 This is a direct consequence of the construction, included for clarity. -/
 theorem posterior_univ (p : PProg [] τ)
     (h : (evalP p ()).mass ≠ 0) :
     (posterior p h).val Set.univ = 1 := by
-  sorry
-  -- Proof: By the `property` field of `ProbabilityMeasure`:
-  --   (posterior p h).val is a probability measure, so
-  --   (posterior p h).val Set.univ = 1.
-  --   Alternatively: apply posterior_apply, then
-  --     (evalP p ()).toMeasure(univ) * mass⁻¹
-  --       = mass * mass⁻¹         [by mass_eq_toMeasure_univ]
-  --       = 1                      [by ENNReal.mul_inv_cancel, using h]
+  simp [posterior]
 
 end MeasureSemantics
 
