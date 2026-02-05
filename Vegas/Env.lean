@@ -25,7 +25,31 @@ def Env : Ctx → Type
   | []      => Unit
   | τ :: Γ  => Val τ × Env Γ
 
+namespace Env
 /-- Total lookup. -/
-def Env.get {τ} : {Γ : Ctx} → Env Γ → Var Γ τ → Val τ
+def get {τ} : {Γ : Ctx} → Env Γ → Var Γ τ → Val τ
   | _ :: _, (x, _),  Var.vz    => x
   | _ :: _, (_, xs), Var.vs v  => Env.get xs v
+
+def cons {Γ : Ctx} {τ : Ty} (a : Val τ) (env : Env Γ) : Env (τ :: Γ) :=
+  (a, env)
+
+def head {Γ : Ctx} {τ : Ty} : Env (τ :: Γ) → Val τ
+  | (a, _) => a
+
+def tail {Γ : Ctx} {τ : Ty} : Env (τ :: Γ) → Env Γ
+  | (_, env) => env
+
+@[simp] theorem get_vz {Γ : Ctx} {τ : Ty} (env : Env (τ :: Γ)) :
+    Env.get (Γ := τ :: Γ) env Var.vz = env.head := by
+  cases env; rfl
+
+@[simp] theorem get_cons_vz {Γ : Ctx} {τ : Ty} (a : Val τ) (env : Env Γ) :
+    Env.get (Γ := τ :: Γ) (Env.cons a env) Var.vz = a := by
+  rfl
+
+@[simp] theorem get_cons_vs {Γ : Ctx} {τ τ' : Ty} (a : Val τ') (env : Env Γ) (x : Var Γ τ) :
+    Env.get (Γ := τ' :: Γ) (Env.cons a env) (Var.vs x) = Env.get env x := by
+  rfl
+
+end Env
