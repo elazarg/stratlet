@@ -5,7 +5,6 @@ import Mathlib.Data.List.Basic
 import Vegas.WDist
 import Vegas.ProgCore
 import Vegas.Env
-import Vegas.Expr
 
 namespace ProbLet
 

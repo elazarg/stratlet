@@ -1,6 +1,5 @@
 -- Core infrastructure
 import Vegas.Env
-import Vegas.Expr
 import Vegas.ProgCore
 import Vegas.ProgCoreLemmas
 import Vegas.WDist

@@ -6,7 +6,6 @@ import Vegas.ProbLet
 import Vegas.ProgCore
 import Vegas.WDist
 import Vegas.Env
-import Vegas.Expr
 
 import Vegas.ProgCoreLemmas
 import Vegas.WDistLemmas

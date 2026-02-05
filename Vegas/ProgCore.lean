@@ -1,5 +1,4 @@
 import Vegas.Env
-import Vegas.Expr
 
 namespace ProgCore
 
@@ -122,5 +121,8 @@ def DetOptionSem : LangSem CmdBindD CmdStmtD Option where
 
 def evalProgOption {Γ τ} : DProg Γ τ → Env Γ → Option (Val τ) :=
   evalWith DetOptionSem
+
+def handleObserveOption {Γ} (cond : Expr Γ .bool) (env : Env Γ) : Option Unit :=
+  Eff.guard EffOption (evalExpr cond env)
 
 end ProgCore

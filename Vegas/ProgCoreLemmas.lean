@@ -1,5 +1,4 @@
 import Vegas.ProgCore
-import Vegas.Expr
 import Vegas.Env
 
 namespace ProgCore
@@ -11,55 +10,6 @@ namespace ProgCore
 open ProgCore
 
 /-! ## Weakening helpers -/
-
-/-- Weaken a variable reference to work in an extended context. -/
-def Var.weaken {Γ τ τ'} : Var Γ τ → Var (τ' :: Γ) τ
-  | .vz    => .vs .vz
-  | .vs v  => .vs (Var.weaken v)
-
-/-- Lift an expression to work in an extended context (weakening). -/
-def Expr.weaken {Γ τ τ'} : Expr Γ τ → Expr (τ' :: Γ) τ
-  | .var v        => .var (Var.weaken v)
-  | .constInt i   => .constInt i
-  | .constBool b  => .constBool b
-  | .addInt l r   => .addInt (Expr.weaken l) (Expr.weaken r)
-  | .eqInt l r    => .eqInt (Expr.weaken l) (Expr.weaken r)
-  | .andBool l r  => .andBool (Expr.weaken l) (Expr.weaken r)
-  | .notBool e    => .notBool (Expr.weaken e)
-
-/-- Evaluating a weakened variable in an extended environment recovers the old value. -/
-@[simp] theorem Env.get_weaken {Γ τ} (x : Var Γ τ) :
-    ∀ {τ' : Ty} {v : Val τ'} {env : Env Γ},
-      Env.get (Γ := τ' :: Γ) (v, env) (Var.weaken x)
-        =
-      Env.get env x := by
-  intro τ' v env
-  induction x generalizing τ' v with
-  | vz =>
-      cases env with
-      | mk head tail =>
-          rfl
-  | vs x ih =>
-      cases env with
-      | mk head tail =>
-          simp [Var.weaken, Env.get]
-          simpa using ih (v := head) (env := tail)
-
-/-- Weakening preserves expression evaluation when you extend the env by one value. -/
-@[simp] theorem evalExpr_weaken {Γ τ τ'} (e : Expr Γ τ) (env : Env Γ) (v : Val τ') :
-    evalExpr (Expr.weaken e) (v, env) = evalExpr e env := by
-  induction e with
-  | var x => simp [Expr.weaken, evalExpr]
-  | constInt i => rfl
-  | constBool b => rfl
-  | addInt l r ihl ihr => simp [Expr.weaken, evalExpr, ihl, ihr]
-  | eqInt l r ihl ihr => simp [Expr.weaken, evalExpr, ihl, ihr]
-  | andBool l r ihl ihr => simp [Expr.weaken, evalExpr, ihl, ihr]
-  | notBool e ihe => simp [Expr.weaken, evalExpr, ihe]
-
-@[simp] theorem Var_weaken_vz : Var.weaken (τ' := τ') (Var.vz : Var (τ :: Γ) τ) = Var.vs Var.vz := rfl
-@[simp] theorem Var_weaken_vs (x : Var Γ τ) :
-  Var.weaken (τ' := τ') (Var.vs x) = Var.vs (Var.weaken (τ' := τ') x) := rfl
 
 @[simp] theorem evalProgOption_observe {Γ τ}
     (c : Expr Γ .bool) (k : DProg Γ τ) (env : Env Γ) :
@@ -140,5 +90,17 @@ theorem observe_false {Γ τ} (k : DProg Γ τ) :
   funext env
   simp [DProg.observe, evalProgOption]
   rfl
+
+theorem observe_push_letDet {Γ τ τ'} (e : Expr Γ τ') (c : Expr Γ .bool) (k : DProg (τ' :: Γ) τ) :
+    (fun env => evalProgOption (DProg.observe c (DProg.letDet e k)) env)
+    =
+    (fun env => evalProgOption (DProg.letDet e (DProg.observe (Expr.weaken c) k)) env) := by
+  simpa using (observe_hoist_letDet (Γ := Γ) (τ := τ) (τ' := τ') e c k).symm
+
+@[simp] theorem evalProgOption_ret_weaken {Γ τ τ'} (e : Expr Γ τ) (env : Env Γ) (v : Val τ') :
+    evalProgOption (DProg.ret (Expr.weaken (τ' := τ') e)) (v, env)
+      =
+    evalProgOption (DProg.ret e) env := by
+  simp [DProg.ret, evalProgOption, evalExpr_weaken]
 
 end ProgCore
