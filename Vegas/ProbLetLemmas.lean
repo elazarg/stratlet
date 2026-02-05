@@ -288,4 +288,120 @@ theorem posterior_univ (p : PProg [] τ)
 
 end MeasureSemantics
 
+/-!
+# Roadmap Notes: From “measure semantics” to a real *calculus* (Level 3/4)
+
+These notes pin down what we mean by:
+
+- **Level 3**: a probabilistic *calculus* (equational theory / contextual reasoning),
+- **Level 4**: a connection to Borgström et al. (2013) measure-transformer semantics.
+
+They are intentionally *checklist-style* (acceptance criteria + suggested lemma names)
+so the goalposts don’t move during refactors.
+
+## Current status (Level 1–2 already achieved)
+We currently have a compositional evaluator
+  evalP : PProg Γ τ → Env Γ → WDist (Val τ)
+and a meaning function
+  WDist.toMeasure : WDist α → Measure α
+
+Together with bridge lemmas:
+- return ↦ dirac (toMeasure_evalP_ret)
+- sample ↦ discrete integration / weighted sum (toMeasure_evalP_sample via WDist.toMeasure_bind)
+- observe ↦ keep-or-kill (toMeasure_evalP_observe)
+  and also restriction at WDist level (observe_eq_restrict)
+- posterior normalization when mass ≠ 0 (posterior_apply, posterior_univ)
+
+Scope note: this is a **finite-support discrete** semantics.
+
+------------------------------------------------------------------------------
+
+## Level 3: Equational theory / contextual equivalence (“a real calculus”)
+
+### Goal
+Define a *program equivalence* that is stable under contexts (a congruence),
+and build a library of derived laws stated at the measure level (not list-level).
+This is the point where we can claim “calculus” rather than “interpreter.”
+
+### 3.1. Define the notion of observational equivalence
+We need an equality notion that forgets list representation details.
+
+Recommended:
+  def MeasEq (d₁ d₂ : WDist α) : Prop := d₁.toMeasure = d₂.toMeasure
+
+Then define program equivalence:
+  def ProgEq (p q : PProg Γ τ) : Prop :=
+    ∀ env, (evalP p env).toMeasure = (evalP q env).toMeasure
+
+(Optionally: use = of WDist if you canonicalize weights, but **do not**
+tie “program equivalence” to list order/multiplicity unless you want that.)
+
+Acceptance:
+- `ProgEq` is an equivalence relation (refl/symm/trans).
+  lemma names:
+    progEq_refl, progEq_symm, progEq_trans
+
+### 3.2. Congruence under syntax (context closure)
+Prove `ProgEq` is preserved by each constructor (the “congruence lemmas”):
+
+- ret congruence is trivial.
+- letDet congruence:
+    if k₁ ≈ k₂ pointwise, then letDet e k₁ ≈ letDet e k₂
+- doStmt(.observe c) congruence:
+    if k₁ ≈ k₂ then observe c k₁ ≈ observe c k₂
+- doBind(.sample K) congruence:
+    if k₁ ≈ k₂ then sample K k₁ ≈ sample K k₂
+
+Suggested lemma names:
+  progEq_letDet, progEq_observe, progEq_sample
+
+(If you later add more constructs, you add the corresponding congruence lemma.)
+
+Acceptance:
+- A single theorem:
+    theorem ProgEq.congr : (∀ subterms, ...) → ProgEq (C[subterms]) (C[subterms'])
+  but in Lean it’s often best to keep this as per-constructor lemmas.
+
+### 3.3. Beta/eta laws and derived equations (measure-level)
+Once congruence exists, add the “algebra” laws as *theorems about ProgEq*:
+
+Core laws:
+- sample from Dirac equals letDet (already have evalP-level: sample_dirac_eq_letDet)
+  restate as ProgEq:
+    progEq_sample_dirac_letDet
+- sample from zero kills (sample_zero)
+- observe fusion (observe_fuse)
+- observe true/false (observe_true, observe_false)
+
+Crucially: state them as `ProgEq` theorems (or pointwise measure equalities),
+so they remain stable if WDist list representation changes.
+
+Acceptance:
+- A small `namespace ProbLet.Laws` with ~10 lemmas that allow rewriting
+  programs symbolically, and each lemma has a `by funext env; ...` proof.
+
+### 3.4. A “substitution” lemma (usually the first nontrivial one)
+You will eventually want a lemma that feels like:
+- “replace a subprogram with an equivalent one inside a larger program.”
+
+This is essentially a corollary of congruence, but it helps usage.
+
+Suggested:
+  theorem replace {p q : PProg Γ τ} (h : ProgEq p q) :
+      ProgEq (Context.apply C p) (Context.apply C q)
+
+This may require defining an explicit context datatype; optional,
+but very useful for rewriting proofs.
+
+### 3.5. Canonicalization (optional but can simplify life)
+If you keep WDist as list-of-weighted outcomes, you may want
+a `normalizeWeights`/`combine` function that merges equal outcomes
+so that WDist equality becomes less brittle.
+
+Important: do **not** bake this into semantics unless you want it.
+Instead: provide lemma
+  toMeasure (combine d) = toMeasure d
+so program equivalence continues to use `toMeasure`.
+-/
+
 end ProbLet
