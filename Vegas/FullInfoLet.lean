@@ -5,14 +5,12 @@ Core idea:
 - A strategic program has `letChoose p A k`, where `p : Player` controls the choice and `A` describes
   the available actions (possibly depending on the current environment).
 - A strategy profile `σ` turns each strategic choice into a *kernel* (finite-support weighted choice)
-  `Env Γ → WDist (Val τ)`.
+  `L.Env Γ → WDist (L.Val τ)`.
 - Replacing every `letChoose` by `letSample` using that kernel yields a probabilistic program.
 - The semantics commutes with this translation (proved by structural recursion).
 
 This is intentionally minimal: no `if-then-else`, no lambdas, and distributions are *only* those induced by strategies.
 -/
-
-import Mathlib.Data.Int.Basic
 import Mathlib.Data.List.Basic
 
 import Vegas.WDist
@@ -27,33 +25,36 @@ open GameDefs
 
 /-! ## Strategic let-calculus (choices owned by players) -/
 
+variable {L : Language}
+
 /--
 An action set for type `τ` in context `Γ`:
 a (possibly environment-dependent) finite list of legal actions (values).
 -/
-abbrev Act (Γ : Ctx) (τ : Ty) := Env Γ → List (Val τ)
+abbrev Act (Γ : L.Ctx) (τ : L.Ty) := L.Env Γ → List (L.Val τ)
 
-inductive CmdBindS : ProgCore.CmdB where
+inductive CmdBindS : ProgCore.CmdB (L := L) where
   | choose {Γ τ} (p : Player) (A : Act Γ τ) : CmdBindS Γ τ
 
-abbrev CmdStmtS := ProgCore.CmdStmtObs
+abbrev CmdStmtS := ProgCore.CmdStmtObs (L := L)
 
 /--
 Strategic programs:
 - `letChoose p A k` binds a value chosen by player `p` from action set `A`.
 -/
-abbrev SProg := ProgCore.Prog CmdBindS CmdStmtS
+abbrev SProg := ProgCore.Prog (L := L) CmdBindS CmdStmtS
 
 namespace SProg
 
-def ret {Γ τ} (e : Expr Γ τ) : SProg Γ τ := ProgCore.Prog.ret e
+def ret {Γ τ} (e : L.Expr Γ τ) : SProg Γ τ := ProgCore.Prog.ret e
 
-def letDet {Γ τ τ'} (e : Expr Γ τ') (k : SProg (τ' :: Γ) τ) : SProg Γ τ := ProgCore.Prog.letDet e k
+def letDet {Γ τ τ'} (e : L.Expr Γ τ') (k : SProg (τ' :: Γ) τ) : SProg Γ τ :=
+  ProgCore.Prog.letDet e k
 
-def letChoose {Γ τ τ'} (p : Player) (A : Act Γ τ') (k : SProg (τ' :: Γ) τ) : SProg Γ τ :=
+def letChoose {Γ τ τ'} (p : Player) (A : Act Γ τ') (k : SProg (L := L) (τ' :: Γ) τ) : SProg Γ τ :=
   .doBind (.choose p A) k
 
-def observe {Γ τ} (cond : Expr Γ .bool) (k : SProg Γ τ) : SProg Γ τ :=
+def observe {Γ τ} (cond : L.Expr Γ L.bool) (k : SProg Γ τ) : SProg Γ τ :=
   .doStmt (.observe cond) k
 
 end SProg
@@ -62,52 +63,52 @@ def EffWDist : ProgCore.Eff WDist := ProbLet.EffWDist
 
 /--
 A strategy profile gives, for each player and action set, a kernel (distribution) over actions.
-We do not enforce "supported on A env" here; that can be an external well-formedness predicate.
+We do not enforce "supported on A L.Env" here; that can be an external well-formedness predicate.
 -/
 structure Profile where
-  choose : {Γ : Ctx} → {τ : Ty} → Player → Act Γ τ → ProbLet.Kernel Γ τ
+  choose : {τ : L.Ty} → Player → Act Γ τ → ProbLet.Kernel Γ τ
 
-def StratSem (σ : Profile) : ProgCore.LangSem CmdBindS CmdStmtS WDist where
+def StratSem (σ : Profile (L := L)) : ProgCore.LangSem (L := L) CmdBindS CmdStmtS WDist where
   E := EffWDist
   handleBind
     | .choose p A => σ.choose p A
   handleStmt
     | .observe cond, env =>
-        if evalExpr cond env then .pure () else .zero
+        if L.toBool (L.eval cond env) then .pure () else .zero
 
-@[simp] theorem StratSem_handleBind_choose (σ : Profile) (p : Player) (A : Act Γ τ) (env : Env Γ) :
-    (StratSem σ).handleBind (CmdBindS.choose (Γ := Γ) (τ := τ) p A) env = σ.choose p A env := rfl
+@[simp] theorem StratSem_handleBind_choose (σ : Profile) (p : Player)
+      (A : Act Γ τ) (env : L.Env Γ) :
+    (StratSem σ).handleBind (CmdBindS.choose p A) env = σ.choose p A env := rfl
 
-@[simp] theorem StratSem_handleStmt_observe (σ : Profile) (cond : Expr Γ .bool) (env : Env Γ) :
+@[simp] theorem StratSem_handleStmt_observe (σ : Profile) (cond : L.Expr Γ L.bool) (env : L.Env Γ) :
     (StratSem σ).handleStmt (ProgCore.CmdStmtObs.observe (Γ := Γ) cond) env =
-      (if evalExpr cond env then WDist.pure () else WDist.zero) := rfl
+      (if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero) := rfl
 
 /--
 Translate a strategic program to a probabilistic program by fixing a profile:
 each `letChoose` becomes `letSample` with the kernel provided by `σ`.
 -/
-def toProb (σ : Profile) : SProg Γ τ → ProbLet.PProg Γ τ
-  | .ret e        => .ret e
-  | .letDet e k   => .letDet e (toProb σ k)
-  | .doStmt s k   => .doStmt s (toProb σ k)
-  | .doBind c k   =>
+def toProb (σ : Profile (L := L)) : SProg (L := L) Γ τ → ProbLet.PProg (L := L) Γ τ
+  | .ret e      => .ret e
+  | .letDet e k => .letDet e (toProb σ k)
+  | .doStmt s k => .doStmt s (toProb σ k)
+  | .doBind c k =>
       match c with
-      | .choose p A =>
-          -- strategic choice becomes probabilistic sampling from σ’s kernel
+      | CmdBindS.choose p A =>
           .doBind (.sample (σ.choose p A)) (toProb σ k)
 
 /--
 Direct strategic semantics parameterized by a profile.
 (Defined directly; theorem below shows it coincides with evalP ∘ toProb.)
 -/
-def evalS {Γ τ} (σ : Profile) : SProg Γ τ → Env Γ → WDist (Val τ) :=
+def evalS {Γ τ} (σ : Profile (L := L)) : SProg Γ τ → L.Env Γ → WDist (L.Val τ) :=
    ProgCore.evalWith (StratSem σ)
 
 /--
 Key commuting theorem: evaluating a strategic program under a fixed profile equals
 evaluating its probabilistic specialization (by `toProb`) under the probabilistic interpreter.
 -/
-theorem evalS_eq_evalP_toProb {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : Env Γ) :
+theorem evalS_eq_evalP_toProb {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : L.Env Γ) :
     evalS σ p env = ProbLet.evalP (toProb σ p) env := by
   simp only [evalS, StratSem, EffWDist, ProbLet.evalP, ProbLet.ProbSem]
   induction p with
@@ -120,31 +121,6 @@ theorem evalS_eq_evalP_toProb {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : En
       cases c with
       | choose p A => simp [toProb, ih]
 
-/-! ## Examples -/
-
-namespace Examples
-
-def Γ0 : Ctx := []
-
-/-- Action set: choose an Int in [2,4]. -/
-def A24 : Act Γ0 .int := fun _ => [2, 3, 4]
-
-/-- choose n ∈ {2,3,4}; return (n == 3). -/
-def sEx : SProg Γ0 .bool :=
-  SProg.letChoose 0 A24
-    (SProg.ret (Expr.eqInt (Expr.var Var.vz) (Expr.constInt 3)))
-
-/-- A simple profile: player picks uniformly among available actions. -/
-noncomputable def uniformProfile : Profile where
-  choose := by
-    intro Γ τ _p A env
-    exact WDist.uniform (A env)
-
--- #eval not available: uniformProfile is noncomputable (ℝ≥0 arithmetic)
--- Both would yield: [(false, 1/3), (true, 1/3), (false, 1/3)]
-
-end Examples
-
 /-!
 Behavioral interpreter:
 
@@ -152,45 +128,45 @@ Behavioral interpreter:
 - `ret v`          : finished with value
 - `fail`           : rejected by `observe`
 - `choose ...`     : a strategic decision point, exposing player + legal actions,
-                     plus a thunk `dist : Profile → WDist (Val τ')` that produces
+                     plus a thunk `dist : Profile → WDist (L.Val τ')` that produces
                      the node’s mixed action choice once a profile is supplied.
 -/
 
-/-- A profile-free behavior tree for closed evaluation from a concrete env. -/
-inductive Beh : Ty → Type where
-  | ret  {τ} (v : Val τ) : Beh τ
+/-- A profile-free behavior tree for closed evaluation from a concrete L.Env. -/
+inductive Beh : L.Ty → Type where
+  | ret  {τ} (v : L.Val τ) : Beh τ
   | fail {τ} : Beh τ
   | choose {τ τ'} (p : Player)
-      (actions : List (Val τ'))                  -- exposed to the user
-      (dist    : Profile → WDist (Val τ'))       -- produced later by supplying σ
-      (k       : Val τ' → Beh τ)                 -- continuation
+      (actions : List (L.Val τ'))                  -- exposed to the user
+      (dist    : Profile (L := L) → WDist (L.Val τ'))       -- produced later by supplying σ
+      (k       : L.Val τ' → Beh τ)                 -- continuation
       : Beh τ
 
 /--
-Behavioral interpreter: reduces deterministic computation immediately (using `env`),
+Behavioral interpreter: reduces deterministic computation immediately (using `L.Env`),
 and produces a `Beh τ` without requiring a profile.
 -/
-def behEval {Γ τ} : SProg Γ τ → Env Γ → Beh τ
+def behEval {Γ τ} : SProg Γ τ → L.Env Γ → Beh τ
   | .ret e, env =>
-      Beh.ret (evalExpr e env)
+      Beh.ret (L.eval e env)
   | .letDet e k, env =>
-      let v := evalExpr e env
+      let v := L.eval e env
       behEval k (v, env)
   | .observe cond k, env =>
-      if evalExpr cond env then
+      if L.toBool (L.eval cond env) then
         behEval k env
       else
         Beh.fail
   | .letChoose (τ' := τ') p A k, env =>
-      let acts : List (Val τ') := A env
-      let distThunk : Profile → WDist (Val τ') :=
+      let acts : List (L.Val τ') := A env
+      let distThunk : Profile → WDist (L.Val τ') :=
         fun σ => (σ.choose p A) env
       Beh.choose p acts distThunk (fun v => behEval k (v, env))
 
 /--
 Run a behavior tree under a supplied profile, yielding the same `WDist` semantics as before.
 -/
-def runBeh {τ} (σ : Profile) : Beh τ → WDist (Val τ)
+def runBeh {τ} (σ : Profile (L := L)) : Beh τ → WDist (L.Val τ)
   | Beh.ret v          => WDist.pure v
   | Beh.fail           => .zero
   | Beh.choose _ _ d k => WDist.bind (d σ) (fun v => runBeh σ (k v))
@@ -198,7 +174,7 @@ def runBeh {τ} (σ : Profile) : Beh τ → WDist (Val τ)
 /--
 Key theorem: behavioral evaluation + running under σ coincides with the direct strategic semantics.
 -/
-theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : Env Γ) :
+theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : L.Env Γ) :
     runBeh σ (behEval p env) = evalS σ p env := by
   induction p with
   | ret e => rfl
@@ -207,7 +183,7 @@ theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : 
       cases s with
       | observe cond =>
           simp only [evalS, behEval]
-          by_cases h : evalExpr cond env
+          by_cases h : L.toBool (L.eval cond env)
           · simp [h, ih, StratSem, EffWDist, ProbLet.EffWDist]
             rfl
           · simp [runBeh, h]
@@ -224,7 +200,7 @@ theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : 
 /--
 Corollary: behavioral evaluation + running also coincides with probabilistic specialization.
 -/
-theorem runBeh_behEval_eq_evalP_toProb (σ : Profile) (p : SProg Γ τ) (env : Env Γ) :
+theorem runBeh_behEval_eq_evalP_toProb (σ : Profile) (p : SProg Γ τ) (env : L.Env Γ) :
     runBeh σ (behEval p env) = ProbLet.evalP (toProb σ p) env := by
   simpa [runBeh_behEval_eq_evalS] using (evalS_eq_evalP_toProb σ p env)
 
@@ -236,21 +212,21 @@ from the offered finite action list. We *enforce legality*
 (chosen action must be in the offered list).
 
 Operational semantics is a big-step evaluator:
-  evalOp : Arena → SProg Γ τ → Env Γ → Option (Val τ)
+  evalOp : Arena → SProg Γ τ → L.Env Γ → Option (L.Val τ)
 
 We then build a deterministic profile induced by an arena:
   Profile.ofArena : Arena → Profile
 
 and prove:
-  evalS (Profile.ofArena arena) p env =
-    match evalOp arena p env with
+  evalS (Profile.ofArena arena) p L.Env =
+    match evalOp arena p L.Env with
     | some v => WDist.pure v
     | none   => .zero
 -/
 
 /-- A tiny "arena": given a player and a list of legal actions, optionally pick an action. -/
 structure Arena where
-  move : {τ : Ty} → Player → List (Val τ) → Option (Val τ)
+  move : {τ : L.Ty} → Player → List (L.Val τ) → Option (L.Val τ)
 
 /--
 Operational semantics (big-step): run a strategic program in an arena.
@@ -260,19 +236,19 @@ Operational semantics (big-step): run a strategic program in an arena.
 - `observe` rejects if condition is false.
 - `letChoose` asks the arena for a move; rejects if `none` or illegal.
 -/
-def evalOp {Γ τ} (arena : Arena) : SProg Γ τ → Env Γ → Option (Val τ)
+def evalOp {Γ τ} (arena : Arena (L := L)) : SProg Γ τ → L.Env Γ → Option (L.Val τ)
   | .ret e, env =>
-      some (evalExpr e env)
+      some (L.eval e env)
   | .letDet e k, env =>
-      let v := evalExpr e env
+      let v := L.eval e env
       evalOp arena k (v, env)
   | .observe cond k, env =>
-      if evalExpr cond env then
+      if L.toBool (L.eval cond env) then
         evalOp arena k env
       else
         none
   | .letChoose (τ' := τ') p A k, env =>
-      let acts : List (Val τ') := A env
+      let acts : List (L.Val τ') := A env
       match arena.move (τ := τ') p acts with
       | none => none
       | some a =>
@@ -286,10 +262,10 @@ A deterministic profile induced by an arena:
 - at each choice node, the kernel is a Dirac at the arena's chosen action
 - if the arena refuses or chooses illegally, the kernel is empty
 -/
-def Profile.ofArena (arena : Arena) : Profile where
+def Profile.ofArena (arena : Arena (L := L)) : Profile (L := L) where
   choose := by
-    intro Γ τ p A env
-    let acts := A env
+    intro Γ τ p A L.Env
+    let acts := A L.Env
     match arena.move (τ := τ) p acts with
     | none => exact .zero
     | some a =>
@@ -304,7 +280,7 @@ Operational evaluation in an arena matches denotational evaluation
 under the induced deterministic profile.
 -/
 theorem evalS_ofArena_eq_evalOp {Γ τ}
-    (arena : Arena) (p : SProg Γ τ) (env : Env Γ) :
+    (arena : Arena) (p : SProg Γ τ) (env : L.Env Γ) :
     evalS (Profile.ofArena arena) p env
       =
     match evalOp arena p env with
@@ -312,7 +288,7 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
     | none   => .zero := by
   -- unfold evalS once so simp can see the generic evaluator
   simp only [evalS, StratSem, EffWDist, ProbLet.EffWDist]
-  -- we need IH for all env because the evaluator extends env
+  -- we need IH for all L.Env because the evaluator extends L.Env
   induction p with
   | ret e =>
       simp [evalOp, WDist.pure]
@@ -321,14 +297,14 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
   | doStmt s k ih =>
       cases s with
       | observe cond =>
-          by_cases h : evalExpr cond env
+          by_cases h : L.toBool (L.eval cond env)
           · simp [evalOp, h, ih]
           · simp [evalOp, h]
   | doBind c k ih =>
       cases c with
       | choose p A =>
           -- freeze offered actions
-          set acts : List (Val _) := A env with hacts
+          set acts : List (L.Val _) := A env with hacts
           -- split on arena.move
           cases hm : arena.move (τ := _) p acts with
           | none =>
@@ -336,26 +312,10 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
               simp [evalOp, Profile.ofArena, hm, acts]
           | some a =>
               by_cases hmem : a ∈ acts
-              · -- legal: kernel is pure a; op continues with (a, env)
+              · -- legal: kernel is pure a; op continues with (a, L.Env)
                 simpa [evalOp, Profile.ofArena, hm, hmem, acts,
                        WDist.pure, WDist.bind] using ih (a, env)
               · -- illegal: kernel is zero; op is none
                 simp [evalOp, Profile.ofArena, hm, hmem, acts]
-/-! ## Runnable example (operational semantics) -/
-
-namespace Examples
-
-/-- Arena that always picks the first offered action (if any). -/
-def firstArena : Arena where
-  move := by
-    intro τ p acts
-    match acts with
-    | [] => exact none
-    | a :: _ => exact some a
-
-example := evalOp firstArena sEx () = some false     -- should be: some false
--- #eval evalS: not available (ℝ≥0 has no computable Repr)
-
-end Examples
 
 end FullInfoLet

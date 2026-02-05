@@ -24,18 +24,18 @@ open ProgCore GameDefs
 In `FullInfoLet`, the only bind-command is `choose`, so we can characterize
 “no strategic choices” as “no `.doBind` nodes at all”.
 -/
-def noChoices {Γ τ} : SProg Γ τ → Prop
+def noChoices {Γ τ} : SProg (L := L) Γ τ → Prop
   | .ret _        => True
   | .letDet _ k   => noChoices k
   | .doStmt _ k   => noChoices k
   | .doBind _ _   => False
 
-@[simp] lemma StratSem_E_bind (σ : Profile) {α β} (xs : WDist α) (f : α → WDist β) :
+@[simp] lemma StratSem_E_bind (σ : Profile (L := L)) {α β} (xs : WDist α) (f : α → WDist β) :
     (StratSem σ).E.bind xs f = WDist.bind xs f := rfl
 
 /-- Profile-independence: programs without choices evaluate the same under any profile. -/
-theorem evalS_profile_indep {Γ τ} (p : SProg Γ τ) (hp : noChoices p)
-    (σ₁ σ₂ : Profile) (env : Env Γ) :
+theorem evalS_profile_indep {Γ τ} (p : SProg (L := L) Γ τ) (hp : noChoices p)
+    (σ₁ σ₂ : Profile) (env : L.Env Γ) :
     evalS σ₁ p env = evalS σ₂ p env := by
   induction p with
   | ret e =>
@@ -51,7 +51,7 @@ theorem evalS_profile_indep {Γ τ} (p : SProg Γ τ) (hp : noChoices p)
       have hk : noChoices k := hp
       cases s with
       | observe cond =>
-          by_cases h : evalExpr cond env
+          by_cases h : L.toBool (L.eval cond env)
           · -- observe succeeds: bind (pure ()) (fun _ => ...) so just IH
             simp only [evalS, evalWith_doStmt, StratSem_handleStmt_observe, h, ↓reduceIte,
               StratSem_E_bind, WDist.bind_pure]
@@ -63,61 +63,25 @@ theorem evalS_profile_indep {Γ τ} (p : SProg Γ τ) (hp : noChoices p)
       cases hp
 
 
+variable (σ : Profile (L := L))
+
 /-! ## Observe-Fusion in Strategic Programs -/
 
 /-- Observe-fusion: consecutive observations fuse into conjunction. -/
-theorem observe_fuse {Γ τ} (σ : Profile) (c₁ c₂ : Expr Γ .bool) (k : SProg Γ τ) :
+theorem observe_fuse {EL : ExprLaws (L := L)} {Γ τ} (c₁ c₂ : L.Expr Γ L.bool) (k : SProg Γ τ) :
     (fun env => evalS σ (SProg.observe c₁ (SProg.observe c₂ k)) env)
     =
-    (fun env => evalS σ (SProg.observe (Expr.andBool c₁ c₂) k) env) := by
+    (fun env => evalS σ (SProg.observe (EL.andBool c₁ c₂) k) env) := by
   funext env
-  -- reduce to the probabilistic observe-fusion via specialization
-  -- (the specialization `toProb` is identity on observes/lets/rets, only changes `choose`).
-  simpa [SProg.observe] using
-    (by
-      -- use commutation + ProbLet.observe_fuse
-      have hL :
-          evalS σ (SProg.observe c₁ (SProg.observe c₂ k)) env =
-            ProbLet.evalP (toProb σ (SProg.observe c₁ (SProg.observe c₂ k))) env := by
-        simpa using (evalS_eq_evalP_toProb σ (SProg.observe c₁ (SProg.observe c₂ k)) env)
-      have hR :
-          evalS σ (SProg.observe (Expr.andBool c₁ c₂) k) env =
-            ProbLet.evalP (toProb σ (SProg.observe (Expr.andBool c₁ c₂) k)) env := by
-        simpa using (evalS_eq_evalP_toProb σ (SProg.observe (Expr.andBool c₁ c₂) k) env)
-      -- now fuse on the probabilistic side
-      -- and finish by rewriting back with hL/hR
-      -- (simp uses definitional equations for toProb on observes)
-      -- toProb σ (doStmt (observe c) k) = doStmt (observe c) (toProb σ k)
-      -- so the shape matches ProbLet.observe_fuse.
-      -- We write it explicitly to keep simp stable.
-      have hFuse :=
-        congrArg (fun f => f env)
-          (ProbLet.observe_fuse (Γ := Γ) (τ := τ) c₁ c₂ (toProb σ k))
-      -- rewrite toProb on observes and conclude
-      -- LHS: toProb σ (observe c₁ (observe c₂ k)) = doStmt obs c₁ (doStmt obs c₂ (toProb σ k))
-      -- RHS: toProb σ (observe (andBool c₁ c₂) k) = doStmt obs (andBool ...) (toProb σ k)
-      -- then use hL/hR.
-      simpa [toProb, SProg.observe] using
-        (by
-          -- chain: evalS = evalP(toProb) ; fuse ; evalP(toProb) = evalS
-          calc
-            evalS σ (SProg.observe c₁ (SProg.observe c₂ k)) env
-                = ProbLet.evalP (
-                      .doStmt (.observe c₁) (.doStmt (.observe c₂) (toProb σ k))) env := by
-                    simpa [toProb, SProg.observe] using hL
-            _ = ProbLet.evalP (.doStmt (.observe (Expr.andBool c₁ c₂)) (toProb σ k)) env := by
-                    simpa using hFuse
-            _ = evalS σ (SProg.observe (Expr.andBool c₁ c₂) k) env := by
-                    -- use hR backwards
-                    simpa [toProb, SProg.observe] using (hR.symm)
-        ))
+  simp [evalS_eq_evalP_toProb, SProg.observe, toProb]
+  simpa using congrArg (fun f => f env) (ProbLet.observe_fuse EL)
 
 /-! ## Choose from Singleton -/
 
 /-- Choose from singleton is deterministic if the profile’s kernel is Dirac at that value. -/
-theorem choose_singleton {Γ τ τ'} (σ : Profile) (p : Player) (a : Val τ')
+theorem choose_singleton {Γ τ τ'} (p : Player) (a : L.Val τ')
     (A : Act Γ τ')
-    (k : SProg (τ' :: Γ) τ) (env : Env Γ)
+    (k : SProg (τ' :: Γ) τ) (env : L.Env Γ)
     (hσ : σ.choose p A env = WDist.pure a) :
     evalS σ (SProg.letChoose p A k) env = evalS σ k (a, env) := by
   -- unfold one step of the evaluator
@@ -129,7 +93,7 @@ theorem choose_singleton {Γ τ τ'} (σ : Profile) (p : Player) (a : Val τ')
 
 /-- Choose from empty action set yields empty distribution
  (requires the profile to yield `zero`). -/
-theorem choose_empty {Γ τ τ'} (σ : Profile) (p : Player)
+theorem choose_empty {Γ τ τ'} (p : Player)
     (A : Act Γ τ')
     (k : SProg (τ' :: Γ) τ)
     (hσ : ∀ env, σ.choose p A env = WDist.zero) :
@@ -141,13 +105,13 @@ theorem choose_empty {Γ τ τ'} (σ : Profile) (p : Player)
 /-! ## Behavioral Interpretation Properties -/
 
 /-- Behavioral evaluation preserves the meaning under all profiles. -/
-theorem behEval_sound {Γ τ} (p : SProg Γ τ) (env : Env Γ) (σ : Profile) :
+theorem behEval_sound {Γ τ} (p : SProg Γ τ) (env : L.Env Γ) :
     runBeh σ (behEval p env) = evalS σ p env := by
   exact runBeh_behEval_eq_evalS σ p env
 
 /-- Two programs with the same behavior tree are semantically equivalent. -/
-theorem beh_eq_implies_evalS_eq {Γ τ} (p₁ p₂ : SProg Γ τ) (env : Env Γ)
-    (h : behEval p₁ env = behEval p₂ env) (σ : Profile) :
+theorem beh_eq_implies_evalS_eq {Γ τ} (p₁ p₂ : SProg Γ τ) (env : L.Env Γ)
+    (h : behEval p₁ env = behEval p₂ env) :
     evalS σ p₁ env = evalS σ p₂ env := by
   -- rewrite both sides using `runBeh ∘ behEval`
   have h1 : evalS σ p₁ env = runBeh σ (behEval p₁ env) := by
@@ -164,7 +128,7 @@ theorem beh_eq_implies_evalS_eq {Γ τ} (p₁ p₂ : SProg Γ τ) (env : Env Γ)
 /-! ## Operational Semantics Properties -/
 
 /-- Operational evaluation is deterministic given an arena. -/
-theorem evalOp_deterministic {Γ τ} (arena : Arena) (p : SProg Γ τ) (env : Env Γ) :
+theorem evalOp_deterministic {Γ τ} (arena : Arena) (p : SProg Γ τ) (env : L.Env Γ) :
     ∃! result, evalOp arena p env = result := by
   refine ⟨evalOp arena p env, rfl, ?_⟩
   intro r hr
@@ -173,24 +137,24 @@ theorem evalOp_deterministic {Γ τ} (arena : Arena) (p : SProg Γ τ) (env : En
 /-! ## Translation Preserves Structure -/
 
 /-- `toProb` preserves `ret`. -/
-theorem toProb_ret {Γ τ} (σ : Profile) (e : Expr Γ τ) :
+theorem toProb_ret {Γ τ} (e : L.Expr Γ τ) :
     toProb σ (SProg.ret e) = ProgCore.Prog.ret e := by
   rfl
 
 /-- `toProb` preserves `letDet`. -/
-theorem toProb_letDet {Γ τ τ'} (σ : Profile) (e : Expr Γ τ') (k : SProg (τ' :: Γ) τ) :
+theorem toProb_letDet {Γ τ τ'} (e : L.Expr Γ τ') (k : SProg (τ' :: Γ) τ) :
     toProb σ (SProg.letDet e k) = ProgCore.Prog.letDet e (toProb σ k) := by
   rfl
 
 /-- `toProb` preserves `observe`. -/
-theorem toProb_observe {Γ τ} (σ : Profile) (c : Expr Γ .bool) (k : SProg Γ τ) :
+theorem toProb_observe {Γ τ} (c : L.Expr Γ L.bool) (k : SProg Γ τ) :
     toProb σ (SProg.observe c k) = ProgCore.Prog.doStmt (.observe c) (toProb σ k) := by
   rfl
 
 /-! ## Player Irrelevance for Same Strategy -/
 
 /-- Player identity is irrelevant at a choice point if the induced kernels agree. -/
-theorem player_irrelevant {Γ τ τ'} (σ : Profile) (p₁ p₂ : Player)
+theorem player_irrelevant {Γ τ τ'} (p₁ p₂ : Player)
     (A : Act Γ τ') (k : SProg (τ' :: Γ) τ)
     (h : ∀ env, σ.choose p₁ A env = σ.choose p₂ A env) :
     (fun env => evalS σ (SProg.letChoose p₁ A k) env)
