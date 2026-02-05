@@ -32,7 +32,7 @@ theorem bind_pure_right (m : WDist α) :
         rcases head with ⟨a, w⟩
         simp [WDist.bind, WDist.pure, mul_one]
 
-/-- Left identity: `bind (pure a) f = f a` (you already have `[simp]` as `bind_pure`). -/
+/-- Left identity: `bind (pure a) f = f a`. -/
 theorem bind_pure_left (a : α) (f : α → WDist β) :
     bind (pure a) f = f a := by
   simp
@@ -60,7 +60,7 @@ theorem bind_assoc (m : WDist α) (f : α → WDist β) (g : β → WDist γ) :
 
 /-! ## Zero / failure laws -/
 
-/-- Left zero: `bind zero f = zero` (you already have `[simp]` as `bind_zero`). -/
+/-- Left zero: `bind zero f = zero`. -/
 theorem bind_zero_left (f : α → WDist β) :
     bind (zero : WDist α) f = (zero : WDist β) := by
   simp
@@ -187,7 +187,7 @@ theorem mass_observe_le (p : α → Bool) (d : WDist α) :
           exact le_add_of_le_right ih
 
 
-/-! ## Scale laws (if you still want them) -/
+/-! ## Scale laws -/
 
 /-- Scale all weights by a constant factor. -/
 def scale (c : ℝ≥0) (d : WDist α) : WDist α :=

@@ -7,12 +7,13 @@ import Vegas.ProgCore
 import Vegas.Env
 import Vegas.Expr
 import Vegas.ProbLet
+import Vegas.GameDefs
 
 namespace PartialInfoLet
 
-/-! ## Partial information via explicit views (no changes to ProgCore/ProbLet) -/
+open GameDefs
 
-abbrev Player := Nat
+/-! ## Partial information via explicit views (no changes to ProgCore/ProbLet) -/
 
 /--
 A `View Γ` is an explicit environment slice:
@@ -347,26 +348,21 @@ theorem runBeh_behEval_eq_evalP_toProb (σ : Profile) (p : SProg Γ τ) (env : E
     runBeh σ (behEval p env) = ProbLet.evalP (toProb σ p) env := by
   simpa [runBeh_behEval_eq_evalS] using (evalS_eq_evalP_toProb (Γ := Γ) (τ := τ) σ p env)
 
+/-- Identity view sees everything: projection is identity. -/
+def idView (Γ : Ctx) : View Γ where
+  Δ := Γ
+  proj := fun env => env
+
 /-! ## 7) Tiny example -/
 
 namespace Examples
 
 def Γ0 : Ctx := []
 
-def idView (Γ : Ctx) : View Γ where
-  Δ := Γ
-  proj := fun env => env
-
--- TODO: move to WDist
-noncomputable def uniform (xs : List α) : WDist α :=
-  match xs.length with
-  | 0 => .zero
-  | n+1 => ⟨xs.map (fun a => (a, 1 / (n+1)))⟩
-
 noncomputable def uniformProfile : Profile where
   choose := by
     intro Γ τ who v A obs
-    exact uniform (A obs)
+    exact WDist.uniform (A obs)
 
 def A24 : Act (v := idView Γ0) .int := fun _ => [2, 3, 4]
 

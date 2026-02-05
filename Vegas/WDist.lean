@@ -127,7 +127,6 @@ theorem observe_eq_restrict (d : WDist α) (p : α → Bool)
             smul_zero, add_zero, s]
 
 /-- The computational mass matches the measure-theoretic mass.
-  This satisfies Point #4 of your review.
 -/
 theorem mass_eq_toMeasure_univ (d : WDist α) :
   (d.mass : ℝ≥0∞) = d.toMeasure Set.univ := by
@@ -170,5 +169,11 @@ variable {α β : Type*}
 @[simp] lemma bind_zero (f : α → WDist β) :
     WDist.bind (WDist.zero : WDist α) f = WDist.zero := by
   rfl
+
+/-- Uniform distribution over a finite list. Empty list gives zero. -/
+noncomputable def uniform (xs : List α) : WDist α :=
+  match xs.length with
+  | 0 => .zero
+  | n+1 => ⟨xs.map (fun a => (a, 1 / (n+1)))⟩
 
 end WDist

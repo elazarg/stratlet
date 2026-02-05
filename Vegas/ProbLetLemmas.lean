@@ -87,8 +87,6 @@ theorem evalP_embed_eq_lift {Γ τ} (p : ProgCore.DProg Γ τ) (env : Env Γ) :
   | doStmt s k ih =>
       cases s with
       | observe cond =>
-          -- probabilistic side uses evalP_observe; option side uses the underlying handleStmt,
-          -- but we can just unfold one step and case split, like you did elsewhere.
           by_cases h : evalExpr cond env
           · -- cond true
             -- LHS: evalP observe = evalP k ; RHS: Option also continues

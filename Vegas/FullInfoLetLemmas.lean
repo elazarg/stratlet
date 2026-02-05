@@ -15,7 +15,7 @@ needs an extra hypothesis about the profile (or a separate `WFProfile` predicate
 
 namespace FullInfoLet
 
-open ProgCore
+open ProgCore GameDefs
 
 /-! ## Profile Independence for Deterministic Subprograms -/
 

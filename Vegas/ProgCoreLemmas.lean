@@ -74,7 +74,6 @@ def Expr.weaken {Γ τ τ'} : Expr Γ τ → Expr (τ' :: Γ) τ
     evalProgOption (.doStmt s k) env
       =
     (DetOptionSem.handleStmt s env).bind (fun _ => evalProgOption k env) := by
-  -- adjust names if yours differ
   simp [evalProgOption, ProgCore.evalWith, ProgCore.evalProg_gen]
   rfl
 

@@ -14,7 +14,7 @@ deterministic protocol steps in the current placeholder scheme.
 
 namespace PartialInfoLet
 
-open ProgCore
+open ProgCore GameDefs
 
 /-! ## Commit-Reveal Coherence -/
 
@@ -66,9 +66,6 @@ theorem reveal_mismatch_fails {Γ τ τ'} (σ : Profile)
   simp [h]
 
 /-! ## View Projection Properties -/
-
-/-- Identity view sees everything: projection is identity. -/
-def idView (Γ : Ctx) : View Γ := { Δ := Γ, proj := id }
 
 /-- Evaluation with identity view uses the full environment (definitionally). -/
 theorem choose_idView {Γ τ τ'} (σ : Profile) (who : Player)

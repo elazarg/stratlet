@@ -20,12 +20,13 @@ import Vegas.ProgCore
 import Vegas.Env
 import Vegas.Expr
 import Vegas.ProbLet
+import Vegas.GameDefs
 
 namespace FullInfoLet
 
-/-! ## Strategic let-calculus (choices owned by players) -/
+open GameDefs
 
-abbrev Player := Nat
+/-! ## Strategic let-calculus (choices owned by players) -/
 
 /--
 An action set for type `τ` in context `Γ`:
@@ -120,22 +121,11 @@ theorem evalS_eq_evalP_toProb {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : En
       cases c with
       | choose p A => simp [toProb, ih]
 
-/-! ## Tiny example -/
+/-! ## Examples -/
 
-namespace Examples1
+namespace Examples
 
 def Γ0 : Ctx := []
-
-/-- A simple profile: player picks uniformly among available actions. -/
-noncomputable def uniformProfile : Profile where
-  choose := by
-    intro Γ τ _p A env
-    let xs := A env
-    match xs.length with
-    | 0 =>
-        exact .zero
-    | n + 1 =>
-        exact ⟨xs.map (fun a => (a, 1 / (n + 1)))⟩
 
 /-- Action set: choose an Int in [2,4]. -/
 def A24 : Act Γ0 .int := fun _ => [2, 3, 4]
@@ -145,10 +135,16 @@ def sEx : SProg Γ0 .bool :=
   SProg.letChoose 0 A24
     (SProg.ret (Expr.eqInt (Expr.var Var.vz) (Expr.constInt 3)))
 
+/-- A simple profile: player picks uniformly among available actions. -/
+noncomputable def uniformProfile : Profile where
+  choose := by
+    intro Γ τ _p A env
+    exact WDist.uniform (A env)
+
 -- #eval not available: uniformProfile is noncomputable (ℝ≥0 arithmetic)
 -- Both would yield: [(false, 1/3), (true, 1/3), (false, 1/3)]
 
-end Examples1
+end Examples
 
 /-!
 Behavioral interpreter:
@@ -231,7 +227,6 @@ Corollary: behavioral evaluation + running also coincides with probabilistic spe
 -/
 theorem runBeh_behEval_eq_evalP_toProb (σ : Profile) (p : SProg Γ τ) (env : Env Γ) :
     runBeh σ (behEval p env) = ProbLet.evalP (toProb σ p) env := by
-  -- reuse your previous commutation theorem
   simpa [runBeh_behEval_eq_evalS] using (evalS_eq_evalP_toProb σ p env)
 
 /-!
@@ -347,21 +342,9 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
                        WDist.pure, WDist.bind] using ih (a, env)
               · -- illegal: kernel is zero; op is none
                 simp [evalOp, Profile.ofArena, hm, hmem, acts]
-/-!
-## 8) Tiny runnable example
--/
+/-! ## Runnable example (operational semantics) -/
 
-namespace Examples2
-
-def Γ0 : Ctx := []
-
-/-- Action set: choose an Int in [2,4]. -/
-def A24 : Act Γ0 .int := fun _ => [2, 3, 4]
-
-/-- choose n ∈ {2,3,4}; return (n == 3). -/
-def sEx : SProg Γ0 .bool :=
-  SProg.letChoose 0 A24
-    (SProg.ret (Expr.eqInt (Expr.var Var.vz) (Expr.constInt 3)))
+namespace Examples
 
 /-- Arena that always picks the first offered action (if any). -/
 def firstArena : Arena where
@@ -371,9 +354,9 @@ def firstArena : Arena where
     | [] => exact none
     | a :: _ => exact some a
 
-#eval evalOp firstArena sEx ()     -- should be: some false
+example := evalOp firstArena sEx () = some false     -- should be: some false
 -- #eval evalS: not available (ℝ≥0 has no computable Repr)
 
-end Examples2
+end Examples
 
 end FullInfoLet
