@@ -9,6 +9,7 @@ import Vegas.Env
 import Vegas.Expr
 
 import Vegas.ProgCoreLemmas
+import Vegas.WDistLemmas
 
 namespace ProbLet
 
@@ -174,5 +175,142 @@ theorem sample_zero {Γ τ τ'} (k : PProg (τ' :: Γ) τ) :
     (fun _ => WDist.zero) := by
   funext env
   simp [evalP, ProgCore.evalWith_doBind, ProbSem_handleBind_sample]
+
+/-! ## Measure-theoretic interpretation of evalP
+
+These theorems connect the compositional evaluator `evalP` to measure theory
+via `WDist.toMeasure`, establishing the discrete analogue of the measure
+transformer semantics of Borgström, Gordon, Greenberg, Margetson, and Van Gael,
+"Measure Transformer Semantics for Bayesian Machine Learning"
+(LMCS 9(3:11), 2013).
+
+For a closed program `p : PProg [] τ`, the WDist `evalP p ()` encodes the
+*unnormalized* posterior distribution.  Concretely:
+
+- `(evalP p ()).mass` is the total probability of a valid run, analogous to
+  Borgström et al.'s P_M[valid].
+- For each value `v`, the weight of `v` in the distribution is the joint
+  probability P_M[value = v ∧ valid].
+- Normalizing via `WDist.toProbabilityMeasure` (when mass > 0) yields the
+  posterior P_M[value = · | valid].
+
+This correspondence is the discrete analogue of their Theorem 3.3.
+Vegas's `evalP` plays the role of Fun's measure transformer semantics A⟦M⟧,
+and `WDist.toProbabilityMeasure` plays the role of normalization
+P[value = V | valid] = µ({V}) / |µ|.
+-/
+
+section MeasureSemantics
+
+open MeasureTheory
+
+variable {Γ : Ctx} {τ τ' : Ty}
+variable [MeasurableSpace (Val τ)]
+
+/-- `evalP` of a return produces a Dirac measure: certain outcome, no mass loss.
+
+Corresponds to Borgström et al.'s rule:
+  A⟦V⟧ = pure (λ s. (s, V⟦V⟧ s))
+specialized to closed evaluation without state threading. -/
+theorem toMeasure_evalP_ret [MeasurableSingletonClass (Val τ)]
+    (e : Expr Γ τ) (env : Env Γ) :
+    (evalP (.ret e) env).toMeasure = Measure.dirac (evalExpr e env) := by
+  sorry
+  -- Proof:
+  --   evalP (.ret e) env = WDist.pure (evalExpr e env)
+  --     [by definition of evalP, evalWith, ProbSem]
+  --   Then apply WDist.toMeasure_pure.
+
+/-- `evalP` through sampling decomposes as discrete integration: the output
+measure is the weighted sum of continuation measures, integrated over the
+sampling kernel's support.
+
+This is the compositional heart of the measure transformer semantics.
+It corresponds to Borgström et al.'s rule:
+  A⟦random D(V)⟧ = extend (λ s. µ_{D(V⟦V⟧ s)})
+specialized to discrete kernels, where `extend` becomes `WDist.bind` and
+integration becomes weighted summation over the kernel's finite support. -/
+theorem toMeasure_evalP_sample [MeasurableSpace (Val τ')]
+    (K : Kernel Γ τ') (k : PProg (τ' :: Γ) τ) (env : Env Γ) :
+    (evalP (.doBind (.sample K) k) env).toMeasure =
+      (K env).weights.foldr
+        (fun (v, w) μ => μ + (w : ENNReal) • (evalP k (v, env)).toMeasure) 0 := by
+  sorry
+  -- Proof:
+  --   evalP (.doBind (.sample K) k) env
+  --     = WDist.bind (K env) (fun v => evalP k (v, env))
+  --     [by evalP_sample_bind]
+  --
+  --   Then apply WDist.toMeasure_bind to get the foldr form.
+
+/-- `evalP` through observe either preserves or kills the measure, depending on
+the boolean condition.
+
+Corresponds to Borgström et al.'s observe combinator:
+  observe p µ A = µ(A ∩ {x | p(x) = 0_b})
+specialized to boolean predicates, where observe is simply filtering. -/
+theorem toMeasure_evalP_observe
+    (c : Expr Γ .bool) (k : PProg Γ τ) (env : Env Γ) :
+    (evalP (.doStmt (.observe c) k) env).toMeasure =
+      if evalExpr c env then (evalP k env).toMeasure else 0 := by
+  sorry
+  -- Proof: By cases on (evalExpr c env).
+  --   true:  evalP_observe simplifies evalP to (evalP k env), so toMeasure
+  --          is preserved.
+  --   false: evalP_observe simplifies evalP to WDist.zero, whose toMeasure
+  --          is 0 by WDist.toMeasure_zero.
+
+/-- The posterior distribution for a closed probabilistic program.
+
+Given a closed program `p : PProg [] τ` whose evaluation has nonzero mass
+(i.e., at least one valid execution path exists), the posterior is the
+normalized output distribution.
+
+This is the Vegas analogue of Borgström et al. (2013), Theorem 3.3:
+for discrete Fun (Bernoulli Fun),
+
+    P_M[value = V | valid] = A⟦M⟧(δ_())(V) / |A⟦M⟧(δ_())|
+
+Here `evalP p ()` plays the role of A⟦M⟧(δ_()), and normalization via
+`toProbabilityMeasure` yields the posterior. -/
+noncomputable def posterior (p : PProg [] τ)
+    (h : (evalP p ()).mass ≠ 0) : ProbabilityMeasure (Val τ) :=
+  (evalP p ()).toProbabilityMeasure h
+
+/-- The posterior measure is the evalP output scaled by the inverse total mass.
+
+Concretely, for any measurable set B:
+    posterior(B) = evalP(...).toMeasure(B) / evalP(...).toMeasure(Univ)
+which is exactly the conditional probability P[value ∈ B | valid]. -/
+theorem posterior_apply (p : PProg [] τ)
+    (h : (evalP p ()).mass ≠ 0) (B : Set (Val τ)) (hB : MeasurableSet B) :
+    (posterior p h).val B =
+      (evalP p ()).toMeasure B * ((evalP p ()).mass : ENNReal)⁻¹ := by
+  sorry
+  -- Proof: Unfold `posterior` and `toProbabilityMeasure`.
+  --   posterior p h
+  --     = { val := mass⁻¹ • (evalP p ()).toMeasure, ... }
+  --   So:
+  --     (posterior p h).val B
+  --       = (mass⁻¹ • (evalP p ()).toMeasure) B
+  --       = mass⁻¹ * (evalP p ()).toMeasure B
+  --       = (evalP p ()).toMeasure B * mass⁻¹
+  --   by Measure.smul_apply and mul_comm on ℝ≥0∞.
+
+/-- The posterior of the full space is 1 (it is a probability measure).
+This is a direct consequence of the construction, included for clarity. -/
+theorem posterior_univ (p : PProg [] τ)
+    (h : (evalP p ()).mass ≠ 0) :
+    (posterior p h).val Set.univ = 1 := by
+  sorry
+  -- Proof: By the `property` field of `ProbabilityMeasure`:
+  --   (posterior p h).val is a probability measure, so
+  --   (posterior p h).val Set.univ = 1.
+  --   Alternatively: apply posterior_apply, then
+  --     (evalP p ()).toMeasure(univ) * mass⁻¹
+  --       = mass * mass⁻¹         [by mass_eq_toMeasure_univ]
+  --       = 1                      [by ENNReal.mul_inv_cancel, using h]
+
+end MeasureSemantics
 
 end ProbLet

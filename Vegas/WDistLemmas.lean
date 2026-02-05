@@ -1,6 +1,7 @@
-import Vegas.WDist
 import Mathlib.Data.List.Basic
 import Mathlib.Data.NNReal.Basic
+
+import Vegas.WDist
 
 namespace WDist
 
@@ -20,17 +21,17 @@ theorem ext_weights {d₁ d₂ : WDist α} (h : d₁.weights = d₂.weights) :
 
 /-! ## Monad laws -/
 
+example :
+  let m : WDist Nat := ⟨[(0,1),(1,1)]⟩
+  (WDist.bind m WDist.pure).weights = m.weights := by
+  simp [WDist.bind, WDist.pure]
+
 /-- Right identity: `bind m pure = m` (definitionally, for this list representation). -/
-theorem bind_pure_right (m : WDist α) :
-    bind m pure = m := by
+theorem bind_pure_right (m : WDist α) : bind m pure = m := by
   cases m with
   | mk ws =>
-    cases ws with
-    | nil =>
-        simp [WDist.bind, WDist.pure]
-    | cons head tail =>
-        rcases head with ⟨a, w⟩
-        simp [WDist.bind, WDist.pure, mul_one]
+    apply ext_weights
+    simp [WDist.bind, WDist.pure, mul_one]
 
 /-- Left identity: `bind (pure a) f = f a`. -/
 theorem bind_pure_left (a : α) (f : α → WDist β) :
@@ -186,7 +187,6 @@ theorem mass_observe_le (p : α → Bool) (d : WDist α) :
             List.filter_cons_of_neg, List.map_cons, List.sum_cons]
           exact le_add_of_le_right ih
 
-
 /-! ## Scale laws -/
 
 /-- Scale all weights by a constant factor. -/
@@ -233,5 +233,156 @@ theorem scale_bind (c : ℝ≥0) (m : WDist α) (f : α → WDist β) :
           (List.append_right_inj
                 (List.map ((fun aw ↦ (aw.1, c * aw.2)) ∘ fun x ↦ (x.1, w * x.2)) (f a).weights)).mpr
             ih
+
+/-! ## Measure-theoretic bridge: WDist operations as measure combinators
+
+The following lemmas connect the computational `WDist` monad operations
+to their measure-theoretic counterparts, establishing that:
+
+- `WDist.pure` denotes a Dirac measure,
+- `WDist.zero` denotes the zero measure,
+- `WDist.bind` denotes discrete integration (the `extend` combinator).
+
+This mirrors the measure transformer framework of
+Borgström, Gordon, Greenberg, Margetson, and Van Gael,
+"Measure Transformer Semantics for Bayesian Machine Learning"
+(LMCS 9(3:11), 2013).
+
+In their notation, `WDist.bind d f` is the discrete specialization of
+
+    extend m µ AB = ∫ m(x)({y | (x,y) ∈ AB}) dµ(x)
+
+where the base measure µ = d.toMeasure has finite discrete support.
+Together with `observe_eq_restrict` (WDist.lean) and `mass_eq_toMeasure_univ`,
+these lemmas show that the `WDist` monad faithfully implements the
+discrete measure transformer combinators `pure`, `extend`, and `observe`.
+-/
+
+open MeasureTheory ENNReal NNReal
+
+section MeasureBridge
+
+variable {α β : Type*} [MeasurableSpace β]
+
+/-- Convenience: the foldr step used by `toMeasure`. -/
+private noncomputable def step [MeasurableSpace α] (x : α × ℝ≥0) (μ : Measure α) : Measure α :=
+  μ + (x.2 : ℝ≥0∞) • Measure.dirac x.1
+
+/-- Key helper: foldr over `step` is “right-additive” in the accumulator. -/
+private lemma foldr_step_add_right [MeasurableSpace α] (ws : List (α × ℝ≥0)) (μ ν : Measure α) :
+    List.foldr step (μ + ν) ws = List.foldr step μ ws + ν := by
+  classical
+  induction ws with
+  | nil =>
+      simp
+  | cons head tail ih =>
+      -- peel one step of foldr, then use IH, then reassociate/commute
+      simp [List.foldr, step, ih, add_assoc, add_comm]
+
+/-- Weight-list concatenation corresponds to measure addition. -/
+theorem toMeasure_mk_append [MeasurableSpace α] (ws₁ ws₂ : List (α × ℝ≥0)) :
+    (WDist.mk (ws₁ ++ ws₂)).toMeasure
+    = (WDist.mk ws₁).toMeasure + (WDist.mk ws₂).toMeasure := by
+  calc
+    _ = List.foldr step 0 (ws₁ ++ ws₂) := by simp only [toMeasure, List.foldr_append]; rfl
+    _ = List.foldr step (List.foldr step 0 ws₂) ws₁ := by simp [List.foldr_append]
+    _ = List.foldr step (0 + List.foldr step 0 ws₂) ws₁ := by simp
+    _ = List.foldr step 0 ws₁ + List.foldr step 0 ws₂ := by
+          simpa using (foldr_step_add_right (ws := ws₁) (μ := 0) (ν := List.foldr step 0 ws₂))
+    _ = (List.foldr step 0 ws₁) + (List.foldr step 0 ws₂) := rfl
+
+/-- Scaling all weights by `c` corresponds to scaling the measure by `c`. -/
+theorem toMeasure_mk_map_scale [MeasurableSpace α] (c : ℝ≥0) (ws : List (α × ℝ≥0)) :
+    (WDist.mk (ws.map (fun (b, w') => (b, c * w')))).toMeasure
+    = (c : ℝ≥0∞) • (WDist.mk ws).toMeasure := by
+  classical
+  induction ws with
+  | nil =>
+      simp [WDist.toMeasure]
+  | cons head tail ih =>
+      rcases head with ⟨b, w'⟩
+      have ih' :
+          List.foldr step 0 (List.map (fun x => (x.1, c * x.2)) tail)
+            = (c : ℝ≥0∞) • List.foldr step 0 tail := by
+        simpa [WDist.toMeasure, step] using ih
+      simp [WDist.toMeasure, smul_smul, add_comm]
+      simpa [step] using congrArg (fun μ => (↑c * ↑w') • Measure.dirac b + μ) ih'
+
+
+/-- **The core bridge theorem.** `WDist.bind` denotes discrete measure integration.
+
+This is the discrete specialization of the `extend` combinator from
+Borgström et al. (2013), §3.3:
+
+    extend m µ AB = ∫ m(x)({y | (x,y) ∈ AB}) dµ(x)
+
+For a discrete base measure µ = Σᵢ wᵢ · δ_{aᵢ} (encoded as `d : WDist α`),
+the integral reduces to a weighted sum:
+
+    (bind d f).toMeasure = Σᵢ wᵢ • (f aᵢ).toMeasure
+
+The right-hand side is expressed as a `List.foldr` to match the structure
+of `toMeasure`.  An equivalent pointwise formulation: for any measurable B,
+
+    (bind d f).toMeasure B = Σ_{(a,w) ∈ d.weights} w * (f a).toMeasure B
+
+which is the discrete integration formula. -/
+theorem toMeasure_bind
+    (d : WDist α) (f : α → WDist β) :
+    (WDist.bind d f).toMeasure =
+      d.weights.foldr (fun (a, w) μ => μ + (w : ℝ≥0∞) • (f a).toMeasure) 0 := by
+  classical
+  cases d with
+  | mk ws =>
+      induction ws with
+      | nil =>
+          simp [WDist.bind, WDist.toMeasure]
+      | cons head tail ih =>
+          rcases head with ⟨a, w⟩
+          -- Head scaling lemma (yours)
+          have h_scale :
+              (WDist.mk ((f a).weights.map (fun x_1 => (x_1.1, w * x_1.2)))).toMeasure
+                =
+              (w : ℝ≥0∞) • (f a).toMeasure := by
+            simpa [mul_comm] using toMeasure_mk_map_scale (α := β) (c := w) (ws := (f a).weights)
+          have h_bind_weights :
+              (WDist.bind (WDist.mk ((a, w) :: tail)) f).weights
+                =
+              ((f a).weights.map (fun x_1 => (x_1.1, w * x_1.2)))
+                ++ (WDist.bind (WDist.mk tail) f).weights := by
+            rfl
+          calc
+            (WDist.bind (WDist.mk ((a, w) :: tail)) f).toMeasure
+                =
+              (WDist.mk
+                (((f a).weights.map (fun x_1 => (x_1.1, w * x_1.2)))
+                  ++ (WDist.bind (WDist.mk tail) f).weights)).toMeasure := by
+                simp [WDist.toMeasure, WDist.bind]
+            _   =
+              (WDist.mk ((f a).weights.map (fun x_1 => (x_1.1, w * x_1.2)))).toMeasure
+                + (WDist.bind (WDist.mk tail) f).toMeasure := by
+                simpa using
+                  (toMeasure_mk_append (α := β)
+                    ((f a).weights.map (fun x_1 => (x_1.1, w * x_1.2)))
+                    ((WDist.bind (WDist.mk tail) f).weights))
+            _   =
+              (w : ℝ≥0∞) • (f a).toMeasure + (WDist.bind (WDist.mk tail) f).toMeasure := by
+                simp [h_scale]
+            _   =
+              (w : ℝ≥0∞) • (f a).toMeasure +
+                (tail.foldr (fun (a, w) μ => μ + (w : ℝ≥0∞) • (f a).toMeasure) 0) := by
+                simp_all only
+            _   =
+              ((a, w) :: tail).foldr (fun (a, w) μ => μ + (w : ℝ≥0∞) • (f a).toMeasure) 0 := by
+                simp [List.foldr, add_comm]
+
+/-- Scaling a `WDist` corresponds to scaling its denoted measure. -/
+theorem toMeasure_scale [MeasurableSpace α] (c : ℝ≥0) (d : WDist α) :
+    (WDist.scale c d).toMeasure = (c : ℝ≥0∞) • d.toMeasure := by
+  cases d with
+  | mk ws =>
+    simpa [WDist.scale] using (toMeasure_mk_map_scale (c := c) (ws := ws))
+
+end MeasureBridge
 
 end WDist

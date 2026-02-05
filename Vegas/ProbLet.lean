@@ -84,4 +84,30 @@ A more complete standalone presentation/characterization of the language could a
 These are orthogonal to the extensional `toMeasure` bridge; the core here
 is kept minimal so that other semantic carriers/handlers (strategic/game semantics, protocol models,
 etc.) can reuse the same `ProgCore` syntax.
+
+## Relationship to Borgström, Gordon, Greenberg, Margetson & Van Gael (2013)
+
+The design of this module follows the *measure transformer semantics* of
+Borgström et al., "Measure Transformer Semantics for Bayesian Machine Learning"
+(LMCS 9(3:11), 2013), specialized to the discrete (finite-support) setting.
+
+Concretely:
+- `WDist` is a finitely supported sub-probability measure, playing the role of
+  Fun's measure space `M^τ`.
+- `evalP` is the denotation `A⟦M⟧ : M^Γ → M^τ` — a measure transformer that
+  maps an input environment measure to an output value measure.
+- `sample K` corresponds to Fun's `random` primitive; its semantics is
+  `WDist.bind`, the discrete specialization of the `extend` combinator
+  (Theorem 3.1 in Borgström et al.).
+- `observe` implements *unnormalized* hard conditioning: filtering the measure
+  by a boolean predicate.  This is the discrete analogue of Borgström et al.'s
+  `observe` combinator (Definition 2.5), where `observe p µ A = µ(A ∩ {x | p x})`.
+- Normalization (posterior recovery) is performed externally via
+  `WDist.toProbabilityMeasure`, corresponding to `P[value = V | valid]`
+  (Theorem 3.3).
+
+The bridging theorems connecting `evalP` to `Measure` / `ProbabilityMeasure`
+are stated in `Vegas.ProbLetLemmas` (section MeasureSemantics).  The supporting
+`WDist.toMeasure` lemmas (including the key `toMeasure_bind`, which formalizes
+the discrete `extend` decomposition) are in `Vegas.WDistLemmas`.
 -/
