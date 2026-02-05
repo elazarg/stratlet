@@ -1,5 +1,3 @@
-import Mathlib.Data.Rat.Init
-import Mathlib.Data.Int.Basic
 import Mathlib.Data.List.Basic
 
 import Vegas.WDist
@@ -8,12 +6,20 @@ import Vegas.Env
 
 namespace ProbLet
 
+section
+
+variable {L : Language}
+
+attribute [instance] Language.decEqTy Language.decEqVal
+
+
 -- DESIGN NOTE: Kernels are history-dependent via `Env`;
 --              strategies and sampling may depend on the current state.
 -- DESIGN NOTE: No explicit model of randomness provenance (public/private/shared);
 --              this is a parameter of the semantics / compilation layer.
 /-- A (finite-support) stochastic kernel from environments. -/
-abbrev Kernel (Γ : Ctx) (τ : Ty) := Env Γ → WDist (Val τ)
+abbrev Kernel (Γ : ProgCore.CtxL (L := L)) (τ : L.Ty) :=
+  ProgCore.EnvL Γ → WDist (L.Val τ)
 
 /-- Effect interface instance for `WDist`. -/
 def EffWDist : ProgCore.Eff WDist where
@@ -28,36 +34,43 @@ def EffWDist : ProgCore.Eff WDist where
   (WDist.zero : WDist α).weights = [] := rfl
 
 /-- Bind-commands for the probabilistic language: sampling from a kernel. -/
-inductive CmdBindP : ProgCore.CmdB where
-  | sample {Γ τ} (K : Kernel Γ τ) : CmdBindP Γ τ
+inductive CmdBindP : ProgCore.CmdB (L := L) where
+  | sample {Γ : ProgCore.CtxL} {τ : L.Ty} (K : Kernel Γ τ) : CmdBindP Γ τ
 
 /-- Statement-commands: hard evidence / rejection. -/
-abbrev CmdStmtP := ProgCore.CmdStmtObs
+abbrev CmdStmtP : ProgCore.CmdS (L := L) := ProgCore.CmdStmtObs
 
 /-- Probabilistic programs are `Prog` instantiated with these commands. -/
-abbrev PProg := ProgCore.Prog CmdBindP CmdStmtP
+abbrev PProg : ProgCore.CtxL (L := L) → L.Ty → Type :=
+  ProgCore.Prog (CB := CmdBindP) (CS := CmdStmtP)
 
 /-- Pack the semantics as a `LangSem`. -/
-def ProbSem : ProgCore.LangSem CmdBindP CmdStmtP WDist where
+def ProbSem : ProgCore.LangSem (CmdBindP) (CmdStmtP (L := L)) WDist where
   E := EffWDist
   handleBind
     | .sample K, env => K env
   handleStmt
     | .observe cond, env =>
-        --  NOTE: This is *unnormalized* conditioning (hard rejection).
-        --  Posterior requires an explicit `normalize` layer
-        if evalExpr cond env then WDist.pure () else EffWDist.fail
+        -- NOTE: this is *unnormalized* conditioning (hard rejection).
+        if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero
 
-@[simp] theorem ProbSem_handleBind_sample (K : Kernel Γ τ) (env : Env Γ) :
-    ProbSem.handleBind (CmdBindP.sample (Γ := Γ) (τ := τ) K) env = K env := rfl
+@[simp] theorem ProbSem_handleBind_sample
+    {Γ : ProgCore.CtxL} {τ : L.Ty}
+    (K : Kernel Γ τ) (env : ProgCore.EnvL Γ) :
+    (ProbSem |>.handleBind (CmdBindP.sample (Γ := Γ) (τ := τ) K) env) = K env := rfl
 
-@[simp] theorem ProbSem_handleStmt_observe (cond : Expr Γ .bool) (env : Env Γ) :
-    ProbSem.handleStmt (ProgCore.CmdStmtObs.observe (Γ := Γ) cond) env =
-      (if evalExpr cond env then WDist.pure () else WDist.zero) := rfl
+@[simp] theorem ProbSem_handleStmt_observe
+    {Γ : ProgCore.CtxL}
+    (cond : L.Expr Γ L.bool) (env : ProgCore.EnvL Γ) :
+    (ProbSem |>.handleStmt (ProgCore.CmdStmtObs.observe (Γ := Γ) cond) env) =
+      (if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero) := rfl
 
 /-- Evaluator for probabilistic programs. -/
-def evalP {Γ τ} : PProg Γ τ → Env Γ → WDist (Val τ) :=
-  ProgCore.evalWith ProbSem
+def evalP {Γ : ProgCore.CtxL} {τ : L.Ty} :
+    PProg Γ τ → ProgCore.EnvL Γ → WDist (L.Val τ) :=
+  ProgCore.evalWith (ProbSem)
+
+end
 
 end ProbLet
 
