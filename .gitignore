@@ -1,2 +1,6 @@
 /.lake
 /.claude
+.env
+CLAUDE.md
+lsp/daemon.log
+lsp/__pycache__/
