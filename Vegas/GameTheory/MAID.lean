@@ -25,13 +25,19 @@ structure Node where
   parents : List Nat
 deriving Repr
 
+/-- The node list is in topological order: every parent id of node `i`
+    belongs to a node that appears earlier in the list. -/
+def TopologicalOrder (nodes : List Node) : Prop :=
+  ∀ (i : Fin nodes.length), ∀ pid ∈ (nodes[i]).parents,
+    ∃ (j : Fin nodes.length), j.val < i.val ∧ (nodes[j]).id = pid
+
 /-- A multi-agent influence diagram. -/
 structure Diagram where
   nodes : List Node
   nodup_ids : (nodes.map Node.id).Nodup
   parents_exist : ∀ n ∈ nodes, ∀ pid ∈ n.parents,
     ∃ m ∈ nodes, m.id = pid
-  acyclic : Prop
+  acyclic : TopologicalOrder nodes
 
 /-- A policy maps decision node ids to distributions over values
     (represented as lists of non-negative rationals). -/

@@ -61,7 +61,8 @@ def AllParentsAreYieldIds (p : ParentProtoProg (L := L) Γ τ) : Prop :=
 /-- Convert a `ParentProtoProg` to a MAID Diagram. -/
 def ParentProtoProg.toMAID (p : ParentProtoProg (L := L) Γ τ)
     (hnd : NoDupYieldIds (embed p))
-    (hallp : AllParentsAreYieldIds p) : MAID.Diagram where
+    (hallp : AllParentsAreYieldIds p)
+    (htopo : MAID.TopologicalOrder p.toMAIDNodes) : MAID.Diagram where
   nodes := p.toMAIDNodes
   nodup_ids := by
     rw [toMAIDNodes_ids_eq_yieldIds]
@@ -71,7 +72,7 @@ def ParentProtoProg.toMAID (p : ParentProtoProg (L := L) Γ τ)
     have h := hallp n hn pid hpid
     rw [← toMAIDNodes_ids_eq_yieldIds] at h
     exact List.mem_map.mp h
-  acyclic := True  -- placeholder
+  acyclic := htopo
 
 -- ============================================================
 -- Layer 2: Semantic — ParentProtoProg → EFG.GameTree (bool-only)
@@ -128,13 +129,6 @@ def ParentProtoProg.toEFG
 -- ============================================================
 -- Correctness lemmas
 -- ============================================================
-
-/-- The yield IDs of the EFG tree's decision nodes match the Proto's yield IDs.
-    (Statement is informal; a precise version requires collecting pids from the EFG tree.) -/
-theorem toEFG_yieldIds_match
-    (p : ParentProtoProg (L := BasicLang) Γ τ)
-    (u : Proto.Utility (L := BasicLang) τ) (env : BasicLang.Env Γ) :
-    True := trivial  -- placeholder: precise statement deferred
 
 /-- The resulting EFG tree is well-formed under appropriate conditions. -/
 theorem toEFG_wfTree

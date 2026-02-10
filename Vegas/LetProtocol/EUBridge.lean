@@ -16,9 +16,8 @@ computation via `WDist.EV_bind` (the tower property).
 
 ## Main results
 
-1. `Proto.translateProfile` — translates a Proto profile to an EFG behavioral strategy
-2. `Proto.directEU` — structural recursive EU on ParentProtoProg (fuel-free)
-3. `Proto.eu_preservation_directEU` — the main preservation theorem
+1. `Proto.directEU` — structural recursive EU on ParentProtoProg (fuel-free)
+2. `Proto.eu_preservation_directEU` — the main preservation theorem
 
 This file lives in `LetProtocol` (not `GameTheory`) because it bridges FROM
 protocol programs TO game-theoretic structures.
@@ -71,31 +70,7 @@ def ObserveFree : ParentProtoProg (L := L) Γ τ → Prop
   | .choose _ _ _ _ k => ObserveFree k
 
 -- ============================================================
--- 3) Strategy translation: Proto.Profile → EFG.BehavioralStrategy
--- ============================================================
-
-/-- Translate a Proto `Profile` to an EFG `BehavioralStrategy`.
-
-    An EFG behavioral strategy maps a decision-point id (pid : Nat)
-    to a distribution over action *indices* (List NNReal).
-
-    A Proto Profile maps (who, id, view, actions, obs) to a WDist over
-    action *values*.
-
-    The translation is inherently lossy because:
-    - Proto profiles are parametric in the observation (obs : Env Δ)
-    - EFG behavioral strategies only know the pid (Nat)
-
-    For the EU bridge, we don't actually need this translation at the
-    `BehavioralStrategy` level — we prove the bridge directly via
-    `directEU` which uses the Proto profile natively.
-
-    This definition is provided for completeness / future use. -/
-def translateProfile (_σ : Profile (L := BasicLang)) : EFG.BehavioralStrategy :=
-  fun _pid => []  -- placeholder: proper translation requires observation context
-
--- ============================================================
--- 4) The core EU preservation: Proto EU_dist = directEU
+-- 3) The core EU preservation: Proto EU_dist = directEU
 -- ============================================================
 
 /-- Key relationship: `EU_dist` is `WDist.EV` with the utility curried.
