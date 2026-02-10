@@ -8,7 +8,11 @@ Internal protocol between client↔daemon uses newline-delimited JSON over TCP.
 """
 
 import json
+import logging
+import os
 import pathlib
+import subprocess
+import sys
 import urllib.parse
 import urllib.request
 
@@ -112,10 +116,13 @@ def read_state() -> dict | None:
         return None
 
 
-def write_state(port: int, pid: int):
-    """Write daemon state (port, pid) to the state file."""
+def write_state(port: int, pid: int, lean_pid: int | None = None):
+    """Write daemon state (port, pid, lean_pid) to the state file."""
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(json.dumps({"port": port, "pid": pid}))
+    data = {"port": port, "pid": pid}
+    if lean_pid is not None:
+        data["lean_pid"] = lean_pid
+    STATE_FILE.write_text(json.dumps(data))
 
 
 def remove_state():
@@ -124,3 +131,77 @@ def remove_state():
         STATE_FILE.unlink()
     except FileNotFoundError:
         pass
+
+
+# ---------------------------------------------------------------------------
+# Process management helpers
+# ---------------------------------------------------------------------------
+
+logger = logging.getLogger("lsp-protocol")
+
+
+def is_pid_alive(pid: int) -> bool:
+    """Check if a process with the given PID is still running."""
+    if pid <= 0:
+        return False
+
+    if sys.platform == "win32":
+        try:
+            # OpenProcess with PROCESS_QUERY_LIMITED_INFORMATION (0x1000)
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            handle = kernel32.OpenProcess(0x1000, False, pid)
+            if not handle:
+                return False
+            try:
+                exit_code = ctypes.c_ulong()
+                kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+                # STILL_ACTIVE = 259
+                return exit_code.value == 259
+            finally:
+                kernel32.CloseHandle(handle)
+        except Exception:
+            return False
+    else:
+        try:
+            os.kill(pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True  # Process exists but we can't signal it
+
+
+def kill_process_tree(pid: int) -> bool:
+    """Kill a process and all its children.
+
+    Returns True if the kill was attempted (not necessarily successful).
+    """
+    if pid <= 0:
+        return False
+
+    if sys.platform == "win32":
+        try:
+            # taskkill /F /T /PID kills the process tree
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(pid)],
+                capture_output=True, timeout=10,
+            )
+            return True
+        except Exception as e:
+            logger.debug("kill_process_tree(%d) failed: %s", pid, e)
+            return False
+    else:
+        try:
+            os.killpg(os.getpgid(pid), 9)  # SIGKILL the process group
+            return True
+        except (ProcessLookupError, PermissionError):
+            # Try single-process kill as fallback
+            try:
+                os.kill(pid, 9)
+                return True
+            except Exception:
+                return False
+        except Exception as e:
+            logger.debug("kill_process_tree(%d) failed: %s", pid, e)
+            return False

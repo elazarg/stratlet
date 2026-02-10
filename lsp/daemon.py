@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import pathlib
+import signal
 import socket
 import subprocess
 import sys
@@ -22,6 +23,7 @@ import time
 
 # Add parent so we can import protocol as sibling
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import jobobject
 import protocol
 
 logger = logging.getLogger("lsp-daemon")
@@ -51,6 +53,7 @@ class LeanLSPDaemon:
         self.lean_dead = False
         self.lean_dead_reason = ""
         self.shutdown_flag = threading.Event()
+        self.job_handle = None  # Windows Job Object handle
 
     # ------------------------------------------------------------------
     # LSP process management
@@ -59,15 +62,36 @@ class LeanLSPDaemon:
     def start_lean(self):
         """Spawn lake serve and perform the LSP handshake."""
         logger.info("Starting lake serve in %s", self.project_root)
-        self.lean_proc = subprocess.Popen(
-            ["lake", "serve"],
+
+        # Create Job Object first (Windows) — KILL_ON_JOB_CLOSE ensures
+        # children die if the daemon exits for any reason
+        self.job_handle = jobobject.create_kill_on_close_job()
+        if self.job_handle:
+            logger.info("Created Windows Job Object (KILL_ON_JOB_CLOSE)")
+        elif sys.platform == "win32":
+            logger.warning("Failed to create Job Object — children may orphan on crash")
+
+        popen_kwargs = dict(
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=str(self.project_root),
-            # On Windows, avoid inheriting console
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
         )
+        if sys.platform == "win32":
+            popen_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+        else:
+            # Unix: start in new session so we can killpg() the whole group
+            popen_kwargs["start_new_session"] = True
+
+        self.lean_proc = subprocess.Popen(["lake", "serve"], **popen_kwargs)
+
+        # Assign to Job Object (Windows)
+        if self.job_handle and self.lean_proc:
+            ok = jobobject.assign_process(self.job_handle, self.lean_proc._handle)
+            if ok:
+                logger.info("Assigned lake serve (PID %d) to Job Object", self.lean_proc.pid)
+            else:
+                logger.warning("Failed to assign lake serve to Job Object")
 
         # Start reader thread
         reader = threading.Thread(target=self._reader_loop, daemon=True)
@@ -98,22 +122,41 @@ class LeanLSPDaemon:
         self._send_notification("initialized", {})
 
     def shutdown_lean(self):
-        """Graceful LSP shutdown."""
-        if self.lean_dead or self.lean_proc is None:
+        """3-phase shutdown: graceful LSP → wait → force kill tree."""
+        if self.lean_proc is None:
             return
-        logger.info("Sending LSP shutdown + exit")
-        try:
-            self._send_request("shutdown", None, timeout=10)
-        except Exception:
-            pass
-        try:
-            self._send_notification("exit", None)
-        except Exception:
-            pass
+
+        lean_pid = self.lean_proc.pid
+
+        # Phase 1: Graceful LSP shutdown (if lean is still alive)
+        if not self.lean_dead:
+            logger.info("Phase 1: Sending LSP shutdown + exit to PID %d", lean_pid)
+            try:
+                self._send_request("shutdown", None, timeout=10)
+            except Exception:
+                pass
+            try:
+                self._send_notification("exit", None)
+            except Exception:
+                pass
+
+        # Phase 2: Wait up to 5s for graceful exit
         try:
             self.lean_proc.wait(timeout=5)
+            logger.info("lake serve exited gracefully")
+            return
         except subprocess.TimeoutExpired:
-            self.lean_proc.kill()
+            pass
+
+        # Phase 3: Force kill the entire process tree
+        logger.warning("Phase 3: Force killing lake serve tree (PID %d)", lean_pid)
+        protocol.kill_process_tree(lean_pid)
+
+        # Final wait to reap
+        try:
+            self.lean_proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            logger.error("lake serve PID %d still alive after force kill", lean_pid)
 
     # ------------------------------------------------------------------
     # LSP read loop (runs in background thread)
@@ -499,8 +542,9 @@ class LeanLSPDaemon:
         actual_port = server.getsockname()[1]
         logger.info("TCP server listening on 127.0.0.1:%d", actual_port)
 
-        # Write state file
-        protocol.write_state(actual_port, os.getpid())
+        # Write state file (include lean PID for stale cleanup)
+        lean_pid = self.lean_proc.pid if self.lean_proc else None
+        protocol.write_state(actual_port, os.getpid(), lean_pid=lean_pid)
         logger.info("State file written to %s", protocol.STATE_FILE)
 
         self.last_activity = time.time()
@@ -586,13 +630,35 @@ def main():
     logger.info("Project root: %s", project_root)
 
     daemon = LeanLSPDaemon(project_root, idle_timeout=args.timeout)
+
+    # --- Signal handlers (Layer 2) ---
+    def _signal_shutdown(signum, frame):
+        sig_name = signal.Signals(signum).name if hasattr(signal, "Signals") else str(signum)
+        logger.info("Received signal %s — initiating shutdown", sig_name)
+        daemon.shutdown_flag.set()
+
+    signal.signal(signal.SIGTERM, _signal_shutdown)
+    signal.signal(signal.SIGINT, _signal_shutdown)
+    if sys.platform == "win32":
+        # SIGBREAK is sent on console close / Ctrl+Break
+        signal.signal(signal.SIGBREAK, _signal_shutdown)
+
     try:
         daemon.start_lean()
         daemon.serve(port=args.port)
     except Exception:
         logger.exception("Daemon fatal error")
+        # Ensure children are cleaned up even on fatal error
+        try:
+            daemon.shutdown_lean()
+        except Exception:
+            pass
         protocol.remove_state()
         sys.exit(1)
+    finally:
+        # Close the Job Object handle (on Windows this is the final safety net —
+        # if anything is still alive, KILL_ON_JOB_CLOSE takes effect)
+        jobobject.close_job(daemon.job_handle)
 
 
 if __name__ == "__main__":

@@ -42,6 +42,26 @@ def is_daemon_alive() -> bool:
         sock.close()
 
 
+def _cleanup_stale_pids():
+    """Kill any stale daemon/lean PIDs from a previous crashed session."""
+    state = protocol.read_state()
+    if state is None:
+        return
+
+    killed = []
+    for key in ("pid", "lean_pid"):
+        pid = state.get(key)
+        if pid and protocol.is_pid_alive(pid):
+            protocol.kill_process_tree(pid)
+            killed.append(f"{key}={pid}")
+
+    if killed:
+        print(json.dumps({"info": f"Cleaned up stale processes: {', '.join(killed)}"}),
+              file=sys.stderr)
+
+    protocol.remove_state()
+
+
 def cmd_start(idle_timeout: int = 1800):
     """Start the daemon if not already running."""
     # Check if already running
@@ -51,8 +71,8 @@ def cmd_start(idle_timeout: int = 1800):
                           "port": state["port"], "pid": state["pid"]}))
         return
 
-    # Remove stale state file
-    protocol.remove_state()
+    # Layer 3: Kill stale PIDs from previous crashed session
+    _cleanup_stale_pids()
 
     # Launch daemon as detached process
     daemon_script = pathlib.Path(__file__).resolve().parent / "daemon.py"
@@ -123,12 +143,14 @@ def cmd_status():
 
 
 def cmd_stop():
-    """Stop the daemon gracefully."""
+    """Stop the daemon gracefully, with force-kill fallback."""
     state = protocol.read_state()
     if state is None:
         print(json.dumps({"ok": True, "message": "Daemon not running (no state file)"}))
         return
 
+    # Try graceful TCP shutdown first
+    graceful_ok = False
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.settimeout(5)
@@ -136,16 +158,26 @@ def cmd_stop():
         protocol.send_json(sock, {"command": "shutdown"})
         resp = protocol.recv_json(sock)
         print(json.dumps(resp))
+        graceful_ok = True
     except (ConnectionRefusedError, OSError):
-        print(json.dumps({"ok": True, "message": "Daemon not reachable, cleaning up state file"}))
+        print(json.dumps({"ok": True, "message": "Daemon not reachable, will force kill"}),
+              file=sys.stderr)
     finally:
         sock.close()
 
-    # Wait for state file to disappear
-    for _ in range(20):
-        time.sleep(0.5)
-        if not protocol.STATE_FILE.exists():
-            break
+    if graceful_ok:
+        # Wait for state file to disappear
+        for _ in range(20):
+            time.sleep(0.5)
+            if not protocol.STATE_FILE.exists():
+                break
+
+    # Force-kill fallback: if processes are still alive, kill them
+    for key in ("pid", "lean_pid"):
+        pid = state.get(key)
+        if pid and protocol.is_pid_alive(pid):
+            protocol.kill_process_tree(pid)
+            print(json.dumps({"info": f"Force-killed {key}={pid}"}), file=sys.stderr)
 
     protocol.remove_state()  # Ensure cleanup
 
