@@ -41,13 +41,13 @@ infix:50 " ≈ " => ProgEq
 end Definitions
 
 /-!
-## A canonical “zero program”
+## A canonical "zero program"
 
 Sample from the zero kernel and return the sampled value. The continuation is irrelevant
 since `bind zero f = zero`, but we pick the simplest well-typed one.
 -/
 
-/-- Canonical “zero program”: sample from the zero kernel, then return `vz`. -/
+/-- Canonical "zero program": sample from the zero kernel, then return `vz`. -/
 def zeroProg {EL : ExprLaws L} {Γ : L.Ctx} {τ : L.Ty} : PProg Γ τ :=
   .doBind
     (.sample (fun _ : L.Env Γ => (WDist.zero : WDist (L.Val τ))))

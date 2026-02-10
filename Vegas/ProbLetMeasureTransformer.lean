@@ -111,7 +111,7 @@ theorem evalP_eq_denote :
                     μ + (vw.2 : ℝ≥0∞) • (evalP k (vw.1, env)).toMeasure)
                   0 := by
             simpa using (toMeasure_evalP_sample (K := K) (k := k) (env := env))
-          -- put goal in the same “foldr” shape as RHS
+          -- put goal in the same "foldr" shape as RHS
           rw [h_eval]
           -- unfold RHS denote/doBind/extendW
           simp only [denote, MT.extendW]

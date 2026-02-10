@@ -14,7 +14,7 @@ open ProgCore GameDefs
 
 variable {L : Language}
 
-/-! ## Extensional “sanity” properties -/
+/-! ## Extensional "sanity" properties -/
 
 /-- A program with no choices (no `.doBind`) is profile-independent. -/
 def noChoices {Γ : L.Ctx} {τ : L.Ty} : DagProg (L := L) Γ τ → Prop

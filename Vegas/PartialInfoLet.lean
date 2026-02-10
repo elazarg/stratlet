@@ -1,4 +1,3 @@
-import Mathlib.Data.Rat.Init
 import Mathlib.Data.Int.Basic
 import Mathlib.Data.List.Basic
 
@@ -14,22 +13,24 @@ open GameDefs
 
 /-! ## Partial information via explicit views (no changes to ProgCore/ProbLet) -/
 
+variable {L : Language}
+
 /--
 A `View Γ` is an explicit environment slice:
 - a visible context `Δ`
-- a projection `Env Γ → Env Δ`
+- a projection `L.Env Γ → L.Env Δ`
 
 No players or visibility tags appear in the core calculus; views are command payloads.
 
 View is the only mechanism for epistemic restriction;
 we do not model belief, only information availability.
 -/
-structure View (Γ : Ctx) where
-  Δ : Ctx
-  proj : Env Γ → Env Δ
+structure View (Γ : L.Ctx) where
+  Δ : L.Ctx
+  proj : L.Env Γ → L.Env Δ
 
-/-- Action sets offered at a choice point; parameterized by the visible env `Env v.Δ`. -/
-abbrev Act {Γ : Ctx} (v : View Γ) (τ : Ty) := Env v.Δ → List (Val τ)
+/-- Action sets offered at a choice point; parameterized by the visible env `L.Env v.Δ`. -/
+abbrev Act {Γ : L.Ctx} (v : View Γ) (τ : L.Ty) := L.Env v.Δ → List (Val τ)
 
 /-! ## 1) Strategic bind-commands: choose / commit / reveal
 
@@ -53,9 +54,9 @@ abbrev CmdStmtS := ProgCore.CmdStmtObs
 abbrev SProg := ProgCore.Prog CmdBindS CmdStmtS
 
 namespace SProg
-def ret {Γ τ} (e : Expr Γ τ) : SProg Γ τ := ProgCore.Prog.ret e
+def ret {Γ τ} (e : L.Expr Γ τ) : SProg Γ τ := ProgCore.Prog.ret e
 
-def letDet {Γ τ τ'} (e : Expr Γ τ') (k : SProg (τ' :: Γ) τ) : SProg Γ τ :=
+def letDet {Γ τ τ'} (e : L.Expr Γ τ') (k : SProg (τ' :: Γ) τ) : SProg Γ τ :=
   ProgCore.Prog.letDet e k
 
 def doStmt {Γ τ} (s : CmdStmtS Γ) (k : SProg Γ τ) : SProg Γ τ :=
@@ -64,7 +65,7 @@ def doStmt {Γ τ} (s : CmdStmtS Γ) (k : SProg Γ τ) : SProg Γ τ :=
 def doBind {Γ τ τ'} (c : CmdBindS Γ τ') (k : SProg (τ' :: Γ) τ) : SProg Γ τ :=
   ProgCore.Prog.doBind c k
 
-def observe {Γ τ} (cond : Expr Γ .bool) (k : SProg Γ τ) : SProg Γ τ :=
+def observe {Γ τ} (cond : L.Expr Γ .bool) (k : SProg Γ τ) : SProg Γ τ :=
   .doStmt (.observe cond) k
 end SProg
 
@@ -77,49 +78,60 @@ A profile supplies behavior only for `choose`.
 (You can later refine commit schemes without touching ProgCore/ProbLet.)
 
 A profile is a family of kernels indexed by (who, view, actionset);
-this is behavioral (history-dependent) by construction because Env v.Δ can contain history.
+this is behavioral (history-dependent) by construction because L.Env v.Δ can contain history.
 -/
 structure Profile where
   choose :
-    {Γ : Ctx} → {τ : Ty} →
+    {Γ : L.Ctx} → {τ : L.Ty} →
     (who : Player) → (v : View Γ) → (A : Act v τ) →
     -- strategy sees exactly the projected environment:
-    Env v.Δ → WDist (Val τ)
+    L.Env v.Δ → WDist (Val τ)
 
 /-! ## 3) Deterministic commitment check (placeholder commitment scheme)
 
 We need *some* relation between token and revealed value to make `reveal` meaningful.
-This is a minimal, purely-functional “tag”:
+This is a minimal, purely-functional "tag":
 - for Int: token = x + who
 - for Bool: token = (if b then 1 else 0) + who
 
-This is NOT cryptographic; it’s a structural placeholder enabling the protocol shape
+This is NOT cryptographic; it's a structural placeholder enabling the protocol shape
 (commit returns token; reveal checks it).
 -/
 
--- 2. Define the function using dependent types
-def commitTag (who : Player) {τ : Ty} (x : Val τ) : Int :=
+-- Define the function using dependent types
+def commitTag (who : Player) {τ : L.Ty} (x : Val τ) : Int :=
   match τ with
   | .int  => x + (who : Int)
   | .bool => (if x then 1 else 0) + (who : Int)
 
-/-! ## 4) Denotational semantics for strategic programs (WDist) -/
+/-! ## Denotational semantics for strategic programs (WDist) -/
 
 abbrev EffWDist : ProgCore.Eff WDist := ProbLet.EffWDist
 
-def StratSem (σ : Profile) : ProgCore.LangSem CmdBindS CmdStmtS WDist where
+@[simp] lemma EffWDist_pure {α} (x : α) :
+    EffWDist.pure x = (WDist.pure x : WDist α) := rfl
+
+@[simp] lemma EffWDist_fail {α} :
+    (EffWDist.fail : WDist α) = (WDist.zero : WDist α) := rfl
+
+@[simp] lemma EffWDist_bind {α β} (xs : WDist α) (f : α → WDist β) :
+    EffWDist.bind xs f = WDist.bind xs f := rfl
+
+variable (σ : Profile (L := L))
+
+def StratSem : ProgCore.LangSem CmdBindS CmdStmtS WDist where
   E := EffWDist
   handleBind
     | .choose who v A, env =>
         σ.choose who v A (v.proj env)
     | .commit who v x, env =>
-        let obs : Env v.Δ := v.proj env
-        let xv  : Val _ := Env.get obs x
+        let obs : L.Env v.Δ := v.proj env
+        let xv  : Val _ := L.Env.get obs x
         WDist.pure (commitTag who xv)
     | .reveal (τ := τ) who v c x, env =>
-        let obs : Env v.Δ := v.proj env
-        let cv  : Int := Env.get obs c
-        let xv  : Val τ := Env.get obs x
+        let obs : L.Env v.Δ := v.proj env
+        let cv  : Int := L.Env.get obs c
+        let xv  : Val τ := L.Env.get obs x
         if cv == commitTag who xv then
           WDist.pure xv
         else
@@ -128,7 +140,7 @@ def StratSem (σ : Profile) : ProgCore.LangSem CmdBindS CmdStmtS WDist where
     | .observe cond, env =>
         if evalExpr cond env then .pure () else .zero
 
-def evalS {Γ τ} (σ : Profile) : SProg Γ τ → Env Γ → WDist (Val τ) :=
+def evalS {Γ τ} : SProg Γ τ → L.Env Γ → WDist (Val τ) :=
   ProgCore.evalWith (StratSem σ)
 
 /-! ## 5) Compilation to ProbLet by fixing a profile -/
@@ -146,7 +158,7 @@ Compilation uses sample for both strategic and protocol binds;
 this is intentional (one bind-command interface), but later we may want to separate
 ‘nature randomness’ from ‘strategic randomness’ to control correlation assumptions.
 -/
-def toProb (σ : Profile) : SProg Γ τ → ProbLet.PProg Γ τ
+def toProb : SProg Γ τ → ProbLet.PProg Γ τ
   | .ret e        => .ret e
   | .letDet e k   => .letDet e (toProb σ k)
   | .doStmt s k   => .doStmt s (toProb σ k)
@@ -157,20 +169,20 @@ def toProb (σ : Profile) : SProg Γ τ → ProbLet.PProg Γ τ
           .doBind (.sample K) (toProb σ k)
       | .commit who v x =>
           let K : ProbLet.Kernel Γ .int := fun env =>
-            let obs : Env v.Δ := v.proj env
-            let xv : Val _ := Env.get obs x
+            let obs : L.Env v.Δ := v.proj env
+            let xv : Val _ := L.Env.get obs x
             WDist.pure (commitTag who xv)
           .doBind (.sample K) (toProb σ k)
       | .reveal (τ := τ') who v c x =>
           let K : ProbLet.Kernel Γ τ' := fun env =>
-            let obs : Env v.Δ := v.proj env
-            let cv  : Int := Env.get obs c
-            let xv  : Val τ' := Env.get obs x
+            let obs : L.Env v.Δ := v.proj env
+            let cv  : Int := L.Env.get obs c
+            let xv  : Val τ' := L.Env.get obs x
             if cv == commitTag who xv then WDist.pure xv else WDist.zero
           .doBind (.sample K) (toProb σ k)
 
 /-- Commutation theorem: evalS under σ coincides with ProbLet eval of the compilation. -/
-theorem evalS_eq_evalP_toProb {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : Env Γ) :
+theorem evalS_eq_evalP_toProb {Γ τ} (p : SProg Γ τ) (env : L.Env Γ) :
     evalS σ p env = ProbLet.evalP (toProb σ p) env := by
   simp only [evalS, StratSem, EffWDist, ProbLet.evalP, ProbLet.ProbSem]
   induction p with
@@ -197,7 +209,7 @@ theorem evalS_eq_evalP_toProb {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : En
 
 /-! ## 6) Behavioral interpreter (optional but useful) -/
 
-inductive Beh : Ty → Type where
+inductive Beh : L.Ty → Type where
   | ret  {τ} (v : Val τ) : Beh τ
   | fail {τ} : Beh τ
   | choose {τ τ'} (who : Player)
@@ -215,7 +227,7 @@ inductive Beh : Ty → Type where
       (k   : Val τ' → Beh τ)
       : Beh τ
 
-def behEval {Γ τ} : SProg Γ τ → Env Γ → Beh τ
+def behEval {Γ τ} : SProg Γ τ → L.Env Γ → Beh τ
   | .ret e, env =>
       Beh.ret (evalExpr e env)
   | .letDet e k, env =>
@@ -228,21 +240,21 @@ def behEval {Γ τ} : SProg Γ τ → Env Γ → Beh τ
       let distThunk : Profile → WDist (Val _) := fun σ => σ.choose who v A obs
       Beh.choose who acts distThunk (fun a => behEval k (a, env))
   | .doBind (.commit (τ := τ') who v x) k, env =>
-      let obs : Env v.Δ := v.proj env
-      let xv : Val τ' := Env.get obs x
+      let obs : L.Env v.Δ := v.proj env
+      let xv : Val τ' := L.Env.get obs x
       let tok := commitTag who xv
       Beh.commit who tok (fun t => behEval k (t, env))
   | .doBind (.reveal (τ := τ') who v c x) k, env =>
-      let obs : Env v.Δ := v.proj env
-      let cv : Int := Env.get obs c
-      let xv : Val τ' := Env.get obs x
+      let obs : L.Env v.Δ := v.proj env
+      let cv : Int := L.Env.get obs c
+      let xv : Val τ' := L.Env.get obs x
       let ok : Bool := (cv == commitTag who xv)
       if ok then
         Beh.reveal who true xv (fun r => behEval k (r, env))
       else
         Beh.reveal who false xv (fun _ => Beh.fail)
 
-def runBeh {τ} (σ : Profile) : Beh τ → WDist (Val τ)
+def runBeh {τ} : Beh τ → WDist (Val τ)
   | .ret v => WDist.pure v
   | .fail => .zero
   | .choose _ _ d k => WDist.bind (d σ) (fun a => runBeh σ (k a))
@@ -250,47 +262,37 @@ def runBeh {τ} (σ : Profile) : Beh τ → WDist (Val τ)
   | .reveal _ ok v k =>
       if ok then runBeh σ (k v) else .zero
 
-@[simp] lemma EffWDist_pure {α} (x : α) :
-    EffWDist.pure x = (WDist.pure x : WDist α) := rfl
-
-@[simp] lemma EffWDist_fail {α} :
-    (EffWDist.fail : WDist α) = (WDist.zero : WDist α) := rfl
-
-@[simp] lemma EffWDist_bind {α β} (xs : WDist α) (f : α → WDist β) :
-    EffWDist.bind xs f = WDist.bind xs f := rfl
-
-
-@[simp] lemma StratSem_handleStmt_observe (σ : Profile)
-    (cond : Expr Γ .bool) (env : Env Γ) :
+@[simp] lemma StratSem_handleStmt_observe
+    (cond : L.Expr Γ .bool) (env : L.Env Γ) :
     (StratSem σ).handleStmt (ProgCore.CmdStmtObs.observe (Γ := Γ) cond) env
       =
     (if evalExpr cond env then WDist.pure () else WDist.zero) := rfl
 
-@[simp] lemma StratSem_handleBind_choose (σ : Profile)
-    (who : Player) (v : View Γ) (A : Act v τ) (env : Env Γ) :
+@[simp] lemma StratSem_handleBind_choose
+    (who : Player) (v : View Γ) (A : Act v τ) (env : L.Env Γ) :
     (StratSem σ).handleBind (CmdBindS.choose (Γ := Γ) (τ := τ) who v A) env
       =
     σ.choose who v A (v.proj env) := rfl
 
-@[simp] lemma StratSem_handleBind_commit (σ : Profile)
-    (who : Player) (v : View Γ) (x : Var v.Δ τ) (env : Env Γ) :
+@[simp] lemma StratSem_handleBind_commit
+    (who : Player) (v : View Γ) (x : Var v.Δ τ) (env : L.Env Γ) :
     (StratSem σ).handleBind (CmdBindS.commit (Γ := Γ) (τ := τ) who v x) env
       =
     WDist.pure (commitTag who ((v.proj env).get x)) := rfl
 
-@[simp] lemma StratSem_handleBind_reveal (σ : Profile)
-    (who : Player) (v : View Γ) (c : Var v.Δ .int) (x : Var v.Δ τ) (env : Env Γ) :
+@[simp] lemma StratSem_handleBind_reveal
+    (who : Player) (v : View Γ) (c : Var v.Δ .int) (x : Var v.Δ τ) (env : L.Env Γ) :
     (StratSem σ).handleBind (CmdBindS.reveal (Γ := Γ) (τ := τ) who v c x) env
       =
     (if (v.proj env).get c == commitTag who ((v.proj env).get x)
      then WDist.pure ((v.proj env).get x)
      else WDist.zero) := rfl
 
-@[simp] lemma StratSem_E_bind (σ : Profile) {α β}
+@[simp] lemma StratSem_E_bind {α β}
     (xs : WDist α) (f : α → WDist β) :
     (StratSem σ).E.bind xs f = WDist.bind xs f := rfl
 
-theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : Env Γ) :
+theorem runBeh_behEval_eq_evalS {Γ τ} (p : SProg Γ τ) (env : L.Env Γ) :
     runBeh σ (behEval p env) = evalS σ p env := by
   induction p with
   | ret e => rfl
@@ -328,7 +330,7 @@ theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : 
       | reveal who v c x =>
           -- split on the reveal check (same boolean on both sides)
           by_cases h :
-              (Env.get (v.proj env) c) == commitTag who (Env.get (v.proj env) x)
+              (L.Env.get (v.proj env) c) == commitTag who (L.Env.get (v.proj env) x)
           · -- success: both extend env with revealed value and continue
             simp only [behEval, h, reduceIte, runBeh, evalS]
             set xv : Val _ := (v.proj env).get x
@@ -343,47 +345,14 @@ theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : 
             rfl
 
 
-theorem runBeh_behEval_eq_evalP_toProb (σ : Profile) (p : SProg Γ τ) (env : Env Γ) :
+theorem runBeh_behEval_eq_evalP_toProb (p : SProg Γ τ) (env : L.Env Γ) :
     runBeh σ (behEval p env) = ProbLet.evalP (toProb σ p) env := by
   simpa [runBeh_behEval_eq_evalS] using (evalS_eq_evalP_toProb (Γ := Γ) (τ := τ) σ p env)
 
 /-- Identity view sees everything: projection is identity. -/
-def idView (Γ : Ctx) : View Γ where
+def idView (Γ : L.Ctx) : View Γ where
   Δ := Γ
   proj := fun env => env
-
-/-! ## 7) Tiny example -/
-
-namespace Examples
-
-def Γ0 : Ctx := []
-
-noncomputable def uniformProfile : Profile where
-  choose := by
-    intro Γ τ who v A obs
-    exact WDist.uniform (A obs)
-
-def A24 : Act (v := idView Γ0) .int := fun _ => [2, 3, 4]
-
-def Γ1 : Ctx := Ty.int :: Γ0          -- after choose
-def Γ2 : Ctx := Ty.int :: Γ1          -- after commit (token :: x :: Γ0)
-
--- variables in Γ1
-def xVar : Var Γ1 .int := Var.vz
-
--- variables in Γ2
-def cVar : Var Γ2 .int := Var.vz
-def xVar2 : Var Γ2 .int := Var.vs Var.vz
-
-def pEx : SProg Γ0 .bool :=
-  SProg.doBind (.choose 0 (idView Γ0) A24)
-    (SProg.doBind (.commit 0 (idView Γ1) xVar)
-      (SProg.doBind (.reveal 0 (idView Γ2) cVar xVar2)
-        -- after reveal, the revealed value is bound at Var.vz
-        (SProg.ret (Expr.eqInt (Expr.var Var.vz) (Expr.constInt 3)))))
-
-end Examples
-
 
 end PartialInfoLet
 
@@ -416,7 +385,7 @@ A secrecy-capable version likely needs:
 * and a soundness statement: a revealed value verifies against the stored commitment.
 
 ### D) Strategy classes and correlation assumptions
-The type of `Profile.choose` permits history-dependent randomization via `Env v.Δ`.
+The type of `Profile.choose` permits history-dependent randomization via `L.Env v.Δ`.
 If we want to enforce assumptions like "no common randomization"
 or "independent private randomness",
 we should define restricted strategy/profile classes

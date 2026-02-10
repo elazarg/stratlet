@@ -5,11 +5,11 @@ import Vegas.ProbLetLemmas
 /-!
 # Extensional Properties for FullInfoLet / SProg
 
-These lemmas state “sanity” properties that FullInfoLet strategic programs should satisfy.
+These lemmas state "sanity" properties that FullInfoLet strategic programs should satisfy.
 
 Important modeling note:
 `FullInfoLet.Profile` does **not** enforce legality (support ⊆ offered action set).
-So any statement that assumes “if A env = [] then the program fails regardless of σ”
+So any statement that assumes "if A env = [] then the program fails regardless of σ"
 needs an extra hypothesis about the profile (or a separate `WFProfile` predicate).
 -/
 
@@ -22,7 +22,7 @@ open ProgCore GameDefs
 /-- A program with no strategic choices is profile-independent.
 
 In `FullInfoLet`, the only bind-command is `choose`, so we can characterize
-“no strategic choices” as “no `.doBind` nodes at all”.
+"no strategic choices" as "no `.doBind` nodes at all".
 -/
 def noChoices {Γ τ} : SProg (L := L) Γ τ → Prop
   | .ret _        => True
@@ -169,7 +169,7 @@ end FullInfoLet
 /-!
 ## What we might want to add next
 
-This file intentionally proves only “unconditional” extensional laws—statements that do not
+This file intentionally proves only "unconditional" extensional laws—statements that do not
 require additional modeling commitments beyond the current definitions.
 
 For a more complete characterization of FullInfoLet, we will likely want:
@@ -177,7 +177,7 @@ For a more complete characterization of FullInfoLet, we will likely want:
 1. **Legality / well-formed profiles (`WFProfile`)**
    A predicate ensuring that strategic kernels respect the offered action sets, e.g.
    `support (σ.choose p A env) ⊆ A env`.
-   Many game-theoretic “obvious” lemmas (like “choose from [] always fails”) require this.
+   Many game-theoretic "obvious" lemmas (like "choose from [] always fails") require this.
 
 2. **Normalization + probability-level reasoning**
    Today `WDist` is unnormalized and allows subprobabilities (observe rejects mass).
@@ -185,18 +185,18 @@ For a more complete characterization of FullInfoLet, we will likely want:
    posteriors / conditional distributions and connect to MeasureTheory cleanly.
 
 3. **Equivalence notions beyond definitional equality**
-   `WDist` equality is intensional (`List`-equality). For reasoning “up to permutation/merging,”
+   `WDist` equality is intensional (`List`-equality). For reasoning "up to permutation/merging,"
    we may introduce an extensional quotient (finite measures / multisets) or a canonicalization,
    and then restate the laws with respect to that equivalence.
 
 4. **Strategy composition assumptions (correlation model)**
-   If the intent is to interpret “mixed strategies,” we may need explicit assumptions about:
+   If the intent is to interpret "mixed strategies," we may need explicit assumptions about:
    - independence across distinct choice points (or explicit correlation devices),
    - what information each choice may condition on (full info vs view-based).
    These should become hypotheses of theorems (not silently baked into evaluation).
 
 5. **Dynamic/game-theoretic solution concepts**
-   Once “profiles” are first-class objects, we can define and study:
+   Once "profiles" are first-class objects, we can define and study:
    - best response, Nash equilibrium,
    - subgame perfection / sequential rationality
     (which will likely require an explicit history view),

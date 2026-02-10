@@ -174,18 +174,21 @@ theorem evalProto_profile_indep {Γ τ}
   -- structural recursion on p; choose-case impossible by hp
   induction p with
   | ret e => rfl
-  | letDet e k ih =>
-      simp only [evalProto_letDet]
-      exact ih hp _
+  | letDet e k ih => exact ih hp _
   | doStmt s k ih =>
       cases s with
       | observe cond =>
-          simp only [evalProto_observe]
-          split <;> [exact ih hp _; rfl]
+          exact congr_arg
+            (WDist.bind ((ProtoSem (L := L) σ₁).handleStmt
+              (.observe cond) env))
+            (funext (fun _ => ih hp _))
   | doBind c k ih =>
       cases c with
       | sample id v K =>
-          simp only [evalProto_sample_bind]
+          change WDist.bind (K (v.proj env))
+              (fun x => evalProto σ₁ k (x, env)) =
+            WDist.bind (K (v.proj env))
+              (fun x => evalProto σ₂ k (x, env))
           congr 1; funext x; exact ih hp _
       | choose id who v A =>
           exact absurd hp (by trivial)
@@ -228,7 +231,26 @@ def AllChooseResolved (π : PProfile (L := L)) {Γ : L.Ctx} {τ : L.Ty} :
     (p : ProtoProg (L := L) Γ τ) :
     NoChoose (L := L) (applyProfile (L := L) π p) ↔
       AllChooseResolved (L := L) π p := by
-  sorry
+  induction p with
+  | ret => exact Iff.rfl
+  | letDet e k ih => exact ih
+  | doStmt s k ih => exact ih
+  | doBind c k ih =>
+      cases c with
+      | sample id v K => exact ih
+      | choose id who v A =>
+          simp only [applyProfile]
+          cases hπ : π.choose? who id v A with
+          | none =>
+              -- NoChoose is False; AllChooseResolved needs ∃ Kdec, none = some
+              constructor
+              · intro h; exact absurd h (by trivial)
+              · intro ⟨⟨_, h⟩, _⟩; exact absurd h (by simp [hπ])
+          | some Kdec =>
+              -- choose→sample; NoChoose ↔ tail; AllChooseResolved ↔ ∃.. ∧ tail
+              constructor
+              · intro h; exact ⟨⟨Kdec, hπ⟩, ih.mp h⟩
+              · intro ⟨_, h⟩; exact ih.mpr h
 
 /-- applyProfile does not change the list of yield ids (it may change *kind*, choose→sample). -/
 theorem yieldIds_applyProfile {Γ τ} (π : PProfile (L := L))
@@ -239,9 +261,11 @@ theorem yieldIds_applyProfile {Γ τ} (π : PProfile (L := L))
   | letDet e k ih => simpa [applyProfile, yieldIds] using ih
   | doStmt s k ih => simpa [applyProfile, yieldIds] using ih
   | doBind c k ih =>
-      cases c <;> simp [applyProfile, yieldIds, ih]
-      -- choose case: both branches preserve the head id
-      sorry
+      cases c with
+      | sample => simp [applyProfile, yieldIds, ih]
+      | choose id who v A =>
+          simp only [applyProfile]
+          cases π.choose? who id v A <;> simp [yieldIds, ih]
 
 
 -- ------------------------------------------------------------
@@ -317,16 +341,27 @@ theorem evalProto_eq_evalP_toProbNoChoose
     ProbLet.evalP (L := L) (toProbNoChoose (L := L) p h) env := by
   -- proof by recursion on p, the doBind case can only be sample
   induction p with
-  | ret e => sorry
-  | letDet e k ih => sorry
+  | ret e => rfl
+  | letDet e k ih => exact ih h _
   | doStmt s k ih =>
       cases s with
-      | observe cond => sorry
+      | observe cond =>
+          -- Both ProtoSem and ProbSem have the same observe handler, so the
+          -- WDist.bind first arg is definitionally equal; only the continuation differs.
+          exact congr_arg
+            (WDist.bind ((ProtoSem (L := L) σ).handleStmt (.observe cond) env))
+            (funext (fun _ => ih h env))
   | doBind c k ih =>
       cases c with
-      | sample id v K => sorry
+      | sample id v K =>
+          -- Both sides: WDist.bind (K (v.proj env)) (fun x => ...)
+          change WDist.bind (K (v.proj env))
+              (fun x => evalProto (L := L) σ k (x, env)) =
+            WDist.bind (K (v.proj env))
+              (fun x => ProbLet.evalP (L := L)
+                (toProbNoChoose (L := L) k h) (x, env))
+          congr 1; funext x; exact ih h (x, env)
       | choose id who v A =>
-          -- impossible: NoChoose (.doBind (.choose ..) k) = False
           exact absurd h (by trivial)
 
 
@@ -334,16 +369,47 @@ theorem evalProto_eq_evalP_toProbNoChoose
 -- 6) toProb? agrees with toProbNoChoose (when defined)
 -- ------------------------------------------------------------
 
-theorem toProb?_some_iff_NoChoose
-    {Γ τ} (p : ProtoProg (L := L) Γ τ) :
-    (∃ q, toProb? (L := L) p = some q) ↔ NoChoose (L := L) p := by
-  -- direction: if some, no choose occurred; converse: structural recursion.
-  sorry
-
 theorem toProb?_eq_toProbNoChoose
     {Γ τ} (p : ProtoProg (L := L) Γ τ) (h : NoChoose (L := L) p) :
     toProb? (L := L) p = some (toProbNoChoose (L := L) p h) := by
-  sorry
+  induction p with
+  | ret => rfl
+  | letDet e k ih => simp [toProb?, toProbNoChoose, ih h]
+  | doStmt s k ih => simp [toProb?, toProbNoChoose, ih h]
+  | doBind c k ih =>
+      cases c with
+      | sample id v K => simp [toProb?, toProbNoChoose, ih h]
+      | choose => exact absurd h (by trivial)
+
+theorem toProb?_some_iff_NoChoose
+    {Γ τ} (p : ProtoProg (L := L) Γ τ) :
+    (∃ q, toProb? (L := L) p = some q) ↔ NoChoose (L := L) p := by
+  constructor
+  · -- forward: if toProb? returns some, then NoChoose
+    intro ⟨q, hq⟩
+    induction p with
+    | ret => trivial
+    | letDet e k ih =>
+        simp only [toProb?] at hq
+        cases hk : toProb? (L := L) k with
+        | none => simp [hk] at hq
+        | some qk => exact ih qk hk
+    | doStmt s k ih =>
+        simp only [toProb?] at hq
+        cases hk : toProb? (L := L) k with
+        | none => simp [hk] at hq
+        | some qk => exact ih qk hk
+    | doBind c k ih =>
+        cases c with
+        | sample id v K =>
+            simp only [toProb?] at hq
+            cases hk : toProb? (L := L) k with
+            | none => simp [hk] at hq
+            | some qk => exact ih qk hk
+        | choose => simp [toProb?] at hq
+  · -- backward: if NoChoose, then toProb? returns some
+    intro h
+    exact ⟨_, toProb?_eq_toProbNoChoose (L := L) p h⟩
 
 
 -- ------------------------------------------------------------
@@ -378,8 +444,8 @@ theorem WFOnProg_of_sample_tail
     (k : ProtoProg (L := L) (τ' :: Γ) τ)
     (hWF : WFOnProg (L := L) Reach σ
       (.doBind (.sample id v K) k)) :
-    WFOnProg (L := L) Reach σ k := by
-  sorry
+    WFOnProg (L := L) Reach σ k :=
+  hWF
 
 
 -- ------------------------------------------------------------
@@ -393,8 +459,16 @@ theorem mass_evalProto_ret {Γ τ} (σ : Profile (L := L)) (e : L.Expr Γ τ) (e
 theorem mass_evalProto_observe_le {Γ τ} (σ : Profile (L := L))
     (c : L.Expr Γ L.bool) (k : ProtoProg (L := L) Γ τ) (env : L.Env Γ) :
     (evalProto (L := L) σ (.observe c k) env).mass ≤ (evalProto (L := L) σ k env).mass := by
-  -- reduces to WDist.mass_observe_le-like lemma once expanded
-  sorry
+  -- Expose the WDist.bind structure through evalProto/evalWith/evalProg_gen
+  change (WDist.bind
+    ((ProtoSem (L := L) σ).handleStmt (.observe c) env)
+    (fun _ => evalProto σ k env)).mass ≤
+    (evalProto σ k env).mass
+  -- handleStmt reduces to if-then-else
+  simp only [ProtoSem_handleStmt_observe]
+  split
+  · simp [WDist.bind_pure]
+  · simp [WDist.bind_zero, WDist.mass_zero]
 
 end ProtoProg
 end ProtoLet

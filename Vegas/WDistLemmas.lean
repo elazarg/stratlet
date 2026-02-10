@@ -151,7 +151,7 @@ theorem mass_bind_const (m : WDist α) (f : α → WDist β) (w : ℝ≥0)
 
 /-! ## Observe / conditioning laws -/
 
-/-- A “guard” distribution: succeed with `()` if `b`, else fail. -/
+/-- A "guard" distribution: succeed with `()` if `b`, else fail. -/
 def guard (b : Bool) : WDist Unit :=
   if b then pure () else zero
 
@@ -268,7 +268,7 @@ variable {α β : Type*} [MeasurableSpace β]
 private noncomputable def step [MeasurableSpace α] (x : α × ℝ≥0) (μ : Measure α) : Measure α :=
   μ + (x.2 : ℝ≥0∞) • Measure.dirac x.1
 
-/-- Key helper: foldr over `step` is “right-additive” in the accumulator. -/
+/-- Key helper: foldr over `step` is "right-additive" in the accumulator. -/
 private lemma foldr_step_add_right [MeasurableSpace α] (ws : List (α × ℝ≥0)) (μ ν : Measure α) :
     List.foldr step (μ + ν) ws = List.foldr step μ ws + ν := by
   classical

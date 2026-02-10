@@ -42,7 +42,18 @@ inductive Prog (CB : CmdB) (CS : CmdS) : L.Ctx → L.Ty → Type where
 /-- Deterministic fragment has no bind-commands. -/
 abbrev CmdBindD : CmdB (L := L) := fun _ _ => Empty
 
-/-- Deterministic statements: just `observe`. -/
+/-! Deterministic statements: just `observe`.
+
+`observe cond` is a guard: it checks `cond` and, if false, triggers the effect’s `fail`
+(i.e. aborts/rejects the current execution according to the chosen `Eff M`). If `cond` is true it
+behaves like `skip` and continues. Thus `observe` is "assume" in the *trace-restriction* sense
+(keep only executions satisfying `cond`), with the exact meaning of rejection determined by `fail`.
+
+This is not the same as Vegas' surface `where` / blockchain `require`: a failing `require` can have
+externally visible consequences (e.g. revert/gas/penalties). If those consequences are modeled as an
+explicit outcome, `require` is *not* trace-deletion; only under an abstraction that ignores them may
+`where` be compiled/idealized as `observe` (e.g. under a declared fair-play / refinement assumption).
+-/
 inductive CmdStmtD : CmdS where
   | observe {Γ : L.Ctx} (cond : L.Expr Γ (L.bool)) : CmdStmtD Γ
 
