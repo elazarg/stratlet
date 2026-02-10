@@ -5,17 +5,23 @@ import Vegas.LetProb.WDistLemmas
 /-!
 # ProtoEquiv: Protocol rewrite kit
 
-Semantic equivalence (`ProgEq`) for protocol programs and commuting
-conversions that preserve semantics.
+Semantic equivalence for protocol programs via denotations.
+
+## Design
+
+Instead of a custom `ProgEq` relation, we work with the **denotation**
+`sem p : Profile → L.Env Γ → WDist (L.Val τ)` and state all equivalences
+as `sem p = sem q` (propositional equality on functions). This gives us
+full `rw`/`simp` support for free, since Lean's tactic infrastructure
+works with `Eq`.
 
 ## Main definitions
 
-- `ProgEq` — two protocol programs are semantically equal when they
-  produce the same `WDist` under every profile and environment
-- Commuting conversions: `observe_fuse_ProgEq`, `letDet_observe_commute`,
-  `sample_observe_commute`, `applyProfile_preserves_ProgEq`
-- Template theorem: a transformation preserving yield structure and
-  ProgEq also preserves EU
+- `sem` — denotation of a `ProtoProg` as a function from profiles and envs to `WDist`
+- `@[simp]` lemmas: `sem_ret`, `sem_letDet`, `sem_observe`, `sem_sample`, `sem_choose`
+- Commuting conversions: `sem_observe_fuse`, `sem_letDet_observe_commute`,
+  `sem_sample_observe_commute`
+- EU preservation templates
 -/
 
 namespace Proto
@@ -25,192 +31,258 @@ open Defs Prog
 variable {L : Language}
 
 -- ============================================================
--- 1) ProgEq: semantic equality under all profiles and envs
+-- 1) Denotation: sem
 -- ============================================================
 
-/-- Two protocol programs are semantically equal when they produce
-    the same `WDist` under every profile and every environment. -/
-def ProgEq {Γ : L.Ctx} {τ : L.Ty}
-    (p q : ProtoProg Γ τ) : Prop :=
-  ∀ (σ : Profile) (env : L.Env Γ),
-    evalProto σ p env = evalProto σ q env
+/-- The semantic denotation of a `ProtoProg`: maps a profile and
+    environment to a weighted distribution over values.
 
-@[refl] theorem ProgEq.refl {Γ τ}
-    (p : ProtoProg (L := L) Γ τ) : ProgEq p p :=
-  fun _ _ => rfl
+    All program equivalences are stated as `sem p = sem q`,
+    which is `Eq` on functions — compatible with `rw`/`simp`. -/
+def sem (p : ProtoProg Γ τ) : Profile (L := L) → L.Env Γ → WDist (L.Val τ) :=
+  fun σ env => evalProto σ p env
 
-@[symm] theorem ProgEq.symm {Γ τ}
-    {p q : ProtoProg (L := L) Γ τ}
-    (h : ProgEq p q) : ProgEq q p :=
-  fun σ env => (h σ env).symm
-
-@[trans] theorem ProgEq.trans {Γ τ}
-    {p q r : ProtoProg (L := L) Γ τ}
-    (h₁ : ProgEq p q) (h₂ : ProgEq q r) : ProgEq p r :=
-  fun σ env => (h₁ σ env).trans (h₂ σ env)
+/-- `ProgEq` is just equality of denotations. Provided as notation
+    for backward compatibility and readability. -/
+abbrev ProgEq {Γ : L.Ctx} {τ : L.Ty} (p q : ProtoProg Γ τ) : Prop :=
+  sem p = sem q
 
 -- ============================================================
--- 2) Congruence: ProgEq under continuation
+-- 2) Simp lemmas: unfold sem through each constructor
 -- ============================================================
 
-/-- ProgEq is a congruence for letDet. -/
-theorem ProgEq.letDet_congr {Γ τ τ'}
-    (e : L.Expr Γ τ')
+@[simp] theorem sem_ret (e : L.Expr Γ τ) :
+    sem (.ret e : ProtoProg Γ τ) = fun _σ env => WDist.pure (L.eval e env) :=
+  funext fun _ => funext fun _ => rfl
+
+@[simp] theorem sem_letDet (e : L.Expr Γ τ') (k : ProtoProg (τ' :: Γ) τ) :
+    sem (ProtoProg.letDet e k) = fun σ env => sem k σ (L.eval e env, env) :=
+  funext fun _ => funext fun _ => rfl
+
+@[simp] theorem sem_observe (c : L.Expr Γ L.bool) (k : ProtoProg Γ τ) :
+    sem (ProtoProg.observe c k) = fun σ env =>
+      if L.toBool (L.eval c env) then sem k σ env else WDist.zero := by
+  funext σ env
+  simp [sem]
+
+@[simp] theorem sem_sample (id : YieldId) (v : View Γ)
+    (K : ObsKernel v τ') (k : ProtoProg (τ' :: Γ) τ) :
+    sem (ProtoProg.sample id v K k) = fun σ env =>
+      WDist.bind (K (v.proj env)) (fun x => sem k σ (x, env)) :=
+  funext fun _ => funext fun _ => rfl
+
+@[simp] theorem sem_choose (id : YieldId) (who : Player) (v : View Γ)
+    (A : Act v τ') (k : ProtoProg (L := L) (τ' :: Γ) τ) :
+    sem (ProtoProg.choose id who v A k) = fun σ env =>
+      WDist.bind (σ.choose who id v A (v.proj env))
+        (fun x => sem k σ (x, env)) :=
+  funext fun _ => funext fun _ => rfl
+
+-- ============================================================
+-- 3) Congruence: follows from sem lemmas + congr
+-- ============================================================
+
+theorem sem_letDet_congr (e : L.Expr Γ τ')
     {k₁ k₂ : ProtoProg (τ' :: Γ) τ}
-    (hk : ProgEq k₁ k₂) :
-    ProgEq (ProtoProg.letDet e k₁) (ProtoProg.letDet e k₂) := by
-  intro σ env
-  simp only [ProtoProg.evalProto_letDet]
-  exact hk σ _
+    (hk : sem k₁ = sem k₂) :
+    sem (ProtoProg.letDet e k₁) = sem (ProtoProg.letDet e k₂) := by
+  simp [hk]
 
-/-- ProgEq is a congruence for observe. -/
-theorem ProgEq.observe_congr {Γ τ}
-    (c : L.Expr Γ L.bool)
+theorem sem_observe_congr (c : L.Expr Γ L.bool)
     {k₁ k₂ : ProtoProg Γ τ}
-    (hk : ProgEq k₁ k₂) :
-    ProgEq (ProtoProg.observe c k₁) (ProtoProg.observe c k₂) := by
-  intro σ env
-  simp only [ProtoProg.evalProto_observe]
-  split <;> [exact hk σ env; rfl]
+    (hk : sem k₁ = sem k₂) :
+    sem (ProtoProg.observe c k₁) = sem (ProtoProg.observe c k₂) := by
+  simp [hk]
 
-/-- ProgEq is a congruence for sample. -/
-theorem ProgEq.sample_congr {Γ : L.Ctx} {τ τ' : L.Ty}
+theorem sem_sample_congr {Γ : L.Ctx} {τ τ' : L.Ty}
     (id : YieldId) (v : View Γ) (K : ObsKernel v τ')
     {k₁ k₂ : ProtoProg (τ' :: Γ) τ}
-    (hk : ProgEq k₁ k₂) :
-    ProgEq (ProtoProg.sample id v K k₁)
-           (ProtoProg.sample id v K k₂) := by
-  intro σ env
-  simp only [ProtoProg.evalProto_sample_bind]
-  congr 1; funext x; exact hk σ _
+    (hk : sem k₁ = sem k₂) :
+    sem (ProtoProg.sample id v K k₁) = sem (ProtoProg.sample id v K k₂) := by
+  simp [hk]
 
-/-- ProgEq is a congruence for choose. -/
-theorem ProgEq.choose_congr {Γ : L.Ctx} {τ τ' : L.Ty}
+theorem sem_choose_congr {Γ : L.Ctx} {τ τ' : L.Ty}
     (id : YieldId) (who : Player) (v : View Γ)
     (A : Act v τ')
     {k₁ k₂ : ProtoProg (τ' :: Γ) τ}
-    (hk : ProgEq k₁ k₂) :
-    ProgEq (ProtoProg.choose id who v A k₁)
-           (ProtoProg.choose id who v A k₂) := by
-  intro σ env
-  simp only [ProtoProg.evalProto_choose_bind]
-  congr 1; funext x; exact hk σ _
+    (hk : sem k₁ = sem k₂) :
+    sem (ProtoProg.choose id who v A k₁) = sem (ProtoProg.choose id who v A k₂) := by
+  simp [hk]
 
 -- ============================================================
--- 3) Commuting conversions
+-- 4) Commuting conversions
 -- ============================================================
 
 /-- Observe fusion: two consecutive observes fuse into a single
-    `andBool` observe. (Lifts `observe_fuse` from ProtoLemmas
-    to ProgEq.) -/
-theorem observe_fuse_ProgEq (EL : ExprLaws L)
+    `andBool` observe. -/
+theorem sem_observe_fuse (EL : ExprLaws L)
     {Γ τ} (c₁ c₂ : L.Expr Γ L.bool) (k : ProtoProg Γ τ) :
-    ProgEq (ProtoProg.observe c₁ (ProtoProg.observe c₂ k))
-           (ProtoProg.observe (EL.andBool c₁ c₂) k) := by
-  intro σ env
-  have := congr_fun (ProtoProg.observe_fuse EL σ c₁ c₂ k) env
-  exact this
+    sem (ProtoProg.observe c₁ (ProtoProg.observe c₂ k))
+      = sem (ProtoProg.observe (EL.andBool c₁ c₂) k) := by
+  ext σ env
+  -- Key law: `andBool` corresponds to boolean conjunction on evaluation.
+  have hand :
+      L.toBool (L.eval (EL.andBool c₁ c₂) env)
+        = (L.toBool (L.eval c₁ env) && L.toBool (L.eval c₂ env)) := by
+    simpa using EL.toBool_eval_andBool (c₁ := c₁) (c₂ := c₂) (env := env)
+  by_cases h1 : L.toBool (L.eval c₁ env)
+  · by_cases h2 : L.toBool (L.eval c₂ env)
+    · simp [sem_observe, h1, h2, hand]
+    · simp [sem_observe, h1, h2, hand]
+  · simp [sem_observe, h1, hand]
 
 /-- letDet commutes past an independent observe:
-    `letDet e (observe c k)` is equivalent to
-    `observe (weaken c) (letDet e k)`
+    `letDet e (observe (weaken c) k)` ≡ `observe c (letDet e k)`
     when `c` does not mention the bound variable. -/
-theorem letDet_observe_commute (EL : ExprLaws L)
+theorem sem_letDet_observe_commute (EL : ExprLaws L)
     {Γ τ τ'}
     (e : L.Expr Γ τ')
     (c : L.Expr Γ L.bool)
     (k : ProtoProg (τ' :: Γ) τ) :
-    ProgEq
-      (ProtoProg.letDet e (ProtoProg.observe (EL.weaken c) k))
-      (ProtoProg.observe c (ProtoProg.letDet e k)) := by
-  intro σ env
-  simp only [ProtoProg.evalProto_letDet, ProtoProg.evalProto_observe]
+    sem (ProtoProg.letDet e (ProtoProg.observe (EL.weaken c) k))
+      = sem (ProtoProg.observe c (ProtoProg.letDet e k)) := by
+  simp only [sem_letDet, sem_observe]
+  ext σ env
   rw [EL.eval_weaken]
 
 /-- sample commutes past an independent observe:
     `sample id v K (observe (weaken c) k)` ≡
     `observe c (sample id v K k)`
     when `c` does not mention the bound variable. -/
-theorem sample_observe_commute (EL : ExprLaws L)
+theorem sem_sample_observe_commute (EL : ExprLaws L)
     {Γ τ τ'}
     (id : YieldId) (v : View Γ)
     (K : ObsKernel v τ')
     (c : L.Expr Γ L.bool)
     (k : ProtoProg (τ' :: Γ) τ) :
-    ProgEq
-      (.sample id v K (ProtoProg.observe (EL.weaken c) k))
-      (ProtoProg.observe c (.sample id v K k)) := by
-  intro σ env
-  simp only [ProtoProg.evalProto_sample_bind,
-    ProtoProg.evalProto_observe]
+    sem (.sample id v K (ProtoProg.observe (EL.weaken c) k))
+      = sem (ProtoProg.observe c (.sample id v K k)) := by
+  ext σ env
+  simp only [sem_sample, sem_observe]
   by_cases h : L.toBool (L.eval c env)
-  · simp only [h, ite_true]
-    congr 1; funext x
-    simp only [EL.eval_weaken, h, ite_true]
-  · simp only [h]
-    -- Each branch of bind produces WDist.zero since observe is false
-    conv_lhs =>
-      arg 2; ext x
-      rw [EL.eval_weaken]; simp only [h, ite_false]
+  · simp only [h, reduceIte]
+    congr 1
+    ext x
+    rw [EL.eval_weaken]
+    simp [h]
+  · simp only [h, Bool.false_eq_true, reduceIte]
+    conv_lhs => arg 2; ext x; rw [EL.eval_weaken]
+    simp only [h, Bool.false_eq_true, ↓reduceIte]
     exact WDist.bind_zero_right _
 
 -- ============================================================
--- 4) applyProfile preserves ProgEq
+-- 5) applyProfile preserves sem equality
 -- ============================================================
 
-/-- If `p ≡ q` (ProgEq) and `σ` extends `π`, then
-    `applyProfile π p ≡ applyProfile π q`. -/
-theorem applyProfile_preserves_ProgEq
+open ProtoProg
+
+@[simp] lemma applyProfile_doStmt
+    (π : PProfile (L := L)) (s : CmdStmtProto Γ) (k : ProtoProg Γ τ) :
+    applyProfile π (Prog.doStmt s k) = Prog.doStmt s (applyProfile π k) := by
+  rfl
+
+@[simp] lemma applyProfile_observe
+    (π : PProfile (L := L)) (c : L.Expr Γ L.bool) (k : ProtoProg Γ τ) :
+    applyProfile π (Prog.doStmt (CmdStmtObs.observe c) k)
+      = Prog.doStmt (CmdStmtObs.observe c) (applyProfile π k) := by
+  rfl
+
+
+/-- If `sem p = sem q` and `π` is a partial profile, then
+    `sem (applyProfile π p) = sem (applyProfile π q)`. -/
+theorem sem_applyProfile_congr
     {Γ τ} (π : PProfile (L := L))
     {p q : ProtoProg Γ τ}
-    (hpq : ProgEq p q) :
-    ProgEq (applyProfile π p) (applyProfile π q) := by
-  intro σ env
-  -- If σ extends π, we can use evalProto_applyProfile_of_extends
-  -- In general, we state the property directly:
-  -- applyProfile is a syntax pass; ProgEq is semantic.
-  -- We need: ∀ σ env, evalProto σ (applyProfile π p) env
-  --                   = evalProto σ (applyProfile π q) env
-  -- This does NOT follow from hpq alone in general (applyProfile
-  -- changes the program structure). We state this as sorry for now.
-  sorry
+    (hpq : sem p = sem q) :
+    sem (applyProfile π p) = sem (applyProfile π q) := by
+  ext σ env
+  -- Override σ at the sites where π provides a decision kernel.
+  let σπ : Profile (L := L) :=
+    { σ with
+      choose := fun {Γ τ} who id v A =>
+        match π.choose? who id v A with
+        | some Kdec => Kdec
+        | none      => σ.choose who id v A }
+  -- Core fact: evaluating `applyProfile π r` under σ equals evaluating `r` under σπ.
+  have h_apply :
+      ∀ {Γ τ} (r : ProtoProg Γ τ) (env : L.Env Γ),
+        sem (applyProfile π r) σ env = sem r σπ env := by
+    intro Γ τ r env
+    induction r with
+    | ret e =>
+      simp_all only [σπ]
+      rfl
+    | letDet e k ih =>
+      simp_all only [σπ]
+      apply ih
+    | doStmt s k ih =>
+      cases s with
+      | observe cond =>
+        change sem (ProtoProg.observe cond (applyProfile π k)) σ env =
+              sem (ProtoProg.observe cond k) σπ env
+        simp [sem_observe]
+        simp_all only [σπ]
+    | doBind c k ih =>
+      cases c with
+      | sample id v K =>
+        simp only [sem, evalProto, ProtoSem, applyProfile, evalWith_doBind]
+        congr
+        funext
+        apply ih
+      | choose id who v A =>
+        simp only [applyProfile]
+        cases h : π.choose? who id v A
+        · simp only [sem, evalProto, Prog.evalWith_doBind]
+          congr 1
+          · simp [σπ, h]
+          · funext
+            apply ih
+        · simp only [sem, evalProto, Prog.evalWith_doBind]
+          congr 1
+          · simp [σπ, h]
+          · funext
+            apply ih
+  rw [h_apply p env, h_apply q env]
+  exact congr_fun (congr_fun hpq σπ) env
+
 
 -- ============================================================
--- 5) Template theorem: EU preservation
+-- 6) EU preservation templates
 -- ============================================================
 
-/-- A program transformation that preserves ProgEq preserves EU. -/
-theorem EU_preserved_of_ProgEq
+/-- A program transformation that preserves denotations preserves EU. -/
+theorem EU_preserved_of_sem_eq
     {Γ : L.Ctx} (G : Game Γ)
     {p' : ProtoProg Γ G.τ}
-    (hEq : ProgEq G.p p')
+    (hEq : sem G.p = sem p')
     (σ : Profile) (env : L.Env Γ) (who : Player) :
     EU G σ env who =
       EU_dist (evalProto σ p' env) G.u who := by
   unfold EU OutcomeDist
-  rw [hEq σ env]
+  rw [show evalProto σ G.p env = evalProto σ p' env
+      from congr_fun (congr_fun hEq σ) env]
 
-/-- A transformation preserving yield structure and ProgEq
+/-- A transformation preserving yield structure and denotations
     produces a program with the same EU as the original game. -/
 theorem EU_preserved_of_pass
     {Γ : L.Ctx} (G : Game Γ)
     (f : {Γ' : L.Ctx} → {τ' : L.Ty} →
-         ProtoProg Γ' τ' → ProtoProg Γ' τ')
+         ProtoProg (L := L) Γ' τ' → ProtoProg Γ' τ')
     (_hStruct : PreservesYieldStructure f)
-    (hEq : ProgEq G.p (f G.p))
+    (hEq : sem G.p = sem (f G.p))
     (σ : Profile) (env : L.Env Γ) (who : Player) :
     EU G σ env who =
       EU_dist (evalProto σ (f G.p) env) G.u who :=
-  EU_preserved_of_ProgEq G hEq σ env who
+  EU_preserved_of_sem_eq G hEq σ env who
 
-/-- Specialization: if `f` preserves ProgEq and NoChoose,
+/-- Specialization: if `f` preserves denotations and NoChoose,
     then the compiled ProbLet program has the same EU. -/
 theorem EU_preserved_of_noChoose_pass
     {Γ : L.Ctx} (G : Game Γ)
     (f : {Γ' : L.Ctx} → {τ' : L.Ty} →
-         ProtoProg Γ' τ' → ProtoProg Γ' τ')
+         ProtoProg (L := L) Γ' τ' → ProtoProg Γ' τ')
     (hStruct : PreservesYieldStructure f)
-    (hEq : ProgEq G.p (f G.p))
+    (hEq : sem G.p = sem (f G.p))
     (hNC : NoChoose G.p)
     (σ : Profile) (env : L.Env Γ) (who : Player) :
     EU G σ env who =
