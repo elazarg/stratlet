@@ -55,12 +55,42 @@
 - **Compiled successfully?** Yes, after manual fixes.
 - **Iterations:** 3 (initial gpt-5.2 suggestion → fix simp failures with show → fix show failures with simp+congr_arg)
 
+### Attempt 3 — `eu_preservation_directEU` (observe case)
+
+- **Date:** 2026-02-10
+- **Model:** gpt-5.2
+- **Temperature:** 0.2
+- **File:** `Vegas/LetProtocol/EUBridge.lean:113-152`
+- **Theorem:**
+  ```lean
+  theorem eu_preservation_directEU
+      (σ : Profile (L := BasicLang))
+      (u : Proto.Utility (L := BasicLang) τ) (who : Player) :
+      (p : ParentProtoProg (L := BasicLang) Γ τ) → (env : BasicLang.Env Γ) →
+      ObserveFree p →
+      EU_dist (p.eval σ env) u who = p.directEU σ u who env
+  ```
+- **Context given:** Full definitions of WDist, EU_dist, ParentProtoProg.eval, directEU, observe semantics. Analysis of observe case showing semantic mismatch (Proto filters mass via bind+zero, directEU passes through). Three proposed approaches (ObserveFree predicate, fix directEU, add all-observe-pass hypothesis).
+- **Result:** gpt-5.2 confirmed ObserveFree approach, gave correct skeleton:
+  - `ObserveFree (.observe _ _) = False`, so `exact absurd hof ...` or `exfalso; exact hof.elim`
+  - Other cases: extract `hof : ObserveFree k` via `simpa [ObserveFree] using hof` then pass to IH
+- **Issues found:**
+  - gpt-5.2 used `{G t : Type*}` instead of `{Γ : BasicLang.Ctx} {τ : BasicLang.Ty}` (type parameter mismatch)
+  - Used `simpa [ObserveFree] using hof` to extract continuation hypothesis; in practice `hof` is already definitionally `ObserveFree k` so no extraction needed
+  - All cases wrapped in unnecessary `simpa using (by admit)` scaffolding
+- **Fix applied (manual):**
+  - Observe case: `exact absurd hof (by simp [ObserveFree])` (clean one-liner)
+  - Other cases: just pass `hof` directly to `ih` since `ObserveFree (.letDet e k)` unfolds to `ObserveFree k` definitionally
+- **Verdict:** gpt-5.2 correctly identified the approach (ObserveFree predicate with False elimination). The actual proof was simpler than what ChatGPT suggested — definitional unfolding meant no explicit `have hofk` extraction was needed. ~70% of the insight came from Claude's analysis of the semantic mismatch, ~30% from ChatGPT's confirmation.
+- **Compiled successfully?** Yes, after simplification.
+- **Iterations:** 1
+
 ## Summary Statistics
 
 | Metric | Value |
 |--------|-------|
-| Total attempts | 2 |
-| Compiled as-is | 0/2 |
-| Usable skeleton | 2/2 |
+| Total attempts | 3 |
+| Compiled as-is | 0/3 |
+| Usable skeleton | 3/3 |
 | Avg response time | ~5s |
 | Models used | gpt-4o, gpt-5.2 |

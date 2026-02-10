@@ -46,3 +46,38 @@ def BasicLang : Language := {
   Expr := Expr
   eval := evalExpr
 }
+
+/-- Weaken an expression to work in an extended context. -/
+def weakenExpr {Γ : Env.Ctx (Ty := Ty)} {τ τ' : Ty} :
+    Expr Γ τ → Expr (τ' :: Γ) τ
+  | .var v       => .var (Env.Var.weaken v)
+  | .constInt i  => .constInt i
+  | .constBool b => .constBool b
+  | .addInt l r  => .addInt (weakenExpr l) (weakenExpr r)
+  | .eqInt l r   => .eqInt (weakenExpr l) (weakenExpr r)
+  | .andBool l r => .andBool (weakenExpr l) (weakenExpr r)
+  | .notBool b   => .notBool (weakenExpr b)
+
+theorem evalExpr_weaken {Γ : Env.Ctx (Ty := Ty)} {τ τ' : Ty}
+    (e : Expr Γ τ) (env : Env.Env Val Γ) (v : Val τ') :
+    evalExpr (weakenExpr e) (v, env) = evalExpr e env := by
+  induction e with
+  | var x =>
+      simp only [weakenExpr, evalExpr]
+      exact Env.Env.get_weaken x v env
+  | constInt i => rfl
+  | constBool b => rfl
+  | addInt l r ihl ihr => simp [weakenExpr, evalExpr, ihl, ihr]
+  | eqInt l r ihl ihr => simp [weakenExpr, evalExpr, ihl, ihr]
+  | andBool l r ihl ihr => simp [weakenExpr, evalExpr, ihl, ihr]
+  | notBool b ih => simp [weakenExpr, evalExpr, ih]
+
+def basicExprLaws : ExprLaws BasicLang where
+  weaken := weakenExpr
+  eval_weaken := evalExpr_weaken
+  constBool := Expr.constBool
+  andBool := Expr.andBool
+  toBool_eval_constBool := by intros; rfl
+  toBool_eval_andBool := by intros; rfl
+  var := Expr.var
+  eval_var := by intros; rfl

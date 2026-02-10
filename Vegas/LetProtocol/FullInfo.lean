@@ -51,7 +51,7 @@ def ret {Γ τ} (e : L.Expr Γ τ) : SProg Γ τ := Prog.Prog.ret e
 def letDet {Γ τ τ'} (e : L.Expr Γ τ') (k : SProg (τ' :: Γ) τ) : SProg Γ τ :=
   Prog.Prog.letDet e k
 
-def letChoose {Γ τ τ'} (p : Player) (A : Act Γ τ') (k : SProg (L := L) (τ' :: Γ) τ) : SProg Γ τ :=
+def letChoose {Γ τ τ'} (p : Player) (A : Act (L := L) Γ τ') (k : SProg (τ' :: Γ) τ) : SProg Γ τ :=
   .doBind (.choose p A) k
 
 def observe {Γ τ} (cond : L.Expr Γ L.bool) (k : SProg Γ τ) : SProg Γ τ :=
@@ -88,7 +88,7 @@ def StratSem (σ : Profile (L := L)) : Prog.LangSem (L := L) CmdBindS CmdStmtS W
 Translate a strategic program to a probabilistic program by fixing a profile:
 each `letChoose` becomes `letSample` with the kernel provided by `σ`.
 -/
-def toProb (σ : Profile (L := L)) : SProg (L := L) Γ τ → Prob.PProg (L := L) Γ τ
+def toProb (σ : Profile (L := L)) : SProg (L := L) Γ τ → Prob.PProg Γ τ
   | .ret e      => .ret e
   | .letDet e k => .letDet e (toProb σ k)
   | .doStmt s k => .doStmt s (toProb σ k)

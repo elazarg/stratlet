@@ -385,4 +385,47 @@ theorem toMeasure_scale [MeasurableSpace α] (c : ℝ≥0) (d : WDist α) :
 
 end MeasureBridge
 
+/-! ## Normalization lemmas -/
+
+/-- mass (bind d pure) = mass d (right identity for mass). -/
+theorem mass_bind_pure (d : WDist α) : mass (bind d pure) = mass d := by
+  rw [bind_pure_right]
+
+/-- normalize? returns some iff mass ≠ 0. -/
+theorem normalize?_isSome_iff [MeasurableSpace α] (d : WDist α) :
+    (∃ d', d.normalize? = some d') ↔ d.mass ≠ 0 := by
+  constructor
+  · intro ⟨d', h⟩
+    by_contra hm
+    simp [normalize?, hm] at h
+  · intro h
+    exact ⟨_, if_neg h⟩
+
+/-- normalize? returns none iff mass = 0. -/
+theorem normalize?_isNone_iff [MeasurableSpace α] (d : WDist α) :
+    d.normalize? = none ↔ d.mass = 0 := by
+  simp [normalize?]
+
+/-- Helper: factoring a constant out of a sum. -/
+private theorem sum_map_mul_right {α : Type*} (ws : List (α × ℝ≥0)) (c : ℝ≥0) :
+    (ws.map (fun x : α × ℝ≥0 => x.2 * c)).sum = (ws.map Prod.snd).sum * c := by
+  induction ws with
+  | nil => simp
+  | cons hd tl ih =>
+    simp only [List.map_cons, List.sum_cons, add_mul]
+    congr 1
+
+/-- Mass of normalize? (when it succeeds) is 1. -/
+theorem mass_normalize?_eq_one [MeasurableSpace α] (d : WDist α) (d' : WDist α)
+    (h : d.normalize? = some d') :
+    d'.mass = 1 := by
+  have hm : d.mass ≠ 0 := by
+    by_contra habs
+    simp [normalize?, habs] at h
+  simp only [normalize?, hm, ↓reduceIte, Option.some.injEq] at h
+  subst h
+  simp only [mass, List.map_map, Function.comp_def]
+  rw [sum_map_mul_right]
+  exact mul_inv_cancel₀ hm
+
 end WDist

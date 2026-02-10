@@ -34,8 +34,8 @@ def noChoices {Γ τ} : SProg (L := L) Γ τ → Prop
     (StratSem σ).E.bind xs f = WDist.bind xs f := rfl
 
 /-- Profile-independence: programs without choices evaluate the same under any profile. -/
-theorem evalS_profile_indep {Γ τ} (p : SProg (L := L) Γ τ) (hp : noChoices p)
-    (σ₁ σ₂ : Profile) (env : L.Env Γ) :
+theorem evalS_profile_indep {Γ τ} (p : SProg Γ τ) (hp : noChoices p)
+    (σ₁ σ₂ : Profile (L := L)) (env : L.Env Γ) :
     evalS σ₁ p env = evalS σ₂ p env := by
   induction p with
   | ret e =>

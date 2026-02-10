@@ -33,6 +33,16 @@ Also available: `4o`, `o3`, `o3-pro`, `o4-mini` (reasoning models). Untested for
 - **`Option.map` reasoning:** ChatGPT struggles with goals involving `Option.map f x = some y`. It tries `injection`/`contradiction` where `simp` + case split on the inner option is needed.
 - **Smart vs raw constructor mismatch:** ChatGPT doesn't understand that Lean's `simp` matches syntactically, not up to definitional equality. When simp lemmas are stated with smart constructors (e.g. `.sample id v K k`) but the goal has raw constructors (`Prog.doBind (CmdBindProto.sample ...) k`), simp silently fails. ChatGPT will suggest `simp [evalProto_sample_bind, ih]` and not understand why it doesn't work. The fix is `change`/`congr_arg` through definitional equality instead of simp.
 
+## When Claude is better than ChatGPT
+
+- **Semantic analysis of proof obstacles:** When the issue is understanding WHY a proof can't go through (e.g., the observe case mismatch in EU preservation), Claude's ability to trace through definitional reductions and identify the exact semantic mismatch is faster and more reliable than ChatGPT.
+- **Definitional equality reasoning:** Claude understands that `ObserveFree (.letDet e k)` unfolds to `ObserveFree k` definitionally, so no explicit `have hofk := ...` is needed. ChatGPT tends to add unnecessary extraction steps.
+- **When the proof is simple once the approach is clear:** For the observe case, the actual Lean proof was `exact absurd hof (by simp [ObserveFree])` — a one-liner. Claude can write this directly; ChatGPT wraps it in scaffolding.
+
+## When to use ChatGPT as a "rubber duck"
+
+- When you've identified the approach but want confirmation it's sound before restructuring the theorem. In the ObserveFree case, asking ChatGPT "which of these 3 approaches is best?" confirmed option A quickly.
+
 ## Workflow
 
 1. Identify a `sorry`.

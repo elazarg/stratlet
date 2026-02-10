@@ -334,6 +334,8 @@ def main():
         description="Extract Lean 4 definitions, stripping proofs and imports.")
     parser.add_argument("paths", nargs="*", default=[],
                         help="Files or directories to process (default: current dir)")
+    parser.add_argument("-o", "--output", default=None,
+                        help="Output file path (default: stdout)")
     parser.add_argument("--comments", action="store_true",
                         help="Include comments (--, /-, /--,  /-!)")
     args = parser.parse_args()
@@ -342,6 +344,8 @@ def main():
     if not files:
         print("No .lean files found.", file=sys.stderr)
         sys.exit(1)
+
+    out = open(args.output, "w", encoding="utf-8") if args.output else sys.stdout
 
     first = True
     for filepath in files:
@@ -357,12 +361,15 @@ def main():
             continue
 
         if not first:
-            print()
+            print(file=out)
         first = False
 
-        print(f"-- ===== {display_path} =====")
+        print(f"-- ===== {display_path} =====", file=out)
         for line in output:
-            print(line)
+            print(line, file=out)
+
+    if args.output:
+        out.close()
 
 
 if __name__ == "__main__":

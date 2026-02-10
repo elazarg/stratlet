@@ -559,4 +559,46 @@ theorem mass_evalProto_observe_le {Γ τ} (σ : Profile)
   · simp [WDist.bind_zero, WDist.mass_zero]
 
 end ProtoProg
+
+-- ============================================================
+-- 9) Compiler-facing invariant: PreservesYieldStructure
+-- ============================================================
+
+/-- A program transformation preserves yield structure if it:
+1. Preserves all yield ids
+2. Preserves the NoChoose property -/
+structure PreservesYieldStructure
+    (f : {Γ : L.Ctx} → {τ : L.Ty} → ProtoProg Γ τ → ProtoProg Γ τ) : Prop where
+  preserves_yieldIds :
+    ∀ {Γ τ} (p : ProtoProg Γ τ), yieldIds (f p) = yieldIds p
+  preserves_noChoose :
+    ∀ {Γ τ} (p : ProtoProg Γ τ), NoChoose p → NoChoose (f p)
+
+/-- `applyProfile` preserves yield structure. -/
+theorem applyProfile_preservesYieldStructure (π : PProfile (L := L)) :
+    PreservesYieldStructure (fun p => applyProfile π p) where
+  preserves_yieldIds := ProtoProg.yieldIds_applyProfile π
+  preserves_noChoose := by
+    intro Γ τ p hNC
+    rw [ProtoProg.NoChoose_applyProfile]
+    -- NoChoose means no choose nodes at all, so AllChooseResolved is vacuously true
+    induction p with
+    | ret => trivial
+    | letDet _ k ih => exact ih hNC
+    | doStmt _ k ih => exact ih hNC
+    | doBind c k ih =>
+        cases c with
+        | sample _ _ _ => exact ih hNC
+        | choose => exact absurd hNC (by trivial)
+
+/-- If all decision yields in `p` are resolved by `π`,
+then `toProb?` succeeds on `applyProfile π p`. -/
+theorem toProb?_some_of_applyProfile {Γ τ} (π : PProfile (L := L))
+    (p : ProtoProg Γ τ)
+    (hAll : ProtoProg.AllChooseResolved π p) :
+    ∃ q, toProb? (applyProfile π p) = some q := by
+  rw [ProtoProg.toProb?_some_iff_NoChoose]
+  rw [ProtoProg.NoChoose_applyProfile]
+  exact hAll
+
 end Proto

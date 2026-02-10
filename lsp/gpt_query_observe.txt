@@ -1,0 +1,71 @@
+SYSTEM: You are an expert Lean 4 proof assistant. You give precise, compilable Lean 4 code.
+
+USER:
+I have the following Lean 4 definitions. I need to prove the observe case of a theorem about EU preservation.
+
+Key types (simplified):
+
+structure WDist (a : Type*) where
+  weights : List (a * NNReal)
+
+def WDist.pure (x : a) : WDist a := { weights := [(x, 1)] }
+def WDist.zero : WDist a := { weights := [] }
+def WDist.bind (d : WDist a) (f : a -> WDist b) : WDist b :=
+  { weights := d.weights.flatMap (fun (a,w) => (f a).weights.map (fun (b,w') => (b, w * w'))) }
+
+-- EU_dist folds over weights:
+noncomputable def EU_dist (d : WDist (BasicLang.Val t)) (u : Utility t) (who : Player) : Real :=
+  d.weights.foldr (fun (vw : BasicLang.Val t * NNReal) acc => acc + ((vw.2 : Real) * (u vw.1 who))) 0
+
+-- We have simp lemmas:
+@[simp] lemma bind_pure (x : a) (f : a -> WDist b) : WDist.bind (WDist.pure x) f = f x
+@[simp] lemma bind_zero (f : a -> WDist b) : WDist.bind (WDist.zero : WDist a) f = WDist.zero
+
+-- Proto semantics for observe:
+-- handleStmt (.observe cond) env = if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero
+-- evalWith on doStmt: EffWDist.bind (handleStmt s env) (fun _ => evalWith S k env)
+-- EffWDist.bind is definitionally WDist.bind
+
+-- ParentProtoProg.embed (.observe c k) = ProtoProg.observe c (embed k) = .doStmt (.observe c) (embed k)
+
+-- directEU on observe just passes through:
+-- | .observe _c k, env => directEU s u who k env
+
+-- So:
+-- p.eval s env  for observe c k  =  WDist.bind (if toBool (eval c env) then pure () else zero) (fun _ => k.eval s env)
+-- If cond true:  bind (pure ()) (fun _ => k.eval s env) = k.eval s env   (by bind_pure)
+-- If cond false: bind zero (fun _ => k.eval s env) = WDist.zero          (by bind_zero)
+
+-- EU_dist WDist.zero u who = 0   (empty list, foldr on [] = 0)
+-- But directEU s u who k env may not be 0. So the theorem cannot hold unconditionally.
+
+-- I want to add an ObserveFree predicate to restrict the theorem:
+
+def ObserveFree : ParentProtoProg (L := L) G t -> Prop
+  | .ret _ => True
+  | .letDet _ k => ObserveFree k
+  | .observe _ _ => False
+  | .sample _ _ _ k => ObserveFree k
+  | .choose _ _ _ _ k => ObserveFree k
+
+-- Then the theorem becomes:
+theorem eu_preservation_directEU
+    (s : Profile (L := BasicLang))
+    (u : Proto.Utility (L := BasicLang) t) (who : Player)
+    (p : ParentProtoProg (L := BasicLang) G t) (env : BasicLang.Env G)
+    (hof : ObserveFree p) :
+    EU_dist (p.eval s env) u who = p.directEU s u who env
+
+-- The observe case is now:
+-- | observe c k ih =>
+--     exact absurd hof (by simp [ObserveFree])
+-- or similar since ObserveFree (.observe c k) = False
+
+Please give me:
+1. The ObserveFree definition (compilable Lean 4, in namespace Proto, variable {L : Language})
+2. The modified theorem signature with the ObserveFree hypothesis
+3. The observe case proof (just the case, not the full theorem)
+4. The ret, letDet, sample, choose cases also need small modifications because hof is now threaded -- show how to destructure hof in each case.
+
+Use: open Defs Prog Env, namespace Proto, BasicLang for the concrete language.
+The induction is: induction p with | ret e => ... | letDet e k ih => ... | observe c k ih => ... | sample id ps K k ih => ... | choose id who' ps A k ih => ...
