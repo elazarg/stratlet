@@ -4,8 +4,8 @@
 Minimal definitions shared across calculi (FullInfoLet, PartialInfoLet, …).
 -/
 
-namespace GameDefs
+namespace Defs
 
 abbrev Player := Nat
 
-end GameDefs
+end Defs

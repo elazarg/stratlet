@@ -13,15 +13,15 @@ This is intentionally minimal: no `if-then-else`, no lambdas, and distributions 
 -/
 import Mathlib.Data.List.Basic
 
-import Vegas.WDist
-import Vegas.ProgCore
-import Vegas.Env
-import Vegas.ProbLet
-import Vegas.GameDefs
+import Vegas.LetProb.WDist
+import Vegas.LetCore.Prog
+import Vegas.LetCore.Env
+import Vegas.LetProb.Prob
+import Vegas.Defs
 
-namespace FullInfoLet
+namespace FullInfo
 
-open GameDefs
+open Defs
 
 /-! ## Strategic let-calculus (choices owned by players) -/
 
@@ -33,23 +33,23 @@ a (possibly environment-dependent) finite list of legal actions (values).
 -/
 abbrev Act (Γ : L.Ctx) (τ : L.Ty) := L.Env Γ → List (L.Val τ)
 
-inductive CmdBindS : ProgCore.CmdB (L := L) where
+inductive CmdBindS : Prog.CmdB (L := L) where
   | choose {Γ τ} (p : Player) (A : Act Γ τ) : CmdBindS Γ τ
 
-abbrev CmdStmtS := ProgCore.CmdStmtObs (L := L)
+abbrev CmdStmtS := Prog.CmdStmtObs (L := L)
 
 /--
 Strategic programs:
 - `letChoose p A k` binds a value chosen by player `p` from action set `A`.
 -/
-abbrev SProg := ProgCore.Prog (L := L) CmdBindS CmdStmtS
+abbrev SProg := Prog.Prog (L := L) CmdBindS CmdStmtS
 
 namespace SProg
 
-def ret {Γ τ} (e : L.Expr Γ τ) : SProg Γ τ := ProgCore.Prog.ret e
+def ret {Γ τ} (e : L.Expr Γ τ) : SProg Γ τ := Prog.Prog.ret e
 
 def letDet {Γ τ τ'} (e : L.Expr Γ τ') (k : SProg (τ' :: Γ) τ) : SProg Γ τ :=
-  ProgCore.Prog.letDet e k
+  Prog.Prog.letDet e k
 
 def letChoose {Γ τ τ'} (p : Player) (A : Act Γ τ') (k : SProg (L := L) (τ' :: Γ) τ) : SProg Γ τ :=
   .doBind (.choose p A) k
@@ -59,16 +59,16 @@ def observe {Γ τ} (cond : L.Expr Γ L.bool) (k : SProg Γ τ) : SProg Γ τ :=
 
 end SProg
 
-def EffWDist : ProgCore.Eff WDist := ProbLet.EffWDist
+def EffWDist : Prog.Eff WDist := Prob.EffWDist
 
 /--
 A strategy profile gives, for each player and action set, a kernel (distribution) over actions.
 We do not enforce "supported on A L.Env" here; that can be an external well-formedness predicate.
 -/
 structure Profile where
-  choose : {τ : L.Ty} → Player → Act Γ τ → ProbLet.Kernel Γ τ
+  choose : {τ : L.Ty} → Player → Act Γ τ → Prob.Kernel Γ τ
 
-def StratSem (σ : Profile (L := L)) : ProgCore.LangSem (L := L) CmdBindS CmdStmtS WDist where
+def StratSem (σ : Profile (L := L)) : Prog.LangSem (L := L) CmdBindS CmdStmtS WDist where
   E := EffWDist
   handleBind
     | .choose p A => σ.choose p A
@@ -81,14 +81,14 @@ def StratSem (σ : Profile (L := L)) : ProgCore.LangSem (L := L) CmdBindS CmdStm
     (StratSem σ).handleBind (CmdBindS.choose p A) env = σ.choose p A env := rfl
 
 @[simp] theorem StratSem_handleStmt_observe (σ : Profile) (cond : L.Expr Γ L.bool) (env : L.Env Γ) :
-    (StratSem σ).handleStmt (ProgCore.CmdStmtObs.observe (Γ := Γ) cond) env =
+    (StratSem σ).handleStmt (Prog.CmdStmtObs.observe (Γ := Γ) cond) env =
       (if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero) := rfl
 
 /--
 Translate a strategic program to a probabilistic program by fixing a profile:
 each `letChoose` becomes `letSample` with the kernel provided by `σ`.
 -/
-def toProb (σ : Profile (L := L)) : SProg (L := L) Γ τ → ProbLet.PProg (L := L) Γ τ
+def toProb (σ : Profile (L := L)) : SProg (L := L) Γ τ → Prob.PProg (L := L) Γ τ
   | .ret e      => .ret e
   | .letDet e k => .letDet e (toProb σ k)
   | .doStmt s k => .doStmt s (toProb σ k)
@@ -102,20 +102,20 @@ Direct strategic semantics parameterized by a profile.
 (Defined directly; theorem below shows it coincides with evalP ∘ toProb.)
 -/
 def evalS {Γ τ} (σ : Profile (L := L)) : SProg Γ τ → L.Env Γ → WDist (L.Val τ) :=
-   ProgCore.evalWith (StratSem σ)
+   Prog.evalWith (StratSem σ)
 
 /--
 Key commuting theorem: evaluating a strategic program under a fixed profile equals
 evaluating its probabilistic specialization (by `toProb`) under the probabilistic interpreter.
 -/
 theorem evalS_eq_evalP_toProb {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : L.Env Γ) :
-    evalS σ p env = ProbLet.evalP (toProb σ p) env := by
-  simp only [evalS, StratSem, EffWDist, ProbLet.evalP, ProbLet.ProbSem]
+    evalS σ p env = Prob.evalP (toProb σ p) env := by
+  simp only [evalS, StratSem, EffWDist, Prob.evalP, Prob.ProbSem]
   induction p with
   | ret e => simp [toProb]
   | letDet e k ih => simp [toProb, ih]
   | doStmt s k ih =>
-      simp_all only [ProgCore.evalWith_doStmt]
+      simp_all only [Prog.evalWith_doStmt]
       rfl
   | doBind c k ih =>
       cases c with
@@ -184,7 +184,7 @@ theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : 
       | observe cond =>
           simp only [evalS, behEval]
           by_cases h : L.toBool (L.eval cond env)
-          · simp [h, ih, StratSem, EffWDist, ProbLet.EffWDist]
+          · simp [h, ih, StratSem, EffWDist, Prob.EffWDist]
             rfl
           · simp [runBeh, h]
             simp [Bool.not_eq_true] at h
@@ -192,7 +192,7 @@ theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : 
   | doBind c k ih =>
       cases c with
       | choose p A =>
-          simp only [behEval, runBeh, evalS, ProgCore.evalWith_doBind, StratSem_handleBind_choose]
+          simp only [behEval, runBeh, evalS, Prog.evalWith_doBind, StratSem_handleBind_choose]
           simp_all only
           rfl
 
@@ -201,7 +201,7 @@ theorem runBeh_behEval_eq_evalS {Γ τ} (σ : Profile) (p : SProg Γ τ) (env : 
 Corollary: behavioral evaluation + running also coincides with probabilistic specialization.
 -/
 theorem runBeh_behEval_eq_evalP_toProb (σ : Profile) (p : SProg Γ τ) (env : L.Env Γ) :
-    runBeh σ (behEval p env) = ProbLet.evalP (toProb σ p) env := by
+    runBeh σ (behEval p env) = Prob.evalP (toProb σ p) env := by
   simpa [runBeh_behEval_eq_evalS] using (evalS_eq_evalP_toProb σ p env)
 
 /-!
@@ -287,7 +287,7 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
     | some v => WDist.pure v
     | none   => .zero := by
   -- unfold evalS once so simp can see the generic evaluator
-  simp only [evalS, StratSem, EffWDist, ProbLet.EffWDist]
+  simp only [evalS, StratSem, EffWDist, Prob.EffWDist]
   -- we need IH for all L.Env because the evaluator extends L.Env
   induction p with
   | ret e =>
@@ -318,4 +318,4 @@ theorem evalS_ofArena_eq_evalOp {Γ τ}
               · -- illegal: kernel is zero; op is none
                 simp [evalOp, Profile.ofArena, hm, hmem, acts]
 
-end FullInfoLet
+end FullInfo

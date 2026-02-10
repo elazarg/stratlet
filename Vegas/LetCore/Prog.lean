@@ -1,7 +1,7 @@
-import Vegas.Env
-import Vegas.ExprLanguageInterface
+import Vegas.LetCore.Env
+import Vegas.LetCore.Language
 
-namespace ProgCore
+namespace Prog
 
 section Core
 
@@ -134,4 +134,4 @@ def handleObserveOption {Γ} (cond : L.Expr Γ (L.bool)) (env : L.Env Γ) : Opti
 
 end Core
 
-end ProgCore
+end Prog

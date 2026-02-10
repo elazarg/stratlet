@@ -1,14 +1,14 @@
 import Mathlib.Data.List.Basic
 
-import Vegas.WDist
-import Vegas.ProgCore
-import Vegas.Env
-import Vegas.ProbLet
-import Vegas.GameDefs
+import Vegas.LetProb.WDist
+import Vegas.LetCore.Prog
+import Vegas.LetCore.Env
+import Vegas.LetProb.Prob
+import Vegas.Defs
 
-namespace DagLet
+namespace Dag
 
-open ProgCore GameDefs
+open Prog Defs
 
 variable {L : Language}
 
@@ -41,24 +41,24 @@ abbrev Act {Γ : L.Ctx} (v : View (L := L) Γ) (τ : L.Ty) : Type :=
 /-! ## Strategic commands / programs -/
 
 /-- Bind commands for DagLet: the only strategic bind is `choose`. -/
-inductive CmdBindD : ProgCore.CmdB (L := L) where
+inductive CmdBindD : Prog.CmdB (L := L) where
   | choose {Γ : L.Ctx} {τ : L.Ty} (who : Player) (v : View (L := L) Γ) (A : Act (L := L) v τ) :
       CmdBindD Γ τ
 
 /-- Statements: we reuse probabilistic observe (boolean guard). -/
-abbrev CmdStmtD := ProgCore.CmdStmtObs (L := L)
+abbrev CmdStmtD := Prog.CmdStmtObs (L := L)
 
 /-- DagLet programs. -/
 abbrev DagProg : L.Ctx → L.Ty → Type :=
-  ProgCore.Prog (L := L) CmdBindD CmdStmtD
+  Prog.Prog (L := L) CmdBindD CmdStmtD
 
 namespace DagProg
 
 def ret {Γ τ} (e : L.Expr Γ τ) : DagProg (L := L) Γ τ :=
-  ProgCore.Prog.ret e
+  Prog.Prog.ret e
 
 def letDet {Γ τ τ'} (e : L.Expr Γ τ') (k : DagProg (L := L) (τ' :: Γ) τ) : DagProg (L := L) Γ τ :=
-  ProgCore.Prog.letDet e k
+  Prog.Prog.letDet e k
 
 /-- Strategic let: bind a value chosen by player `who`, conditioned only on `v`. -/
 def letChoose {Γ τ τ'} (who : Player) (v : View (L := L) Γ) (A : Act (L := L) v τ')
@@ -72,8 +72,8 @@ end DagProg
 
 /-! ## Semantics via profiles (strategy kernels) -/
 
-/-- We evaluate DagLet programs into `WDist` using the same effect as ProbLet. -/
-def EffWDist : ProgCore.Eff WDist := ProbLet.EffWDist
+/-- We evaluate DagLet programs into `WDist` using the same effect as Prob. -/
+def EffWDist : Prog.Eff WDist := Prob.EffWDist
 
 /-- A strategy profile: for each player and view/action-set, provides a kernel on the viewed env. -/
 structure Profile where
@@ -89,7 +89,7 @@ def liftKernel {Γ : L.Ctx} {τ : L.Ty}
 
 /-- The language semantics for DagLet given a profile. -/
 def StratSem (σ : Profile (L := L)) :
-    ProgCore.LangSem (L := L) CmdBindD CmdStmtD WDist where
+    Prog.LangSem (L := L) CmdBindD CmdStmtD WDist where
   E := EffWDist
   handleBind
     | .choose who v A => liftKernel (L := L) σ who v A
@@ -106,14 +106,14 @@ def StratSem (σ : Profile (L := L)) :
 
 @[simp] theorem StratSem_handleStmt_observe
     {Γ : L.Ctx} (σ : Profile (L := L)) (cond : L.Expr Γ L.bool) (env : L.Env Γ) :
-    (StratSem (L := L) σ).handleStmt (ProgCore.CmdStmtObs.observe (Γ := Γ) cond) env
+    (StratSem (L := L) σ).handleStmt (Prog.CmdStmtObs.observe (Γ := Γ) cond) env
       =
     (if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero) := rfl
 
 /-- Evaluate a DagLet program under a profile, producing a weighted distribution. -/
 abbrev evalD (σ : Profile (L := L)) {Γ : L.Ctx} {τ : L.Ty} :
     DagProg (L := L) Γ τ → L.Env Γ → WDist (L.Val τ) :=
-  ProgCore.evalWith (L := L) (StratSem (L := L) σ)
+  Prog.evalWith (L := L) (StratSem (L := L) σ)
 
 /-! ## Translation to ProbLet by fixing a profile -/
 
@@ -122,7 +122,7 @@ Translate a DagLet program to a ProbLet program by fixing a profile:
 each `letChoose` becomes `letSample` from the lifted kernel `env ↦ σ.choose ... (v.proj env)`.
 -/
 def toProb (σ : Profile (L := L)) {Γ : L.Ctx} {τ : L.Ty} :
-      DagProg (L := L) Γ τ → ProbLet.PProg (L := L) Γ τ
+      DagProg (L := L) Γ τ → Prob.PProg (L := L) Γ τ
   | .ret e        => .ret e
   | .letDet e k   => .letDet e (toProb σ k)
   | .doStmt s k   => .doStmt s (toProb σ k)
@@ -132,7 +132,7 @@ def toProb (σ : Profile (L := L)) {Γ : L.Ctx} {τ : L.Ty} :
           .doBind (.sample (L := L) (liftKernel (L := L) σ who v A)) (toProb σ k)
 
 @[simp] theorem toProb_ret {Γ τ} (σ : Profile (L := L)) (e : L.Expr Γ τ) :
-    toProb (L := L) σ (DagProg.ret (L := L) e) = (.ret e : ProbLet.PProg (L := L) Γ τ) := rfl
+    toProb (L := L) σ (DagProg.ret (L := L) e) = (.ret e : Prob.PProg (L := L) Γ τ) := rfl
 
 @[simp] theorem toProb_letDet {Γ τ τ'} (σ : Profile (L := L)) (e : L.Expr Γ τ')
     (k : DagProg (L := L) (τ' :: Γ) τ) :
@@ -142,30 +142,30 @@ def toProb (σ : Profile (L := L)) {Γ : L.Ctx} {τ : L.Ty} :
     (c : L.Expr Γ L.bool) (k : DagProg (L := L) Γ τ) :
     toProb (L := L) σ (DagProg.observe (L := L) c k)
       =
-    (.doStmt (.observe c) (toProb (L := L) σ k) : ProbLet.PProg (L := L) Γ τ) := rfl
+    (.doStmt (.observe c) (toProb (L := L) σ k) : Prob.PProg (L := L) Γ τ) := rfl
 
-@[simp] lemma evalP_eq_evalWith {Γ τ} (p : ProbLet.PProg (L := L) Γ τ) (env : L.Env Γ) :
-    ProbLet.evalP (L := L) p env =
-      ProgCore.evalWith (L := L) (ProbLet.ProbSem (L := L)) p env := rfl
+@[simp] lemma evalP_eq_evalWith {Γ τ} (p : Prob.PProg (L := L) Γ τ) (env : L.Env Γ) :
+    Prob.evalP (L := L) p env =
+      Prog.evalWith (L := L) (Prob.ProbSem (L := L)) p env := rfl
 
 @[simp] lemma EffWDist_bind {α β} (xs : WDist α) (f : α → WDist β) :
-    (ProbLet.EffWDist.bind xs f) = WDist.bind xs f := rfl
+    (Prob.EffWDist.bind xs f) = WDist.bind xs f := rfl
 
-/-! ## Fundamental link: evalD = ProbLet.evalP ∘ toProb -/
+/-! ## Fundamental link: evalD = Prob.evalP ∘ toProb -/
 
 /-- Evaluation under a profile agrees with evaluation of the translated ProbLet program. -/
 theorem evalD_eq_evalP_toProb
     (σ : Profile (L := L)) {Γ : L.Ctx} {τ : L.Ty}
     (p : DagProg (L := L) Γ τ) (env : L.Env Γ) :
-    evalD (L := L) σ p env = ProbLet.evalP (L := L) (toProb (L := L) σ p) env := by
+    evalD (L := L) σ p env = Prob.evalP (L := L) (toProb (L := L) σ p) env := by
   induction p with
   | ret e =>
       -- key: unfold RHS `evalP` (and `toProb`) so both sides are the same core eval
-      simp [evalD, toProb, ProbLet.evalP, ProbLet.ProbSem, ProgCore.evalWith, ProgCore.evalProg_gen,
+      simp [evalD, toProb, Prob.evalP, Prob.ProbSem, Prog.evalWith, Prog.evalProg_gen,
             StratSem, EffWDist]
   | letDet e k ih =>
       simp only [evalD, evalWith, evalProg_gen, StratSem, EffWDist,
-                 ProbLet.evalP, ProbLet.ProbSem, toProb]
+                 Prob.evalP, Prob.ProbSem, toProb]
       simp_all only [evalP_eq_evalWith]
       apply ih
   | doStmt s k ih =>
@@ -174,20 +174,20 @@ theorem evalD_eq_evalP_toProb
           by_cases h : L.toBool (L.eval cond env)
           · -- succeed: both sides reduce to the continuation
             simp only [evalD, evalWith, evalProg_gen, StratSem, EffWDist, h, ↓reduceIte,
-              EffWDist_bind, WDist.bind_pure, ProbLet.evalP, ProbLet.ProbSem, toProb]
+              EffWDist_bind, WDist.bind_pure, Prob.evalP, Prob.ProbSem, toProb]
             simp_all only [evalP_eq_evalWith]
             apply ih
           · -- fail: both sides are zero, done
-            simp [evalD, toProb, ProbLet.evalP, ProbLet.ProbSem,
-                  ProgCore.evalWith, ProgCore.evalProg_gen,
+            simp [evalD, toProb, Prob.evalP, Prob.ProbSem,
+                  Prog.evalWith, Prog.evalProg_gen,
                   StratSem, EffWDist, h]
   | doBind c k ih =>
       cases c with
       | choose who v A =>
           simp only [evalD, evalWith, evalProg_gen, StratSem, EffWDist, liftKernel, EffWDist_bind,
-            ProbLet.evalP, ProbLet.ProbSem, toProb]
+            Prob.evalP, Prob.ProbSem, toProb]
           refine congrArg (fun f => WDist.bind (σ.choose who v A (v.proj env)) f) ?_
           funext a
           simpa using ih (env := (a, env))
 
-end DagLet
+end Dag

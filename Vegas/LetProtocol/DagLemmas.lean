@@ -1,16 +1,16 @@
 import Mathlib.Data.List.Basic
 
-import Vegas.WDist
-import Vegas.ProgCore
-import Vegas.Env
-import Vegas.ProbLet
-import Vegas.ProbLetLemmas
-import Vegas.GameDefs
-import Vegas.DagLet
+import Vegas.LetProb.WDist
+import Vegas.LetCore.Prog
+import Vegas.LetCore.Env
+import Vegas.LetProb.Prob
+import Vegas.LetProb.ProbLemmas
+import Vegas.Defs
+import Vegas.LetProtocol.Dag
 
-namespace DagLet
+namespace Dag
 
-open ProgCore GameDefs
+open Prog Defs
 
 variable {L : Language}
 
@@ -33,19 +33,19 @@ theorem evalD_profile_indep {Γ : L.Ctx} {τ : L.Ty}
     evalD (L := L) σ₁ p env = evalD (L := L) σ₂ p env := by
   induction p with
   | ret e =>
-      simp [evalD, ProgCore.evalWith, ProgCore.evalProg_gen, StratSem, EffWDist]
+      simp [evalD, Prog.evalWith, Prog.evalProg_gen, StratSem, EffWDist]
   | letDet e k ih =>
       have hk : noChoices (L := L) k := hp
-      simp [evalD, ProgCore.evalWith, ProgCore.evalProg_gen, StratSem, EffWDist]
+      simp [evalD, Prog.evalWith, Prog.evalProg_gen, StratSem, EffWDist]
       simpa using ih hk (env := (L.eval e env, env))
   | doStmt s k ih =>
       have hk : noChoices (L := L) k := hp
       cases s with
       | observe cond =>
           by_cases h : L.toBool (L.eval cond env)
-          · simp [evalD, ProgCore.evalWith, ProgCore.evalProg_gen, StratSem, EffWDist, h]
+          · simp [evalD, Prog.evalWith, Prog.evalProg_gen, StratSem, EffWDist, h]
             simpa using ih hk (env := env)
-          · simp [evalD, ProgCore.evalWith, ProgCore.evalProg_gen, StratSem, EffWDist, h]
+          · simp [evalD, Prog.evalWith, Prog.evalProg_gen, StratSem, EffWDist, h]
   | doBind c k =>
       cases hp
 
@@ -64,6 +64,6 @@ theorem observe_fuse
   -- Push to ProbLet via translation, fuse there, and pull back.
   simp [evalD_eq_evalP_toProb (L := L) σ, DagProg.observe, toProb]
   -- Now it's exactly the ProbLet lemma (function equality) specialized at `env`.
-  simpa using congrArg (fun f => f env) (ProbLet.observe_fuse (L := L) EL)
+  simpa using congrArg (fun f => f env) (Prob.observe_fuse (L := L) EL)
 
-end DagLet
+end Dag

@@ -1,7 +1,7 @@
 import Mathlib.Data.List.Basic
 import Mathlib.Data.NNReal.Basic
 
-import Vegas.WDist
+import Vegas.LetProb.WDist
 
 namespace WDist
 

@@ -1,4 +1,4 @@
-import Vegas.Env
+import Vegas.LetCore.Env
 
 /-- The interface required to instantiate the Vegas calculus. -/
 structure Language where

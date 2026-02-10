@@ -1,6 +1,6 @@
-import Vegas.FullInfoLet
-import Vegas.ProbLet
-import Vegas.ProbLetLemmas
+import Vegas.LetProtocol.FullInfo
+import Vegas.LetProb.Prob
+import Vegas.LetProb.ProbLemmas
 
 /-!
 # Extensional Properties for FullInfoLet / SProg
@@ -8,20 +8,20 @@ import Vegas.ProbLetLemmas
 These lemmas state "sanity" properties that FullInfoLet strategic programs should satisfy.
 
 Important modeling note:
-`FullInfoLet.Profile` does **not** enforce legality (support ⊆ offered action set).
+`FullInfo.Profile` does **not** enforce legality (support ⊆ offered action set).
 So any statement that assumes "if A env = [] then the program fails regardless of σ"
 needs an extra hypothesis about the profile (or a separate `WFProfile` predicate).
 -/
 
-namespace FullInfoLet
+namespace FullInfo
 
-open ProgCore GameDefs
+open Prog Defs
 
 /-! ## Profile Independence for Deterministic Subprograms -/
 
 /-- A program with no strategic choices is profile-independent.
 
-In `FullInfoLet`, the only bind-command is `choose`, so we can characterize
+In `FullInfo`, the only bind-command is `choose`, so we can characterize
 "no strategic choices" as "no `.doBind` nodes at all".
 -/
 def noChoices {Γ τ} : SProg (L := L) Γ τ → Prop
@@ -58,7 +58,7 @@ theorem evalS_profile_indep {Γ τ} (p : SProg (L := L) Γ τ) (hp : noChoices p
             simp_all only [forall_const]
             apply ih
           · -- observe fails: bind zero ... = zero on both sides
-            simp [evalS, ProgCore.evalWith_doStmt, StratSem_handleStmt_observe, h]
+            simp [evalS, Prog.evalWith_doStmt, StratSem_handleStmt_observe, h]
   | doBind c k =>
       cases hp
 
@@ -74,7 +74,7 @@ theorem observe_fuse {EL : ExprLaws (L := L)} {Γ τ} (c₁ c₂ : L.Expr Γ L.b
     (fun env => evalS σ (SProg.observe (EL.andBool c₁ c₂) k) env) := by
   funext env
   simp [evalS_eq_evalP_toProb, SProg.observe, toProb]
-  simpa using congrArg (fun f => f env) (ProbLet.observe_fuse EL)
+  simpa using congrArg (fun f => f env) (Prob.observe_fuse EL)
 
 /-! ## Choose from Singleton -/
 
@@ -85,7 +85,7 @@ theorem choose_singleton {Γ τ τ'} (p : Player) (a : L.Val τ')
     (hσ : σ.choose p A env = WDist.pure a) :
     evalS σ (SProg.letChoose p A k) env = evalS σ k (a, env) := by
   -- unfold one step of the evaluator
-  simp [SProg.letChoose, evalS, ProgCore.evalWith_doBind,
+  simp [SProg.letChoose, evalS, Prog.evalWith_doBind,
         StratSem_handleBind_choose, hσ, StratSem_E_bind, WDist.bind_pure]
 
 
@@ -99,7 +99,7 @@ theorem choose_empty {Γ τ τ'} (p : Player)
     (hσ : ∀ env, σ.choose p A env = WDist.zero) :
     (fun env => evalS σ (SProg.letChoose p A k) env) = (fun _ => WDist.zero) := by
   funext env
-  simp [SProg.letChoose, evalS, ProgCore.evalWith_doBind,
+  simp [SProg.letChoose, evalS, Prog.evalWith_doBind,
         StratSem_handleBind_choose, hσ env, StratSem_E_bind, WDist.bind_zero]
 
 /-! ## Behavioral Interpretation Properties -/
@@ -138,17 +138,17 @@ theorem evalOp_deterministic {Γ τ} (arena : Arena) (p : SProg Γ τ) (env : L.
 
 /-- `toProb` preserves `ret`. -/
 theorem toProb_ret {Γ τ} (e : L.Expr Γ τ) :
-    toProb σ (SProg.ret e) = ProgCore.Prog.ret e := by
+    toProb σ (SProg.ret e) = Prog.Prog.ret e := by
   rfl
 
 /-- `toProb` preserves `letDet`. -/
 theorem toProb_letDet {Γ τ τ'} (e : L.Expr Γ τ') (k : SProg (τ' :: Γ) τ) :
-    toProb σ (SProg.letDet e k) = ProgCore.Prog.letDet e (toProb σ k) := by
+    toProb σ (SProg.letDet e k) = Prog.Prog.letDet e (toProb σ k) := by
   rfl
 
 /-- `toProb` preserves `observe`. -/
 theorem toProb_observe {Γ τ} (c : L.Expr Γ L.bool) (k : SProg Γ τ) :
-    toProb σ (SProg.observe c k) = ProgCore.Prog.doStmt (.observe c) (toProb σ k) := by
+    toProb σ (SProg.observe c k) = Prog.Prog.doStmt (.observe c) (toProb σ k) := by
   rfl
 
 /-! ## Player Irrelevance for Same Strategy -/
@@ -162,9 +162,9 @@ theorem player_irrelevant {Γ τ τ'} (p₁ p₂ : Player)
     (fun env => evalS σ (SProg.letChoose p₂ A k) env) := by
   funext env
   -- one-step unfold at the `choose`
-  simp [SProg.letChoose, evalS, ProgCore.evalWith_doBind, StratSem_handleBind_choose, h env]
+  simp [SProg.letChoose, evalS, Prog.evalWith_doBind, StratSem_handleBind_choose, h env]
 
-end FullInfoLet
+end FullInfo
 
 /-!
 ## What we might want to add next
@@ -209,5 +209,5 @@ For a more complete characterization of FullInfoLet, we will likely want:
    - denotational `evalS` / `evalP` results.
 
 All of the above are *additive*: they should refine or constrain the model rather than forcing
-changes to the core `ProgCore` evaluator.
+changes to the core `Prog` evaluator.
 -/

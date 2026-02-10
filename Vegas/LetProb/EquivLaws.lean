@@ -2,15 +2,15 @@ import Mathlib.MeasureTheory.Measure.ProbabilityMeasure
 import Mathlib.MeasureTheory.Measure.MeasureSpaceDef
 import Mathlib.Data.List.Basic
 
-import Vegas.WDist
-import Vegas.WDistLemmas
-import Vegas.ProbLet
-import Vegas.ProbLetLemmas
+import Vegas.LetProb.WDist
+import Vegas.LetProb.WDistLemmas
+import Vegas.LetProb.Prob
+import Vegas.LetProb.ProbLemmas
 
-namespace ProbLet
+namespace Prob
 
 open MeasureTheory ENNReal
-open ProgCore
+open Prog
 
 variable {L : Language}
 
@@ -107,17 +107,17 @@ theorem ProgEq.ret {e : L.Expr Γ τ} : (.ret e : PProg Γ τ) ≈ (.ret e : PPr
 /-- `letDet` congruence. -/
 theorem ProgEq.letDet (e : L.Expr Γ τ') (k₁ k₂ : PProg (τ' :: Γ) τ)
     (h : k₁ ≈ k₂) :
-    (ProgCore.Prog.letDet e k₁) ≈ (.letDet e k₂) := by
+    (Prog.Prog.letDet e k₁) ≈ (.letDet e k₂) := by
   intro env
   -- unfold ProgEq/MeasEq and the evaluator for letDet
-  simp [MeasEq, evalP, ProgCore.evalWith_letDet]
+  simp [MeasEq, evalP, Prog.evalWith_letDet]
   -- reduce to the hypothesis in the extended environment
   simpa using h (env := (L.eval e env, env))
 
 /-- `observe` congruence. -/
 theorem ProgEq.observe (c : L.Expr Γ L.bool) (k₁ k₂ : PProg Γ τ)
     (h : k₁ ≈ k₂) :
-    (ProgCore.Prog.doStmt (.observe c) k₁) ≈ (.doStmt (.observe c) k₂) := by
+    (Prog.Prog.doStmt (.observe c) k₁) ≈ (.doStmt (.observe c) k₂) := by
   intro env
   -- reduce both sides by the measure-level observe lemma
   simp only [MeasEq, toMeasure_evalP_observe]
@@ -143,7 +143,7 @@ private lemma foldr_congr
 /-- `sample` congruence. -/
 theorem ProgEq.sample (K : Kernel Γ τ') (k₁ k₂ : PProg (τ' :: Γ) τ)
     (h : k₁ ≈ k₂) :
-    (ProgCore.Prog.doBind (.sample K) k₁) ≈ (.doBind (.sample K) k₂) := by
+    (Prog.Prog.doBind (.sample K) k₁) ≈ (.doBind (.sample K) k₂) := by
   classical
   intro env
   -- reduce evalP to WDist.bind
@@ -176,7 +176,7 @@ variable {Γ τ τ'} [MeasurableSpace (L.Val τ)]
 
 /-- Sample from Dirac is equivalent to letDet. -/
 theorem ProgEq.sample_dirac_letDet (e : L.Expr Γ τ') (k : PProg (τ' :: Γ) τ) :
-    (ProgCore.Prog.doBind (.sample (fun env => WDist.pure (L.eval e env))) k)
+    (Prog.Prog.doBind (.sample (fun env => WDist.pure (L.eval e env))) k)
     ≈
     (.letDet e k) := by
   intro env
@@ -185,7 +185,7 @@ theorem ProgEq.sample_dirac_letDet (e : L.Expr Γ τ') (k : PProg (τ' :: Γ) τ
       evalP (.doBind (.sample (fun env' => WDist.pure (L.eval e env'))) k) env
         =
       evalP (.letDet e k) env :=
-    congrFun (ProbLet.sample_dirac_eq_letDet e k) env
+    congrFun (Prob.sample_dirac_eq_letDet e k) env
   -- convert to measure equality
   simp [MeasEq, hev]
 
@@ -194,7 +194,7 @@ variable (EL : ExprLaws L)
 /-- Sampling from the zero kernel yields `zeroProg`, regardless of continuation. -/
 theorem ProgEq.sample_zero (k : PProg (τ' :: Γ) τ) :
     ProgEq
-      (ProgCore.Prog.doBind (.sample (fun _ : L.Env Γ => (WDist.zero : WDist (L.Val τ')))) k)
+      (Prog.Prog.doBind (.sample (fun _ : L.Env Γ => (WDist.zero : WDist (L.Val τ')))) k)
       (zeroProg (EL := EL) (Γ := Γ) (τ := τ)) := by
   intro env
   simp [MeasEq, evalP_sample_bind, zeroProg]
@@ -203,7 +203,7 @@ theorem ProgEq.sample_zero (k : PProg (τ' :: Γ) τ) :
 theorem ProgEq.observe_fuse
     {Γ : L.Ctx} {τ : L.Ty} [MeasurableSpace (L.Val τ)]
     (c₁ c₂ : L.Expr Γ L.bool) (k : PProg Γ τ) :
-    (ProgCore.Prog.doStmt (.observe c₁) (.doStmt (.observe c₂) k))
+    (Prog.Prog.doStmt (.observe c₁) (.doStmt (.observe c₂) k))
     ≈
     (.doStmt (.observe (EL.andBool c₁ c₂)) k) := by
   intro env
@@ -212,7 +212,7 @@ theorem ProgEq.observe_fuse
       evalP (.doStmt (.observe c₁) (.doStmt (.observe c₂) k)) env
         =
       evalP (.doStmt (.observe (EL.andBool c₁ c₂)) k) env :=
-    congrFun (ProbLet.observe_fuse EL) env
+    congrFun (Prob.observe_fuse EL) env
   simp [MeasEq, hev]
 
 /-- Observe true is identity. -/
@@ -225,7 +225,7 @@ theorem ProgEq.observe_true
       evalP (.doStmt (.observe (EL.constBool true)) k) env
         =
       evalP k env :=
-    congrFun (ProbLet.observe_true EL k) env
+    congrFun (Prob.observe_true EL k) env
   simp [MeasEq, hev]
 
 /-- `observe false; k` is observationally equivalent to `zeroProg`. -/
@@ -243,4 +243,4 @@ theorem ProgEq.observe_false {Γ τ} [MeasurableSpace (L.Val τ)] (k : PProg Γ 
 
 end Laws
 
-end ProbLet
+end Prob

@@ -1,7 +1,7 @@
-import Vegas.ProtoLet
-import Vegas.ProbLetLemmas
-import Vegas.WDistLemmas
-import Vegas.ProgCoreLemmas
+import Vegas.LetProtocol.Proto
+import Vegas.LetProb.ProbLemmas
+import Vegas.LetProb.WDistLemmas
+import Vegas.LetCore.ProgLemmas
 
 /-!
 # ProtoLetLemmas: sanity lemmas for ProtoLet
@@ -15,9 +15,9 @@ This file is intentionally "lightweight but sharp":
 No equilibrium existence, no measure theory, no reachability machinery.
 -/
 
-namespace ProtoLet
+namespace Proto
 
-open GameDefs ProgCore
+open Defs Prog
 variable {L : Language}
 variable (EL : ExprLaws L)
 
@@ -76,7 +76,7 @@ lemma choose_depends_only_on_view
 
 namespace Examples
 
-open ProtoLet
+open Proto
 
 /-
 This example is intentionally tiny:
@@ -144,10 +144,10 @@ end Examples
     evalProto σ (.observe c k) env =
       if L.toBool (L.eval c env) then evalProto σ k env else WDist.zero := by
   by_cases h : L.toBool (L.eval c env)
-  · simp [EffWDist, ProbLet.EffWDist, ProtoProg.observe, evalProto,
-          ProtoSem, ProgCore.evalWith, ProgCore.evalProg_gen, h]
-  · simp [EffWDist, ProbLet.EffWDist, ProtoProg.observe, evalProto,
-          ProtoSem, ProgCore.evalWith, ProgCore.evalProg_gen, h]
+  · simp [EffWDist, Prob.EffWDist, ProtoProg.observe, evalProto,
+          ProtoSem, Prog.evalWith, Prog.evalProg_gen, h]
+  · simp [EffWDist, Prob.EffWDist, ProtoProg.observe, evalProto,
+          ProtoSem, Prog.evalWith, Prog.evalProg_gen, h]
 
 @[simp] lemma evalProto_sample_bind {Γ τ τ'} (σ : Profile)
     (id : YieldId) (v : View Γ) (K : ObsKernel v τ')
@@ -305,10 +305,10 @@ theorem evalProto_applyProfile_of_extends
       cases s with
       | observe cond =>
           by_cases h : L.toBool (L.eval cond env)
-          · simp only [evalProto, ProtoSem, EffWDist, ProbLet.EffWDist, applyProfile,
+          · simp only [evalProto, ProtoSem, EffWDist, Prob.EffWDist, applyProfile,
             evalWith_doStmt, h, reduceIte, WDist.bind_pure]
             apply ih
-          · simp [applyProfile, evalProto, ProtoSem, EffWDist, ProbLet.EffWDist, h]
+          · simp [applyProfile, evalProto, ProtoSem, EffWDist, Prob.EffWDist, h]
   | doBind c k ih =>
       intro env
       cases c with
@@ -338,7 +338,7 @@ theorem evalProto_eq_evalP_toProbNoChoose
     (p : ProtoProg Γ τ) (h : NoChoose p) (env : L.Env Γ) :
     evalProto σ p env
       =
-    ProbLet.evalP (toProbNoChoose p h) env := by
+    Prob.evalP (toProbNoChoose p h) env := by
   -- proof by recursion on p, the doBind case can only be sample
   induction p with
   | ret e => rfl
@@ -358,7 +358,7 @@ theorem evalProto_eq_evalP_toProbNoChoose
           change WDist.bind (K (v.proj env))
               (fun x => evalProto σ k (x, env)) =
             WDist.bind (K (v.proj env))
-              (fun x => ProbLet.evalP
+              (fun x => Prob.evalP
                 (toProbNoChoose k h) (x, env))
           congr 1; funext x; exact ih h (x, env)
       | choose id who v A =>
@@ -559,4 +559,4 @@ theorem mass_evalProto_observe_le {Γ τ} (σ : Profile)
   · simp [WDist.bind_zero, WDist.mass_zero]
 
 end ProtoProg
-end ProtoLet
+end Proto

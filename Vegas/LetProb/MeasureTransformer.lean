@@ -1,15 +1,15 @@
 import Mathlib.MeasureTheory.Measure.MeasureSpaceDef
 import Mathlib.MeasureTheory.Measure.ProbabilityMeasure
 
-import Vegas.WDist
-import Vegas.WDistLemmas
-import Vegas.ProbLet
-import Vegas.ProbLetLemmas
+import Vegas.LetProb.WDist
+import Vegas.LetProb.WDistLemmas
+import Vegas.LetProb.Prob
+import Vegas.LetProb.ProbLemmas
 
-namespace ProbLet
+namespace Prob
 
 open MeasureTheory ENNReal NNReal
-open ProgCore
+open Prog
 
 variable {L : Language}
 
@@ -90,7 +90,7 @@ theorem evalP_eq_denote :
       -- now both sides use the *same* MeasurableSpace instance (the global ⊤ one)
       simpa [denote, MT.ret] using (toMeasure_evalP_ret (e := e) (env := env))
   | letDet e k ih =>
-      simpa [denote, evalP, ProgCore.evalWith_letDet] using
+      simpa [denote, evalP, Prog.evalWith_letDet] using
         ih (env := (L.eval e env, env))
   | doStmt s k ih =>
       cases s with
@@ -128,4 +128,4 @@ theorem evalP_eq_denote :
 
 end Correctness
 
-end ProbLet
+end Prob

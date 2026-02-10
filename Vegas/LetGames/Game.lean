@@ -1,12 +1,12 @@
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.List.Basic
 
-import Vegas.WDist
-import Vegas.Env
-import Vegas.GameDefs
-import Vegas.DagLet
-import Vegas.ProbLet
-import Vegas.ProbLetLemmas
+import Vegas.LetProb.WDist
+import Vegas.LetCore.Env
+import Vegas.Defs
+import Vegas.LetProtocol.Dag
+import Vegas.LetProb.Prob
+import Vegas.LetProb.ProbLemmas
 
 /-!
 # GameProg: game-theoretic layer on top of DagLet
@@ -21,28 +21,28 @@ It adds the missing "game" structure:
 - a Nash-style "no profitable deviation" notion.
 
 Important design choice:
-`DagLet` returns values of some object-language type `τ : L.Ty`.
+`Dag` returns values of some object-language type `τ : L.Ty`.
 So utilities are provided *externally* as `L.Val τ → Player → Real`.
 (If you later add a dedicated payoff type in `L.Ty`, you can specialize.)
 -/
 
-namespace GameProg
+namespace Game
 
-open ProgCore GameDefs DagLet
+open Prog Defs Dag
 open scoped BigOperators
 
 variable {L : Language}
 
 section Support
 
-abbrev VCtx {L} {Γ : L.Ctx} (v : DagLet.View (L := L) Γ) := v.Δ
-abbrev VEnv {L} {Γ : L.Ctx} (v : DagLet.View (L := L) Γ) := L.Env v.Δ
+abbrev VCtx {L} {Γ : L.Ctx} (v : Dag.View (L := L) Γ) := v.Δ
+abbrev VEnv {L} {Γ : L.Ctx} (v : Dag.View (L := L) Γ) := L.Env v.Δ
 
 /-- `d` is supported on the action set `A envv` (where `envv` lives in the view context). -/
 def SupportedOn
     {L : Language} {Γ : L.Ctx} {τ : L.Ty}
-    (v : DagLet.View (L := L) Γ)
-    (A : DagLet.Act (L := L) v τ)
+    (v : Dag.View (L := L) Γ)
+    (A : Dag.Act (L := L) v τ)
     (envv : L.Env v.Δ)
     (d : WDist (L.Val τ)) : Prop :=
   ∀ vw ∈ d.weights, vw.1 ∈ A envv
@@ -50,8 +50,8 @@ def SupportedOn
 /-- Global-env version: check support against `A (v.proj env)`. -/
 def SupportedOnGlobal
     {L : Language} {Γ : L.Ctx} {τ : L.Ty}
-    (v : DagLet.View (L := L) Γ)
-    (A : DagLet.Act (L := L) v τ)
+    (v : Dag.View (L := L) Γ)
+    (A : Dag.Act (L := L) v τ)
     (env : L.Env Γ)
     (d : WDist (L.Val τ)) : Prop :=
   ∀ vw ∈ d.weights, vw.1 ∈ A (v.proj env)
@@ -59,8 +59,8 @@ def SupportedOnGlobal
 /-- A minimal well-formedness predicate for profiles: every chosen kernel
 is supported on the offered action set.
 -/
-def WFProfileLocal {L : Language} {Γ : L.Ctx} (σ : DagLet.Profile (L := L)) : Prop :=
-  ∀ {τ : L.Ty} (who : Player) (v : DagLet.View (L := L) Γ) (A : DagLet.Act (L := L) v τ)
+def WFProfileLocal {L : Language} {Γ : L.Ctx} (σ : Dag.Profile (L := L)) : Prop :=
+  ∀ {τ : L.Ty} (who : Player) (v : Dag.View (L := L) Γ) (A : Dag.Act (L := L) v τ)
     (envv : L.Env v.Δ),
     SupportedOn (L := L) v A envv (σ.choose who v A envv)
 
@@ -69,9 +69,9 @@ the chosen distribution at the projected env is supported on the offered actions
 at that same projected env. -/
 def WFProfileGlobal
     {L : Language} {Γ : L.Ctx}
-    (σ : DagLet.Profile (L := L)) : Prop :=
-  ∀ {τ : L.Ty} (who : Player) (v : DagLet.View (L := L) Γ)
-    (A : DagLet.Act (L := L) v τ)
+    (σ : Dag.Profile (L := L)) : Prop :=
+  ∀ {τ : L.Ty} (who : Player) (v : Dag.View (L := L) Γ)
+    (A : Dag.Act (L := L) v τ)
     (env : L.Env Γ),
     SupportedOnGlobal (L := L) v A env (σ.choose who v A (v.proj env))
 
@@ -79,16 +79,16 @@ def WFProfileGlobal
 def WFProfileGlobalOn
     {L : Language} {Γ : L.Ctx}
     (Reach : L.Env Γ → Prop)
-    (σ : DagLet.Profile (L := L)) : Prop :=
-  ∀ {τ : L.Ty} (who : Player) (v : DagLet.View (L := L) Γ)
-    (A : DagLet.Act (L := L) v τ)
+    (σ : Dag.Profile (L := L)) : Prop :=
+  ∀ {τ : L.Ty} (who : Player) (v : Dag.View (L := L) Γ)
+    (A : Dag.Act (L := L) v τ)
     (env : L.Env Γ),
     Reach env →
     SupportedOnGlobal (L := L) v A env (σ.choose who v A (v.proj env))
 
 theorem WFProfileLocal.implies_global
     {L : Language} {Γ : L.Ctx}
-    {σ : DagLet.Profile (L := L)} :
+    {σ : Dag.Profile (L := L)} :
     WFProfileLocal (Γ := Γ) (L := L) σ → WFProfileGlobal (Γ := Γ) (L := L) σ := by
   intro h τ who v A env
   exact h who v A (v.proj env)
@@ -111,12 +111,12 @@ noncomputable def EU_ofWDist {α : Type _}
 /-- Expected utility induced by evaluating a `DagProg`. -/
 noncomputable def EU
     {Γ : L.Ctx} {τ : L.Ty}
-    (σ : DagLet.Profile (L := L))
-    (p : DagLet.DagProg (L := L) Γ τ)
+    (σ : Dag.Profile (L := L))
+    (p : Dag.DagProg (L := L) Γ τ)
     (env : L.Env Γ)
     (u : L.Val τ → Player → Real)
     (who : Player) : Real :=
-  EU_ofWDist (DagLet.evalD (L := L) σ p env) u who
+  EU_ofWDist (Dag.evalD (L := L) σ p env) u who
 
 end EU
 
@@ -165,16 +165,16 @@ If you want to restrict deviations (e.g. to legal / supported ones), add those
 premises inside the quantifier. -/
 def IsNash
     {Γ : L.Ctx} {τ : L.Ty}
-    (σ : DagLet.Profile (L := L))
-    (p : DagLet.DagProg (L := L) Γ τ)
+    (σ : Dag.Profile (L := L))
+    (p : Dag.DagProg (L := L) Γ τ)
     (env : L.Env Γ)
     (u : L.Val τ → Player → Real) : Prop :=
   ∀ who : Player,
     ∀ choose' :
       ({τ' : L.Ty} →
         Player →
-        (v : DagLet.View (L := L) Γ) →
-        DagLet.Act (L := L) v τ' →
+        (v : Dag.View (L := L) Γ) →
+        Dag.Act (L := L) v τ' →
         (L.Env v.Δ → WDist (L.Val τ'))),
       EU (L := L) σ p env u who ≥
         EU (L := L) (Deviate (L := L) (Γ := Γ) σ who choose') p env u who
@@ -182,8 +182,8 @@ def IsNash
 /-- A legality-restricted equilibrium: only deviations that remain `WFProfile` count. -/
 def IsNash_WF
     {Γ : L.Ctx} {τ : L.Ty}
-    (σ : DagLet.Profile (L := L))
-    (p : DagLet.DagProg (L := L) Γ τ)
+    (σ : Dag.Profile (L := L))
+    (p : Dag.DagProg (L := L) Γ τ)
     (env : L.Env Γ)
     (u : L.Val τ → Player → Real) : Prop :=
   WFProfileLocal (Γ := Γ) (L := L) σ ∧
@@ -191,8 +191,8 @@ def IsNash_WF
     ∀ choose' :
       ({τ' : L.Ty} →
         Player →
-        (v : DagLet.View (L := L) Γ) →
-        DagLet.Act (L := L) v τ' →
+        (v : Dag.View (L := L) Γ) →
+        Dag.Act (L := L) v τ' →
         (L.Env v.Δ → WDist (L.Val τ'))),
       WFProfileLocal (Γ := Γ) (L := L) (Deviate (Γ := Γ) σ who choose')
       → EU (L := L) σ  p env u who ≥ EU (L := L) (Deviate (Γ := Γ) σ who choose') p env u who
@@ -202,20 +202,20 @@ end Equilibrium
 /-!
 ## Bridge to ProbLet
 
-You already proved `evalD = ProbLet.evalP ∘ toProb`. As a consequence,
+You already proved `evalD = Prob.evalP ∘ toProb`. As a consequence,
 any EU computed from `evalD` can be pushed to ProbLet if you need to reuse
 measure-theory infrastructure there. We keep the lemma here as a convenience.
 -/
 section ProbBridge
 
 @[simp] theorem evalD_eq_evalP_toProb
-    (σ : DagLet.Profile (L := L)) {Γ : L.Ctx} {τ : L.Ty}
-    (p : DagLet.DagProg (L := L) Γ τ) (env : L.Env Γ) :
-    DagLet.evalD (L := L) σ p env
+    (σ : Dag.Profile (L := L)) {Γ : L.Ctx} {τ : L.Ty}
+    (p : Dag.DagProg (L := L) Γ τ) (env : L.Env Γ) :
+    Dag.evalD (L := L) σ p env
       =
-    ProbLet.evalP (L := L) (DagLet.toProb (L := L) σ p) env :=
-  DagLet.evalD_eq_evalP_toProb (L := L) σ p env
+    Prob.evalP (L := L) (Dag.toProb (L := L) σ p) env :=
+  Dag.evalD_eq_evalP_toProb (L := L) σ p env
 
 end ProbBridge
 
-end GameProg
+end Game

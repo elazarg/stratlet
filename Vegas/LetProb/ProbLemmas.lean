@@ -1,17 +1,16 @@
 import Mathlib.Data.List.Basic
 
-import Vegas.ProbLet
-import Vegas.ProgCore
-import Vegas.WDist
-import Vegas.WDistLemmas
-import Vegas.Env
+import Vegas.LetProb.Prob
+import Vegas.LetCore.Prog
+import Vegas.LetProb.WDist
+import Vegas.LetProb.WDistLemmas
+import Vegas.LetCore.Env
 
-import Vegas.ProgCoreLemmas
-import Vegas.WDistLemmas
+import Vegas.LetCore.ProgLemmas
 
-namespace ProbLet
+namespace Prob
 
-open ProgCore
+open Prog
 
 variable {L : Language}
 variable (EL : ExprLaws L)
@@ -38,9 +37,9 @@ variable (EL : ExprLaws L)
     if L.toBool (L.eval c env) then evalP k env else WDist.zero := by
   by_cases h : L.toBool (L.eval c env)
   · -- h : ... = true
-    simp [EffWDist, ProbLet.evalP, ProbLet.ProbSem, ProgCore.evalWith, ProgCore.evalProg_gen, h]
+    simp [EffWDist, Prob.evalP, Prob.ProbSem, Prog.evalWith, Prog.evalProg_gen, h]
   · -- h : ... = false
-    simp [EffWDist, ProbLet.evalP, ProbLet.ProbSem, ProgCore.evalWith, ProgCore.evalProg_gen, h]
+    simp [EffWDist, Prob.evalP, Prob.ProbSem, Prog.evalWith, Prog.evalProg_gen, h]
 
 /-! ## Observe-Fusion Law -/
 
@@ -68,12 +67,12 @@ theorem observe_hoist_letDet
       evalP (.doStmt (.observe c) (.letDet e k)) env) := by
   funext env
   -- unfold; the only nontrivial rewrite is the guard under the extended env
-  simp [ProbLet.evalP, ProgCore.evalWith, ProgCore.evalProg_gen, ProbLet.ProbSem,
+  simp [Prob.evalP, Prog.evalWith, Prog.evalProg_gen, Prob.ProbSem,
         EL.eval_weaken]
 
 /-! ## Conservation: deterministic embeds into probabilistic -/
 
-def embedDProg : ProgCore.DProg Γ τ → PProg Γ τ
+def embedDProg : Prog.DProg Γ τ → PProg Γ τ
   | .ret e => .ret e
   | .letDet e k => .letDet e (embedDProg k)
   | .doBind c _ => nomatch c
@@ -91,18 +90,18 @@ def liftOption : Option (L.Val τ) → WDist (L.Val τ)
     if b then liftOption (k x) else .zero := by
   by_cases hb : b <;> simp [liftOption, hb]
 
-theorem evalP_embed_eq_lift {Γ τ} (p : ProgCore.DProg Γ τ) (env : L.Env Γ) :
-    evalP (embedDProg p) env = liftOption (ProgCore.evalProgOption p env) := by
+theorem evalP_embed_eq_lift {Γ τ} (p : Prog.DProg Γ τ) (env : L.Env Γ) :
+    evalP (embedDProg p) env = liftOption (Prog.evalProgOption p env) := by
   -- structural induction on the deterministic program
   induction p with
   | ret e =>
       -- evalP ret = pure; evalProgOption ret = some
-      simp [embedDProg, evalP, liftOption, ProgCore.evalProgOption, ProgCore.evalWith_ret,
-            ProgCore.DetOptionSem, ProgCore.EffOption]
+      simp [embedDProg, evalP, liftOption, Prog.evalProgOption, Prog.evalWith_ret,
+            Prog.DetOptionSem, Prog.EffOption]
       rfl
   | letDet e k ih =>
-      simp [embedDProg, evalP, ProgCore.evalProgOption,
-            ProgCore.evalWith_letDet] at *
+      simp [embedDProg, evalP, Prog.evalProgOption,
+            Prog.evalWith_letDet] at *
       -- both evaluators extend env the same way
       simpa using ih (env := (L.eval e env, env))
   | doStmt s k ih =>
@@ -112,14 +111,14 @@ theorem evalP_embed_eq_lift {Γ τ} (p : ProgCore.DProg Γ τ) (env : L.Env Γ) 
           · -- cond true
             -- LHS: evalP observe = evalP k ; RHS: Option also continues
             simp [embedDProg, evalP_observe, h, liftOption,
-                  ProgCore.evalProgOption, ProgCore.evalWith_doStmt,
-                  ProgCore.DetOptionSem, ProgCore.EffOption] at *
+                  Prog.evalProgOption, Prog.evalWith_doStmt,
+                  Prog.DetOptionSem, Prog.EffOption] at *
             -- reduce to IH
             simpa using ih (env := env)
           · -- cond false: both become empty/none
             simp [embedDProg, evalP_observe, h, liftOption,
-                  ProgCore.evalProgOption, ProgCore.evalWith_doStmt,
-                  ProgCore.DetOptionSem, ProgCore.EffOption]
+                  Prog.evalProgOption, Prog.evalWith_doStmt,
+                  Prog.DetOptionSem, Prog.EffOption]
             rfl
   | doBind c k =>
       cases c  -- impossible (CmdBindD = Empty)
@@ -132,7 +131,7 @@ theorem evalP_sample_bind {Γ τ τ'}
     =
     WDist.bind (K env) (fun v => evalP k (v, env)) := by
   -- this is basically definitional
-  simp [evalP, ProgCore.evalWith_doBind, ProbSem_handleBind_sample]
+  simp [evalP, Prog.evalWith_doBind, ProbSem_handleBind_sample]
   rfl
 
 /-! ## Observe after sampling -/
@@ -163,7 +162,7 @@ theorem mass_evalP_ret
     (e : L.Expr Γ τ) (env : Env.Env (Val := L.Val) Γ) :
     WDist.mass (evalP (.ret e) env) = 1 := by
   -- evalP ret = pure (L.eval e env)
-  simp [EffWDist, ProbLet.evalP, ProbLet.ProbSem, ProgCore.evalWith, ProgCore.evalProg_gen,
+  simp [EffWDist, Prob.evalP, Prob.ProbSem, Prog.evalWith, Prog.evalProg_gen,
         WDist.mass, WDist.pure]
 
 theorem mass_evalP_observe_le {Γ τ} (c : L.Expr Γ L.bool) (k : PProg Γ τ) (env : L.Env Γ) :
@@ -199,7 +198,7 @@ theorem sample_dirac_eq_letDet
     (fun env => evalP (.letDet e k) env) := by
   funext env
   -- unfold evalP and the handlers; you already got to this shape
-  simp [ProbLet.evalP, ProbLet.ProbSem, ProgCore.evalWith, ProgCore.evalProg_gen, EffWDist]
+  simp [Prob.evalP, Prob.ProbSem, Prog.evalWith, Prog.evalProg_gen, EffWDist]
 
 theorem sample_zero
     {Γ : Env.Ctx (Ty := L.Ty)} {τ τ' : L.Ty} (k : PProg (τ' :: Γ) τ) :
@@ -207,7 +206,7 @@ theorem sample_zero
     =
     (fun _ => WDist.zero) := by
   funext env
-  simp [ProbLet.evalP, ProbLet.ProbSem, ProgCore.evalWith, ProgCore.evalProg_gen, EffWDist]
+  simp [Prob.evalP, Prob.ProbSem, Prog.evalWith, Prog.evalProg_gen, EffWDist]
 
 /-! ## Measure-theoretic interpretation of evalP
 
@@ -258,7 +257,7 @@ theorem toMeasure_evalP_ret
     (e : L.Expr Γ τ) (env : L.Env Γ) :
     (evalP (.ret e) env).toMeasure = Measure.dirac (L.eval e env) := by
   -- force the `pure` to be the actual WDist.pure
-  simp [ProbLet.evalP, ProgCore.evalWith, ProgCore.evalProg_gen, ProbLet.ProbSem, EffWDist,
+  simp [Prob.evalP, Prog.evalWith, Prog.evalProg_gen, Prob.ProbSem, EffWDist,
         WDist.toMeasure_pure']
 
 /-- `evalP` through sampling decomposes as discrete integration: the output
@@ -333,4 +332,4 @@ theorem posterior_univ (p : PProg [] τ)
 
 end MeasureSemantics
 
-end ProbLet
+end Prob

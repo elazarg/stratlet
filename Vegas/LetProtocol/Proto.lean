@@ -1,5 +1,5 @@
 /-
-Vegas/ProtoLet.lean
+Vegas/Proto.lean
 
 ProtoLet = "protocol-with-yields" core (milestone layer).
 
@@ -7,7 +7,7 @@ What this layer commits to (and what it *doesn't*):
 - Stable yield IDs carried explicitly in syntax.
 - Explicit `View` at each yield site; resolvers can only depend on `Env v.Δ`.
 - Separate chance vs decision yields in syntax.
-- Semantics into `WDist` via `ProgCore.evalWith` (no new evaluator).
+- Semantics into `WDist` via `Prog.evalWith` (no new evaluator).
 - "Strategy application" pass: discharge decision yields where a (partial) profile is provided.
 - Compilation `ProtoProg → ProbLet` is only defined for programs with *no remaining* decision yields.
 - Legality/WF predicates, discrete EU, Nash restricted to WF deviations.
@@ -24,15 +24,15 @@ Modeling assumptions (non-obvious):
 import Mathlib.Data.List.Basic
 import Mathlib.Data.Real.Basic
 
-import Vegas.GameDefs
-import Vegas.ProgCore
-import Vegas.ProbLet
-import Vegas.WDist
+import Vegas.Defs
+import Vegas.LetCore.Prog
+import Vegas.LetProb.Prob
+import Vegas.LetProb.WDist
 
-namespace ProtoLet
+namespace Proto
 
-open GameDefs
-open ProgCore
+open Defs
+open Prog
 
 variable {L : Language}
 
@@ -80,7 +80,7 @@ Bind-commands for protocol-with-yields.
 
 Both carry a `YieldId` intended to be the *semantic identity* of the node.
 -/
-inductive CmdBindProto : ProgCore.CmdB where
+inductive CmdBindProto : Prog.CmdB where
   | sample {Γ : L.Ctx} {τ : L.Ty}
       (id : YieldId) (v : View Γ) (K : ObsKernel v τ) :
       CmdBindProto Γ τ
@@ -88,23 +88,23 @@ inductive CmdBindProto : ProgCore.CmdB where
       (id : YieldId) (who : Player) (v : View Γ) (A : Act v τ) :
       CmdBindProto Γ τ
 
-/-- Statements: reuse unnormalized `observe` from `ProgCore`. -/
-abbrev CmdStmtProto : ProgCore.CmdS (L := L) := ProgCore.CmdStmtObs
+/-- Statements: reuse unnormalized `observe` from `Prog`. -/
+abbrev CmdStmtProto : Prog.CmdS (L := L) := Prog.CmdStmtObs
 
-/-- Protocol programs are `ProgCore.Prog` instantiated with `CmdBindProto` + `observe`. -/
+/-- Protocol programs are `Prog.Prog` instantiated with `CmdBindProto` + `observe`. -/
 abbrev ProtoProg : L.Ctx → L.Ty → Type :=
-  ProgCore.Prog CmdBindProto CmdStmtProto
+  Prog.Prog CmdBindProto CmdStmtProto
 
 namespace ProtoProg
 
 /-- Smart constructor: return. -/
 def ret {Γ : L.Ctx} {τ : L.Ty} (e : L.Expr Γ τ) : ProtoProg Γ τ :=
-  ProgCore.Prog.ret e
+  Prog.Prog.ret e
 
 /-- Smart constructor: deterministic let-binding. -/
 def letDet {Γ : L.Ctx} {τ τ' : L.Ty} (e : L.Expr Γ τ')
     (k : ProtoProg (τ' :: Γ) τ) : ProtoProg Γ τ :=
-  ProgCore.Prog.letDet e k
+  Prog.Prog.letDet e k
 
 /-- Smart constructor: hard observation / conditioning (unnormalized). -/
 def observe {Γ : L.Ctx} {τ : L.Ty} (cond : L.Expr Γ L.bool)
@@ -151,7 +151,7 @@ structure Profile where
 -- ============================================================
 
 /-- `WDist` effect interface (reuse ProbLet’s). -/
-abbrev EffWDist : ProgCore.Eff WDist := ProbLet.EffWDist
+abbrev EffWDist : Prog.Eff WDist := Prob.EffWDist
 
 /--
 Interpreter for `ProtoProg` under a fixed profile.
@@ -161,7 +161,7 @@ Interpreter for `ProtoProg` under a fixed profile.
 - `observe` is hard rejection (zero mass).
 -/
 def ProtoSem (σ : Profile (L := L)) :
-    ProgCore.LangSem (L := L) CmdBindProto CmdStmtProto WDist where
+    Prog.LangSem (L := L) CmdBindProto CmdStmtProto WDist where
   E := EffWDist
   handleBind
     | .sample _id v K, env      => K (v.proj env)
@@ -196,7 +196,7 @@ def ProtoSem (σ : Profile (L := L)) :
 /-- Evaluate a `ProtoProg` under profile `σ`. -/
 def evalProto {Γ : L.Ctx} {τ : L.Ty} (σ : Profile (L := L)) :
     ProtoProg Γ τ → L.Env Γ → WDist (L.Val τ) :=
-  ProgCore.evalWith (ProtoSem σ)
+  Prog.evalWith (ProtoSem σ)
 
 -- ============================================================
 -- 6) Strategy application + compilation to ProbLet
@@ -254,12 +254,12 @@ def NoChoose {Γ : L.Ctx} {τ : L.Ty} : ProtoProg Γ τ → Prop
       | .choose _ _ _ _  => False
 
 /--
-Compile a `ProtoProg` with **no remaining** `choose` into `ProbLet`.
+Compile a `ProtoProg` with **no remaining** `choose` into `Prob`.
 
 This is the "real compilation" step: it is only defined under a `NoChoose` proof.
 -/
 def toProbNoChoose {Γ : L.Ctx} {τ : L.Ty} :
-    (p : ProtoProg Γ τ) → NoChoose p → ProbLet.PProg Γ τ
+    (p : ProtoProg Γ τ) → NoChoose p → Prob.PProg Γ τ
   | .ret e, _ =>
       .ret e
   | .letDet e k, h =>
@@ -269,7 +269,7 @@ def toProbNoChoose {Γ : L.Ctx} {τ : L.Ty} :
   | .doBind c k, h =>
       match c with
       | .sample _id v K =>
-          let Kfull : ProbLet.Kernel Γ _ := fun env => K (v.proj env)
+          let Kfull : Prob.Kernel Γ _ := fun env => K (v.proj env)
           .doBind (.sample Kfull) (toProbNoChoose k h)
       | .choose _id _who _v _A =>
           -- impossible under `NoChoose`
@@ -277,14 +277,14 @@ def toProbNoChoose {Γ : L.Ctx} {τ : L.Ty} :
 
 /-- Optional compilation: returns `none` if any `choose` remains. -/
 def toProb? {Γ : L.Ctx} {τ : L.Ty} :
-    ProtoProg Γ τ → Option (ProbLet.PProg Γ τ)
+    ProtoProg Γ τ → Option (Prob.PProg Γ τ)
   | .ret e        => some (.ret e)
   | .letDet e k   => Option.map (.letDet e) (toProb? k)
   | .doStmt s k   => Option.map (.doStmt s) (toProb? k)
   | .doBind c k   =>
       match c with
       | .sample _id v K =>
-          let Kfull : ProbLet.Kernel Γ _ := fun env => K (v.proj env)
+          let Kfull : Prob.Kernel Γ _ := fun env => K (v.proj env)
           Option.map (.doBind (.sample Kfull)) (toProb? k)
       | .choose _id _who _v _A =>
           none
@@ -497,4 +497,4 @@ def IsNash_WF {Γ : L.Ctx}
 def IsNash {Γ : L.Ctx} (G : Game Γ) (σ : Profile (L := L)) (env : L.Env Γ) : Prop :=
   IsNash_WF (ReachAll) G σ env
 
-end ProtoLet
+end Proto

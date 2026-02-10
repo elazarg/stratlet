@@ -1,20 +1,20 @@
-import Vegas.Env
-import Vegas.ExprLanguageInterface
-import Vegas.ProgCore
+import Vegas.LetCore.Env
+import Vegas.LetCore.Language
+import Vegas.LetCore.Prog
 
-namespace ProgCore
+namespace Prog
 
 variable {L} (EL : ExprLaws L)
 
-open ProgCore
+open Prog
 
 @[simp] theorem evalProgOption_observe {Γ τ}
     (c : L.Expr Γ L.bool) (k : DProg Γ τ) (env : L.Env Γ) :
     evalProgOption (DProg.observe c k) env
       =
     if L.toBool (L.eval c env) then evalProgOption k env else none := by
-  simp [ProgCore.DProg.observe, ProgCore.evalProgOption, ProgCore.evalWith,
-        ProgCore.evalProg_gen, ProgCore.DetOptionSem, Eff.guard]
+  simp [Prog.DProg.observe, Prog.evalProgOption, Prog.evalWith,
+        Prog.evalProg_gen, Prog.DetOptionSem, Eff.guard]
   split <;> rfl
 
 theorem observe_fuse {Γ τ} (c₁ c₂ : L.Expr Γ L.bool) (k : DProg Γ τ) :
@@ -35,13 +35,13 @@ theorem observe_hoist_letDet {Γ τ τ'} (e : L.Expr Γ τ') (c : L.Expr Γ L.bo
         (DProg.observe c (DProg.letDet e k)) env) := by
   funext env
   -- unfold letDet and observe once; the key is rewriting the guard via eval_weaken
-  simp [ProgCore.DProg.letDet, ProgCore.DProg.observe, ProgCore.evalProgOption,
-        ProgCore.evalWith, ProgCore.evalProg_gen, ProgCore.DetOptionSem, Eff.guard,
+  simp [Prog.DProg.letDet, Prog.DProg.observe, Prog.evalProgOption,
+        Prog.evalWith, Prog.evalProg_gen, Prog.DetOptionSem, Eff.guard,
         EL.eval_weaken]
 
 @[simp] theorem evalProgOption_ret_weaken {Γ τ τ'} (e : L.Expr Γ τ) (env : L.Env Γ) (v : L.Val τ') :
     evalProgOption (DProg.ret (EL.weaken e)) (v, env)
       =
     evalProgOption (DProg.ret e) env := by
-  simp [ProgCore.DProg.ret, ProgCore.evalProgOption, ProgCore.evalWith,
-        ProgCore.evalProg_gen, EL.eval_weaken]
+  simp [Prog.DProg.ret, Prog.evalProgOption, Prog.evalWith,
+        Prog.evalProg_gen, EL.eval_weaken]

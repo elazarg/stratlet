@@ -1,5 +1,5 @@
-import Vegas.Env
-import Vegas.ExprLanguageInterface
+import Vegas.LetCore.Env
+import Vegas.LetCore.Language
 
 inductive Ty where
   | int  : Ty

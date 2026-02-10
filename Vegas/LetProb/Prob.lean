@@ -1,10 +1,10 @@
 import Mathlib.Data.List.Basic
 
-import Vegas.WDist
-import Vegas.ProgCore
-import Vegas.Env
+import Vegas.LetProb.WDist
+import Vegas.LetCore.Prog
+import Vegas.LetCore.Env
 
-namespace ProbLet
+namespace Prob
 
 section
 
@@ -22,7 +22,7 @@ abbrev Kernel (Γ : L.Ctx) (τ : L.Ty) :=
   L.Env Γ → WDist (L.Val τ)
 
 /-- Effect interface instance for `WDist`. -/
-def EffWDist : ProgCore.Eff WDist where
+def EffWDist : Prog.Eff WDist where
   pure := WDist.pure
   bind := WDist.bind
   fail := WDist.zero
@@ -34,18 +34,18 @@ def EffWDist : ProgCore.Eff WDist where
   (WDist.zero : WDist α).weights = [] := rfl
 
 /-- Bind-commands for the probabilistic language: sampling from a kernel. -/
-inductive CmdBindP : ProgCore.CmdB (L := L) where
+inductive CmdBindP : Prog.CmdB (L := L) where
   | sample {Γ : L.Ctx} {τ : L.Ty} (K : Kernel Γ τ) : CmdBindP Γ τ
 
 /-- Statement-commands: hard evidence / rejection. -/
-abbrev CmdStmtP : ProgCore.CmdS (L := L) := ProgCore.CmdStmtObs
+abbrev CmdStmtP : Prog.CmdS (L := L) := Prog.CmdStmtObs
 
 /-- Probabilistic programs are `Prog` instantiated with these commands. -/
 abbrev PProg : L.Ctx → L.Ty → Type :=
-  ProgCore.Prog (CB := CmdBindP) (CS := CmdStmtP)
+  Prog.Prog (CB := CmdBindP) (CS := CmdStmtP)
 
 /-- Pack the semantics as a `LangSem`. -/
-def ProbSem : ProgCore.LangSem (CmdBindP) (CmdStmtP (L := L)) WDist where
+def ProbSem : Prog.LangSem (CmdBindP) (CmdStmtP (L := L)) WDist where
   E := EffWDist
   handleBind
     | .sample K, env => K env
@@ -62,17 +62,17 @@ def ProbSem : ProgCore.LangSem (CmdBindP) (CmdStmtP (L := L)) WDist where
 @[simp] theorem ProbSem_handleStmt_observe
     {Γ : L.Ctx}
     (cond : L.Expr Γ L.bool) (env : L.Env Γ) :
-    (ProbSem |>.handleStmt (ProgCore.CmdStmtObs.observe (Γ := Γ) cond) env) =
+    (ProbSem |>.handleStmt (Prog.CmdStmtObs.observe (Γ := Γ) cond) env) =
       (if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero) := rfl
 
 /-- Evaluator for probabilistic programs. -/
 def evalP {Γ : L.Ctx} {τ : L.Ty} :
     PProg Γ τ → L.Env Γ → WDist (L.Val τ) :=
-  ProgCore.evalWith (ProbSem)
+  Prog.evalWith (ProbSem)
 
 end
 
-end ProbLet
+end Prob
 
 /-
 This module intentionally defines only the *core* probabilistic calculus as an effect-signature
@@ -95,7 +95,7 @@ A more complete standalone presentation/characterization of the language could a
 
 These are orthogonal to the extensional `toMeasure` bridge; the core here
 is kept minimal so that other semantic carriers/handlers (strategic/game semantics, protocol models,
-etc.) can reuse the same `ProgCore` syntax.
+etc.) can reuse the same `Prog` syntax.
 
 ## Relationship to Borgström, Gordon, Greenberg, Margetson & Van Gael (2013)
 
