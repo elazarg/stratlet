@@ -37,15 +37,15 @@ visible environment, then the primitive step distribution at that yield site is 
 This is the formal content of "resolvers/kernels can only depend on `Env v.Δ`".
 -/
 lemma handleBind_depends_only_on_view
-    (σ : Profile (L := L))
+    (σ : Profile)
     {Γ : L.Ctx} {τ : L.Ty}
-    (c : CmdBindProto (L := L) Γ τ)
+    (c : CmdBindProto Γ τ)
     {env₁ env₂ : L.Env Γ}
     (hproj : match c with
       | .sample _id v _K => v.proj env₁ = v.proj env₂
       | .choose _id _who v _A => v.proj env₁ = v.proj env₂) :
-    (ProtoSem (L := L) σ).handleBind c env₁ =
-    (ProtoSem (L := L) σ).handleBind c env₂ := by
+    (ProtoSem σ).handleBind c env₁ =
+    (ProtoSem σ).handleBind c env₂ := by
   cases c with
   | sample id v K =>
       -- handleBind = K (v.proj env)
@@ -61,14 +61,14 @@ If `v.proj env₁ = v.proj env₂` then the profile-induced distribution
 at this decision yield is equal.
 -/
 lemma choose_depends_only_on_view
-    (σ : Profile (L := L))
+    (σ : Profile)
     {Γ : L.Ctx} {τ : L.Ty}
-    (id : YieldId) (who : Player) (v : View (L := L) Γ) (A : Act (L := L) v τ)
+    (id : YieldId) (who : Player) (v : View Γ) (A : Act v τ)
     {env₁ env₂ : L.Env Γ} (h : v.proj env₁ = v.proj env₂) :
-    (ProtoSem (L := L) σ).handleBind (.choose (L := L) id who v A) env₁ =
-    (ProtoSem (L := L) σ).handleBind (.choose (L := L) id who v A) env₂ := by
-  simpa using (handleBind_depends_only_on_view (L := L) σ
-    (c := .choose (L := L) id who v A) (env₁ := env₁) (env₂ := env₂) h)
+    (ProtoSem σ).handleBind (.choose id who v A) env₁ =
+    (ProtoSem σ).handleBind (.choose id who v A) env₂ := by
+  simpa using (handleBind_depends_only_on_view σ
+    (c := .choose id who v A) (env₁ := env₁) (env₂ := env₂) h)
 
 -- ============================================================
 -- 12) A tiny runnable game
@@ -97,20 +97,20 @@ def vEmpty : View (L := L) Γ0 where
   proj := fun _env => ()
 
 -- Offer both boolean values as legal actions.
-def A_bool : Act (L := L) (v := vEmpty (L := L)) L.bool :=
+def A_bool : Act (v := vEmpty) L.bool :=
   fun _obs => [L.fromBool true, L.fromBool false]
 
 /-- One-step protocol: player 0 chooses a bool, then return it. -/
 def p_chooseBool (EL : ExprLaws L) :
-    ProtoProg (L := L) Γ0 L.bool :=
-  ProtoProg.choose (L := L)
-    (id := 0) (who := 0) (v := vEmpty (L := L))
-    (A := A_bool (L := L))
-    (ProtoProg.ret (L := L) EL.vz)
+    ProtoProg Γ0 L.bool :=
+  ProtoProg.choose
+    (id := 0) (who := 0) (v := vEmpty)
+    (A := A_bool)
+    (ProtoProg.ret EL.vz)
 
 /-- Utility: player 0 gets 1 if result is true; others get 0. -/
 def u_bool [DecidableEq (L.Val L.bool)] :
-    Utility (L := L) L.bool :=
+    Utility L.bool :=
   fun b who =>
     if who = 0
     then (if b = L.fromBool true then (1 : Real) else 0)
@@ -120,8 +120,8 @@ def G_chooseBool (EL : ExprLaws L)
     [DecidableEq (L.Val L.bool)] :
     Game (L := L) Γ0 where
   τ := L.bool
-  p := p_chooseBool (L := L) EL
-  u := u_bool (L := L)
+  p := p_chooseBool EL
+  u := u_bool
 
 end Examples
 
@@ -131,36 +131,36 @@ end Examples
 -- 0) simp expansions for evalProto
 -- ------------------------------------------------------------
 
-@[simp] lemma evalProto_ret {Γ τ} (σ : Profile (L := L)) (e : L.Expr Γ τ) (env : L.Env Γ) :
-    evalProto (L := L) σ (.ret e) env = WDist.pure (L.eval e env) := rfl
+@[simp] lemma evalProto_ret {Γ τ} (σ : Profile) (e : L.Expr Γ τ) (env : L.Env Γ) :
+    evalProto σ (.ret e) env = WDist.pure (L.eval e env) := rfl
 
-@[simp] lemma evalProto_letDet {Γ τ τ'} (σ : Profile (L := L))
-    (e : L.Expr Γ τ') (k : ProtoProg (L := L) (τ' :: Γ) τ) (env : L.Env Γ) :
-    evalProto (L := L) σ (.letDet e k) env =
-      evalProto (L := L) σ k (L.eval e env, env) := rfl
+@[simp] lemma evalProto_letDet {Γ τ τ'} (σ : Profile)
+    (e : L.Expr Γ τ') (k : ProtoProg (τ' :: Γ) τ) (env : L.Env Γ) :
+    evalProto σ (.letDet e k) env =
+      evalProto σ k (L.eval e env, env) := rfl
 
-@[simp] lemma evalProto_observe {Γ τ} (σ : Profile (L := L))
-    (c : L.Expr Γ L.bool) (k : ProtoProg (L := L) Γ τ) (env : L.Env Γ) :
-    evalProto (L := L) σ (.observe c k) env =
-      if L.toBool (L.eval c env) then evalProto (L := L) σ k env else WDist.zero := by
+@[simp] lemma evalProto_observe {Γ τ} (σ : Profile)
+    (c : L.Expr Γ L.bool) (k : ProtoProg Γ τ) (env : L.Env Γ) :
+    evalProto σ (.observe c k) env =
+      if L.toBool (L.eval c env) then evalProto σ k env else WDist.zero := by
   by_cases h : L.toBool (L.eval c env)
   · simp [EffWDist, ProbLet.EffWDist, ProtoProg.observe, evalProto,
           ProtoSem, ProgCore.evalWith, ProgCore.evalProg_gen, h]
   · simp [EffWDist, ProbLet.EffWDist, ProtoProg.observe, evalProto,
           ProtoSem, ProgCore.evalWith, ProgCore.evalProg_gen, h]
 
-@[simp] lemma evalProto_sample_bind {Γ τ τ'} (σ : Profile (L := L))
-    (id : YieldId) (v : View (L := L) Γ) (K : ObsKernel (L := L) v τ')
-    (k : ProtoProg (L := L) (τ' :: Γ) τ) (env : L.Env Γ) :
-    evalProto (L := L) σ (.sample id v K k) env =
-      WDist.bind (K (v.proj env)) (fun x => evalProto (L := L) σ k (x, env)) := rfl
+@[simp] lemma evalProto_sample_bind {Γ τ τ'} (σ : Profile)
+    (id : YieldId) (v : View Γ) (K : ObsKernel v τ')
+    (k : ProtoProg (τ' :: Γ) τ) (env : L.Env Γ) :
+    evalProto σ (.sample id v K k) env =
+      WDist.bind (K (v.proj env)) (fun x => evalProto σ k (x, env)) := rfl
 
-@[simp] lemma evalProto_choose_bind {Γ τ τ'} (σ : Profile (L := L))
-    (id : YieldId) (who : Player) (v : View (L := L) Γ) (A : Act (L := L) v τ')
-    (k : ProtoProg (L := L) (τ' :: Γ) τ) (env : L.Env Γ) :
-    evalProto (L := L) σ (.choose id who v A k) env =
+@[simp] lemma evalProto_choose_bind {Γ τ τ'} (σ : Profile)
+    (id : YieldId) (who : Player) (v : View Γ) (A : Act v τ')
+    (k : ProtoProg (τ' :: Γ) τ) (env : L.Env Γ) :
+    evalProto σ (.choose id who v A k) env =
       WDist.bind (σ.choose who id v A (v.proj env))
-        (fun x => evalProto (L := L) σ k (x, env)) := rfl
+        (fun x => evalProto σ k (x, env)) := rfl
 
 
 -- ------------------------------------------------------------
@@ -168,9 +168,9 @@ end Examples
 -- ------------------------------------------------------------
 
 theorem evalProto_profile_indep {Γ τ}
-    (p : ProtoProg (L := L) Γ τ) (hp : NoChoose (L := L) p)
-    (σ₁ σ₂ : Profile (L := L)) (env : L.Env Γ) :
-    evalProto (L := L) σ₁ p env = evalProto (L := L) σ₂ p env := by
+    (p : ProtoProg Γ τ) (hp : NoChoose p)
+    (σ₁ σ₂ : Profile) (env : L.Env Γ) :
+    evalProto σ₁ p env = evalProto σ₂ p env := by
   -- structural recursion on p; choose-case impossible by hp
   induction p with
   | ret e => rfl
@@ -179,7 +179,7 @@ theorem evalProto_profile_indep {Γ τ}
       cases s with
       | observe cond =>
           exact congr_arg
-            (WDist.bind ((ProtoSem (L := L) σ₁).handleStmt
+            (WDist.bind ((ProtoSem σ₁).handleStmt
               (.observe cond) env))
             (funext (fun _ => ih hp _))
   | doBind c k ih =>
@@ -198,11 +198,11 @@ theorem evalProto_profile_indep {Γ τ}
 -- 2) observe laws (fusion), inherited from ProgCore/ProbLet style
 -- ------------------------------------------------------------
 
-theorem observe_fuse {Γ τ} (σ : Profile (L := L))
-    (c₁ c₂ : L.Expr Γ L.bool) (k : ProtoProg (L := L) Γ τ) :
-    (fun env => evalProto (L := L) σ (.observe c₁ (.observe c₂ k)) env)
+theorem observe_fuse {Γ τ} (σ : Profile)
+    (c₁ c₂ : L.Expr Γ L.bool) (k : ProtoProg Γ τ) :
+    (fun env => evalProto σ (.observe c₁ (.observe c₂ k)) env)
       =
-    (fun env => evalProto (L := L) σ (.observe (EL.andBool c₁ c₂) k) env) := by
+    (fun env => evalProto σ (.observe (EL.andBool c₁ c₂) k) env) := by
   funext env
   by_cases h1 : L.toBool (L.eval c₁ env)
   · by_cases h2 : L.toBool (L.eval c₂ env)
@@ -217,7 +217,7 @@ theorem observe_fuse {Γ τ} (σ : Profile (L := L))
 
 /-- Every `choose` node in `p` is resolved by the partial profile `π`. -/
 def AllChooseResolved (π : PProfile (L := L)) {Γ : L.Ctx} {τ : L.Ty} :
-    ProtoProg (L := L) Γ τ → Prop
+    ProtoProg Γ τ → Prop
   | .ret _        => True
   | .letDet _ k   => AllChooseResolved π k
   | .doStmt _ k   => AllChooseResolved π k
@@ -228,9 +228,9 @@ def AllChooseResolved (π : PProfile (L := L)) {Γ : L.Ctx} {τ : L.Ty} :
           (∃ Kdec, π.choose? who _id v A = some Kdec) ∧ AllChooseResolved π k
 
 @[simp] lemma NoChoose_applyProfile {Γ τ} (π : PProfile (L := L))
-    (p : ProtoProg (L := L) Γ τ) :
-    NoChoose (L := L) (applyProfile (L := L) π p) ↔
-      AllChooseResolved (L := L) π p := by
+    (p : ProtoProg Γ τ) :
+    NoChoose (applyProfile π p) ↔
+      AllChooseResolved π p := by
   induction p with
   | ret => exact Iff.rfl
   | letDet e k ih => exact ih
@@ -254,8 +254,8 @@ def AllChooseResolved (π : PProfile (L := L)) {Γ : L.Ctx} {τ : L.Ty} :
 
 /-- applyProfile does not change the list of yield ids (it may change *kind*, choose→sample). -/
 theorem yieldIds_applyProfile {Γ τ} (π : PProfile (L := L))
-    (p : ProtoProg (L := L) Γ τ) :
-    yieldIds (L := L) (applyProfile (L := L) π p) = yieldIds (L := L) p := by
+    (p : ProtoProg Γ τ) :
+    yieldIds (applyProfile π p) = yieldIds p := by
   induction p with
   | ret => rfl
   | letDet e k ih => simpa [applyProfile, yieldIds] using ih
@@ -278,16 +278,16 @@ If a total profile `σ` extends a partial profile `π`
 then evaluating `p` under `σ` equals evaluating `(applyProfile π p)` under the same `σ`.
 -/
 def Extends (σ : Profile (L := L)) (π : PProfile (L := L)) : Prop :=
-  ∀ {Γ τ} (who : Player) (id : YieldId) (v : View (L := L) Γ) (A : Act (L := L) v τ)
+  ∀ {Γ τ} (who : Player) (id : YieldId) (v : View Γ) (A : Act v τ)
     (Kdec : L.Env v.Δ → WDist (L.Val τ)),
     π.choose? who id v A = some Kdec →
       σ.choose who id v A = Kdec
 
 theorem evalProto_applyProfile_of_extends
-    (σ : Profile (L := L)) (π : PProfile (L := L))
-    (hExt : Extends (L := L) σ π) :
-    ∀ {Γ τ} (p : ProtoProg (L := L) Γ τ) (env : L.Env Γ),
-      evalProto σ (applyProfile (L := L) π p) env
+    (σ : Profile) (π : PProfile (L := L))
+    (hExt : Extends σ π) :
+    ∀ {Γ τ} (p : ProtoProg Γ τ) (env : L.Env Γ),
+      evalProto σ (applyProfile π p) env
         =
       evalProto σ p env := by
   intro Γ τ p
@@ -334,11 +334,11 @@ theorem evalProto_applyProfile_of_extends
 -- ------------------------------------------------------------
 
 theorem evalProto_eq_evalP_toProbNoChoose
-    {Γ τ} (σ : Profile (L := L))
-    (p : ProtoProg (L := L) Γ τ) (h : NoChoose (L := L) p) (env : L.Env Γ) :
-    evalProto (L := L) σ p env
+    {Γ τ} (σ : Profile)
+    (p : ProtoProg Γ τ) (h : NoChoose p) (env : L.Env Γ) :
+    evalProto σ p env
       =
-    ProbLet.evalP (L := L) (toProbNoChoose (L := L) p h) env := by
+    ProbLet.evalP (toProbNoChoose p h) env := by
   -- proof by recursion on p, the doBind case can only be sample
   induction p with
   | ret e => rfl
@@ -349,17 +349,17 @@ theorem evalProto_eq_evalP_toProbNoChoose
           -- Both ProtoSem and ProbSem have the same observe handler, so the
           -- WDist.bind first arg is definitionally equal; only the continuation differs.
           exact congr_arg
-            (WDist.bind ((ProtoSem (L := L) σ).handleStmt (.observe cond) env))
+            (WDist.bind ((ProtoSem σ).handleStmt (.observe cond) env))
             (funext (fun _ => ih h env))
   | doBind c k ih =>
       cases c with
       | sample id v K =>
           -- Both sides: WDist.bind (K (v.proj env)) (fun x => ...)
           change WDist.bind (K (v.proj env))
-              (fun x => evalProto (L := L) σ k (x, env)) =
+              (fun x => evalProto σ k (x, env)) =
             WDist.bind (K (v.proj env))
-              (fun x => ProbLet.evalP (L := L)
-                (toProbNoChoose (L := L) k h) (x, env))
+              (fun x => ProbLet.evalP
+                (toProbNoChoose k h) (x, env))
           congr 1; funext x; exact ih h (x, env)
       | choose id who v A =>
           exact absurd h (by trivial)
@@ -370,8 +370,8 @@ theorem evalProto_eq_evalP_toProbNoChoose
 -- ------------------------------------------------------------
 
 theorem toProb?_eq_toProbNoChoose
-    {Γ τ} (p : ProtoProg (L := L) Γ τ) (h : NoChoose (L := L) p) :
-    toProb? (L := L) p = some (toProbNoChoose (L := L) p h) := by
+    {Γ τ} (p : ProtoProg (L := L) Γ τ) (h : NoChoose p) :
+    toProb? p = some (toProbNoChoose p h) := by
   induction p with
   | ret => rfl
   | letDet e k ih => simp [toProb?, toProbNoChoose, ih h]
@@ -383,7 +383,7 @@ theorem toProb?_eq_toProbNoChoose
 
 theorem toProb?_some_iff_NoChoose
     {Γ τ} (p : ProtoProg (L := L) Γ τ) :
-    (∃ q, toProb? (L := L) p = some q) ↔ NoChoose (L := L) p := by
+    (∃ q, toProb? p = some q) ↔ NoChoose p := by
   constructor
   · -- forward: if toProb? returns some, then NoChoose
     intro ⟨q, hq⟩
@@ -391,25 +391,25 @@ theorem toProb?_some_iff_NoChoose
     | ret => trivial
     | letDet e k ih =>
         simp only [toProb?] at hq
-        cases hk : toProb? (L := L) k with
+        cases hk : toProb? k with
         | none => simp [hk] at hq
         | some qk => exact ih qk hk
     | doStmt s k ih =>
         simp only [toProb?] at hq
-        cases hk : toProb? (L := L) k with
+        cases hk : toProb? k with
         | none => simp [hk] at hq
         | some qk => exact ih qk hk
     | doBind c k ih =>
         cases c with
         | sample id v K =>
             simp only [toProb?] at hq
-            cases hk : toProb? (L := L) k with
+            cases hk : toProb? k with
             | none => simp [hk] at hq
             | some qk => exact ih qk hk
         | choose => simp [toProb?] at hq
   · -- backward: if NoChoose, then toProb? returns some
     intro h
-    exact ⟨_, toProb?_eq_toProbNoChoose (L := L) p h⟩
+    exact ⟨_, toProb?_eq_toProbNoChoose p h⟩
 
 
 -- ------------------------------------------------------------
@@ -425,70 +425,71 @@ theorem toProb?_some_iff_NoChoose
   intro a w hmem
   simp [WDist.zero] at hmem
 
-lemma WFOnProg.letDet {Reach σ} {Γ τ} {x} {k}
-  (h : WFOnProg (L := L) Reach σ (.letDet x k)) :
-  WFOnProg (L := L) Reach σ k := by
-  simpa [WFOnProg] using h
+lemma WFOnProg.letDet {Reach : ReachSpec} {σ : Profile}
+    {Γ : L.Ctx} {τ τ' : L.Ty}
+    {x : L.Expr Γ τ'} {k : ProtoProg (τ' :: Γ) τ}
+    (h : WFOnProg Reach σ (.letDet x k)) :
+    WFOnProg Reach σ k := h
 
 lemma WFOnProg.doBind_choose_left
-  {Reach σ} {Γ τ τ'} {id who v A} {k}
-  (h : WFOnProg (L := L) Reach σ (.doBind (.choose id who v A) k)) :
-  ∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who id v A (v.proj env) := by
-  simpa [WFOnProg] using h.left
+    {Reach : ReachSpec} {σ : Profile}
+    {Γ : L.Ctx} {τ τ' : L.Ty} {id : YieldId} {who : Player}
+    {v : View Γ} {A : Act v τ'}
+    {k : ProtoProg (τ' :: Γ) τ}
+    (h : WFOnProg Reach σ (.doBind (.choose id who v A) k)) :
+    ∀ env : L.Env Γ, Reach env → LegalAt σ who id v A (v.proj env) :=
+  h.1
 
 lemma WFOnProg.doBind_choose_right
-  {Reach σ} {Γ τ τ'} {id who v A} {k}
-  (h : WFOnProg (L := L) Reach σ (.doBind (.choose id who v A) k)) :
-  WFOnProg (L := L) Reach σ k := by
-  simpa [WFOnProg] using h.right
+    {Reach : ReachSpec} {σ : Profile}
+    {Γ : L.Ctx} {τ τ' : L.Ty} {id : YieldId} {who : Player}
+    {v : View Γ} {A : Act v τ'}
+    {k : ProtoProg (τ' :: Γ) τ}
+    (h : WFOnProg Reach σ (.doBind (.choose id who v A) k)) :
+    WFOnProg Reach σ k :=
+  h.2
 
 /-- WF propagates past a sample-bind to the continuation. -/
 theorem WFOnProg_of_sample_tail
-    (Reach : ReachSpec (L := L)) (σ : Profile (L := L))
-    {Γ τ τ'} (id : YieldId) (v : View (L := L) Γ)
-    (K : ObsKernel (L := L) v τ')
-    (k : ProtoProg (L := L) (τ' :: Γ) τ)
-    (hWF : WFOnProg (L := L) Reach σ
+    (Reach : ReachSpec (L := L)) (σ : Profile)
+    {Γ τ τ'} (id : YieldId) (v : View Γ)
+    (K : ObsKernel v τ')
+    (k : ProtoProg (τ' :: Γ) τ)
+    (hWF : WFOnProg Reach σ
       (.doBind (.sample id v K) k)) :
-    WFOnProg (L := L) Reach σ k :=
-  hWF
+    WFOnProg Reach σ k :=
+  hWF.2
 
 lemma WFOnProg_doBind_choose
-    {L} {Reach : ReachSpec (L := L)} {σ : Profile (L := L)}
+    {L} {Reach : ReachSpec (L := L)} {σ : Profile}
     {Γ : L.Ctx} {τ τ' : L.Ty}
     {id : YieldId} {who : Player}
-    {v : View (L := L) Γ} {A : Act (L := L) v τ}
-    {k : L.Val τ → ProtoProg (L := L) Γ τ'} :
-    WFOnProg (L := L) Reach σ (.doBind (.choose id who v A) k) →
-      (∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who id v A (v.proj env)) := by
-  intro h
-  -- unfold WFOnProg at the .doBind/.choose node, then take the left conjunct
-  simpa [WFOnProg] using (And.left (by simpa [WFOnProg] using h))
-  sorry
+    {v : View Γ} {A : Act v τ}
+    {k : ProtoProg (τ :: Γ) τ'} :
+    WFOnProg Reach σ (.doBind (.choose id who v A) k) →
+      (∀ env : L.Env Γ, Reach env → LegalAt σ who id v A (v.proj env)) :=
+  fun h => h.1
 
 -- If WF holds for a program whose next command is choose,
 -- you can extract the local condition and WF for the continuation.
 lemma WFOnProg_doBind_choose_iff
-    {L} {Reach : ReachSpec (L := L)} {σ : Profile (L := L)}
+    {L} {Reach : ReachSpec (L := L)} {σ : Profile}
     {Γ : L.Ctx} {τ τ' : L.Ty}
     {id : YieldId} {who : Player}
-    {v : View (L := L) Γ} {A : Act (L := L) v τ}
-    {k : L.Val τ → ProtoProg (L := L) Γ τ'} :
-    WFOnProg (L := L) Reach σ (.doBind (.choose id who v A) k)
+    {v : View Γ} {A : Act v τ}
+    {k : ProtoProg (τ :: Γ) τ'} :
+    WFOnProg Reach σ (.doBind (.choose id who v A) k)
       ↔
-      ( (∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who id v A (v.proj env))
-        ∧ WFOnProg (L := L) Reach σ (k default) ) := by
-  -- This statement as written isn't quite right because WFOnProg on k is defined on `k` itself
-  -- (a function), not `k default`. So usually you write it with `∀ x, WFOnProg … (k x)`.
-  -- See the corrected version below.
-  sorry
+      ( (∀ env : L.Env Γ, Reach env → LegalAt σ who id v A (v.proj env))
+        ∧ WFOnProg Reach σ k ) := by
+  simp [WFOnProg]
 
 /-- Property P must hold for every `choose` node in the program. -/
 def ForAllChooses
     {L} (P :
       {Γ : L.Ctx} → {τ : L.Ty} →
       (who : Player) → (id : YieldId) →
-      (v : View (L := L) Γ) → (A : Act (L := L) v τ) → Prop) :
+      (v : View Γ) → (A : Act v τ) → Prop) :
     {Γ : L.Ctx} → {τ : L.Ty} → ProtoProg (L := L) Γ τ → Prop
   | _, _, .ret _        => True
   | _, _, .letDet _ k   => ForAllChooses P k
@@ -500,12 +501,12 @@ def ForAllChooses
       ∧ (ForAllChooses P k)
 
 lemma WFOnProg_forAllChooses
-    {L} {Reach : ReachSpec (L := L)} {σ : Profile (L := L)} :
-  ∀ {Γ τ} (p : ProtoProg (L := L) Γ τ),
-    WFOnProg (L := L) Reach σ p →
-    ForAllChooses (L := L)
-      (fun {Γ} {τ} who id v A =>
-        ∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who id v A (v.proj env))
+    {L} {Reach : ReachSpec (L := L)} {σ : Profile} :
+  ∀ {Γ τ} (p : ProtoProg Γ τ),
+    WFOnProg Reach σ p →
+    ForAllChooses
+      (fun {Γ} {_} who id v A =>
+        ∀ env : L.Env Γ, Reach env → LegalAt σ who id v A (v.proj env))
       p := by
   intro Γ τ p
   induction p with
@@ -520,44 +521,35 @@ lemma WFOnProg_forAllChooses
       -- unfold WFOnProg at this node
       cases c with
       | sample id v K =>
-          -- no condition at samples
-          -- need: ForAllChooses P on continuation
-          -- h : WFOnProg Reach σ (.doBind (.sample …) k)
-          -- should reduce to WFOnProg Reach σ (k x) for all x, depending on your WFOnProg
-          -- If WFOnProg doesn't quantify over x yet, you should fix that definition.
-          sorry
+          exact ⟨trivial, ih h.2⟩
       | choose id who v A =>
-          -- h is a conjunction: (∀ env, Reach env → LegalAt …) ∧ WFOnProg … (k …)
-          -- left part gives P at this node
-          -- right part + ih gives P for continuation
-          sorry
+          exact ⟨h.1, ih h.2⟩
 
 -- direct, no “reachability from semantics” yet:
 lemma WFOnProg_implies_LegalAt_at_head_choose
-    {L} {Reach : ReachSpec (L := L)} {σ : Profile (L := L)}
+    {L} {Reach : ReachSpec (L := L)} {σ : Profile}
     {Γ : L.Ctx} {τ τ' : L.Ty}
     {id : YieldId} {who : Player}
-    {v : View (L := L) Γ} {A : Act (L := L) v τ}
-    {k : L.Val τ → ProtoProg (L := L) Γ τ'} :
-    WFOnProg (L := L) Reach σ (.doBind (.choose id who v A) k) →
-      (∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who id v A (v.proj env)) := by
-  intro h
-  simpa [WFOnProg] using h.left
+    {v : View Γ} {A : Act v τ}
+    {k : ProtoProg (τ :: Γ) τ'} :
+    WFOnProg Reach σ (.doBind (.choose id who v A) k) →
+      (∀ env : L.Env Γ, Reach env → LegalAt σ who id v A (v.proj env)) :=
+  fun h => h.1
 
 -- ------------------------------------------------------------
 -- 8) Mass / probability (ties into WFChanceOnProg)
 -- ------------------------------------------------------------
 
-theorem mass_evalProto_ret {Γ τ} (σ : Profile (L := L)) (e : L.Expr Γ τ) (env : L.Env Γ) :
-    (evalProto (L := L) σ (.ret e) env).mass = 1 := by
+theorem mass_evalProto_ret {Γ τ} (σ : Profile) (e : L.Expr Γ τ) (env : L.Env Γ) :
+    (evalProto σ (.ret e) env).mass = 1 := by
   simp [WDist.mass_pure]
 
-theorem mass_evalProto_observe_le {Γ τ} (σ : Profile (L := L))
-    (c : L.Expr Γ L.bool) (k : ProtoProg (L := L) Γ τ) (env : L.Env Γ) :
-    (evalProto (L := L) σ (.observe c k) env).mass ≤ (evalProto (L := L) σ k env).mass := by
+theorem mass_evalProto_observe_le {Γ τ} (σ : Profile)
+    (c : L.Expr Γ L.bool) (k : ProtoProg Γ τ) (env : L.Env Γ) :
+    (evalProto σ (.observe c k) env).mass ≤ (evalProto σ k env).mass := by
   -- Expose the WDist.bind structure through evalProto/evalWith/evalProg_gen
   change (WDist.bind
-    ((ProtoSem (L := L) σ).handleStmt (.observe c) env)
+    ((ProtoSem σ).handleStmt (.observe c) env)
     (fun _ => evalProto σ k env)).mass ≤
     (evalProto σ k env).mass
   -- handleStmt reduces to if-then-else
