@@ -1,4 +1,4 @@
-import Vegas.GameTheory.NFG
+import GameTheory.NFG
 import Mathlib.Tactic.Linarith
 
 /-!

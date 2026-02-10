@@ -1,4 +1,4 @@
-import Vegas.GameTheory.EFG
+import GameTheory.EFG
 
 /-!
 # EFG Examples

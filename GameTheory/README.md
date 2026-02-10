@@ -1,6 +1,6 @@
-# Vegas/GameTheory -- Classical Game Representations
+# GameTheory -- Classical Game Representations
 
-This module defines classical game-theoretic representations -- extensive-form games (EFG), multi-agent influence diagrams (MAID), and normal-form games (NFG) -- as standalone data structures in Lean 4. These exist in parallel to the protocol calculus layer (`LetProtocol/`) and serve as targets for denotation (future WP2/WP3 bridges) and as independent formalizations of standard concepts.
+This is a separate `lean_lib` (only Mathlib imports, no Vegas dependencies) defining classical game-theoretic representations -- strategic-form games, extensive-form games (EFG), multi-agent influence diagrams (MAID), and normal-form games (NFG) -- as standalone data structures in Lean 4. These exist in parallel to the protocol calculus layer (`Vegas/LetProtocol/`) and serve as targets for denotation (bridges in `Vegas/LetProb/EFGWDist.lean` and `Vegas/LetProtocol/Denotations.lean`) and as independent formalizations of standard concepts.
 
 ## Design Overview
 
@@ -11,7 +11,7 @@ The intended relationship to the protocol layer is:
 - **MAID**: A `ParentProtoProg` can be mapped to a `Diagram` by extracting the DAG structure of yield sites and their parent dependencies.
 - **NFG**: A finite game with simultaneous moves can be represented directly.
 
-These bridges are planned for WP2 (`Denotations.lean`) and WP3 (`EUBridge.lean`) but are not yet implemented.
+Some bridges are implemented in `Vegas/LetProb/EFGWDist.lean` and `Vegas/LetProtocol/Denotations.lean`; others are planned for future work.
 
 ## Extensive-Form Games (EFG.lean)
 
@@ -43,6 +43,20 @@ These bridges are planned for WP2 (`Denotations.lean`) and WP3 (`EUBridge.lean`)
 **`Policy`** -- Maps decision node IDs to distributions (`Nat -> List NNReal`).
 
 Queries: `decisionNodes`, `utilityNodes`, `agents`, `findNode`.
+
+## Strategic-Form Games (StrategicForm.lean)
+
+**`StrategicForm.Game iota`** -- A generic strategic-form game parameterized by a player type `iota` with decidable equality:
+- `Strategy : iota -> Type` -- strategy type for each player
+- `eu : (forall i, Strategy i) -> iota -> Real` -- expected utility function
+
+**`Game.IsNash G sigma`** -- Nash equilibrium: no player can improve by unilateral deviation.
+
+**`Game.IsDominant G who s`** -- Strategy `s` is dominant for player `who`.
+
+**`Game.dominant_is_nash`** -- If every player has a dominant strategy, the profile of dominant strategies is Nash.
+
+NFG connects to StrategicForm via `NFGame.toStrategicForm` and bridge theorems `IsNashPure_iff_strategicForm` / `IsDominant_iff_strategicForm`.
 
 ## Normal-Form Games (NFG.lean)
 
@@ -93,8 +107,9 @@ Queries: `decisionNodes`, `utilityNodes`, `agents`, `findNode`.
 
 | File | Description |
 |------|-------------|
+| `StrategicForm.lean` | `StrategicForm.Game`, `IsNash`, `IsDominant`, `dominant_is_nash` |
+| `NFG.lean` | `NFGame`, `StrategyProfile`, `deviate`, `IsNashPure`, `IsDominant`, `dominant_is_nash`, `toStrategicForm` |
+| `NFGExamples.lean` | Prisoner's Dilemma and Matching Pennies with Nash equilibrium proofs |
 | `EFG.lean` | `GameTree`, `PureStrategy`, `BehavioralStrategy`, `WFTree`, `eval`, `evalWDist`, `InformationSet` |
 | `EFGExamples.lean` | Sequential game tree example with payoff verification |
 | `MAID.lean` | `NodeKind`, `Node`, `Diagram`, `Policy`, structural queries |
-| `NFG.lean` | `NFGame`, `StrategyProfile`, `deviate`, `IsNashPure`, `IsDominant`, `dominant_is_nash` |
-| `NFGExamples.lean` | Prisoner's Dilemma and Matching Pennies with Nash equilibrium proofs |

@@ -1,5 +1,6 @@
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.Fintype.Basic
+import GameTheory.StrategicForm
 
 /-!
 # Normal-Form Games (NFG)
@@ -58,5 +59,18 @@ theorem dominant_is_nash (G : NFGame ι A) (s : StrategyProfile A)
   have h := hdom i s a'
   simp only [deviate, Function.update_eq_self, ge_iff_le] at h
   exact h
+
+/-- Convert an NFGame to a generic strategic-form game. -/
+def NFGame.toStrategicForm (G : NFGame ι A) : StrategicForm.Game ι where
+  Strategy := A
+  eu := G.payoff
+
+theorem IsNashPure_iff_strategicForm (G : NFGame ι A) (s : StrategyProfile A) :
+    IsNashPure G s ↔ G.toStrategicForm.IsNash s := by
+  simp [IsNashPure, StrategicForm.Game.IsNash, NFGame.toStrategicForm, deviate]
+
+theorem IsDominant_iff_strategicForm (G : NFGame ι A) (i : ι) (a : A i) :
+    IsDominant G i a ↔ G.toStrategicForm.IsDominant i a := by
+  simp [IsDominant, StrategicForm.Game.IsDominant, NFGame.toStrategicForm, deviate]
 
 end NFG

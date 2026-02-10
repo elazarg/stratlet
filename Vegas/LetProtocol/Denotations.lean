@@ -1,6 +1,6 @@
 import Vegas.LetProtocol.ParentView
-import Vegas.GameTheory.EFG
-import Vegas.GameTheory.MAID
+import GameTheory.EFG
+import GameTheory.MAID
 import Vegas.LetCore.Concrete
 
 /-!

@@ -16,3 +16,6 @@ rev = "v4.27.0"
 
 [[lean_lib]]
 name = "Vegas"
+
+[[lean_lib]]
+name = "GameTheory"
