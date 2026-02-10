@@ -53,15 +53,24 @@ theorem ParentProtoProg.toMAIDNodes_ids_eq_yieldIds
       simp only [toMAIDNodes, yieldIds, List.map_cons]
       exact congr_arg _ ih
 
-/-- Convert a `ParentProtoProg` to a MAID Diagram.
-    Requires `NoDupYieldIds` on the embedded program for the `nodup_ids` proof. -/
+/-- All parent references in yield sites point to yield IDs of the program.
+    This is the structural precondition for `parents_exist` in the MAID diagram. -/
+def AllParentsAreYieldIds (p : ParentProtoProg (L := L) Γ τ) : Prop :=
+  ∀ n ∈ p.toMAIDNodes, ∀ pid ∈ n.parents, pid ∈ p.yieldIds
+
+/-- Convert a `ParentProtoProg` to a MAID Diagram. -/
 def ParentProtoProg.toMAID (p : ParentProtoProg (L := L) Γ τ)
-    (hnd : NoDupYieldIds (embed p)) : MAID.Diagram where
+    (hnd : NoDupYieldIds (embed p))
+    (hallp : AllParentsAreYieldIds p) : MAID.Diagram where
   nodes := p.toMAIDNodes
   nodup_ids := by
     rw [toMAIDNodes_ids_eq_yieldIds]
     rwa [NoDupYieldIds, yieldIds_embed] at hnd
-  parents_exist := sorry  -- follows from sequential structure; deferred
+  parents_exist := by
+    intro n hn pid hpid
+    have h := hallp n hn pid hpid
+    rw [← toMAIDNodes_ids_eq_yieldIds] at h
+    exact List.mem_map.mp h
   acyclic := True  -- placeholder
 
 -- ============================================================
@@ -77,6 +86,16 @@ def NodupActions : ParentProtoProg (L := L) Γ τ → Prop
   | .sample _ _ _ k => NodupActions k
   | .choose _ _ ps A k =>
       (∀ obs : L.Env (viewOfVarSpec ps.vars).Δ, (A obs).Nodup) ∧ NodupActions k
+
+/-- For all `choose` sites, the action list is non-empty
+    for all reachable observations. -/
+def NonEmptyActions : ParentProtoProg (L := L) Γ τ → Prop
+  | .ret _ => True
+  | .letDet _ k => NonEmptyActions k
+  | .observe _ k => NonEmptyActions k
+  | .sample _ _ _ k => NonEmptyActions k
+  | .choose _ _ ps A k =>
+      (∀ obs : L.Env (viewOfVarSpec ps.vars).Δ, (A obs) ≠ []) ∧ NonEmptyActions k
 
 /-- Convert a `ParentProtoProg` to an `EFG.GameTree`.
     Scoped to the bool-only fragment with `BasicLang`.
@@ -107,7 +126,7 @@ def ParentProtoProg.toEFG
       .decision _id who subtrees
 
 -- ============================================================
--- Correctness lemmas (sorry for now, proved in later milestones)
+-- Correctness lemmas
 -- ============================================================
 
 /-- The yield IDs of the EFG tree's decision nodes match the Proto's yield IDs.
@@ -122,7 +141,38 @@ theorem toEFG_wfTree
     (p : ParentProtoProg (L := BasicLang) Γ τ)
     (u : Proto.Utility (L := BasicLang) τ) (env : BasicLang.Env Γ)
     (hnd : NodupActions p)
+    (hne : NonEmptyActions p)
     (hwf : WFChanceOnProg ReachAll (ParentProtoProg.embed p)) :
-    EFG.WFTree (p.toEFG u env) := sorry
+    EFG.WFTree (p.toEFG u env) := by
+  induction p with
+  | ret e => exact .terminal _
+  | letDet e k ih => exact ih u (BasicLang.eval e env, env) hnd hne hwf
+  | observe c k ih => exact ih u env hnd hne hwf
+  | sample id ps K k ih =>
+      have hprob : IsProb (K ((viewOfVarSpec ps.vars).proj env)) := hwf.1 env trivial
+      apply EFG.WFTree.chance
+      · -- branches ≠ []
+        simp only [ne_eq, List.map_eq_nil_iff]
+        intro h
+        simp only [IsProb, WDist.mass, h, List.map_nil, List.sum_nil] at hprob
+        exact absurd hprob (by norm_num)
+      · -- (branches.map Prod.snd).sum = 1
+        simp only [List.map_map]
+        exact hprob
+      · -- ∀ bt ∈ branches, WFTree bt.1
+        intro bt hbt
+        simp only [List.mem_map] at hbt
+        obtain ⟨⟨v, w⟩, _, rfl⟩ := hbt
+        exact ih u (v, env) hnd hne hwf.2
+  | choose id who ps A k ih =>
+      apply EFG.WFTree.decision
+      · -- actions ≠ []
+        simp only [ne_eq, List.map_eq_nil_iff]
+        exact hne.1 _
+      · -- ∀ t ∈ subtrees, WFTree t
+        intro t ht
+        simp only [List.mem_map] at ht
+        obtain ⟨v, _, rfl⟩ := ht
+        exact ih u (v, env) hnd.2 hne.2 hwf
 
 end Proto
