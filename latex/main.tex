@@ -1,0 +1,266 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,stmaryrd}
+\usepackage{enumitem}
+\usepackage{mathrsfs}
+
+\newcommand{\ctx}{\Gamma}
+\newcommand{\Env}{\mathsf{Env}}
+\newcommand{\Val}{\mathsf{Val}}
+\newcommand{\Ty}{\mathsf{Ty}}
+\newcommand{\Prog}{\mathsf{Prog}}
+\newcommand{\WDist}{\mathsf{WDist}}
+\newcommand{\supp}{\mathsf{supp}}
+\newcommand{\mass}{\mathsf{mass}}
+\newcommand{\EU}{\mathsf{EU}}
+\newcommand{\Reach}{\mathsf{Reach}}
+\newcommand{\WF}{\mathsf{WF}}
+\newcommand{\View}{\mathsf{View}}
+\newcommand{\proj}{\mathsf{proj}}
+\newcommand{\Act}{\mathsf{Act}}
+\newcommand{\YieldId}{\mathsf{YieldId}}
+\newcommand{\Player}{\mathsf{Player}}
+\newcommand{\Profile}{\mathsf{Profile}}
+
+\title{Vegas / StratLet: Core Definitions (ProtoLet Milestone)}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Ambient setup (typed environments)}
+Assume a typed context calculus with:
+\begin{itemize}[leftmargin=*]
+\item a set of types $\Ty$ and, for each $\tau\in\Ty$, a set of values $\Val(\tau)$,
+\item contexts $\ctx$ (finite lists of types),
+\item environments $\Env(\ctx)$ (tuples of values matching $\ctx$).
+\end{itemize}
+We treat context extension implicitly: an environment in an extended context carries the previous environment as a prefix in the standard way.
+
+\section{Finite-support weighted distributions}
+A \emph{finite-support weighted distribution} over a set $A$ is a finite multiset (or list) of weighted outcomes:
+\[
+  d \in \WDist(A) \;\; \equiv \;\; \{(a_i,w_i)\}_{i=1}^n,\quad a_i\in A,\; w_i\in \mathbb{R}_{\ge 0}.
+\]
+Representations may contain ``junk'' outcomes with weight $0$.
+
+\paragraph{Support-within predicate.}
+For a predicate $S : A\to \mathsf{Prop}$, define:
+\[
+  \mathsf{SupportedOn}(d,S)
+  \;\;:\Leftrightarrow\;\;
+  \forall (a,w)\in d,\; (w\neq 0 \Rightarrow S(a)).
+\]
+Equivalently, ignoring the representational junk, $\supp(d)\subseteq \{a \mid S(a)\}$.
+
+\paragraph{Monadic structure (informal).}
+We assume the standard finite-support weighted monad operations:
+\begin{itemize}[leftmargin=*]
+\item $\mathsf{pure}(a)$: singleton $\{(a,1)\}$,
+\item $\mathsf{bind}(d,f)$: for each $(a,w)$ in $d$ and each $(b,u)$ in $f(a)$, output $(b,wu)$,
+\item $\mathsf{scale}(c,d)$: multiply all weights by $c$,
+\item $\mathsf{zero}$: empty distribution.
+\end{itemize}
+We also use $\mathsf{observe}(\varphi,d)$ as hard rejection (filtering outcomes satisfying $\varphi$), yielding an \emph{unnormalized} subdistribution. When needed, a separate $\mathsf{normalize}$ operator can convert a subdistribution into a conditional distribution (when total mass is nonzero).
+
+\section{A core ``let-calculus with effects''}
+We consider a typed program calculus $\Prog$ whose details are conventional:
+\begin{itemize}[leftmargin=*]
+\item deterministic let-binding,
+\item effectful bind against a command,
+\item statements (including observation / failure),
+\item return.
+\end{itemize}
+Semantics is given by an evaluator $\llbracket p\rrbracket$ parameterized by a \emph{handler} for commands, yielding a result in some effect carrier. The probabilistic instantiation uses $\WDist$ as the carrier.
+
+(Concrete de Bruijn details, weakening/renaming lemmas, etc.\ are standard and omitted here.)
+
+\section{ProbLet: probabilistic commands}
+ProbLet specializes the effect commands to a probabilistic interface.
+
+\subsection{Kernels}
+A \emph{kernel} in context $\ctx$ producing a value of type $\tau$ is a function
+\[
+  K : \Env(\ctx)\to \WDist(\Val(\tau)).
+\]
+Intuitively: given the current environment, produce a finite-support distribution of outcomes.
+
+\subsection{Sampling and observation}
+The command $\mathsf{sample}(K)$ draws from $K(\rho)$ at runtime environment $\rho$.
+Observation is modeled as hard rejection: if the predicate fails, the execution path receives weight $0$ (equivalently, the path is removed from support).
+
+Thus ProbLet programs denote \emph{subdistributions} in general, unless a normalization step is applied externally.
+
+\section{ProtoLet: protocol-with-yields core}
+ProtoLet extends the core calculus by making interaction points explicit and stable:
+\begin{itemize}[leftmargin=*]
+\item each interaction site carries a stable identifier $\YieldId$,
+\item each decision site is annotated with an explicit \emph{view} limiting information dependence,
+\item chance and decision yields are separated in the syntax.
+\end{itemize}
+
+\subsection{Views}
+A \emph{view} at ambient context $\ctx$ is a projection to a (typically smaller) context $\Delta$:
+\[
+  v \in \View(\ctx)
+  \quad\text{carries}\quad
+  \Delta = v.\Delta,\;\;
+  v.\proj : \Env(\ctx)\to \Env(\Delta).
+\]
+This is the fundamental partial-information mechanism: strategies may depend only on $v.\proj(\rho)$, not on the full environment $\rho$.
+
+\subsection{Actions}
+At a decision yield with view $v$ and result type $\tau$, an \emph{action set} is a map
+\[
+  A \in \Act(v,\tau)
+  \quad\text{meaning}\quad
+  A : \Env(v.\Delta)\to \mathcal{P}_\mathrm{fin}(\Val(\tau)),
+\]
+assigning to each observation (view-environment) a finite set of legal actions.
+
+\subsection{Commands: chance vs.\ decision yields}
+ProtoLet commands (schematically) include:
+\begin{itemize}[leftmargin=*]
+\item \textbf{Chance yield}:
+  \[
+    \mathsf{sample}(id, v, K)
+    \quad\text{where}\quad
+    K:\Env(v.\Delta)\to \WDist(\Val(\tau)).
+  \]
+  (In many uses $v$ is the identity view; $v$ is carried uniformly for compositionality.)
+\item \textbf{Decision yield}:
+  \[
+    \mathsf{choose}(id, who, v, A)
+  \]
+  where $who\in \Player$ identifies the decision-maker, $v$ is the view, and $A$ is the legal action specification.
+\end{itemize}
+
+\subsection{Profiles (strategies)}
+A \emph{profile} supplies, for each decision yield instance, a kernel over the \emph{view environment}:
+\[
+  \sigma \in \Profile
+  \quad\text{provides}\quad
+  \sigma.\mathsf{choose}(who,id,v,A): \Env(v.\Delta)\to \WDist(\Val(\tau)).
+\]
+This is intentionally \emph{not} restricted to be supported on $A$ by construction; legality is imposed separately via well-formedness.
+
+\paragraph{Semantics.}
+Given a profile $\sigma$, ProtoLet programs evaluate to $\WDist$ by interpreting:
+\begin{itemize}[leftmargin=*]
+\item $\mathsf{sample}(id,v,K)$ as sampling from $K(\text{obs})$ with $\text{obs}=v.\proj(\rho)$,
+\item $\mathsf{choose}(id,who,v,A)$ as sampling from $\sigma.\mathsf{choose}(who,id,v,A)(\text{obs})$ with $\text{obs}=v.\proj(\rho)$.
+\end{itemize}
+
+\subsection{Supported-on legality at a yield}
+For a distribution $d$ and predicate $S$, recall $\mathsf{SupportedOn}(d,S)$ ignores zero-weight outcomes.
+
+\paragraph{Legality at a specific decision yield instance.}
+For $\sigma$, $(who,id,v,A)$, and an observation $\mathsf{obs}\in \Env(v.\Delta)$:
+\[
+  \mathsf{LegalAt}(\sigma,who,id,v,A,\mathsf{obs})
+  \;:\Leftrightarrow\;
+  \mathsf{SupportedOn}\big(\sigma.\mathsf{choose}(who,id,v,A)(\mathsf{obs}),
+    \; a\mapsto (a\in A(\mathsf{obs}))\big).
+\]
+Thus legality means: all nonzero-weight actions the strategy might select are legal.
+
+\subsection{Reachability specifications}
+A \emph{reachability specification} is a family of predicates on environments:
+\[
+  \Reach \;:\; \forall \ctx,\; \Env(\ctx)\to \mathsf{Prop}.
+\]
+Milestone default is $\mathsf{ReachAll}(\rho)\equiv \mathsf{True}$ (everything reachable). More refined instantiations can encode semantic reachability later.
+
+\subsection{Program-relative well-formedness}
+Well-formedness checks legality only at \emph{choose sites that syntactically occur in the program}.
+
+Define $\WF(\Reach,\sigma,p)$ recursively on program structure:
+\begin{itemize}[leftmargin=*]
+\item $\WF(\Reach,\sigma,\mathsf{return}(\cdot)) \equiv \mathsf{True}$,
+\item structural cases ($\mathsf{letDet}$, statements) recurse into the continuation,
+\item for effect bind $\mathsf{doBind}(c,k)$:
+\begin{itemize}[leftmargin=*]
+\item if $c=\mathsf{sample}(\cdots)$ then no additional obligation; recurse into $k$,
+\item if $c=\mathsf{choose}(id,who,v,A)$ in ambient context $\ctx$, require
+\[
+  \forall \rho\in \Env(\ctx),\;
+    \Reach(\rho)\Rightarrow
+      \mathsf{LegalAt}(\sigma,who,id,v,A, v.\proj(\rho)),
+\]
+and also recurse into $k$.
+\end{itemize}
+\end{itemize}
+
+\paragraph{Interpretation.}
+$\WF(\Reach,\sigma,p)$ means: at every decision yield appearing in $p$, the profile $\sigma$ only plays legal actions on environments deemed reachable by $\Reach$.
+
+\section{From ProtoLet to ProbLet (strategy application)}
+ProtoLet can be compiled to ProbLet by \emph{discharging decision yields} into probabilistic sampling using a supplied (possibly partial) profile.
+
+\subsection{Partial profiles and application}
+A \emph{partial profile} $\pi$ assigns a kernel to some (but not necessarily all) decision yield instances:
+\[
+  \pi.\mathsf{choose?}(who,id,v,A) \in \mathsf{Option}(\Env(v.\Delta)\to \WDist(\Val(\tau))).
+\]
+Applying $\pi$ to a program replaces any decision yield covered by $\pi$ with a chance yield that samples from the provided kernel, leaving uncovered decision yields intact. (This is the ``strategy application'' pass.)
+
+\paragraph{Extends relation (informal).}
+A total profile $\sigma$ \emph{extends} a partial profile $\pi$ if, wherever $\pi$ provides a kernel, $\sigma$ uses the same kernel.
+
+A key sanity property (the intended lemma) is:
+\[
+  \sigma \text{ extends } \pi
+  \;\Rightarrow\;
+  \llbracket p\rrbracket_\sigma
+  =
+  \llbracket \mathsf{applyProfile}(\pi,p)\rrbracket_\sigma.
+\]
+This is the formal statement that partial strategy application does not change behavior for completions that agree with the partial profile.
+
+\subsection{Compilation to ProbLet when no decisions remain}
+For programs with no remaining decision yields (syntactic predicate $\mathsf{NoChoose}(p)$), compilation to ProbLet is defined by mapping all remaining yields to ProbLet sampling, producing a pure probabilistic program whose semantics is the same $\WDist$ denotation.
+
+\section{Utilities, expected utility, and Nash (discrete)}
+ProtoLet can be turned into a game by fixing utilities on terminal outcomes.
+
+\subsection{Utility and expected utility}
+Let terminal value type be $\tau_\mathrm{out}$ and suppose a utility function for a player $who$:
+\[
+  u_{who} : \Val(\tau_\mathrm{out}) \to \mathbb{R}.
+\]
+Given a subdistribution $d\in \WDist(\Val(\tau_\mathrm{out}))$, define \emph{raw} expected utility:
+\[
+  \EU_{\mathrm{raw}}(d,u_{who}) \;\;=\;\; \sum_{(a,w)\in d} w\cdot u_{who}(a).
+\]
+If conditioning is desired, one can define $\EU_{\mathrm{cond}}$ by normalizing $d$ first (when $\mass(d)\neq 0$), but the raw form is the basic discrete definition.
+
+\subsection{Deviations and well-formed Nash}
+Given a baseline profile $\sigma$, a deviation for player $who$ is another profile $\sigma'$ that differs from $\sigma$ only on that player’s decision yields. (Exact representation is conventional.)
+
+A \emph{WF Nash equilibrium} (relative to reachability $\Reach$) is:
+\[
+  \mathsf{IsNash}_{\WF}(\Reach,\sigma,p,u)
+  \;:\Leftrightarrow\;
+  \WF(\Reach,\sigma,p) \;\wedge\;
+  \forall who,\;\forall \sigma' \text{ deviating for } who,\;
+    \WF(\Reach,\sigma',p)\Rightarrow
+      \EU\big(\llbracket p\rrbracket_{\sigma}, u_{who}\big)
+      \ge
+      \EU\big(\llbracket p\rrbracket_{\sigma'}, u_{who}\big).
+\]
+This encodes the usual Nash condition but restricts attention to \emph{well-formed} deviations (legal play on reachable environments).
+
+\section*{What this milestone commits to (and what it does not)}
+This layer commits to:
+\begin{itemize}[leftmargin=*]
+\item explicit yields with stable IDs and explicit views,
+\item semantics into finite-support weighted subdistributions,
+\item a strategy/profile interface and a legality/WF discipline,
+\item compilation to a probabilistic core when decisions are discharged.
+\end{itemize}
+It does \emph{not} yet commit to:
+perfect recall enforcement, semantic reachability, measure-theoretic EU, cryptographic commitment realizations, or causal parent-set specifications (these can be layered above).
+
+\end{document}

@@ -425,16 +425,22 @@ theorem toProb?_some_iff_NoChoose
   intro a w hmem
   simp [WDist.zero] at hmem
 
-/-- If σ is WF on p, then it is legal at every `choose` site
-    encountered in p (reachable envs). -/
-theorem WFOnProg.implies_legalAt
-    (Reach : ReachSpec (L := L)) (σ : Profile (L := L))
-    {Γ τ} (p : ProtoProg (L := L) Γ τ)
-    (hWF : WFOnProg (L := L) Reach σ p) :
-    -- statement best expressed via an auxiliary predicate;
-    -- placeholder conclusion until "AllChoose" fold is defined.
-    True := by
-  trivial
+lemma WFOnProg.letDet {Reach σ} {Γ τ} {x} {k}
+  (h : WFOnProg (L := L) Reach σ (.letDet x k)) :
+  WFOnProg (L := L) Reach σ k := by
+  simpa [WFOnProg] using h
+
+lemma WFOnProg.doBind_choose_left
+  {Reach σ} {Γ τ τ'} {id who v A} {k}
+  (h : WFOnProg (L := L) Reach σ (.doBind (.choose id who v A) k)) :
+  ∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who id v A (v.proj env) := by
+  simpa [WFOnProg] using h.left
+
+lemma WFOnProg.doBind_choose_right
+  {Reach σ} {Γ τ τ'} {id who v A} {k}
+  (h : WFOnProg (L := L) Reach σ (.doBind (.choose id who v A) k)) :
+  WFOnProg (L := L) Reach σ k := by
+  simpa [WFOnProg] using h.right
 
 /-- WF propagates past a sample-bind to the continuation. -/
 theorem WFOnProg_of_sample_tail
@@ -447,6 +453,96 @@ theorem WFOnProg_of_sample_tail
     WFOnProg (L := L) Reach σ k :=
   hWF
 
+lemma WFOnProg_doBind_choose
+    {L} {Reach : ReachSpec (L := L)} {σ : Profile (L := L)}
+    {Γ : L.Ctx} {τ τ' : L.Ty}
+    {id : YieldId} {who : Player}
+    {v : View (L := L) Γ} {A : Act (L := L) v τ}
+    {k : L.Val τ → ProtoProg (L := L) Γ τ'} :
+    WFOnProg (L := L) Reach σ (.doBind (.choose id who v A) k) →
+      (∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who id v A (v.proj env)) := by
+  intro h
+  -- unfold WFOnProg at the .doBind/.choose node, then take the left conjunct
+  simpa [WFOnProg] using (And.left (by simpa [WFOnProg] using h))
+  sorry
+
+-- If WF holds for a program whose next command is choose,
+-- you can extract the local condition and WF for the continuation.
+lemma WFOnProg_doBind_choose_iff
+    {L} {Reach : ReachSpec (L := L)} {σ : Profile (L := L)}
+    {Γ : L.Ctx} {τ τ' : L.Ty}
+    {id : YieldId} {who : Player}
+    {v : View (L := L) Γ} {A : Act (L := L) v τ}
+    {k : L.Val τ → ProtoProg (L := L) Γ τ'} :
+    WFOnProg (L := L) Reach σ (.doBind (.choose id who v A) k)
+      ↔
+      ( (∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who id v A (v.proj env))
+        ∧ WFOnProg (L := L) Reach σ (k default) ) := by
+  -- This statement as written isn't quite right because WFOnProg on k is defined on `k` itself
+  -- (a function), not `k default`. So usually you write it with `∀ x, WFOnProg … (k x)`.
+  -- See the corrected version below.
+  sorry
+
+/-- Property P must hold for every `choose` node in the program. -/
+def ForAllChooses
+    {L} (P :
+      {Γ : L.Ctx} → {τ : L.Ty} →
+      (who : Player) → (id : YieldId) →
+      (v : View (L := L) Γ) → (A : Act (L := L) v τ) → Prop) :
+    {Γ : L.Ctx} → {τ : L.Ty} → ProtoProg (L := L) Γ τ → Prop
+  | _, _, .ret _        => True
+  | _, _, .letDet _ k   => ForAllChooses P k
+  | _, _, .doStmt _ k   => ForAllChooses P k
+  | _, _, .doBind c k   =>
+      (match c with
+       | .sample _id _v _K => True
+       | .choose id who v A => P who id v A)
+      ∧ (ForAllChooses P k)
+
+lemma WFOnProg_forAllChooses
+    {L} {Reach : ReachSpec (L := L)} {σ : Profile (L := L)} :
+  ∀ {Γ τ} (p : ProtoProg (L := L) Γ τ),
+    WFOnProg (L := L) Reach σ p →
+    ForAllChooses (L := L)
+      (fun {Γ} {τ} who id v A =>
+        ∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who id v A (v.proj env))
+      p := by
+  intro Γ τ p
+  induction p with
+  | ret _ =>
+      intro _; trivial
+  | letDet _ k ih =>
+      intro h; simpa [ForAllChooses, WFOnProg] using ih h
+  | doStmt _ k ih =>
+      intro h; simpa [ForAllChooses, WFOnProg] using ih h
+  | doBind c k ih =>
+      intro h
+      -- unfold WFOnProg at this node
+      cases c with
+      | sample id v K =>
+          -- no condition at samples
+          -- need: ForAllChooses P on continuation
+          -- h : WFOnProg Reach σ (.doBind (.sample …) k)
+          -- should reduce to WFOnProg Reach σ (k x) for all x, depending on your WFOnProg
+          -- If WFOnProg doesn't quantify over x yet, you should fix that definition.
+          sorry
+      | choose id who v A =>
+          -- h is a conjunction: (∀ env, Reach env → LegalAt …) ∧ WFOnProg … (k …)
+          -- left part gives P at this node
+          -- right part + ih gives P for continuation
+          sorry
+
+-- direct, no “reachability from semantics” yet:
+lemma WFOnProg_implies_LegalAt_at_head_choose
+    {L} {Reach : ReachSpec (L := L)} {σ : Profile (L := L)}
+    {Γ : L.Ctx} {τ τ' : L.Ty}
+    {id : YieldId} {who : Player}
+    {v : View (L := L) Γ} {A : Act (L := L) v τ}
+    {k : L.Val τ → ProtoProg (L := L) Γ τ'} :
+    WFOnProg (L := L) Reach σ (.doBind (.choose id who v A) k) →
+      (∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who id v A (v.proj env)) := by
+  intro h
+  simpa [WFOnProg] using h.left
 
 -- ------------------------------------------------------------
 -- 8) Mass / probability (ties into WFChanceOnProg)

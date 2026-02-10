@@ -377,12 +377,12 @@ def WFOnProg (Reach : ReachSpec (L := L)) (σ : Profile (L := L)) :
   | _Γ, _τ, .letDet _ k   => WFOnProg Reach σ k
   | _Γ, _τ, .doStmt _ k   => WFOnProg Reach σ k
   | Γ,  _τ, .doBind c k   =>
-      match c with
-      | .sample _id _v _K =>
-          WFOnProg Reach σ k
-      | .choose _id who v A =>
-          (∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who _id v A (v.proj env))
-          ∧ WFOnProg Reach σ k
+      (match c with
+       | .sample _id _v _K =>
+           True
+       | .choose id who v A =>
+           ∀ env : L.Env Γ, Reach env → LegalAt (L := L) σ who id v A (v.proj env))
+      ∧ WFOnProg Reach σ k
 
 -- ============================================================
 -- 9) Deviations (global per-player patches)
