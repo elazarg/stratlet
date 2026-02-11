@@ -99,6 +99,17 @@ def NonEmptyActions : ParentProtoProg (L := L) W Γ τ → Prop
   | .choose _ _ ps A k =>
       (∀ obs : L.Env (viewOfVarSpec ps.vars).Δ, (A obs) ≠ []) ∧ NonEmptyActions k
 
+/-- For all `choose` sites, the action list length is constant
+    across all observations. -/
+def ConstantArityAtSite : ParentProtoProg (L := L) W Γ τ → Prop
+  | .ret _ => True
+  | .letDet _ k => ConstantArityAtSite k
+  | .observe _ k => ConstantArityAtSite k
+  | .sample _ _ _ k => ConstantArityAtSite k
+  | .choose _ _ ps A k =>
+      (∀ obs₁ obs₂ : L.Env (viewOfVarSpec ps.vars).Δ,
+        (A obs₁).length = (A obs₂).length) ∧ ConstantArityAtSite k
+
 /-- Convert a `ParentProtoProg` to an `EFG.GameTree`.
     Specialized to `W = NNReal` because `EFG.GameTree` uses `NNReal` for chance weights.
     Scoped to the bool-only fragment with `BasicLang`.

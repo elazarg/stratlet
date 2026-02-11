@@ -1,4 +1,4 @@
-import Vegas.LetGames.ProtoGame
+import Vegas.LetGames.WF
 import Vegas.LetProtocol.ProtoLemmas
 import Vegas.LetCore.Concrete
 
@@ -34,7 +34,7 @@ private def vEmpty1 : View (L := L) [Ty.bool] where
 
 -- Uniform distribution over {true, false}
 private noncomputable def uniformBool :
-    ObsKernel (L := L) vEmpty Ty.bool :=
+    ObsKernel (W := NNReal) (L := L) vEmpty Ty.bool :=
   fun _ => WDist.uniform [true, false]
 
 -- Legal actions: both booleans
@@ -46,7 +46,7 @@ private def A_bool : Act (L := L) (v := vEmpty1) Ty.bool :=
 2. Player 0 guesses a bool (YieldId 1, empty view — no info)
 3. Return both as a pair via letDet + ret -/
 noncomputable def hiddenProto :
-    ProtoProg (L := L) Γ0 Ty.bool :=
+    ProtoProg (W := NNReal) (L := L) Γ0 Ty.bool :=
   -- Sample nature's bit
   ProtoProg.sample (id := 0) (v := vEmpty) (K := uniformBool)
     -- Player 0 guesses (sees nothing)
@@ -66,9 +66,61 @@ noncomputable def hiddenUtil : Utility (L := L) Ty.bool :=
     if who = 0 then (if b = true then 1 else 0) else 0
 
 /-- The hidden-info game. -/
-noncomputable def hiddenGame : Game (L := L) Γ0 where
+noncomputable def hiddenGame : Game (W := NNReal) (L := L) Γ0 where
   τ := Ty.bool
   p := hiddenProto
   u := hiddenUtil
+
+/-! ## ParentProtoProg version with EFG bridge -/
+
+/-- Uniform kernel for the ParentProtoProg sample site. -/
+private noncomputable def K_uniform :
+    ObsKernel (W := NNReal) (viewOfVarSpec
+      (VarSpec.nil (L := L) (Γ := []))) Ty.bool :=
+  fun _ => WDist.uniform [true, false]
+
+/-- P0 actions: H(true)/T(false), empty view (can't see
+    Nature's sample). -/
+private def A_guess :
+    Act (L := L)
+      (v := viewOfVarSpec
+        (VarSpec.nil.weaken (τ := Ty.bool) (Γ := [])))
+      Ty.bool :=
+  fun _ => [true, false]
+
+/-- Hidden-info as a ParentProtoProg.
+    Nature samples (YieldId 0, empty view),
+    P0 guesses blind (YieldId 1, empty view). -/
+noncomputable def hiddenParentProto :
+    ParentProtoProg (W := NNReal) (L := L) [] Ty.bool :=
+  .sample 0 ⟨[], [], .nil⟩ K_uniform
+    (.choose 1 0
+      ⟨[], [], VarSpec.nil.weaken⟩ A_guess
+      (.ret basicExprLaws.vz))
+
+/-- WF proof for the hidden-info game. -/
+theorem hidden_wf :
+    WF_GameProg hiddenParentProto := by
+  unfold hiddenParentProto
+  refine WF_GameProg.sample 0 _ _ ?_ ?_ ?_
+  · refine WF_GameProg.choose 1 0 _ _ ?_ ?_ ?_ ?_ ?_
+    · exact WF_GameProg.ret _
+    · intro obs; simp [A_guess]
+    · intro obs; simp [A_guess]
+    · simp [ParentProtoProg.yieldIds]
+    · intro obs₁ obs₂; rfl
+  · intro env
+    simp only [K_uniform, IsProb, WDist.uniform,
+      List.length_cons, List.length_nil, WDist.mass,
+      List.map, List.sum_cons, List.sum_nil]
+    norm_num
+  · simp [ParentProtoProg.yieldIds]
+
+/-- The root of the compiled EFG tree is a chance node. -/
+theorem hidden_root_is_chance :
+    ∃ bs, hiddenParentProto.toEFG (fun _ _ => (0 : ℝ)) () =
+      .chance bs := by
+  simp only [hiddenParentProto, ParentProtoProg.toEFG]
+  exact ⟨_, rfl⟩
 
 end Proto.Examples.HiddenDecision

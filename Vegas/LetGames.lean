@@ -6,3 +6,5 @@ import Vegas.LetGames.Denotations
 import Vegas.LetGames.EUBridge
 import Vegas.LetGames.Assumptions
 import Vegas.LetGames.Assume
+import Vegas.LetGames.WF
+import Vegas.LetGames.InfosetBridge

@@ -1,4 +1,4 @@
-import Vegas.LetGames.ProtoGame
+import Vegas.LetGames.WF
 import Vegas.LetProtocol.ProtoLemmas
 import Vegas.LetCore.Concrete
 
@@ -82,5 +82,54 @@ theorem seqProto_has_two_chooses :
 theorem seqProto_nodup_yields :
     NoDupYieldIds seqProto := by
   simp [NoDupYieldIds, seqProto_has_two_yields]
+
+/-! ## ParentProtoProg version with EFG bridge -/
+
+/-- P0 actions: H(true)/T(false), empty view. -/
+private def A_p0 :
+    Act (L := L) (v := viewOfVarSpec (VarSpec.nil (Γ := [])))
+      Ty.bool :=
+  fun _ => [true, false]
+
+/-- P1 actions: H(true)/T(false), sees P0's choice. -/
+private def A_p1 :
+    Act (L := L)
+      (v := viewOfVarSpec
+        (VarSpec.cons Var.vz VarSpec.nil
+          (Γ := [Ty.bool]))) Ty.bool :=
+  fun _ => [true, false]
+
+/-- Sequential game as a ParentProtoProg.
+    P0 picks (YieldId 0, empty view),
+    P1 picks (YieldId 1, sees P0's choice). -/
+def seqParentProto :
+    ParentProtoProg (W := NNReal) (L := L) [] Ty.bool :=
+  .choose 0 0
+    ⟨[], [], .nil⟩ A_p0
+    (.choose 1 1
+      ⟨[0], [Ty.bool], .cons .vz .nil⟩ A_p1
+      (.ret basicExprLaws.vz))
+
+/-- WF proof for the sequential game. -/
+theorem seq_wf : WF_GameProg seqParentProto := by
+  unfold seqParentProto
+  refine WF_GameProg.choose 0 0 _ _ ?_ ?_ ?_ ?_ ?_
+  · refine WF_GameProg.choose 1 1 _ _ ?_ ?_ ?_ ?_ ?_
+    · exact WF_GameProg.ret _
+    · intro obs; simp [A_p1]
+    · intro obs; simp [A_p1]
+    · simp [ParentProtoProg.yieldIds]
+    · intro obs₁ obs₂; rfl
+  · intro obs; simp [A_p0]
+  · intro obs; simp [A_p0]
+  · simp [ParentProtoProg.yieldIds]
+  · intro obs₁ obs₂; rfl
+
+/-- The root of the compiled EFG tree is P0's decision (pid=0). -/
+theorem seq_root_is_p0 :
+    ∃ acts, seqParentProto.toEFG (fun _ _ => (0 : ℝ)) () =
+      .decision 0 0 acts := by
+  simp only [seqParentProto, ParentProtoProg.toEFG]
+  exact ⟨_, rfl⟩
 
 end Proto.Examples.SequentialGame

@@ -125,4 +125,112 @@ theorem eu_preservation_directEU
       rw [← EU_dist_eq_EV]
       exact ih u (v, env) hof
 
+-- ============================================================
+-- 4) Proto-to-EFG EU Bridge: directEU = evalTotal for pure profiles
+-- ============================================================
+
+/-- A profile σ is pure-indexed for a program p w.r.t. pure strategy f:
+    at every choose site, σ returns a point mass on the action
+    at index f(id) in the action list. -/
+def IsPureFor (σ : Profile (L := BasicLang) (W := NNReal))
+    (f : EFG.PureStrategy) :
+    ParentProtoProg (W := NNReal) (L := BasicLang) Γ τ → Prop
+  | .ret _ => True
+  | .letDet _ k => IsPureFor σ f k
+  | .observe _ k => IsPureFor σ f k
+  | .sample _ _ _ k => IsPureFor σ f k
+  | .choose id who ps A k =>
+      (∀ obs : BasicLang.Env (viewOfVarSpec ps.vars).Δ,
+        ∃ h : f id < (A obs).length,
+        σ.choose who id (viewOfVarSpec ps.vars) A obs =
+          WDist.pure ((A obs).get ⟨f id, h⟩)) ∧
+      IsPureFor σ f k
+
+/-! ### Helper: go_nth on mapped list picks the nth element -/
+
+private theorem go_nth_map_get
+    (σ : EFG.PureStrategy) (n : Nat)
+    {α : Type} (xs : List α) (g : α → EFG.GameTree Nat)
+    (h : n < xs.length) :
+    EFG.GameTree.evalTotal.go_nth σ n (xs.map g) =
+      (g (xs.get ⟨n, h⟩)).evalTotal σ := by
+  induction xs generalizing n with
+  | nil => exact absurd h (Nat.not_lt_zero _)
+  | cons a rest ih =>
+    cases n with
+    | zero =>
+      simp [EFG.GameTree.evalTotal.go_nth]
+    | succ n' =>
+      simp only [EFG.GameTree.evalTotal.go_nth, List.map_cons]
+      exact ih n' (Nat.lt_of_succ_lt_succ h)
+
+/-! ### Helper: EV equals go_chance on mapped weights -/
+
+private theorem EV_eq_go_chance
+    (σ : EFG.PureStrategy) (who : Nat)
+    {α : Type} (ws : List (α × NNReal))
+    (g : α → EFG.GameTree Nat) :
+    (WDist.mk ws).EV (fun a => (g a).evalTotal σ who) =
+      EFG.GameTree.evalTotal.go_chance σ who
+        (ws.map (fun aw => (g aw.1, aw.2))) := by
+  induction ws with
+  | nil =>
+    simp [WDist.EV, EFG.GameTree.evalTotal.go_chance]
+  | cons hw rest ih =>
+    rcases hw with ⟨a, w⟩
+    have hev : ({ weights := (a, w) :: rest } : WDist NNReal α).EV
+        (fun a => (g a).evalTotal σ who) =
+      ({ weights := rest } : WDist NNReal α).EV
+        (fun a => (g a).evalTotal σ who) +
+        (↑w : ℝ) * (g a).evalTotal σ who := rfl
+    simp only [List.map_cons, EFG.GameTree.evalTotal.go_chance,
+      hev, ih]
+    exact add_comm _ _
+
+/-- **Proto-to-EFG EU Bridge**: For a pure-indexed profile,
+    `directEU` on the ParentProtoProg equals `evalTotal` on the
+    compiled EFG tree.
+
+    Combined with `eu_preservation_directEU`, this gives the full chain:
+    `EU_dist (p.eval σ env) u who = (p.toEFG u env).evalTotal f who`. -/
+theorem directEU_eq_efg_evalTotal
+    {σ : Profile (L := BasicLang) (W := NNReal)}
+    {f : EFG.PureStrategy}
+    (u : Proto.Utility (L := BasicLang) τ) (who : Player)
+    (p : ParentProtoProg (W := NNReal) (L := BasicLang) Γ τ)
+    (env : BasicLang.Env Γ)
+    (hpure : IsPureFor σ f p) :
+    p.directEU σ u who env = (p.toEFG u env).evalTotal f who := by
+  induction p with
+  | ret e =>
+    simp [ParentProtoProg.directEU, ParentProtoProg.toEFG]
+  | letDet e k ih =>
+    simp only [ParentProtoProg.directEU, ParentProtoProg.toEFG]
+    exact ih u (BasicLang.eval e env, env) hpure
+  | observe c k ih =>
+    simp only [ParentProtoProg.directEU, ParentProtoProg.toEFG]
+    exact ih u env hpure
+  | sample id ps K k ih =>
+    simp only [ParentProtoProg.directEU, ParentProtoProg.toEFG,
+      EFG.GameTree.evalTotal]
+    -- Step 1: apply IH to rewrite each directEU to evalTotal
+    simp_rw [ih u _ hpure]
+    -- Step 2: EV on mapped = go_chance on mapped weights
+    exact EV_eq_go_chance f who
+      (K ((viewOfVarSpec ps.vars).proj env)).weights
+      (fun v => ParentProtoProg.toEFG u k (v, env))
+  | choose id who' ps A k ih =>
+    simp only [ParentProtoProg.directEU, ParentProtoProg.toEFG,
+      EFG.GameTree.evalTotal]
+    obtain ⟨hsite, hk⟩ := hpure
+    obtain ⟨hlt, heq⟩ := hsite ((viewOfVarSpec ps.vars).proj env)
+    -- Apply purity: σ.choose returns a point mass
+    rw [heq, WDist.EV_pure]
+    -- Apply IH
+    rw [ih u _ hk]
+    -- Match go_nth with List.get (applied to who)
+    exact congrFun (go_nth_map_get f (f id)
+      (A ((viewOfVarSpec ps.vars).proj env))
+      (fun v => ParentProtoProg.toEFG u k (v, env)) hlt).symm who
+
 end Proto
