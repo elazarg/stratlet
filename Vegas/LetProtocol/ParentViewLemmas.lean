@@ -20,6 +20,7 @@ namespace Proto
 open Defs Prog Env
 
 variable {L : Language}
+variable {W : Type} [WeightModel W]
 
 -- ============================================================
 -- C2: Local info lemma
@@ -32,10 +33,10 @@ At a sample yield site whose View is derived from a VarSpec, if two environments
 have equal VarSpec projections, then the kernel distribution is the same.
 -/
 theorem sample_parent_local_info
-    (σ : Profile)
+    (σ : Profile (L := L) (W := W))
     {Γ : L.Ctx} {τ : L.Ty}
     {Δ : L.Ctx} (vs : VarSpec Γ Δ)
-    (id : YieldId) (K : ObsKernel (viewOfVarSpec vs) τ)
+    (id : YieldId) (K : ObsKernel (W := W) (viewOfVarSpec vs) τ)
     {env₁ env₂ : L.Env Γ}
     (hProj : vs.proj env₁ = vs.proj env₂) :
     (ProtoSem σ).handleBind (.sample id (viewOfVarSpec vs) K) env₁ =
@@ -49,7 +50,7 @@ At a decision yield site whose View is derived from a VarSpec, if two environmen
 have equal VarSpec projections, then the profile-induced distribution is the same.
 -/
 theorem choose_parent_local_info
-    (σ : Profile)
+    (σ : Profile (L := L) (W := W))
     {Γ : L.Ctx} {τ : L.Ty}
     {Δ : L.Ctx} (vs : VarSpec Γ Δ)
     (id : YieldId) (who : Player) (A : Act (viewOfVarSpec vs) τ)
@@ -67,8 +68,8 @@ at every yield site, the full evaluation under any profile is the same.
 This is the program-level consequence of the per-site local info lemmas.
 -/
 theorem ParentProtoProg.eval_depends_only_on_parents
-    (σ : Profile)
-    (p : ParentProtoProg Γ τ)
+    (σ : Profile (L := L) (W := W))
+    (p : ParentProtoProg W Γ τ)
     {env₁ env₂ : L.Env Γ}
     (h : env₁ = env₂) :
     p.eval σ env₁ = p.eval σ env₂ := by
@@ -84,8 +85,8 @@ theorem ParentProtoProg.eval_depends_only_on_parents
 `ParentProtoProg.eval` is definitionally `evalProto σ (embed p) env`.
 -/
 @[simp] theorem ParentProtoProg.eval_eq_evalProto_embed
-    (σ : Profile)
-    (p : ParentProtoProg Γ τ)
+    (σ : Profile (L := L) (W := W))
+    (p : ParentProtoProg W Γ τ)
     (env : L.Env Γ) :
     p.eval σ env = evalProto σ (ParentProtoProg.embed p) env :=
   rfl
@@ -95,8 +96,8 @@ Corollary: all ProtoLemmas results apply to ParentProtoProg via embedding.
 For example, profile independence for NoChoose programs:
 -/
 theorem ParentProtoProg.eval_profile_indep
-    (p : ParentProtoProg Γ τ) (hp : p.noChoose)
-    (σ₁ σ₂ : Profile) (env : L.Env Γ) :
+    (p : ParentProtoProg W Γ τ) (hp : p.noChoose)
+    (σ₁ σ₂ : Profile (L := L) (W := W)) (env : L.Env Γ) :
     p.eval σ₁ env = p.eval σ₂ env := by
   simp only [ParentProtoProg.eval_eq_evalProto_embed]
   exact ProtoProg.evalProto_profile_indep _ (p.noChoose_iff_embed.mp hp) _ _ _
@@ -120,8 +121,8 @@ Note: This is stated as a `Prop`-level existence result because
 Use `ParentProtoProg.embed` + `embed_isParentDerived` for the forward direction.
 -/
 theorem exists_parentProtoProg_of_isParentDerived
-    (p : ProtoProg Γ τ) (h : IsParentDerived p) :
-    ∃ pp : ParentProtoProg Γ τ,
+    (p : ProtoProg (W := W) Γ τ) (h : IsParentDerived p) :
+    ∃ pp : ParentProtoProg W Γ τ,
       ParentProtoProg.embed pp = p := by
   induction p with
   | ret e => exact ⟨.ret e, rfl⟩
@@ -153,9 +154,9 @@ Semantic round-trip: for IsParentDerived programs, there is a ParentProtoProg
 that evaluates identically.
 -/
 theorem exists_parentProtoProg_eval_eq
-    (σ : Profile)
-    (p : ProtoProg Γ τ) (h : IsParentDerived p) (env : L.Env Γ) :
-    ∃ pp : ParentProtoProg Γ τ,
+    (σ : Profile (L := L) (W := W))
+    (p : ProtoProg (W := W) Γ τ) (h : IsParentDerived p) (env : L.Env Γ) :
+    ∃ pp : ParentProtoProg W Γ τ,
       pp.eval σ env = evalProto σ p env := by
   obtain ⟨pp, hpp⟩ := exists_parentProtoProg_of_isParentDerived p h
   exact ⟨pp, by simp [ParentProtoProg.eval, hpp]⟩

@@ -13,41 +13,47 @@ reusable, type-generic form.
 
 namespace WDist
 
-open NNReal
-
+variable {W : Type*} [WeightModel W]
 variable {α β : Type*}
 
 /-- Expected value of a real-valued function under a weighted distribution.
     Computes `Σ (a,w) ∈ d.weights, w * f a`. -/
-noncomputable def EV (d : WDist α) (f : α → ℝ) : ℝ :=
-  d.weights.foldr (fun (aw : α × ℝ≥0) acc => acc + ((aw.2 : ℝ) * f aw.1)) 0
+noncomputable def EV (d : WDist W α) (f : α → ℝ) : ℝ :=
+  d.weights.foldr (fun (aw : α × W) acc => acc + (WeightModel.toReal aw.2 * f aw.1)) 0
 
+open Classical in
 /-- Conditional expected value: normalize by mass. Returns 0 when mass = 0. -/
-noncomputable def EV_cond (d : WDist α) (f : α → ℝ) : ℝ :=
-  if d.mass = 0 then 0 else d.EV f / (d.mass : ℝ)
+noncomputable def EV_cond (d : WDist W α) (f : α → ℝ) : ℝ :=
+  if d.mass = 0 then 0 else d.EV f / WeightModel.toReal d.mass
 
 /-! ## Basic EV lemmas -/
 
 @[simp]
-theorem EV_pure (x : α) (f : α → ℝ) : (WDist.pure x).EV f = f x := by
-  simp [EV, WDist.pure, one_mul]
+theorem EV_pure (x : α) (f : α → ℝ) : (WDist.pure x : WDist W α).EV f = f x := by
+  simp [EV, WDist.pure, WeightModel.toReal_one, one_mul]
 
 @[simp]
-theorem EV_zero (f : α → ℝ) : (WDist.zero : WDist α).EV f = 0 := by
+theorem EV_zero (f : α → ℝ) : (WDist.zero : WDist W α).EV f = 0 := by
   simp [EV, WDist.zero]
 
-theorem EV_cond_eq_EV_div_mass {d : WDist α} {f : α → ℝ} (h : d.mass ≠ 0) :
-    d.EV_cond f = d.EV f / (d.mass : ℝ) := by
-  simp [EV_cond, h]
+theorem EV_cond_eq_EV_div_mass {d : WDist W α} {f : α → ℝ} (h : d.mass ≠ 0) :
+    d.EV_cond f = d.EV f / WeightModel.toReal d.mass := by
+  classical simp [EV_cond, h]
 
-theorem EV_cond_of_mass_one {d : WDist α} {f : α → ℝ} (h : d.mass = 1) :
+theorem EV_cond_of_mass_one {d : WDist W α} {f : α → ℝ} (h : d.mass = 1) :
     d.EV_cond f = d.EV f := by
-  simp [EV_cond, h]
+  classical
+  have hne : (1 : W) ≠ 0 := by
+    intro h0
+    have := WeightModel.toReal_one (W := W)
+    rw [h0, WeightModel.toReal_zero] at this
+    norm_num at this
+  simp [EV_cond, h, hne, WeightModel.toReal_one]
 
 /-! ## The tower property: EV distributes over bind -/
 
 /-- Helper: EV over concatenated weight lists. -/
-private theorem EV_mk_append (ws₁ ws₂ : List (α × ℝ≥0)) (f : α → ℝ) :
+private theorem EV_mk_append (ws₁ ws₂ : List (α × W)) (f : α → ℝ) :
     (WDist.mk (ws₁ ++ ws₂)).EV f =
       (WDist.mk ws₁).EV f + (WDist.mk ws₂).EV f := by
   simp only [EV]
@@ -58,21 +64,20 @@ private theorem EV_mk_append (ws₁ ws₂ : List (α × ℝ≥0)) (f : α → �
     ring
 
 /-- Helper: EV over scaled weight list. -/
-private theorem EV_mk_map_scale (c : ℝ≥0) (ws : List (α × ℝ≥0)) (f : α → ℝ) :
+private theorem EV_mk_map_scale (c : W) (ws : List (α × W)) (f : α → ℝ) :
     (WDist.mk (ws.map (fun (a, w') => (a, c * w')))).EV f =
-      (c : ℝ) * (WDist.mk ws).EV f := by
+      WeightModel.toReal c * (WDist.mk ws).EV f := by
   simp only [EV]
   induction ws with
   | nil => simp
   | cons h t ih =>
     rcases h with ⟨a, w⟩
-    simp only [List.map_cons, List.foldr_cons, ih]
-    push_cast
+    simp only [List.map_cons, List.foldr_cons, ih, WeightModel.toReal_mul]
     ring
 
 /-- The tower property: `EV (bind d g) f = EV d (fun a => EV (g a) f)`.
     This is the key compositional property for expected values. -/
-theorem EV_bind (d : WDist α) (g : α → WDist β) (f : β → ℝ) :
+theorem EV_bind (d : WDist W α) (g : α → WDist W β) (f : β → ℝ) :
     (d.bind g).EV f = d.EV (fun a => (g a).EV f) := by
   cases d with
   | mk ws =>

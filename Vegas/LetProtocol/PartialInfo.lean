@@ -18,6 +18,8 @@ open Defs
 since the commit/reveal mechanism relies on concrete Ty constructors. -/
 abbrev L : Language := BasicLang
 
+variable {W : Type} [WeightModel W]
+
 /--
 A `View Γ` is an explicit environment slice:
 - a visible context `Δ`
@@ -89,7 +91,7 @@ structure Profile where
     {Γ : L.Ctx} → {τ : L.Ty} →
     (who : Player) → (v : View Γ) → (A : Act v τ) →
     -- strategy sees exactly the projected environment:
-    L.Env v.Δ → WDist (Val τ)
+    L.Env v.Δ → WDist W (Val τ)
 
 /-! ## 3) Deterministic commitment check (placeholder commitment scheme)
 
@@ -110,20 +112,20 @@ def commitTag (who : Player) {τ : L.Ty} (x : Val τ) : Int :=
 
 /-! ## Denotational semantics for strategic programs (WDist) -/
 
-abbrev EffWDist : Prog.Eff WDist := Prob.EffWDist
+abbrev EffWDist : Prog.Eff (WDist W) := Prob.EffWDist
 
 @[simp] lemma EffWDist_pure {α} (x : α) :
-    EffWDist.pure x = (WDist.pure x : WDist α) := rfl
+    (EffWDist (W := W)).pure x = (WDist.pure x : WDist W α) := rfl
 
 @[simp] lemma EffWDist_fail {α} :
-    (EffWDist.fail : WDist α) = (WDist.zero : WDist α) := rfl
+    ((EffWDist (W := W)).fail : WDist W α) = (WDist.zero : WDist W α) := rfl
 
-@[simp] lemma EffWDist_bind {α β} (xs : WDist α) (f : α → WDist β) :
-    EffWDist.bind xs f = WDist.bind xs f := rfl
+@[simp] lemma EffWDist_bind {α β} (xs : WDist W α) (f : α → WDist W β) :
+    (EffWDist (W := W)).bind xs f = WDist.bind xs f := rfl
 
-variable (σ : Profile)
+variable (σ : Profile (W := W))
 
-def StratSem : Prog.LangSem CmdBindS CmdStmtS WDist where
+def StratSem : Prog.LangSem CmdBindS CmdStmtS (WDist W) where
   E := EffWDist
   handleBind
     | .choose who v A, env =>
@@ -144,7 +146,7 @@ def StratSem : Prog.LangSem CmdBindS CmdStmtS WDist where
     | .observe cond, env =>
         if L.toBool (L.eval cond env) then .pure () else .zero
 
-def evalS {Γ τ} : SProg Γ τ → L.Env Γ → WDist (Val τ) :=
+def evalS {Γ τ} : SProg Γ τ → L.Env Γ → WDist W (Val τ) :=
   Prog.evalWith (StratSem σ)
 
 /-! ## 5) Compilation to ProbLet by fixing a profile -/
@@ -162,23 +164,23 @@ Compilation uses sample for both strategic and protocol binds;
 this is intentional (one bind-command interface), but later we may want to separate
 ‘nature randomness’ from ‘strategic randomness’ to control correlation assumptions.
 -/
-def toProb (σ : Profile) : SProg Γ τ → Prob.PProg Γ τ
+def toProb (σ : Profile (W := W)) : SProg Γ τ → Prob.PProg (W := W) Γ τ
   | .ret e        => .ret e
   | .letDet e k   => .letDet e (toProb σ k)
   | .doStmt s k   => .doStmt s (toProb σ k)
   | .doBind c k   =>
       match c with
       | .choose who v A =>
-          let K : Prob.Kernel Γ _ := fun env => σ.choose who v A (v.proj env)
+          let K : Prob.Kernel (W := W) Γ _ := fun env => σ.choose who v A (v.proj env)
           .doBind (.sample K) (toProb σ k)
       | .commit who v x =>
-          let K : Prob.Kernel Γ .int := fun env =>
+          let K : Prob.Kernel (W := W) Γ .int := fun env =>
             let obs : L.Env v.Δ := v.proj env
             let xv : Val _ := obs.get x
             WDist.pure (commitTag who xv)
           .doBind (.sample K) (toProb σ k)
       | .reveal (τ := τ') who v c x =>
-          let K : Prob.Kernel Γ τ' := fun env =>
+          let K : Prob.Kernel (W := W) Γ τ' := fun env =>
             let obs : L.Env v.Δ := v.proj env
             let cv  : Int := obs.get c
             let xv  : Val τ' := obs.get x
@@ -187,7 +189,7 @@ def toProb (σ : Profile) : SProg Γ τ → Prob.PProg Γ τ
 
 /-- Commutation theorem: evalS under σ coincides with ProbLet eval of the compilation. -/
 theorem evalS_eq_evalP_toProb {Γ τ} (p : SProg Γ τ) (env : L.Env Γ) :
-    evalS σ p env = Prob.evalP (toProb σ p) env := by
+    evalS σ p env = Prob.evalP (W := W) (toProb σ p) env := by
   simp only [evalS, StratSem, EffWDist, Prob.evalP, Prob.ProbSem]
   induction p with
   | ret e =>
@@ -221,7 +223,7 @@ inductive Beh : L.Ty → Type where
   | fail {τ} : Beh τ
   | choose {τ τ'} (who : Player)
       (actions : List (Val τ'))
-      (dist    : Profile → WDist (Val τ'))
+      (dist    : Profile (W := W) → WDist W (Val τ'))
       (k       : Val τ' → Beh τ)
       : Beh τ
   | commit {τ} (who : Player)
@@ -234,7 +236,7 @@ inductive Beh : L.Ty → Type where
       (k   : Val τ' → Beh τ)
       : Beh τ
 
-def behEval {Γ τ} : SProg Γ τ → L.Env Γ → Beh τ
+def behEval {Γ τ} : SProg Γ τ → L.Env Γ → Beh (W := W) τ
   | .ret e, env =>
       Beh.ret (L.eval e env)
   | .letDet e k, env =>
@@ -244,7 +246,7 @@ def behEval {Γ τ} : SProg Γ τ → L.Env Γ → Beh τ
   | .doBind (.choose who v A) k, env =>
       let obs := v.proj env
       let acts := A obs
-      let distThunk : Profile → WDist (Val _) := fun σ => σ.choose who v A obs
+      let distThunk : Profile (W := W) → WDist W (Val _) := fun σ => σ.choose who v A obs
       Beh.choose who acts distThunk (fun a => behEval k (a, env))
   | .doBind (.commit (τ := τ') who v x) k, env =>
       let obs : L.Env v.Δ := v.proj env
@@ -261,7 +263,7 @@ def behEval {Γ τ} : SProg Γ τ → L.Env Γ → Beh τ
       else
         Beh.reveal who false xv (fun _ => Beh.fail)
 
-def runBeh (σ : Profile) {τ} : Beh τ → WDist (Val τ)
+def runBeh (σ : Profile (W := W)) {τ} : Beh (W := W) τ → WDist W (Val τ)
   | .ret v => WDist.pure v
   | .fail => .zero
   | .choose _ _ d k => WDist.bind (d σ) (fun a => runBeh σ (k a))
@@ -296,7 +298,7 @@ def runBeh (σ : Profile) {τ} : Beh τ → WDist (Val τ)
      else WDist.zero) := rfl
 
 @[simp] lemma StratSem_E_bind {α β}
-    (xs : WDist α) (f : α → WDist β) :
+    (xs : WDist W α) (f : α → WDist W β) :
     (StratSem σ).E.bind xs f = WDist.bind xs f := rfl
 
 theorem runBeh_behEval_eq_evalS {Γ τ} (p : SProg Γ τ) (env : L.Env Γ) :
@@ -353,7 +355,7 @@ theorem runBeh_behEval_eq_evalS {Γ τ} (p : SProg Γ τ) (env : L.Env Γ) :
 
 
 theorem runBeh_behEval_eq_evalP_toProb (p : SProg Γ τ) (env : L.Env Γ) :
-    runBeh σ (behEval p env) = Prob.evalP (toProb σ p) env := by
+    runBeh σ (behEval p env) = Prob.evalP (W := W) (toProb σ p) env := by
   simpa [runBeh_behEval_eq_evalS] using (evalS_eq_evalP_toProb (Γ := Γ) (τ := τ) σ p env)
 
 /-- Identity view sees everything: projection is identity. -/

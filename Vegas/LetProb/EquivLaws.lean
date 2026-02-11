@@ -13,6 +13,7 @@ open MeasureTheory ENNReal
 open Prog
 
 variable {L : Language}
+variable {W : Type} [WeightModel W]
 
 /-!
 # Level 3: Equational Theory for Probabilistic Programs
@@ -26,14 +27,14 @@ section Definitions
 variable {α : Type*}
 
 /-- Two distributions are measure-equivalent if they denote the same measure. -/
-def MeasEq [MeasurableSpace α] (d₁ d₂ : WDist α) : Prop :=
+def MeasEq [MeasurableSpace α] (d₁ d₂ : WDist W α) : Prop :=
   d₁.toMeasure = d₂.toMeasure
 
 infix:50 " ≈ₘ " => MeasEq
 
 /-- Two programs are observationally equivalent if they produce the same measure
 in all environments. -/
-def ProgEq {Γ τ} [MeasurableSpace (L.Val τ)] (p q : PProg Γ τ) : Prop :=
+def ProgEq {Γ τ} [MeasurableSpace (L.Val τ)] (p q : PProg (W := W) Γ τ) : Prop :=
   ∀ env, MeasEq (evalP p env) (evalP q env)
 
 infix:50 " ≈ " => ProgEq
@@ -48,9 +49,9 @@ since `bind zero f = zero`, but we pick the simplest well-typed one.
 -/
 
 /-- Canonical "zero program": sample from the zero kernel, then return `vz`. -/
-def zeroProg {EL : ExprLaws L} {Γ : L.Ctx} {τ : L.Ty} : PProg Γ τ :=
+def zeroProg {EL : ExprLaws L} {Γ : L.Ctx} {τ : L.Ty} : PProg (W := W) Γ τ :=
   .doBind
-    (.sample (fun _ : L.Env Γ => (WDist.zero : WDist (L.Val τ))))
+    (.sample (fun _ : L.Env Γ => (WDist.zero : WDist W (L.Val τ))))
     (.ret (EL.var .vz))
 
 section
@@ -58,13 +59,13 @@ section
 variable {Γ : L.Ctx} {τ : L.Ty}
 
 @[simp] lemma evalP_zeroProg {EL : ExprLaws L} (env : L.Env Γ) :
-    evalP (zeroProg (EL := EL)) env = (WDist.zero : WDist (L.Val τ)) := by
+    evalP (W := W) (zeroProg (EL := EL)) env = (WDist.zero : WDist W (L.Val τ)) := by
   -- unfold and reduce doBind to WDist.bind, then bind_zero_left
   simp [zeroProg, evalP_sample_bind]
 
 @[simp] lemma toMeasure_evalP_zeroProg {EL : ExprLaws L} [MeasurableSpace (L.Val τ)]
     {env : L.Env Γ} :
-    (evalP (zeroProg (EL := EL) (τ := τ)) env).toMeasure = 0 := by
+    (evalP (W := W) (zeroProg (EL := EL) (τ := τ)) env).toMeasure = 0 := by
   simp
   rfl
 
@@ -78,13 +79,14 @@ section Equivalence
 
 variable {Γ τ} [MeasurableSpace (L.Val τ)]
 
-@[refl] theorem ProgEq.refl (p : PProg Γ τ) : p ≈ p :=
+@[refl] theorem ProgEq.refl (p : PProg (W := W) Γ τ) : p ≈ p :=
   fun _ => rfl
 
-@[symm] theorem ProgEq.symm {p q : PProg Γ τ} (h : p ≈ q) : q ≈ p :=
+@[symm] theorem ProgEq.symm {p q : PProg (W := W) Γ τ} (h : p ≈ q) : q ≈ p :=
   fun env => (h env).symm
 
-@[trans] theorem ProgEq.trans {p q r : PProg Γ τ} (h₁ : p ≈ q) (h₂ : q ≈ r) : p ≈ r :=
+@[trans] theorem ProgEq.trans {p q r : PProg (W := W) Γ τ}
+    (h₁ : p ≈ q) (h₂ : q ≈ r) : p ≈ r :=
   fun env => (h₁ env).trans (h₂ env)
 
 end Equivalence
@@ -101,11 +103,12 @@ variable {Γ τ τ'}
 variable [MeasurableSpace (L.Val τ)]
 
 /-- `ret` is congruent (trivial, but useful for automation). -/
-theorem ProgEq.ret {e : L.Expr Γ τ} : (.ret e : PProg Γ τ) ≈ (.ret e : PProg Γ τ) :=
+theorem ProgEq.ret {e : L.Expr Γ τ} :
+    (.ret e : PProg (W := W) Γ τ) ≈ (.ret e : PProg (W := W) Γ τ) :=
   ProgEq.refl _
 
 /-- `letDet` congruence. -/
-theorem ProgEq.letDet (e : L.Expr Γ τ') (k₁ k₂ : PProg (τ' :: Γ) τ)
+theorem ProgEq.letDet (e : L.Expr Γ τ') (k₁ k₂ : PProg (W := W) (τ' :: Γ) τ)
     (h : k₁ ≈ k₂) :
     (Prog.Prog.letDet e k₁) ≈ (.letDet e k₂) := by
   intro env
@@ -115,7 +118,7 @@ theorem ProgEq.letDet (e : L.Expr Γ τ') (k₁ k₂ : PProg (τ' :: Γ) τ)
   simpa using h (env := (L.eval e env, env))
 
 /-- `observe` congruence. -/
-theorem ProgEq.observe (c : L.Expr Γ L.bool) (k₁ k₂ : PProg Γ τ)
+theorem ProgEq.observe (c : L.Expr Γ L.bool) (k₁ k₂ : PProg (W := W) Γ τ)
     (h : k₁ ≈ k₂) :
     (Prog.Prog.doStmt (.observe c) k₁) ≈ (.doStmt (.observe c) k₂) := by
   intro env
@@ -141,7 +144,7 @@ private lemma foldr_congr
       simp [List.foldr, hfg, ih]
 
 /-- `sample` congruence. -/
-theorem ProgEq.sample (K : Kernel Γ τ') (k₁ k₂ : PProg (τ' :: Γ) τ)
+theorem ProgEq.sample (K : Kernel (W := W) Γ τ') (k₁ k₂ : PProg (W := W) (τ' :: Γ) τ)
     (h : k₁ ≈ k₂) :
     (Prog.Prog.doBind (.sample K) k₁) ≈ (.doBind (.sample K) k₂) := by
   classical
@@ -153,10 +156,10 @@ theorem ProgEq.sample (K : Kernel Γ τ') (k₁ k₂ : PProg (τ' :: Γ) τ)
   rw [WDist.toMeasure_bind, WDist.toMeasure_bind]
   -- the foldr steps coincide pointwise because continuations coincide pointwise
   refine foldr_congr (ws := (K env).weights)
-    (f := fun (vw : (L.Val τ' × NNReal)) μ =>
-      μ + (vw.2 : ℝ≥0∞) • (evalP k₁ (vw.1, env)).toMeasure)
-    (g := fun (vw : (L.Val τ' × NNReal)) μ =>
-      μ + (vw.2 : ℝ≥0∞) • (evalP k₂ (vw.1, env)).toMeasure)
+    (f := fun (vw : (L.Val τ' × W)) μ =>
+      μ + (WeightModel.toENNReal vw.2) • (evalP k₁ (vw.1, env)).toMeasure)
+    (g := fun (vw : (L.Val τ' × W)) μ =>
+      μ + (WeightModel.toENNReal vw.2) • (evalP k₂ (vw.1, env)).toMeasure)
     (z := (0 : Measure (L.Val τ))) ?_
   intro vw μ
   -- use hypothesis at environment (v, env)
@@ -175,7 +178,8 @@ section Laws
 variable {Γ τ τ'} [MeasurableSpace (L.Val τ)]
 
 /-- Sample from Dirac is equivalent to letDet. -/
-theorem ProgEq.sample_dirac_letDet (e : L.Expr Γ τ') (k : PProg (τ' :: Γ) τ) :
+theorem ProgEq.sample_dirac_letDet (e : L.Expr Γ τ')
+    (k : PProg (W := W) (τ' :: Γ) τ) :
     (Prog.Prog.doBind (.sample (fun env => WDist.pure (L.eval e env))) k)
     ≈
     (.letDet e k) := by
@@ -192,9 +196,9 @@ theorem ProgEq.sample_dirac_letDet (e : L.Expr Γ τ') (k : PProg (τ' :: Γ) τ
 variable (EL : ExprLaws L)
 
 /-- Sampling from the zero kernel yields `zeroProg`, regardless of continuation. -/
-theorem ProgEq.sample_zero (k : PProg (τ' :: Γ) τ) :
+theorem ProgEq.sample_zero (k : PProg (W := W) (τ' :: Γ) τ) :
     ProgEq
-      (Prog.Prog.doBind (.sample (fun _ : L.Env Γ => (WDist.zero : WDist (L.Val τ')))) k)
+      (Prog.Prog.doBind (.sample (fun _ : L.Env Γ => (WDist.zero : WDist W (L.Val τ')))) k)
       (zeroProg (EL := EL) (Γ := Γ) (τ := τ)) := by
   intro env
   simp [MeasEq, evalP_sample_bind, zeroProg]
@@ -202,7 +206,7 @@ theorem ProgEq.sample_zero (k : PProg (τ' :: Γ) τ) :
 /-- Observe fusion: `observe c₁; observe c₂` ≈ `observe (c₁ && c₂)` -/
 theorem ProgEq.observe_fuse
     {Γ : L.Ctx} {τ : L.Ty} [MeasurableSpace (L.Val τ)]
-    (c₁ c₂ : L.Expr Γ L.bool) (k : PProg Γ τ) :
+    (c₁ c₂ : L.Expr Γ L.bool) (k : PProg (W := W) Γ τ) :
     (Prog.Prog.doStmt (.observe c₁) (.doStmt (.observe c₂) k))
     ≈
     (.doStmt (.observe (EL.andBool c₁ c₂)) k) := by
@@ -218,7 +222,7 @@ theorem ProgEq.observe_fuse
 /-- Observe true is identity. -/
 theorem ProgEq.observe_true
     {Γ τ} [MeasurableSpace (L.Val τ)]
-    (k : PProg Γ τ) :
+    (k : PProg (W := W) Γ τ) :
     (.doStmt (.observe (EL.constBool true)) k) ≈ k := by
   intro env
   have hev :
@@ -229,7 +233,8 @@ theorem ProgEq.observe_true
   simp [MeasEq, hev]
 
 /-- `observe false; k` is observationally equivalent to `zeroProg`. -/
-theorem ProgEq.observe_false {Γ τ} [MeasurableSpace (L.Val τ)] (k : PProg Γ τ) :
+theorem ProgEq.observe_false {Γ τ} [MeasurableSpace (L.Val τ)]
+    (k : PProg (W := W) Γ τ) :
     ProgEq
       (.doStmt (.observe (EL.constBool false)) k)
       (zeroProg (EL := EL)) := by

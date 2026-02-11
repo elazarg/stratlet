@@ -24,6 +24,8 @@ namespace Proto
 
 open Defs Prog Env
 
+variable {W : Type} [WeightModel W]
+
 -- ============================================================
 -- 1) Direct EU on ParentProtoProg (the "unfolded" bridge)
 -- ============================================================
@@ -35,9 +37,9 @@ open Defs Prog Env
     Uses `WDist.EV` for the sample/choose cases, which enables clean
     composition via `WDist.EV_bind` in the preservation proof. -/
 noncomputable def ParentProtoProg.directEU
-    (σ : Profile (L := BasicLang))
+    (σ : Profile (L := BasicLang) (W := W))
     (u : Proto.Utility (L := BasicLang) τ) (who : Player) :
-    ParentProtoProg (L := BasicLang) Γ τ → BasicLang.Env Γ → ℝ
+    ParentProtoProg W Γ τ → BasicLang.Env Γ → ℝ
   | .ret e, env => u (BasicLang.eval e env) who
   | .letDet e k, env => directEU σ u who k (BasicLang.eval e env, env)
   | .observe _c k, env =>
@@ -59,7 +61,7 @@ noncomputable def ParentProtoProg.directEU
 /-- A `ParentProtoProg` contains no `observe` nodes.
     Under this condition, Proto semantics and EFG semantics agree
     (no mass filtering vs. pass-through mismatch). -/
-def ObserveFree : ParentProtoProg (L := L) Γ τ → Prop
+def ObserveFree : ParentProtoProg W Γ τ → Prop
   | .ret _ => True
   | .letDet _ k => ObserveFree k
   | .observe _ _ => False
@@ -73,7 +75,7 @@ def ObserveFree : ParentProtoProg (L := L) Γ τ → Prop
 /-- Key relationship: `EU_dist` is `WDist.EV` with the utility curried.
     This is definitional — both are `weights.foldr` with the same function. -/
 private theorem EU_dist_eq_EV {τ : BasicLang.Ty}
-    (d : WDist (BasicLang.Val τ)) (u : Proto.Utility (L := BasicLang) τ) (who : Player) :
+    (d : WDist W (BasicLang.Val τ)) (u : Proto.Utility (L := BasicLang) τ) (who : Player) :
     EU_dist d u who = WDist.EV d (fun v => u v who) := rfl
 
 /-- **Main theorem**: For observe-free ParentProtoProgs (no hard conditioning),
@@ -83,9 +85,9 @@ private theorem EU_dist_eq_EV {τ : BasicLang.Ty}
     transparent (pass-through) while Proto's `observe` filters mass.
     For observe-free programs, these agree trivially. -/
 theorem eu_preservation_directEU
-    (σ : Profile (L := BasicLang))
+    (σ : Profile (L := BasicLang) (W := W))
     (u : Proto.Utility (L := BasicLang) τ) (who : Player) :
-    (p : ParentProtoProg (L := BasicLang) Γ τ) → (env : BasicLang.Env Γ) →
+    (p : ParentProtoProg (L := BasicLang) W Γ τ) → (env : BasicLang.Env Γ) →
     ObserveFree p →
     EU_dist (p.eval σ env) u who = p.directEU σ u who env := by
   intro p

@@ -21,6 +21,7 @@ namespace Proto
 open Defs Prog Env
 
 variable {L : Language}
+variable {W : Type} [WeightModel W]
 
 -- ============================================================
 -- Layer 1: Structural — ParentProtoProg → MAID
@@ -29,7 +30,7 @@ variable {L : Language}
 /-- Extract MAID nodes from a `ParentProtoProg`.
     Each `sample` becomes a chance node, each `choose` becomes a decision node.
     Pure control flow (`ret`, `letDet`, `observe`) produces no MAID nodes. -/
-def ParentProtoProg.toMAIDNodes : ParentProtoProg (L := L) Γ τ → List MAID.Node
+def ParentProtoProg.toMAIDNodes : ParentProtoProg W Γ τ → List MAID.Node
   | .ret _ => []
   | .letDet _ k => toMAIDNodes k
   | .observe _ k => toMAIDNodes k
@@ -40,7 +41,7 @@ def ParentProtoProg.toMAIDNodes : ParentProtoProg (L := L) Γ τ → List MAID.N
 
 /-- The ids extracted by `toMAIDNodes` are exactly `yieldIds`. -/
 theorem ParentProtoProg.toMAIDNodes_ids_eq_yieldIds
-    (p : ParentProtoProg (L := L) Γ τ) :
+    (p : ParentProtoProg W Γ τ) :
     (p.toMAIDNodes.map MAID.Node.id) = p.yieldIds := by
   induction p with
   | ret _ => rfl
@@ -55,11 +56,11 @@ theorem ParentProtoProg.toMAIDNodes_ids_eq_yieldIds
 
 /-- All parent references in yield sites point to yield IDs of the program.
     This is the structural precondition for `parents_exist` in the MAID diagram. -/
-def AllParentsAreYieldIds (p : ParentProtoProg (L := L) Γ τ) : Prop :=
+def AllParentsAreYieldIds (p : ParentProtoProg W Γ τ) : Prop :=
   ∀ n ∈ p.toMAIDNodes, ∀ pid ∈ n.parents, pid ∈ p.yieldIds
 
 /-- Convert a `ParentProtoProg` to a MAID Diagram. -/
-def ParentProtoProg.toMAID (p : ParentProtoProg (L := L) Γ τ)
+def ParentProtoProg.toMAID (p : ParentProtoProg W Γ τ)
     (hnd : NoDupYieldIds (embed p))
     (hallp : AllParentsAreYieldIds p)
     (htopo : MAID.TopologicalOrder p.toMAIDNodes) : MAID.Diagram where
@@ -80,7 +81,7 @@ def ParentProtoProg.toMAID (p : ParentProtoProg (L := L) Γ τ)
 
 /-- For all `choose` sites, the action list has no duplicates
     for all reachable observations. -/
-def NodupActions : ParentProtoProg (L := L) Γ τ → Prop
+def NodupActions : ParentProtoProg (L := L) W Γ τ → Prop
   | .ret _ => True
   | .letDet _ k => NodupActions k
   | .observe _ k => NodupActions k
@@ -90,7 +91,7 @@ def NodupActions : ParentProtoProg (L := L) Γ τ → Prop
 
 /-- For all `choose` sites, the action list is non-empty
     for all reachable observations. -/
-def NonEmptyActions : ParentProtoProg (L := L) Γ τ → Prop
+def NonEmptyActions : ParentProtoProg (L := L) W Γ τ → Prop
   | .ret _ => True
   | .letDet _ k => NonEmptyActions k
   | .observe _ k => NonEmptyActions k
@@ -99,11 +100,12 @@ def NonEmptyActions : ParentProtoProg (L := L) Γ τ → Prop
       (∀ obs : L.Env (viewOfVarSpec ps.vars).Δ, (A obs) ≠ []) ∧ NonEmptyActions k
 
 /-- Convert a `ParentProtoProg` to an `EFG.GameTree`.
+    Specialized to `W = NNReal` because `EFG.GameTree` uses `NNReal` for chance weights.
     Scoped to the bool-only fragment with `BasicLang`.
     The utility function maps terminal values to player payoffs. -/
 def ParentProtoProg.toEFG
     (u : Proto.Utility (L := BasicLang) τ) :
-    ParentProtoProg (L := BasicLang) Γ τ → BasicLang.Env Γ → EFG.GameTree Nat
+    ParentProtoProg (W := NNReal) (L := BasicLang) Γ τ → BasicLang.Env Γ → EFG.GameTree Nat
   | .ret e, env =>
       .terminal (u (BasicLang.eval e env))
   | .letDet e k, env =>
@@ -132,10 +134,10 @@ def ParentProtoProg.toEFG
 
 /-- The resulting EFG tree is well-formed under appropriate conditions. -/
 theorem toEFG_wfTree
-    (p : ParentProtoProg (L := BasicLang) Γ τ)
+    (p : ParentProtoProg (W := NNReal) (L := BasicLang) Γ τ)
     (u : Proto.Utility (L := BasicLang) τ) (env : BasicLang.Env Γ)
-    (hnd : NodupActions p)
-    (hne : NonEmptyActions p)
+    (hnd : NodupActions (L := BasicLang) p)
+    (hne : NonEmptyActions (L := BasicLang) p)
     (hwf : WFChanceOnProg ReachAll (ParentProtoProg.embed p)) :
     EFG.WFTree (p.toEFG u env) := by
   induction p with

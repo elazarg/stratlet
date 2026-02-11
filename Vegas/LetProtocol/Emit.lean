@@ -28,6 +28,7 @@ namespace Emit
 open Defs Prog Proto
 
 variable {L : Language}
+variable {W : Type} [WeightModel W]
 
 -- ============================================================
 -- 1) Trace type
@@ -50,7 +51,7 @@ inductive CmdStmtEv (Ev : Type) : Prog.CmdS (L := L) where
 
 /-- Event-emitting protocol programs. -/
 abbrev EProtoProg (Ev : Type) : L.Ctx → L.Ty → Type :=
-  Prog.Prog CmdBindProto (CmdStmtEv Ev)
+  Prog.Prog (CmdBindProto W) (CmdStmtEv Ev)
 
 -- ============================================================
 -- 3) Smart constructors
@@ -59,34 +60,34 @@ abbrev EProtoProg (Ev : Type) : L.Ctx → L.Ty → Type :=
 namespace EProtoProg
 
 /-- Smart constructor: return. -/
-def ret {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} (e : L.Expr Γ τ) : EProtoProg Ev Γ τ :=
+def ret {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} (e : L.Expr Γ τ) : EProtoProg (W := W) Ev Γ τ :=
   Prog.Prog.ret e
 
 /-- Smart constructor: deterministic let-binding. -/
 def letDet {Ev : Type} {Γ : L.Ctx} {τ τ' : L.Ty} (e : L.Expr Γ τ')
-    (k : EProtoProg Ev (τ' :: Γ) τ) : EProtoProg Ev Γ τ :=
+    (k : EProtoProg (W := W) Ev (τ' :: Γ) τ) : EProtoProg (W := W) Ev Γ τ :=
   Prog.Prog.letDet e k
 
 /-- Smart constructor: hard observation / conditioning. -/
 def observe {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} (cond : L.Expr Γ L.bool)
-    (k : EProtoProg Ev Γ τ) : EProtoProg Ev Γ τ :=
+    (k : EProtoProg (W := W) Ev Γ τ) : EProtoProg (W := W) Ev Γ τ :=
   .doStmt (.observe cond) k
 
 /-- Smart constructor: emit an event. -/
 def emit {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} (f : L.Env Γ → Ev)
-    (k : EProtoProg Ev Γ τ) : EProtoProg Ev Γ τ :=
+    (k : EProtoProg (W := W) Ev Γ τ) : EProtoProg (W := W) Ev Γ τ :=
   .doStmt (.emit f) k
 
 /-- Smart constructor: chance sample yield. -/
 def sample {Ev : Type} {Γ : L.Ctx} {τ τ' : L.Ty}
-    (id : YieldId) (v : View Γ) (K : ObsKernel v τ')
-    (k : EProtoProg Ev (τ' :: Γ) τ) : EProtoProg Ev Γ τ :=
+    (id : YieldId) (v : View Γ) (K : ObsKernel (W := W) v τ')
+    (k : EProtoProg (W := W) Ev (τ' :: Γ) τ) : EProtoProg (W := W) Ev Γ τ :=
   .doBind (.sample id v K) k
 
 /-- Smart constructor: player decision yield. -/
 def choose {Ev : Type} {Γ : L.Ctx} {τ τ' : L.Ty}
     (id : YieldId) (who : Player) (v : View Γ) (A : Act v τ')
-    (k : EProtoProg Ev (τ' :: Γ) τ) : EProtoProg Ev Γ τ :=
+    (k : EProtoProg (W := W) Ev (τ' :: Γ) τ) : EProtoProg (W := W) Ev Γ τ :=
   .doBind (.choose id who v A) k
 
 end EProtoProg
@@ -96,14 +97,14 @@ end EProtoProg
 -- ============================================================
 
 /-- The traced WDist type: pairs values with event traces. -/
-abbrev TracedWDist (Ev : Type) (α : Type) := WDist (α × Trace Ev)
+abbrev TracedWDist (Ev : Type) (α : Type) := WDist W (α × Trace Ev)
 
 /-- Effect interface for the traced monad.
 - pure: value with empty trace
 - bind: sequence computations, concatenating traces
 - fail: zero distribution
 -/
-def TracedEff (Ev : Type) : Prog.Eff (TracedWDist Ev) where
+def TracedEff (Ev : Type) : Prog.Eff (TracedWDist (W := W) Ev) where
   pure x := WDist.pure (x, [])
   bind m f := WDist.bind m (fun (v, tr1) =>
     WDist.map (fun (v', tr2) => (v', tr1 ++ tr2)) (f v))
@@ -121,9 +122,9 @@ Interpreter for `EProtoProg` under a fixed profile.
 - `observe` is hard rejection (zero mass) or success with empty trace
 - `emit f` succeeds with singleton trace `[f env]`
 -/
-def EProtoSem (Ev : Type) (σ : Profile (L := L)) :
-    Prog.LangSem (L := L) CmdBindProto (CmdStmtEv Ev) (TracedWDist Ev) where
-  E := TracedEff Ev
+def EProtoSem (Ev : Type) (σ : Profile (L := L) (W := W)) :
+    Prog.LangSem (L := L) (CmdBindProto W) (CmdStmtEv Ev) (TracedWDist (W := W) Ev) where
+  E := TracedEff (W := W) Ev
   handleBind
     | .sample _id v K, env => WDist.map (fun x => (x, [])) (K (v.proj env))
     | .choose _id who v A, env => WDist.map (fun x => (x, [])) (σ.choose who _id v A (v.proj env))
@@ -133,9 +134,9 @@ def EProtoSem (Ev : Type) (σ : Profile (L := L)) :
     | .emit f, env => WDist.pure ((), [f env])
 
 /-- Evaluate an `EProtoProg` under profile `σ`. -/
-def evalEProto {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} (σ : Profile (L := L)) :
-    EProtoProg Ev Γ τ → L.Env Γ → TracedWDist Ev (L.Val τ) :=
-  Prog.evalWith (EProtoSem Ev σ)
+def evalEProto {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} (σ : Profile (L := L) (W := W)) :
+    EProtoProg (W := W) Ev Γ τ → L.Env Γ → TracedWDist (W := W) Ev (L.Val τ) :=
+  Prog.evalWith (EProtoSem (W := W) Ev σ)
 
 -- ============================================================
 -- 6) Lifting from ProtoProg to EProtoProg
@@ -144,7 +145,7 @@ def evalEProto {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} (σ : Profile (L := L)) :
 /-- Lift a plain `ProtoProg` into `EProtoProg` (no events emitted).
 Maps `CmdStmtProto.observe` to `CmdStmtEv.observe`. -/
 def liftProto {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} :
-    ProtoProg (L := L) Γ τ → EProtoProg (L := L) Ev Γ τ
+    ProtoProg (L := L) (W := W) Γ τ → EProtoProg (L := L) (W := W) Ev Γ τ
   | .ret e => .ret e
   | .letDet e k => .letDet e (liftProto k)
   | .doStmt s k =>
@@ -159,8 +160,8 @@ def liftProto {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} :
 /-- Apply a partial profile to an `EProtoProg`: resolve `choose` sites
 where the profile provides a strategy (identical to `applyProfile` but
 for `EProtoProg`). Both `observe` and `emit` pass through unchanged. -/
-def applyProfileE (π : PProfile (L := L)) {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} :
-    EProtoProg Ev Γ τ → EProtoProg Ev Γ τ
+def applyProfileE (π : PProfile (L := L) (W := W)) {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} :
+    EProtoProg (W := W) Ev Γ τ → EProtoProg (W := W) Ev Γ τ
   | .ret e => .ret e
   | .letDet e k => .letDet e (applyProfileE π k)
   | .doStmt s k => .doStmt s (applyProfileE π k)
@@ -176,7 +177,7 @@ def applyProfileE (π : PProfile (L := L)) {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} 
               .doBind (.choose id who v A) (applyProfileE π k)
 
 /-- Predicate: EProtoProg has no remaining decision yields. -/
-def NoChooseE {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} : EProtoProg (L := L) Ev Γ τ → Prop
+def NoChooseE {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} : EProtoProg (L := L) (W := W) Ev Γ τ → Prop
   | .ret _ => True
   | .letDet _ k => NoChooseE k
   | .doStmt _ k => NoChooseE k
@@ -190,8 +191,8 @@ def NoChooseE {Ev : Type} {Γ : L.Ctx} {τ : L.Ty} : EProtoProg (L := L) Ev Γ �
 -- ============================================================
 
 /-- Program-relative well-formedness for EProtoProg (mirrors Proto.WFOnProg). -/
-def WFOnProgE {Ev : Type} (Reach : ReachSpec (L := L)) (σ : Profile (L := L)) :
-    {Γ : L.Ctx} → {τ : L.Ty} → EProtoProg Ev Γ τ → Prop
+def WFOnProgE {Ev : Type} (Reach : ReachSpec (L := L)) (σ : Profile (L := L) (W := W)) :
+    {Γ : L.Ctx} → {τ : L.Ty} → EProtoProg (W := W) Ev Γ τ → Prop
   | _Γ, _τ, .ret _ => True
   | _Γ, _τ, .letDet _ k => WFOnProgE Reach σ k
   | _Γ, _τ, .doStmt _ k => WFOnProgE Reach σ k

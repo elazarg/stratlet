@@ -19,6 +19,7 @@ namespace Proto
 open Defs Prog Env
 
 variable {L : Language}
+variable {W : Type} [WeightModel W]
 
 -- ============================================================
 -- 1) ParentSpec: which yields are visible
@@ -89,21 +90,21 @@ structure ParentSite (Γ : L.Ctx) where
 A `ParentProtoProg` mirrors `ProtoProg` but carries `ParentSite` instead of
 raw `View` at each yield site. This is the "separate inductive" approach.
 -/
-inductive ParentProtoProg : L.Ctx → L.Ty → Type where
-  | ret : L.Expr Γ τ → ParentProtoProg Γ τ
-  | letDet : L.Expr Γ τ' → ParentProtoProg (τ' :: Γ) τ → ParentProtoProg Γ τ
-  | observe : L.Expr Γ L.bool → ParentProtoProg Γ τ → ParentProtoProg Γ τ
+inductive ParentProtoProg (W : Type) [WeightModel W] : L.Ctx → L.Ty → Type where
+  | ret : L.Expr Γ τ → ParentProtoProg W Γ τ
+  | letDet : L.Expr Γ τ' → ParentProtoProg W (τ' :: Γ) τ → ParentProtoProg W Γ τ
+  | observe : L.Expr Γ L.bool → ParentProtoProg W Γ τ → ParentProtoProg W Γ τ
   | sample : YieldId → (ps : ParentSite Γ) →
-      ObsKernel (viewOfVarSpec ps.vars) τ' →
-      ParentProtoProg (τ' :: Γ) τ → ParentProtoProg Γ τ
+      ObsKernel (W := W) (viewOfVarSpec ps.vars) τ' →
+      ParentProtoProg W (τ' :: Γ) τ → ParentProtoProg W Γ τ
   | choose : YieldId → Player → (ps : ParentSite Γ) →
       Act (viewOfVarSpec ps.vars) τ' →
-      ParentProtoProg (τ' :: Γ) τ → ParentProtoProg Γ τ
+      ParentProtoProg W (τ' :: Γ) τ → ParentProtoProg W Γ τ
 
 namespace ParentProtoProg
 
 /-- Embed a `ParentProtoProg` into a `ProtoProg` by forgetting parent info. -/
-def embed : ParentProtoProg Γ τ → ProtoProg Γ τ
+def embed : ParentProtoProg W Γ τ → ProtoProg (W := W) Γ τ
   | .ret e => .ret e
   | .letDet e k => .letDet e (embed k)
   | .observe c k => ProtoProg.observe c (embed k)
@@ -113,12 +114,12 @@ def embed : ParentProtoProg Γ τ → ProtoProg Γ τ
       ProtoProg.choose id who (viewOfVarSpec ps.vars) A (embed k)
 
 /-- Evaluate a `ParentProtoProg` under a profile, via embedding. -/
-def eval (σ : Profile (L := L)) (p : ParentProtoProg Γ τ) (env : L.Env Γ) :
-    WDist (L.Val τ) :=
+def eval (σ : Profile (L := L) (W := W)) (p : ParentProtoProg W Γ τ) (env : L.Env Γ) :
+    WDist W (L.Val τ) :=
   evalProto σ (embed p) env
 
 /-- Collect yield ids from a `ParentProtoProg`. -/
-def yieldIds : ParentProtoProg Γ τ → List YieldId
+def yieldIds : ParentProtoProg W Γ τ → List YieldId
   | .ret _ => []
   | .letDet _ k => yieldIds k
   | .observe _ k => yieldIds k
@@ -126,7 +127,7 @@ def yieldIds : ParentProtoProg Γ τ → List YieldId
   | .choose id _ _ _ k => id :: yieldIds k
 
 /-- Collect parent specs from a `ParentProtoProg`. -/
-def parentSpecs : ParentProtoProg Γ τ → List ParentSpec
+def parentSpecs : ParentProtoProg W Γ τ → List ParentSpec
   | .ret _ => []
   | .letDet _ k => parentSpecs k
   | .observe _ k => parentSpecs k
@@ -134,7 +135,7 @@ def parentSpecs : ParentProtoProg Γ τ → List ParentSpec
   | .choose _ _ ps _ k => ps.parents :: parentSpecs k
 
 /-- A `ParentProtoProg` has no remaining decision yields. -/
-def noChoose : ParentProtoProg Γ τ → Prop
+def noChoose : ParentProtoProg W Γ τ → Prop
   | .ret _ => True
   | .letDet _ k => noChoose k
   | .observe _ k => noChoose k
@@ -152,7 +153,7 @@ Predicate on a `ProtoProg`: every `View` at a yield site is
 the `viewOfVarSpec` of some `VarSpec`. This characterizes
 "parent-derivable" programs without requiring a separate syntax.
 -/
-def IsParentDerived : ProtoProg (L := L) Γ τ → Prop
+def IsParentDerived : ProtoProg (L := L) (W := W) Γ τ → Prop
   | .ret _ => True
   | .letDet _ k => IsParentDerived k
   | .doStmt _ k => IsParentDerived k
@@ -170,7 +171,7 @@ def IsParentDerived : ProtoProg (L := L) Γ τ → Prop
 
 /-- Every `ParentProtoProg` embeds to a parent-derived `ProtoProg`. -/
 theorem ParentProtoProg.embed_isParentDerived
-    (p : ParentProtoProg Γ τ) :
+    (p : ParentProtoProg W Γ τ) :
     IsParentDerived (ParentProtoProg.embed p) := by
   induction p with
   | ret _ => trivial
@@ -183,7 +184,7 @@ theorem ParentProtoProg.embed_isParentDerived
 
 /-- NoChoose is preserved by embedding. -/
 theorem ParentProtoProg.noChoose_iff_embed
-    (p : ParentProtoProg Γ τ) :
+    (p : ParentProtoProg W Γ τ) :
     p.noChoose ↔ NoChoose (ParentProtoProg.embed p) := by
   induction p with
   | ret _ =>
@@ -206,7 +207,7 @@ theorem ParentProtoProg.noChoose_iff_embed
 
 /-- Yield ids of embedded program match. -/
 theorem ParentProtoProg.yieldIds_embed
-    (p : ParentProtoProg Γ τ) :
+    (p : ParentProtoProg W Γ τ) :
     Proto.yieldIds (ParentProtoProg.embed p) = p.yieldIds := by
   induction p with
   | ret _ => rfl

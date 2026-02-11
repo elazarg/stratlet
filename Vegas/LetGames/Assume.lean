@@ -22,6 +22,7 @@ namespace Assume
 open Defs Prog Proto Emit
 
 variable {L : Language}
+variable {W : Type} [WeightModel W]
 
 -- ============================================================
 -- 1) GameEvent: event with inline payoff
@@ -38,12 +39,12 @@ structure GameEvent where
 -- ============================================================
 
 /-- Game programs: EProtoProg parameterized by GameEvent. -/
-abbrev GameProg (L : Language) (Γ : L.Ctx) (τ : L.Ty) :=
-  EProtoProg (L := L) GameEvent Γ τ
+abbrev GameProg (L : Language) (W : Type) [WeightModel W] (Γ : L.Ctx) (τ : L.Ty) :=
+  EProtoProg (L := L) (W := W) GameEvent Γ τ
 
 /-- Game distributions: traced WDist over GameEvent. -/
-abbrev GameDist (L : Language) (τ : L.Ty) :=
-  TracedWDist GameEvent (L.Val τ)
+abbrev GameDist (L : Language) (W : Type) [WeightModel W] (τ : L.Ty) :=
+  TracedWDist (W := W) GameEvent (L.Val τ)
 
 -- ============================================================
 -- 3) Smart constructor: emit with name + payoff
@@ -53,7 +54,7 @@ abbrev GameDist (L : Language) (τ : L.Ty) :=
 def GameProg.emit {Γ : L.Ctx} {τ : L.Ty}
     (name : L.Env Γ → String)
     (payoff : L.Env Γ → Player → Real)
-    (k : GameProg L Γ τ) : GameProg L Γ τ :=
+    (k : GameProg L W Γ τ) : GameProg L W Γ τ :=
   EProtoProg.emit (fun env => ⟨name env, payoff env⟩) k
 
 -- ============================================================
@@ -66,16 +67,16 @@ def tracePayoff (tr : Trace GameEvent) (who : Player) : Real :=
 
 /-- Expected utility from a traced game distribution. -/
 noncomputable def EU_game {τ : L.Ty}
-    (d : GameDist L τ) (who : Player) : Real :=
+    (d : GameDist L W τ) (who : Player) : Real :=
   d.weights.foldr
-    (fun (xw : (L.Val τ × Trace GameEvent) × NNReal) acc =>
-      acc + (xw.2 : Real) * tracePayoff xw.1.2 who)
+    (fun (xw : (L.Val τ × Trace GameEvent) × W) acc =>
+      acc + WeightModel.toReal xw.2 * tracePayoff xw.1.2 who)
     0
 
 /-- Expected utility of a game program under a profile. -/
 noncomputable def EU {Γ : L.Ctx} {τ : L.Ty}
-    (p : GameProg L Γ τ)
-    (σ : Profile (L := L)) (env : L.Env Γ) (who : Player) : Real :=
+    (p : GameProg L W Γ τ)
+    (σ : Profile (L := L) (W := W)) (env : L.Env Γ) (who : Player) : Real :=
   EU_game (evalEProto σ p env) who
 
 -- ============================================================
@@ -86,18 +87,18 @@ noncomputable def EU {Γ : L.Ctx} {τ : L.Ty}
 Both σ and deviated profiles must satisfy `WFOnProgE`. -/
 def IsNash_WF {Γ : L.Ctx} {τ : L.Ty}
     (Reach : ReachSpec (L := L))
-    (p : GameProg L Γ τ)
-    (σ : Profile (L := L))
+    (p : GameProg L W Γ τ)
+    (σ : Profile (L := L) (W := W))
     (env : L.Env Γ) : Prop :=
   WFOnProgE Reach σ p ∧
-  ∀ (who : Player) (δ : Deviator (L := L) who),
+  ∀ (who : Player) (δ : Deviator (L := L) (W := W) who),
     WFOnProgE Reach (Profile.applyDev σ δ) p →
       EU p σ env who ≥ EU p (Profile.applyDev σ δ) env who
 
 /-- Default Nash: all environments reachable. -/
 def IsNash {Γ : L.Ctx} {τ : L.Ty}
-    (p : GameProg L Γ τ)
-    (σ : Profile (L := L))
+    (p : GameProg L W Γ τ)
+    (σ : Profile (L := L) (W := W))
     (env : L.Env Γ) : Prop :=
   IsNash_WF ReachAll p σ env
 
@@ -106,10 +107,10 @@ def IsNash {Γ : L.Ctx} {τ : L.Ty}
 -- ============================================================
 
 @[simp] lemma evalEProto_gameEmit {Γ : L.Ctx} {τ : L.Ty}
-    (σ : Profile (L := L))
+    (σ : Profile (L := L) (W := W))
     (name : L.Env Γ → String)
     (payoff : L.Env Γ → Player → Real)
-    (k : GameProg L Γ τ) (env : L.Env Γ) :
+    (k : GameProg L W Γ τ) (env : L.Env Γ) :
     evalEProto σ (GameProg.emit name payoff k) env =
       WDist.map (fun (v, tr) => (v, ⟨name env, payoff env⟩ :: tr))
         (evalEProto σ k env) :=

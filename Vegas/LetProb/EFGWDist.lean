@@ -14,7 +14,7 @@ namespace EFG
 /-- Evaluate a game tree under a behavioral strategy with bounded recursion depth,
     returning a `WDist` over payoff functions. -/
 noncomputable def GameTree.evalWDistAux {ι : Type}
-    (σ : BehavioralStrategy) : Nat → GameTree ι → WDist (ι → ℝ)
+    (σ : BehavioralStrategy) : Nat → GameTree ι → WDist NNReal (ι → ℝ)
   | _, .terminal payoff => WDist.pure payoff
   | 0, _ => WDist.zero
   | n + 1, .chance branches =>
@@ -28,7 +28,7 @@ noncomputable def GameTree.evalWDistAux {ι : Type}
 
 /-- Evaluate with sufficient fuel (1000 levels deep). -/
 noncomputable def GameTree.evalWDist {ι : Type}
-    (σ : BehavioralStrategy) (t : GameTree ι) : WDist (ι → ℝ) :=
+    (σ : BehavioralStrategy) (t : GameTree ι) : WDist NNReal (ι → ℝ) :=
   GameTree.evalWDistAux σ 1000 t
 
 @[simp] theorem evalWDist_terminal {ι : Type} (σ : BehavioralStrategy) (payoff : ι → ℝ) :

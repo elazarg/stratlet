@@ -12,6 +12,7 @@ variable {L : Language}
 
 attribute [instance] Language.decEqTy Language.decEqVal
 
+variable {W : Type} [WeightModel W]
 
 -- DESIGN NOTE: Kernels are history-dependent via `Env`;
 --              strategies and sampling may depend on the current state.
@@ -19,33 +20,34 @@ attribute [instance] Language.decEqTy Language.decEqVal
 --              this is a parameter of the semantics / compilation layer.
 /-- A (finite-support) stochastic kernel from environments. -/
 abbrev Kernel (Γ : L.Ctx) (τ : L.Ty) :=
-  L.Env Γ → WDist (L.Val τ)
+  L.Env Γ → WDist W (L.Val τ)
 
-/-- Effect interface instance for `WDist`. -/
-def EffWDist : Prog.Eff WDist where
+/-- Effect interface instance for `WDist W`. -/
+def EffWDist : Prog.Eff (WDist W) where
   pure := WDist.pure
   bind := WDist.bind
   fail := WDist.zero
 
 @[simp] lemma WDist_pure_weights (x : α) :
-  (WDist.pure x).weights = [(x, 1)] := rfl
+  (WDist.pure x : WDist W α).weights = [(x, 1)] := rfl
 
+omit [WeightModel W] in
 @[simp] lemma WDist_zero_weights :
-  (WDist.zero : WDist α).weights = [] := rfl
+  (WDist.zero : WDist W α).weights = [] := rfl
 
 /-- Bind-commands for the probabilistic language: sampling from a kernel. -/
-inductive CmdBindP : Prog.CmdB (L := L) where
-  | sample {Γ : L.Ctx} {τ : L.Ty} (K : Kernel Γ τ) : CmdBindP Γ τ
+inductive CmdBindP (W : Type) [WeightModel W] : Prog.CmdB (L := L) where
+  | sample {Γ : L.Ctx} {τ : L.Ty} (K : L.Env Γ → WDist W (L.Val τ)) : CmdBindP W Γ τ
 
 /-- Statement-commands: hard evidence / rejection. -/
 abbrev CmdStmtP : Prog.CmdS (L := L) := Prog.CmdStmtObs
 
 /-- Probabilistic programs are `Prog` instantiated with these commands. -/
 abbrev PProg : L.Ctx → L.Ty → Type :=
-  Prog.Prog (CB := CmdBindP) (CS := CmdStmtP)
+  Prog.Prog (CB := CmdBindP W) (CS := CmdStmtP)
 
 /-- Pack the semantics as a `LangSem`. -/
-def ProbSem : Prog.LangSem (CmdBindP) (CmdStmtP (L := L)) WDist where
+def ProbSem : Prog.LangSem (CmdBindP W) (CmdStmtP (L := L)) (WDist W) where
   E := EffWDist
   handleBind
     | .sample K, env => K env
@@ -56,19 +58,20 @@ def ProbSem : Prog.LangSem (CmdBindP) (CmdStmtP (L := L)) WDist where
 
 @[simp] theorem ProbSem_handleBind_sample
     {Γ : L.Ctx} {τ : L.Ty}
-    (K : Kernel Γ τ) (env : L.Env Γ) :
-    (ProbSem |>.handleBind (CmdBindP.sample (Γ := Γ) (τ := τ) K) env) = K env := rfl
+    (K : L.Env Γ → WDist W (L.Val τ)) (env : L.Env Γ) :
+    (ProbSem |>.handleBind (CmdBindP.sample (W := W) (Γ := Γ) (τ := τ) K) env) = K env := rfl
 
 @[simp] theorem ProbSem_handleStmt_observe
     {Γ : L.Ctx}
     (cond : L.Expr Γ L.bool) (env : L.Env Γ) :
-    (ProbSem |>.handleStmt (Prog.CmdStmtObs.observe (Γ := Γ) cond) env) =
+    ((ProbSem (W := W)) |>.handleStmt (Prog.CmdStmtObs.observe (Γ := Γ) cond) env) =
       (if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero) := rfl
 
 /-- Evaluator for probabilistic programs. -/
-def evalP {Γ : L.Ctx} {τ : L.Ty} :
-    PProg Γ τ → L.Env Γ → WDist (L.Val τ) :=
-  Prog.evalWith (ProbSem)
+def evalP {Γ : L.Ctx} {τ : L.Ty}
+    (p : Prog.Prog (CB := CmdBindP W) (CS := CmdStmtP) Γ τ)
+    (env : L.Env Γ) : WDist W (L.Val τ) :=
+  Prog.evalWith (ProbSem (W := W)) p env
 
 end
 

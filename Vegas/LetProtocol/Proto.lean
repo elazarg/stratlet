@@ -35,6 +35,7 @@ open Defs
 open Prog
 
 variable {L : Language}
+variable {W : Type} [WeightModel W]
 
 -- ============================================================
 -- 1) Stable yield identifiers
@@ -66,7 +67,7 @@ abbrev Act {Γ : L.Ctx} (v : View Γ) (τ : L.Ty) : Type :=
 
 /-- Chance kernel at a sample yield: depends only on the visible env. -/
 abbrev ObsKernel {Γ : L.Ctx} (v : View Γ) (τ : L.Ty) : Type :=
-  L.Env v.Δ → WDist (L.Val τ)
+  L.Env v.Δ → WDist W (L.Val τ)
 
 -- ============================================================
 -- 3) ProtoProg syntax: chance vs decision yields + observe
@@ -80,47 +81,47 @@ Bind-commands for protocol-with-yields.
 
 Both carry a `YieldId` intended to be the *semantic identity* of the node.
 -/
-inductive CmdBindProto : Prog.CmdB where
+inductive CmdBindProto (W : Type) [WeightModel W] : Prog.CmdB where
   | sample {Γ : L.Ctx} {τ : L.Ty}
-      (id : YieldId) (v : View Γ) (K : ObsKernel v τ) :
-      CmdBindProto Γ τ
+      (id : YieldId) (v : View Γ) (K : L.Env v.Δ → WDist W (L.Val τ)) :
+      CmdBindProto W Γ τ
   | choose {Γ : L.Ctx} {τ : L.Ty}
       (id : YieldId) (who : Player) (v : View Γ) (A : Act v τ) :
-      CmdBindProto Γ τ
+      CmdBindProto W Γ τ
 
 /-- Statements: reuse unnormalized `observe` from `Prog`. -/
 abbrev CmdStmtProto : Prog.CmdS (L := L) := Prog.CmdStmtObs
 
 /-- Protocol programs are `Prog.Prog` instantiated with `CmdBindProto` + `observe`. -/
 abbrev ProtoProg : L.Ctx → L.Ty → Type :=
-  Prog.Prog CmdBindProto CmdStmtProto
+  Prog.Prog (CmdBindProto W) CmdStmtProto
 
 namespace ProtoProg
 
 /-- Smart constructor: return. -/
-def ret {Γ : L.Ctx} {τ : L.Ty} (e : L.Expr Γ τ) : ProtoProg Γ τ :=
+def ret {Γ : L.Ctx} {τ : L.Ty} (e : L.Expr Γ τ) : ProtoProg (W := W) Γ τ :=
   Prog.Prog.ret e
 
 /-- Smart constructor: deterministic let-binding. -/
 def letDet {Γ : L.Ctx} {τ τ' : L.Ty} (e : L.Expr Γ τ')
-    (k : ProtoProg (τ' :: Γ) τ) : ProtoProg Γ τ :=
+    (k : ProtoProg (W := W) (τ' :: Γ) τ) : ProtoProg (W := W) Γ τ :=
   Prog.Prog.letDet e k
 
 /-- Smart constructor: hard observation / conditioning (unnormalized). -/
 def observe {Γ : L.Ctx} {τ : L.Ty} (cond : L.Expr Γ L.bool)
-    (k : ProtoProg Γ τ) : ProtoProg Γ τ :=
+    (k : ProtoProg (W := W) Γ τ) : ProtoProg (W := W) Γ τ :=
   .doStmt (.observe cond) k
 
 /-- Smart constructor: chance sample yield. -/
 def sample {Γ : L.Ctx} {τ τ' : L.Ty}
-    (id : YieldId) (v : View Γ) (K : ObsKernel v τ')
-    (k : ProtoProg (τ' :: Γ) τ) : ProtoProg Γ τ :=
+    (id : YieldId) (v : View Γ) (K : ObsKernel (W := W) v τ')
+    (k : ProtoProg (W := W) (τ' :: Γ) τ) : ProtoProg (W := W) Γ τ :=
   .doBind (.sample id v K) k
 
 /-- Smart constructor: player decision yield. -/
 def choose {Γ : L.Ctx} {τ τ' : L.Ty}
     (id : YieldId) (who : Player) (v : View Γ) (A : Act v τ')
-    (k : ProtoProg (τ' :: Γ) τ) : ProtoProg Γ τ :=
+    (k : ProtoProg (W := W) (τ' :: Γ) τ) : ProtoProg (W := W) Γ τ :=
   .doBind (.choose id who v A) k
 
 end ProtoProg
@@ -135,7 +136,7 @@ Decision resolver / strategy profile (milestone shape).
 Strategy may depend on:
 - player `who`
 - stable yield id `id`
-- the site’s `View` and offered action set `A`
+- the site's `View` and offered action set `A`
 - the visible env `Env v.Δ`
 
 This avoids infosets/perfect-recall machinery while keeping deviations well-scoped by `id`.
@@ -144,14 +145,14 @@ structure Profile where
   choose :
     {Γ : L.Ctx} → {τ : L.Ty} →
       (who : Player) → (id : YieldId) → (v : View Γ) → (A : Act v τ) →
-      (L.Env v.Δ → WDist (L.Val τ))
+      (L.Env v.Δ → WDist W (L.Val τ))
 
 -- ============================================================
 -- 5) Semantics into WDist (fixing a profile)
 -- ============================================================
 
-/-- `WDist` effect interface (reuse ProbLet’s). -/
-abbrev EffWDist : Prog.Eff WDist := Prob.EffWDist
+/-- `WDist` effect interface (reuse ProbLet's). -/
+abbrev EffWDist : Prog.Eff (WDist W) := Prob.EffWDist
 
 /--
 Interpreter for `ProtoProg` under a fixed profile.
@@ -160,8 +161,8 @@ Interpreter for `ProtoProg` under a fixed profile.
 - `choose` delegates to the profile and passes only the projected env.
 - `observe` is hard rejection (zero mass).
 -/
-def ProtoSem (σ : Profile (L := L)) :
-    Prog.LangSem (L := L) CmdBindProto CmdStmtProto WDist where
+def ProtoSem (σ : Profile (L := L) (W := W)) :
+    Prog.LangSem (L := L) (CmdBindProto W) CmdStmtProto (WDist W) where
   E := EffWDist
   handleBind
     | .sample _id v K, env      => K (v.proj env)
@@ -171,14 +172,14 @@ def ProtoSem (σ : Profile (L := L)) :
         if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero
 
 @[simp] lemma ProtoSem_handleBind_sample
-    (σ : Profile)
+    (σ : Profile (L := L) (W := W))
     {Γ : L.Ctx} {τ : L.Ty}
     (id : YieldId) (v : View Γ) (K : ObsKernel v τ)
     (env : L.Env Γ) :
     (ProtoSem σ).handleBind (.sample id v K) env = K (v.proj env) := rfl
 
 @[simp] lemma ProtoSem_handleBind_choose
-    (σ : Profile)
+    (σ : Profile (L := L) (W := W))
     {Γ : L.Ctx} {τ : L.Ty}
     (id : YieldId) (who : Player) (v : View Γ) (A : Act v τ)
     (env : L.Env Γ) :
@@ -186,7 +187,7 @@ def ProtoSem (σ : Profile (L := L)) :
       σ.choose who id v A (v.proj env) := rfl
 
 @[simp] lemma ProtoSem_handleStmt_observe
-    (σ : Profile)
+    (σ : Profile (L := L) (W := W))
     {Γ : L.Ctx}
     (cond : L.Expr Γ L.bool)
     (env : L.Env Γ) :
@@ -194,8 +195,8 @@ def ProtoSem (σ : Profile (L := L)) :
       (if L.toBool (L.eval cond env) then WDist.pure () else WDist.zero) := rfl
 
 /-- Evaluate a `ProtoProg` under profile `σ`. -/
-def evalProto {Γ : L.Ctx} {τ : L.Ty} (σ : Profile (L := L)) :
-    ProtoProg Γ τ → L.Env Γ → WDist (L.Val τ) :=
+def evalProto {Γ : L.Ctx} {τ : L.Ty} (σ : Profile (L := L) (W := W)) :
+    ProtoProg (W := W) Γ τ → L.Env Γ → WDist W (L.Val τ) :=
   Prog.evalWith (ProtoSem σ)
 
 -- ============================================================
@@ -209,14 +210,14 @@ Modeling assumption:
 - Partiality represents "strategy not chosen/committed yet" (or intentionally left symbolic),
   NOT runtime failure. If you want runtime failure, return `WDist.zero` instead of `none`.
 -/
-structure PProfile (L := L) where
+structure PProfile where
   choose? :
     {Γ : L.Ctx} → {τ : L.Ty} →
       (who : Player) → (id : YieldId) → (v : View Γ) → (A : Act v τ) →
-      Option (L.Env v.Δ → WDist (L.Val τ))
+      Option (L.Env v.Δ → WDist W (L.Val τ))
 
 /-- Embed a total `Profile` as a partial one. -/
-def Profile.toPartial (σ : Profile (L := L)) : PProfile (L := L) where
+def Profile.toPartial (σ : Profile (L := L) (W := W)) : PProfile (L := L) (W := W) where
   choose? := fun who id v A => some (σ.choose who id v A)
 
 /--
@@ -225,8 +226,8 @@ Apply a partial profile: resolve any `choose` site where `choose?` returns `some
 This is a syntax-to-syntax pass producing another `ProtoProg`.
 It does NOT "finish compilation"; it just discharges decision yields when a strategy is provided.
 -/
-def applyProfile (π : PProfile (L := L)) {Γ : L.Ctx} {τ : L.Ty} :
-    ProtoProg Γ τ → ProtoProg Γ τ
+def applyProfile (π : PProfile (L := L) (W := W)) {Γ : L.Ctx} {τ : L.Ty} :
+    ProtoProg (W := W) Γ τ → ProtoProg (W := W) Γ τ
   | .ret e        => .ret e
   | .letDet e k   => .letDet e (applyProfile π k)
   | .doStmt s k   => .doStmt s (applyProfile π k)
@@ -244,7 +245,7 @@ def applyProfile (π : PProfile (L := L)) {Γ : L.Ctx} {τ : L.Ty} :
               .doBind (.choose id who v A) (applyProfile π k)
 
 /-- Predicate: program has no remaining decision yields (`choose`). -/
-def NoChoose {Γ : L.Ctx} {τ : L.Ty} : ProtoProg Γ τ → Prop
+def NoChoose {Γ : L.Ctx} {τ : L.Ty} : ProtoProg (W := W) Γ τ → Prop
   | .ret _        => True
   | .letDet _ k   => NoChoose k
   | .doStmt _ k   => NoChoose k
@@ -259,7 +260,7 @@ Compile a `ProtoProg` with **no remaining** `choose` into `Prob`.
 This is the "real compilation" step: it is only defined under a `NoChoose` proof.
 -/
 def toProbNoChoose {Γ : L.Ctx} {τ : L.Ty} :
-    (p : ProtoProg Γ τ) → NoChoose p → Prob.PProg Γ τ
+    (p : ProtoProg (W := W) Γ τ) → NoChoose p → Prob.PProg (W := W) Γ τ
   | .ret e, _ =>
       .ret e
   | .letDet e k, h =>
@@ -269,7 +270,7 @@ def toProbNoChoose {Γ : L.Ctx} {τ : L.Ty} :
   | .doBind c k, h =>
       match c with
       | .sample _id v K =>
-          let Kfull : Prob.Kernel Γ _ := fun env => K (v.proj env)
+          let Kfull : Prob.Kernel (W := W) Γ _ := fun env => K (v.proj env)
           .doBind (.sample Kfull) (toProbNoChoose k h)
       | .choose _id _who _v _A =>
           -- impossible under `NoChoose`
@@ -277,14 +278,14 @@ def toProbNoChoose {Γ : L.Ctx} {τ : L.Ty} :
 
 /-- Optional compilation: returns `none` if any `choose` remains. -/
 def toProb? {Γ : L.Ctx} {τ : L.Ty} :
-    ProtoProg Γ τ → Option (Prob.PProg Γ τ)
+    ProtoProg (W := W) Γ τ → Option (Prob.PProg (W := W) Γ τ)
   | .ret e        => some (.ret e)
   | .letDet e k   => Option.map (.letDet e) (toProb? k)
   | .doStmt s k   => Option.map (.doStmt s) (toProb? k)
   | .doBind c k   =>
       match c with
       | .sample _id v K =>
-          let Kfull : Prob.Kernel Γ _ := fun env => K (v.proj env)
+          let Kfull : Prob.Kernel (W := W) Γ _ := fun env => K (v.proj env)
           Option.map (.doBind (.sample Kfull)) (toProb? k)
       | .choose _id _who _v _A =>
           none
@@ -294,14 +295,14 @@ Convenience name: "strategy application" (not final compilation).
 
 Workflow:
   p₀ : ProtoProg Γ τ
-  π  : PProfile (L := L)
+  π  : PProfile
 
   p₁ := toProb π p₀              -- resolves some/all decision yields
   if h : NoChoose p₁ then
      q := toProbNoChoose p₁ h    -- now a genuine ProbLet program
 -/
-abbrev discharge (π : PProfile (L := L)) {Γ τ} :
-    ProtoProg (L := L) Γ τ → ProtoProg Γ τ :=
+abbrev discharge (π : PProfile (L := L) (W := W)) {Γ τ} :
+    ProtoProg (W := W) (L := L) Γ τ → ProtoProg (W := W) Γ τ :=
   applyProfile π
 
 -- ============================================================
@@ -309,7 +310,7 @@ abbrev discharge (π : PProfile (L := L)) {Γ τ} :
 -- ============================================================
 
 /-- Collect all yield ids (both chance and decision) appearing in a program. -/
-def yieldIds {Γ : L.Ctx} {τ : L.Ty} : ProtoProg Γ τ → List YieldId
+def yieldIds {Γ : L.Ctx} {τ : L.Ty} : ProtoProg (W := W) Γ τ → List YieldId
   | .ret _        => []
   | .letDet _ k   => yieldIds k
   | .doStmt _ k   => yieldIds k
@@ -319,7 +320,7 @@ def yieldIds {Γ : L.Ctx} {τ : L.Ty} : ProtoProg Γ τ → List YieldId
       | .choose id _ _ _  => id :: yieldIds k
 
 /-- Collect decision yield ids (`choose`) appearing in a program. -/
-def chooseIds {Γ : L.Ctx} {τ : L.Ty} : ProtoProg Γ τ → List YieldId
+def chooseIds {Γ : L.Ctx} {τ : L.Ty} : ProtoProg (W := W) Γ τ → List YieldId
   | .ret _        => []
   | .letDet _ k   => chooseIds k
   | .doStmt _ k   => chooseIds k
@@ -329,7 +330,7 @@ def chooseIds {Γ : L.Ctx} {τ : L.Ty} : ProtoProg Γ τ → List YieldId
       | .choose id _ _ _   => id :: chooseIds k
 
 /-- Encoder well-formedness: all yield ids are unique. -/
-def NoDupYieldIds {Γ : L.Ctx} {τ : L.Ty} (p : ProtoProg Γ τ) : Prop :=
+def NoDupYieldIds {Γ : L.Ctx} {τ : L.Ty} (p : ProtoProg (W := W) Γ τ) : Prop :=
   (yieldIds p).Nodup
 
 -- ============================================================
@@ -341,13 +342,13 @@ Generic "support is within predicate" for finite-support `WDist`.
 
 We ignore outcomes with weight `0` (representations may contain zero-weight junk).
 -/
-def SupportedOn {α : Type _} (d : WDist α) (S : α → Prop) : Prop :=
-  ∀ {a : α} {w : NNReal}, (a, w) ∈ d.weights → w ≠ 0 → S a
+def SupportedOn {α : Type _} (d : WDist W α) (S : α → Prop) : Prop :=
+  ∀ {a : α} {w : W}, (a, w) ∈ d.weights → w ≠ 0 → S a
 
 /-- Legality at a specific decision yield instance. -/
 def LegalAt
     {Γ : L.Ctx} {τ : L.Ty}
-    (σ : Profile (L := L))
+    (σ : Profile (L := L) (W := W))
     (who : Player) (id : YieldId)
     (v : View Γ) (A : Act v τ)
     (obs : L.Env v.Δ) : Prop :=
@@ -371,8 +372,8 @@ Program-relative well-formedness: only checks `choose` nodes that actually appea
 At each `choose id who v A` site in context Γ, require:
   ∀ env : Env Γ, Reach env → LegalAt σ who id v A (v.proj env)
 -/
-def WFOnProg (Reach : ReachSpec (L := L)) (σ : Profile (L := L)) :
-    {Γ : L.Ctx} → {τ : L.Ty} → ProtoProg Γ τ → Prop
+def WFOnProg (Reach : ReachSpec (L := L)) (σ : Profile (L := L) (W := W)) :
+    {Γ : L.Ctx} → {τ : L.Ty} → ProtoProg (W := W) Γ τ → Prop
   | _Γ, _τ, .ret _        => True
   | _Γ, _τ, .letDet _ k   => WFOnProg Reach σ k
   | _Γ, _τ, .doStmt _ k   => WFOnProg Reach σ k
@@ -388,10 +389,10 @@ def WFOnProg (Reach : ReachSpec (L := L)) (σ : Profile (L := L)) :
 -- 9) Protocol well-formedness predicates (distribution-level)
 -- ============================================================
 
-def IsProb {α} (d : WDist α) : Prop := d.mass = 1
+def IsProb {α} (d : WDist W α) : Prop := d.mass = 1
 
 def WFChanceOnProg (Reach : ReachSpec (L := L)) :
-    {Γ : L.Ctx} → {τ : L.Ty} → ProtoProg Γ τ → Prop
+    {Γ : L.Ctx} → {τ : L.Ty} → ProtoProg (W := W) Γ τ → Prop
   | _, _, .ret _        => True
   | _, _, .letDet _ k   => WFChanceOnProg Reach k
   | _, _, .doStmt _ k   => WFChanceOnProg Reach k

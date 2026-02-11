@@ -32,6 +32,7 @@ open Prog Defs Dag
 open scoped BigOperators
 
 variable {L : Language}
+variable {W : Type} [WeightModel W]
 
 section Support
 
@@ -40,26 +41,27 @@ abbrev VEnv {L} {Γ : L.Ctx} (v : Dag.View (L := L) Γ) := L.Env v.Δ
 
 /-- `d` is supported on the action set `A envv` (where `envv` lives in the view context). -/
 def SupportedOn
-    {L : Language} {Γ : L.Ctx} {τ : L.Ty}
+    {L : Language} {W : Type} [WeightModel W] {Γ : L.Ctx} {τ : L.Ty}
     (v : Dag.View (L := L) Γ)
     (A : Dag.Act (L := L) v τ)
     (envv : L.Env v.Δ)
-    (d : WDist (L.Val τ)) : Prop :=
+    (d : WDist W (L.Val τ)) : Prop :=
   ∀ vw ∈ d.weights, vw.1 ∈ A envv
 
 /-- Global-env version: check support against `A (v.proj env)`. -/
 def SupportedOnGlobal
-    {L : Language} {Γ : L.Ctx} {τ : L.Ty}
+    {L : Language} {W : Type} [WeightModel W] {Γ : L.Ctx} {τ : L.Ty}
     (v : Dag.View (L := L) Γ)
     (A : Dag.Act (L := L) v τ)
     (env : L.Env Γ)
-    (d : WDist (L.Val τ)) : Prop :=
+    (d : WDist W (L.Val τ)) : Prop :=
   ∀ vw ∈ d.weights, vw.1 ∈ A (v.proj env)
 
 /-- A minimal well-formedness predicate for profiles: every chosen kernel
 is supported on the offered action set.
 -/
-def WFProfileLocal {L : Language} {Γ : L.Ctx} (σ : Dag.Profile (L := L)) : Prop :=
+def WFProfileLocal {L : Language} {W : Type} [WeightModel W] {Γ : L.Ctx}
+    (σ : Dag.Profile (L := L) (W := W)) : Prop :=
   ∀ {τ : L.Ty} (who : Player) (v : Dag.View (L := L) Γ) (A : Dag.Act (L := L) v τ)
     (envv : L.Env v.Δ),
     SupportedOn (L := L) v A envv (σ.choose who v A envv)
@@ -68,8 +70,8 @@ def WFProfileLocal {L : Language} {Γ : L.Ctx} (σ : Dag.Profile (L := L)) : Pro
 the chosen distribution at the projected env is supported on the offered actions
 at that same projected env. -/
 def WFProfileGlobal
-    {L : Language} {Γ : L.Ctx}
-    (σ : Dag.Profile (L := L)) : Prop :=
+    {L : Language} {W : Type} [WeightModel W] {Γ : L.Ctx}
+    (σ : Dag.Profile (L := L) (W := W)) : Prop :=
   ∀ {τ : L.Ty} (who : Player) (v : Dag.View (L := L) Γ)
     (A : Dag.Act (L := L) v τ)
     (env : L.Env Γ),
@@ -77,9 +79,9 @@ def WFProfileGlobal
 
 /-- Global-env well-formedness restricted to reachable global environments. -/
 def WFProfileGlobalOn
-    {L : Language} {Γ : L.Ctx}
+    {L : Language} {W : Type} [WeightModel W] {Γ : L.Ctx}
     (Reach : L.Env Γ → Prop)
-    (σ : Dag.Profile (L := L)) : Prop :=
+    (σ : Dag.Profile (L := L) (W := W)) : Prop :=
   ∀ {τ : L.Ty} (who : Player) (v : Dag.View (L := L) Γ)
     (A : Dag.Act (L := L) v τ)
     (env : L.Env Γ),
@@ -87,9 +89,9 @@ def WFProfileGlobalOn
     SupportedOnGlobal (L := L) v A env (σ.choose who v A (v.proj env))
 
 theorem WFProfileLocal.implies_global
-    {L : Language} {Γ : L.Ctx}
-    {σ : Dag.Profile (L := L)} :
-    WFProfileLocal (Γ := Γ) (L := L) σ → WFProfileGlobal (Γ := Γ) (L := L) σ := by
+    {L : Language} {W : Type} [WeightModel W] {Γ : L.Ctx}
+    {σ : Dag.Profile (L := L) (W := W)} :
+    WFProfileLocal (Γ := Γ) σ → WFProfileGlobal (Γ := Γ) σ := by
   intro h τ who v A env
   exact h who v A (v.proj env)
 
@@ -98,25 +100,25 @@ end Support
 section EU
 
 /-- Expected utility of player `who`, given:
-- a distribution over outcomes `d : WDist α`,
+- a distribution over outcomes `d : WDist W α`,
 - a utility function `u : α → Player → Real`.
 
-This is the finite-support sum: `∑ w * u(x)` (weights are `ℝ≥0`). -/
+This is the finite-support sum: `∑ w * u(x)` (weights are `W`). -/
 noncomputable def EU_ofWDist {α : Type _}
-    (d : WDist α) (u : α → Player → Real) (who : Player) : Real :=
+    (d : WDist W α) (u : α → Player → Real) (who : Player) : Real :=
   d.weights.foldr
-    (fun (xw : α × NNReal) acc => acc + (xw.2 : Real) * u xw.1 who)
+    (fun (xw : α × W) acc => acc + (WeightModel.toReal xw.2) * u xw.1 who)
     0
 
 /-- Expected utility induced by evaluating a `DagProg`. -/
 noncomputable def EU
     {Γ : L.Ctx} {τ : L.Ty}
-    (σ : Dag.Profile (L := L))
-    (p : Dag.DagProg (L := L) Γ τ)
+    (σ : Dag.Profile (L := L) (W := W))
+    (p : Dag.DagProg (L := L) (W := W) Γ τ)
     (env : L.Env Γ)
     (u : L.Val τ → Player → Real)
     (who : Player) : Real :=
-  EU_ofWDist (Dag.evalD (L := L) σ p env) u who
+  EU_ofWDist (Dag.evalD σ p env) u who
 
 end EU
 
@@ -124,12 +126,12 @@ section Deviations
 
 /-- Override a profile on a single player, leaving other players unchanged. -/
 noncomputable def Profile.overrideAt
-    {Γ : L.Ctx} (σ : Profile (L := L)) (who : Player)
+    {Γ : L.Ctx} (σ : Profile (L := L) (W := W)) (who : Player)
     (choose' :
       {τ : L.Ty} →
         Player → (v : View (L := L) Γ) → Act (L := L) v τ →
-          (L.Env v.Δ → WDist (L.Val τ))) :
-    Profile (L := L) :=
+          (L.Env v.Δ → WDist W (L.Val τ))) :
+    Profile (L := L) (W := W) :=
 by
   classical
   refine ⟨?choose⟩
@@ -145,12 +147,12 @@ by
     exact σ.choose p v A envv
 
 noncomputable def Deviate
-    {Γ : L.Ctx} (σ : Profile (L := L)) (who : Player)
+    {Γ : L.Ctx} (σ : Profile (L := L) (W := W)) (who : Player)
     (choose' :
       {τ : L.Ty} →
         Player → (v : View (L := L) Γ) → Act (L := L) v τ →
-          (L.Env v.Δ → WDist (L.Val τ))) :
-    Profile (L := L) :=
+          (L.Env v.Δ → WDist W (L.Val τ))) :
+    Profile (L := L) (W := W) :=
   Profile.overrideAt σ who choose'
 
 end Deviations
@@ -165,8 +167,8 @@ If you want to restrict deviations (e.g. to legal / supported ones), add those
 premises inside the quantifier. -/
 def IsNash
     {Γ : L.Ctx} {τ : L.Ty}
-    (σ : Dag.Profile (L := L))
-    (p : Dag.DagProg (L := L) Γ τ)
+    (σ : Dag.Profile (L := L) (W := W))
+    (p : Dag.DagProg (L := L) (W := W) Γ τ)
     (env : L.Env Γ)
     (u : L.Val τ → Player → Real) : Prop :=
   ∀ who : Player,
@@ -175,27 +177,27 @@ def IsNash
         Player →
         (v : Dag.View (L := L) Γ) →
         Dag.Act (L := L) v τ' →
-        (L.Env v.Δ → WDist (L.Val τ'))),
-      EU (L := L) σ p env u who ≥
-        EU (L := L) (Deviate (L := L) (Γ := Γ) σ who choose') p env u who
+        (L.Env v.Δ → WDist W (L.Val τ'))),
+      EU σ p env u who ≥
+        EU (Deviate (Γ := Γ) σ who choose') p env u who
 
 /-- A legality-restricted equilibrium: only deviations that remain `WFProfile` count. -/
 def IsNash_WF
     {Γ : L.Ctx} {τ : L.Ty}
-    (σ : Dag.Profile (L := L))
-    (p : Dag.DagProg (L := L) Γ τ)
+    (σ : Dag.Profile (L := L) (W := W))
+    (p : Dag.DagProg (L := L) (W := W) Γ τ)
     (env : L.Env Γ)
     (u : L.Val τ → Player → Real) : Prop :=
-  WFProfileLocal (Γ := Γ) (L := L) σ ∧
+  WFProfileLocal (Γ := Γ) σ ∧
   ∀ who : Player,
     ∀ choose' :
       ({τ' : L.Ty} →
         Player →
         (v : Dag.View (L := L) Γ) →
         Dag.Act (L := L) v τ' →
-        (L.Env v.Δ → WDist (L.Val τ'))),
-      WFProfileLocal (Γ := Γ) (L := L) (Deviate (Γ := Γ) σ who choose')
-      → EU (L := L) σ  p env u who ≥ EU (L := L) (Deviate (Γ := Γ) σ who choose') p env u who
+        (L.Env v.Δ → WDist W (L.Val τ'))),
+      WFProfileLocal (Γ := Γ) (Deviate (Γ := Γ) σ who choose')
+      → EU σ  p env u who ≥ EU (Deviate (Γ := Γ) σ who choose') p env u who
 
 end Equilibrium
 
@@ -209,12 +211,12 @@ measure-theory infrastructure there. We keep the lemma here as a convenience.
 section ProbBridge
 
 @[simp] theorem evalD_eq_evalP_toProb
-    (σ : Dag.Profile (L := L)) {Γ : L.Ctx} {τ : L.Ty}
-    (p : Dag.DagProg (L := L) Γ τ) (env : L.Env Γ) :
-    Dag.evalD (L := L) σ p env
+    (σ : Dag.Profile (L := L) (W := W)) {Γ : L.Ctx} {τ : L.Ty}
+    (p : Dag.DagProg (L := L) (W := W) Γ τ) (env : L.Env Γ) :
+    Dag.evalD σ p env
       =
-    Prob.evalP (L := L) (Dag.toProb (L := L) σ p) env :=
-  Dag.evalD_eq_evalP_toProb (L := L) σ p env
+    Prob.evalP (Dag.toProb σ p) env :=
+  Dag.evalD_eq_evalP_toProb σ p env
 
 end ProbBridge
 

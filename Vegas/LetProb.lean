@@ -1,3 +1,4 @@
+import Vegas.LetProb.WeightModel
 import Vegas.LetProb.WDist
 import Vegas.LetProb.WDistLemmas
 import Vegas.LetProb.ConditionalEU

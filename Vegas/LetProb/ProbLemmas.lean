@@ -14,24 +14,25 @@ open Prog
 
 variable {L : Language}
 variable (EL : ExprLaws L)
+variable {W : Type} [WeightModel W]
 
 /-! A few simp bridges so simp sees `WDist.bind/pure/zero`. -/
 
 @[simp] lemma ProbSem_E_pure {α} (x : α) :
-  .pure x = WDist.pure x := rfl
+  (EffWDist (W := W)).pure x = WDist.pure x := rfl
 
 @[simp] lemma ProbSem_E_fail {α} :
-    (.fail : WDist α) = WDist.zero := rfl
+    (EffWDist (W := W)).fail = (WDist.zero : WDist W α) := rfl
 
-@[simp] lemma ProbSem_E_bind {α β} (xs : WDist α) (f : α → WDist β) :
-    .bind xs f = WDist.bind xs f := rfl
+@[simp] lemma ProbSem_E_bind {α β} (xs : WDist W α) (f : α → WDist W β) :
+    (EffWDist (W := W)).bind xs f = WDist.bind xs f := rfl
 
 -- lemma ProbSem_E_eq : ProbSem.E = EffWDist := rfl
 
 /-! A very useful derived simp lemma: observe is an if-then-else at evalP level. -/
 @[simp] lemma evalP_observe
     {Γ : Env.Ctx (Ty := L.Ty)} {τ : L.Ty}
-    (c : L.Expr Γ L.bool) (k : PProg Γ τ) (env : Env.Env (Val := L.Val) Γ) :
+    (c : L.Expr Γ L.bool) (k : PProg (W := W) Γ τ) (env : Env.Env (Val := L.Val) Γ) :
     evalP (.doStmt (.observe c) k) env
       =
     if L.toBool (L.eval c env) then evalP k env else WDist.zero := by
@@ -45,7 +46,7 @@ variable (EL : ExprLaws L)
 
 theorem observe_fuse
     {Γ : Env.Ctx (Ty := L.Ty)} {τ : L.Ty}
-    {c₁ c₂ : L.Expr Γ L.bool} {k : PProg Γ τ} :
+    {c₁ c₂ : L.Expr Γ L.bool} {k : PProg (W := W) Γ τ} :
     (fun env => evalP (.doStmt (.observe c₁) (.doStmt (.observe c₂) k)) env)
     =
     (fun env => evalP (.doStmt (.observe (EL.andBool c₁ c₂)) k) env) := by
@@ -59,7 +60,7 @@ theorem observe_fuse
 theorem observe_hoist_letDet
     {Γ : Env.Ctx (Ty := L.Ty)} {τ τ' : L.Ty}
     (e : L.Expr Γ τ') (c : L.Expr Γ L.bool)
-    (k : PProg (τ' :: Γ) τ) :
+    (k : PProg (W := W) (τ' :: Γ) τ) :
     (fun env =>
       evalP (.letDet e (.doStmt (.observe (EL.weaken c)) k)) env)
     =
@@ -72,13 +73,13 @@ theorem observe_hoist_letDet
 
 /-! ## Conservation: deterministic embeds into probabilistic -/
 
-def embedDProg : Prog.DProg Γ τ → PProg Γ τ
+def embedDProg : Prog.DProg Γ τ → PProg (W := W) Γ τ
   | .ret e => .ret e
   | .letDet e k => .letDet e (embedDProg k)
   | .doBind c _ => nomatch c
   | .doStmt (.observe cond) k => .doStmt (.observe cond) (embedDProg k)
 
-def liftOption : Option (L.Val τ) → WDist (L.Val τ)
+def liftOption : Option (L.Val τ) → WDist W (L.Val τ)
   | none => .zero
   | some v => .pure v
 
@@ -87,11 +88,11 @@ def liftOption : Option (L.Val τ) → WDist (L.Val τ)
     (b : Bool) (x : α) (k : α → Option (L.Val β)) :
     liftOption (Option.bind (if b then some x else none) k)
       =
-    if b then liftOption (k x) else .zero := by
+    if b then liftOption (k x) else (WDist.zero : WDist W _) := by
   by_cases hb : b <;> simp [liftOption, hb]
 
 theorem evalP_embed_eq_lift {Γ τ} (p : Prog.DProg Γ τ) (env : L.Env Γ) :
-    evalP (embedDProg p) env = liftOption (Prog.evalProgOption p env) := by
+    evalP (W := W) (embedDProg p) env = liftOption (Prog.evalProgOption p env) := by
   -- structural induction on the deterministic program
   induction p with
   | ret e =>
@@ -126,7 +127,7 @@ theorem evalP_embed_eq_lift {Γ τ} (p : Prog.DProg Γ τ) (env : L.Env Γ) :
 /-! ## Kleisli / bind homomorphism -/
 
 theorem evalP_sample_bind {Γ τ τ'}
-    (K : Kernel Γ τ') (k : PProg (τ' :: Γ) τ) (env : L.Env Γ) :
+    (K : Kernel (W := W) Γ τ') (k : PProg (W := W) (τ' :: Γ) τ) (env : L.Env Γ) :
     evalP (.doBind (.sample K) k) env
     =
     WDist.bind (K env) (fun v => evalP k (v, env)) := by
@@ -138,8 +139,8 @@ theorem evalP_sample_bind {Γ τ τ'}
 
 theorem sample_observe_eq_cond
     {Γ : Env.Ctx (Ty := L.Ty)} {τ : L.Ty}
-    (K : Kernel Γ τ) (c : L.Expr (τ :: Γ) L.bool)
-    (k : PProg (τ :: Γ) τ) (env : Env.Env (Val := L.Val) Γ) :
+    (K : Kernel (W := W) Γ τ) (c : L.Expr (τ :: Γ) L.bool)
+    (k : PProg (W := W) (τ :: Γ) τ) (env : Env.Env (Val := L.Val) Γ) :
     evalP (.doBind (.sample K) (.doStmt (.observe c) k)) env
     =
     WDist.bind (K env) (fun v =>
@@ -160,20 +161,25 @@ theorem sample_observe_eq_cond
 theorem mass_evalP_ret
     {Γ : Env.Ctx (Ty := L.Ty)} {τ : L.Ty}
     (e : L.Expr Γ τ) (env : Env.Env (Val := L.Val) Γ) :
-    WDist.mass (evalP (.ret e) env) = 1 := by
+    WDist.mass (evalP (W := W) (.ret e) env) = (1 : W) := by
   -- evalP ret = pure (L.eval e env)
-  simp [EffWDist, Prob.evalP, Prob.ProbSem, Prog.evalWith, Prog.evalProg_gen,
-        WDist.mass, WDist.pure]
+  unfold evalP Prog.evalWith Prog.evalProg_gen
+  simp [ProbSem, EffWDist, WDist.mass_pure]
 
-theorem mass_evalP_observe_le {Γ τ} (c : L.Expr Γ L.bool) (k : PProg Γ τ) (env : L.Env Γ) :
-    WDist.mass (evalP (.doStmt (.observe c) k) env) ≤ WDist.mass (evalP k env) := by
-  by_cases h : L.toBool (L.eval c env) <;> simp [evalP_observe, h, WDist.mass]
+theorem mass_evalP_observe_le_toReal {Γ τ}
+    (c : L.Expr Γ L.bool) (k : PProg (W := W) Γ τ) (env : L.Env Γ) :
+    WeightModel.toReal (WDist.mass (evalP (.doStmt (.observe c) k) env)) ≤
+    WeightModel.toReal (WDist.mass (evalP k env)) := by
+  by_cases h : L.toBool (L.eval c env)
+  · simp [evalP_observe, h]
+  · simp [evalP_observe, h, WDist.mass, WeightModel.toReal_zero]
+    exact WeightModel.toReal_nonneg _
 
 /-! ## Observe true/false -/
 
 theorem observe_true
     {Γ : L.Ctx} {τ : L.Ty}
-    (k : PProg Γ τ) :
+    (k : PProg (W := W) Γ τ) :
     (fun env => evalP (.doStmt (.observe (EL.constBool true)) k) env)
     =
     (fun env => evalP k env) := by
@@ -182,7 +188,7 @@ theorem observe_true
 
 theorem observe_false
     {Γ : L.Ctx} {τ : L.Ty}
-    (k : PProg Γ τ) :
+    (k : PProg (W := W) Γ τ) :
     (fun env => evalP (.doStmt (.observe (EL.constBool false)) k) env)
     =
     (fun _ => WDist.zero) := by
@@ -192,7 +198,7 @@ theorem observe_false
 /-! ## Sample from Dirac / Zero -/
 theorem sample_dirac_eq_letDet
     {Γ : Env.Ctx (Ty := L.Ty)} {τ τ' : L.Ty}
-    (e : L.Expr Γ τ') (k : PProg (τ' :: Γ) τ) :
+    (e : L.Expr Γ τ') (k : PProg (W := W) (τ' :: Γ) τ) :
     (fun env => evalP (.doBind (.sample (fun env' => WDist.pure (L.eval e env'))) k) env)
     =
     (fun env => evalP (.letDet e k) env) := by
@@ -201,7 +207,7 @@ theorem sample_dirac_eq_letDet
   simp [Prob.evalP, Prob.ProbSem, Prog.evalWith, Prog.evalProg_gen, EffWDist]
 
 theorem sample_zero
-    {Γ : Env.Ctx (Ty := L.Ty)} {τ τ' : L.Ty} (k : PProg (τ' :: Γ) τ) :
+    {Γ : Env.Ctx (Ty := L.Ty)} {τ τ' : L.Ty} (k : PProg (W := W) (τ' :: Γ) τ) :
     (fun env => evalP (.doBind (.sample (fun _ => WDist.zero)) k) env)
     =
     (fun _ => WDist.zero) := by
@@ -241,7 +247,7 @@ variable [MeasurableSpace (L.Val τ)]
 
 -- No MeasurableSingletonClass needed.
 theorem WDist.toMeasure_pure' {α} [MeasurableSpace α] (x : α) :
-    (WDist.pure x).toMeasure = Measure.dirac x := by
+    (WDist.pure x : WDist W α).toMeasure = Measure.dirac x := by
   -- pure x = [(x,1)]
   -- toMeasure folds: 0 + 1 • dirac x
   simp [WDist.pure, WDist.toMeasure, zero_add]
@@ -255,7 +261,7 @@ specialized to closed evaluation without state threading. -/
 theorem toMeasure_evalP_ret
     {Γ : L.Ctx} {τ : L.Ty} [MeasurableSpace (L.Val τ)]
     (e : L.Expr Γ τ) (env : L.Env Γ) :
-    (evalP (.ret e) env).toMeasure = Measure.dirac (L.eval e env) := by
+    (evalP (W := W) (.ret e) env).toMeasure = Measure.dirac (L.eval e env) := by
   -- force the `pure` to be the actual WDist.pure
   simp [Prob.evalP, Prog.evalWith, Prog.evalProg_gen, Prob.ProbSem, EffWDist,
         WDist.toMeasure_pure']
@@ -270,10 +276,10 @@ It corresponds to Borgström et al.'s rule:
 specialized to discrete kernels, where `extend` becomes `WDist.bind` and
 integration becomes weighted summation over the kernel's finite support. -/
 theorem toMeasure_evalP_sample [MeasurableSpace (L.Val τ')]
-    (K : Kernel Γ τ') (k : PProg (τ' :: Γ) τ) (env : L.Env Γ) :
+    (K : Kernel (W := W) Γ τ') (k : PProg (W := W) (τ' :: Γ) τ) (env : L.Env Γ) :
     (evalP (.doBind (.sample K) k) env).toMeasure =
       (K env).weights.foldr
-        (fun (v, w) μ => μ + (w : ENNReal) • (evalP k (v, env)).toMeasure) 0 := by
+        (fun (v, w) μ => μ + (WeightModel.toENNReal w) • (evalP k (v, env)).toMeasure) 0 := by
   simpa [evalP_sample_bind] using
     (WDist.toMeasure_bind (d := K env) (f := fun v => evalP k (v, env)))
 
@@ -284,7 +290,7 @@ Corresponds to Borgström et al.'s observe combinator:
   observe p µ A = µ(A ∩ {x | p(x) = 0_b})
 specialized to boolean predicates, where observe is simply filtering. -/
 theorem toMeasure_evalP_observe
-    (c : L.Expr Γ L.bool) (k : PProg Γ τ) (env : L.Env Γ) :
+    (c : L.Expr Γ L.bool) (k : PProg (W := W) Γ τ) (env : L.Env Γ) :
     (evalP (.doStmt (.observe c) k) env).toMeasure =
       if L.toBool (L.eval c env) then (evalP k env).toMeasure else 0 := by
   by_cases h : L.toBool (L.eval c env)
@@ -308,7 +314,7 @@ for discrete Fun (Bernoulli Fun),
 
 Here `evalP p ()` plays the role of A⟦M⟧(δ_()), and normalization via
 `toProbabilityMeasure` yields the posterior. -/
-noncomputable def posterior (p : PProg [] τ)
+noncomputable def posterior (p : PProg (W := W) [] τ)
     (h : (evalP p ()).mass ≠ 0) : ProbabilityMeasure (L.Val τ) :=
   (evalP p ()).toProbabilityMeasure h
 
@@ -317,15 +323,15 @@ noncomputable def posterior (p : PProg [] τ)
 Concretely, for any measurable set B:
     posterior(B) = evalP(...).toMeasure(B) / evalP(...).toMeasure(Univ)
 which is exactly the conditional probability P[value ∈ B | valid]. -/
-theorem posterior_apply (p : PProg [] τ)
+theorem posterior_apply (p : PProg (W := W) [] τ)
     (h : (evalP p ()).mass ≠ 0) (B : Set (L.Val τ)) :
     (posterior p h).val B =
-      (evalP p ()).toMeasure B * ((evalP p ()).mass : ENNReal)⁻¹ := by
+      (evalP p ()).toMeasure B * (WeightModel.toENNReal (evalP p ()).mass)⁻¹ := by
   simp [posterior, WDist.toProbabilityMeasure, mul_comm]
 
 /-- The posterior of the full space is 1 (it is a probability measure).
 This is a direct consequence of the construction, included for clarity. -/
-theorem posterior_univ (p : PProg [] τ)
+theorem posterior_univ (p : PProg (W := W) [] τ)
     (h : (evalP p ()).mass ≠ 0) :
     (posterior p h).val Set.univ = 1 := by
   simp [posterior]

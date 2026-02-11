@@ -17,6 +17,9 @@ namespace FullInfo
 
 open Prog Defs
 
+variable {L : Language}
+variable {W : Type} [WeightModel W]
+
 /-! ## Profile Independence for Deterministic Subprograms -/
 
 /-- A program with no strategic choices is profile-independent.
@@ -30,12 +33,14 @@ def noChoices {Γ τ} : SProg (L := L) Γ τ → Prop
   | .doStmt _ k   => noChoices k
   | .doBind _ _   => False
 
-@[simp] lemma StratSem_E_bind (σ : Profile (L := L)) {α β} (xs : WDist α) (f : α → WDist β) :
+@[simp] lemma StratSem_E_bind
+    (σ : Profile (L := L) (W := W)) {α β}
+    (xs : WDist W α) (f : α → WDist W β) :
     (StratSem σ).E.bind xs f = WDist.bind xs f := rfl
 
 /-- Profile-independence: programs without choices evaluate the same under any profile. -/
 theorem evalS_profile_indep {Γ τ} (p : SProg Γ τ) (hp : noChoices p)
-    (σ₁ σ₂ : Profile (L := L)) (env : L.Env Γ) :
+    (σ₁ σ₂ : Profile (L := L) (W := W)) (env : L.Env Γ) :
     evalS σ₁ p env = evalS σ₂ p env := by
   induction p with
   | ret e =>
@@ -63,7 +68,7 @@ theorem evalS_profile_indep {Γ τ} (p : SProg Γ τ) (hp : noChoices p)
       cases hp
 
 
-variable (σ : Profile (L := L))
+variable (σ : Profile (L := L) (W := W))
 
 /-! ## Observe-Fusion in Strategic Programs -/
 
@@ -111,7 +116,7 @@ theorem behEval_sound {Γ τ} (p : SProg Γ τ) (env : L.Env Γ) :
 
 /-- Two programs with the same behavior tree are semantically equivalent. -/
 theorem beh_eq_implies_evalS_eq {Γ τ} (p₁ p₂ : SProg Γ τ) (env : L.Env Γ)
-    (h : behEval p₁ env = behEval p₂ env) :
+    (h : behEval (W := W) p₁ env = behEval (W := W) p₂ env) :
     evalS σ p₁ env = evalS σ p₂ env := by
   -- rewrite both sides using `runBeh ∘ behEval`
   have h1 : evalS σ p₁ env = runBeh σ (behEval p₁ env) := by
@@ -122,13 +127,13 @@ theorem beh_eq_implies_evalS_eq {Γ τ} (p₁ p₂ : SProg Γ τ) (env : L.Env �
   calc
     evalS σ p₁ env
         = runBeh σ (behEval p₁ env) := h1
-    _   = runBeh σ (behEval p₂ env) := by simp [h]
+    _   = runBeh σ (behEval p₂ env) := by rw [h]
     _   = evalS σ p₂ env := h2.symm
 
 /-! ## Operational Semantics Properties -/
 
 /-- Operational evaluation is deterministic given an arena. -/
-theorem evalOp_deterministic {Γ τ} (arena : Arena) (p : SProg Γ τ) (env : L.Env Γ) :
+theorem evalOp_deterministic {Γ τ} (arena : Arena (L := L)) (p : SProg Γ τ) (env : L.Env Γ) :
     ∃! result, evalOp arena p env = result := by
   refine ⟨evalOp arena p env, rfl, ?_⟩
   intro r hr

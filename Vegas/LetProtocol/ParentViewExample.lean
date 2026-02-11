@@ -27,6 +27,8 @@ open Defs Prog Env
 private abbrev L := BasicLang
 private abbrev EL := basicExprLaws
 
+variable {W : Type} [WeightModel W]
+
 -- ============================================================
 -- 2) The sequential game using ParentProtoProg
 -- ============================================================
@@ -61,13 +63,13 @@ Sequential game as ParentProtoProg:
 
 This replaces manual View construction with declarative parent specs.
 -/
-private def seqGame : ParentProtoProg (L := L) [] Ty.bool :=
+private def seqGame : ParentProtoProg (L := L) (W := W) [] Ty.bool :=
   .choose 0 0 psEmpty boolActions
     (.choose 1 1 psSeeYield0 boolActions1
       (.ret (EL.vz)))
 
 /-- The embedding produces a well-formed ProtoProg. -/
-private def seqGameProto : ProtoProg (L := L) [] Ty.bool :=
+private def seqGameProto : ProtoProg (L := L) (W := W) [] Ty.bool :=
   ParentProtoProg.embed seqGame
 
 -- ============================================================
@@ -75,26 +77,26 @@ private def seqGameProto : ProtoProg (L := L) [] Ty.bool :=
 -- ============================================================
 
 /-- Evaluation of the parent-spec game equals evaluation of the embedded proto game. -/
-example (σ : Profile) (env : L.Env []) :
+example (σ : Profile (L := L) (W := W)) (env : L.Env []) :
     seqGame.eval σ env = evalProto σ seqGameProto env :=
   rfl
 
 /-- The embedded game is parent-derived. -/
-example : IsParentDerived seqGameProto :=
+example : IsParentDerived (W := W) seqGameProto :=
   ParentProtoProg.embed_isParentDerived seqGame
 
 /-- The parent specs are [[], [0]]: yield 0 sees nothing, yield 1 sees yield 0. -/
-example : seqGame.parentSpecs = [[], [0]] := rfl
+example : ParentProtoProg.parentSpecs (W := W) seqGame = [[], [0]] := rfl
 
 /-- Yield ids are [0, 1]. -/
-example : seqGame.yieldIds = [0, 1] := rfl
+example : ParentProtoProg.yieldIds (W := W) seqGame = [0, 1] := rfl
 
 -- ============================================================
 -- 4) Compare: what the raw ProtoProg version would look like
 -- ============================================================
 
 /-- The equivalent raw ProtoProg with manual View construction. -/
-private def seqGameRaw : ProtoProg (L := L) [] Ty.bool :=
+private def seqGameRaw : ProtoProg (L := L) (W := W) [] Ty.bool :=
   let vEmpty : View [] := ⟨[], fun _ => ()⟩
   let vSee0 : View (L := L) [Ty.bool] := ⟨[Ty.bool], fun env => env⟩
   ProtoProg.choose 0 0 vEmpty (fun _ => [L.fromBool true, L.fromBool false])
@@ -102,6 +104,6 @@ private def seqGameRaw : ProtoProg (L := L) [] Ty.bool :=
       (ProtoProg.ret EL.vz))
 
 /-- The embedded parent-spec version and the raw version have the same yield ids. -/
-example : Proto.yieldIds seqGameProto = Proto.yieldIds seqGameRaw := rfl
+example : Proto.yieldIds (seqGameProto (W := W)) = Proto.yieldIds (seqGameRaw (W := W)) := rfl
 
 end Proto

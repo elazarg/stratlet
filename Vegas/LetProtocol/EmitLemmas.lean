@@ -13,36 +13,37 @@ namespace Emit
 open Defs Prog Proto
 
 variable {L : Language}
+variable {W : Type} [WeightModel W]
 
 -- ============================================================
 -- Helper lemmas for WDist
 -- ============================================================
 
 /-- WDist.map with identity is the identity. -/
-private theorem WDist_map_id {α : Type*} (d : WDist α) :
+private theorem WDist_map_id {α : Type*} (d : WDist W α) :
     WDist.map (fun x => x) d = d := by
   cases d with
   | mk ws =>
     apply WDist.ext_weights
     simp only [WDist.map, WDist.mk_weights]
-    rw [show (fun x : α × NNReal => ((fun x => x) x.1, x.2)) = id from
+    rw [show (fun x : α × W => ((fun x => x) x.1, x.2)) = id from
       funext fun x => by simp]
     simp
 
 /-- `WDist.map` composition law. -/
-private theorem WDist_map_map {α β γ : Type*} (f : β → γ) (g : α → β) (d : WDist α) :
+private theorem WDist_map_map {α β γ : Type*} (f : β → γ) (g : α → β) (d : WDist W α) :
     WDist.map f (WDist.map g d) = WDist.map (f ∘ g) d := by
   cases d with
   | mk ws => apply WDist.ext_weights; simp [WDist.map, List.map_map]
 
 /-- `WDist.bind` after `WDist.map`. -/
-private theorem WDist_bind_map {α β γ : Type*} (f : α → β) (d : WDist α) (g : β → WDist γ) :
+private theorem WDist_bind_map {α β γ : Type*} (f : α → β) (d : WDist W α) (g : β → WDist W γ) :
     WDist.bind (WDist.map f d) g = WDist.bind d (g ∘ f) := by
   cases d with
   | mk ws => apply WDist.ext_weights; simp [WDist.map, WDist.bind, List.flatMap_map]
 
 /-- `WDist.map` distributes into `WDist.bind`. -/
-private theorem WDist_map_bind {α β γ : Type*} (f : β → γ) (d : WDist α) (g : α → WDist β) :
+private theorem WDist_map_bind {α β γ : Type*} (f : β → γ) (d : WDist W α) (g : α → WDist W β) :
     WDist.map f (WDist.bind d g) = WDist.bind d (fun x => WDist.map f (g x)) := by
   cases d with
   | mk ws =>
@@ -62,16 +63,16 @@ private theorem WDist_map_bind {α β γ : Type*} (f : β → γ) (d : WDist α)
 -- 0) Simp lemmas for evalEProto
 -- ============================================================
 
-@[simp] lemma evalEProto_ret {Ev : Type} {Γ τ} (σ : Profile (L := L))
+@[simp] lemma evalEProto_ret {Ev : Type} {Γ τ} (σ : Profile (L := L) (W := W))
     (e : L.Expr Γ τ) (env : L.Env Γ) :
     evalEProto (Ev := Ev) σ (.ret e) env = WDist.pure (L.eval e env, []) := rfl
 
-@[simp] lemma evalEProto_letDet {Ev : Type} {Γ τ τ'} (σ : Profile (L := L))
+@[simp] lemma evalEProto_letDet {Ev : Type} {Γ τ τ'} (σ : Profile (L := L) (W := W))
     (e : L.Expr Γ τ') (k : EProtoProg Ev (τ' :: Γ) τ) (env : L.Env Γ) :
     evalEProto σ (.letDet e k) env =
       evalEProto σ k (L.eval e env, env) := rfl
 
-@[simp] lemma evalEProto_sample_bind {Ev : Type} {Γ τ τ'} (σ : Profile (L := L))
+@[simp] lemma evalEProto_sample_bind {Ev : Type} {Γ τ τ'} (σ : Profile (L := L) (W := W))
     (id : YieldId) (v : View Γ) (K : ObsKernel v τ')
     (k : EProtoProg Ev (τ' :: Γ) τ) (env : L.Env Γ) :
     evalEProto σ (.doBind (.sample id v K) k) env =
@@ -79,7 +80,7 @@ private theorem WDist_map_bind {α β γ : Type*} (f : β → γ) (d : WDist α)
         (fun (x, tr1) => WDist.map (fun (v', tr2) => (v', tr1 ++ tr2))
           (evalEProto σ k (x, env))) := rfl
 
-@[simp] lemma evalEProto_choose_bind {Ev : Type} {Γ τ τ'} (σ : Profile (L := L))
+@[simp] lemma evalEProto_choose_bind {Ev : Type} {Γ τ τ'} (σ : Profile (L := L) (W := W))
     (id : YieldId) (who : Player) (v : View Γ) (A : Act v τ')
     (k : EProtoProg Ev (τ' :: Γ) τ) (env : L.Env Γ) :
     evalEProto σ (.doBind (.choose id who v A) k) env =
@@ -87,7 +88,7 @@ private theorem WDist_map_bind {α β γ : Type*} (f : β → γ) (d : WDist α)
         (fun (x, tr1) => WDist.map (fun (v', tr2) => (v', tr1 ++ tr2))
           (evalEProto σ k (x, env))) := rfl
 
-@[simp] lemma evalEProto_observe {Ev : Type} {Γ τ} (σ : Profile (L := L))
+@[simp] lemma evalEProto_observe {Ev : Type} {Γ τ} (σ : Profile (L := L) (W := W))
     (cond : L.Expr Γ L.bool) (k : EProtoProg Ev Γ τ) (env : L.Env Γ) :
     evalEProto σ (EProtoProg.observe cond k) env =
       if L.toBool (L.eval cond env)
@@ -101,7 +102,7 @@ private theorem WDist_map_bind {α β γ : Type*} (f : β → γ) (d : WDist α)
       TracedEff, h]
     rfl
 
-@[simp] lemma evalEProto_emit {Ev : Type} {Γ τ} (σ : Profile (L := L))
+@[simp] lemma evalEProto_emit {Ev : Type} {Γ τ} (σ : Profile (L := L) (W := W))
     (f : L.Env Γ → Ev) (k : EProtoProg Ev Γ τ) (env : L.Env Γ) :
     evalEProto σ (EProtoProg.emit f k) env =
       WDist.map (fun (v, tr) => (v, f env :: tr)) (evalEProto σ k env) := by
@@ -114,7 +115,7 @@ private theorem WDist_map_bind {α β γ : Type*} (f : β → γ) (d : WDist α)
 -- ============================================================
 
 /-- `applyProfileE` does not touch `doStmt` nodes (both observe and emit pass through). -/
-theorem applyProfileE_preserves_doStmt {Ev : Type} (π : PProfile (L := L))
+theorem applyProfileE_preserves_doStmt {Ev : Type} (π : PProfile (L := L) (W := W))
     {Γ : L.Ctx} {τ : L.Ty} (s : CmdStmtEv Ev Γ) (k : EProtoProg Ev Γ τ) :
     applyProfileE π (.doStmt s k) = .doStmt s (applyProfileE π k) := rfl
 
@@ -129,8 +130,8 @@ an `EProtoProg` under `σ` is the same whether or not we first apply `π`.
 This mirrors `evalProto_applyProfile_of_extends` from ProtoLemmas.
 -/
 theorem evalEProto_applyProfileE_of_extends {Ev : Type}
-    (σ : Profile (L := L)) (π : PProfile (L := L))
-    (hExt : ProtoProg.Extends σ π) :
+    (σ : Profile (L := L) (W := W)) (π : PProfile (L := L) (W := W))
+    (hExt : ProtoProg.Extends (W := W) σ π) :
     ∀ {Γ τ} (p : EProtoProg (L := L) Ev Γ τ) (env : L.Env Γ),
       evalEProto σ (applyProfileE π p) env
         =
@@ -186,8 +187,8 @@ as evaluating the original, but with an empty trace appended.
 `evalEProto σ (liftProto p) env = WDist.map (fun v => (v, [])) (evalProto σ p env)`
 -/
 theorem evalEProto_liftProto {Ev : Type}
-    (σ : Profile (L := L)) :
-    ∀ {Γ τ} (p : ProtoProg (L := L) Γ τ) (env : L.Env Γ),
+    (σ : Profile (L := L) (W := W)) :
+    ∀ {Γ τ} (p : ProtoProg (L := L) (W := W) Γ τ) (env : L.Env Γ),
       evalEProto (Ev := Ev) σ (liftProto p) env =
         WDist.map (fun v => (v, ([] : Trace Ev))) (evalProto σ p env) := by
   intro Γ τ p

@@ -26,6 +26,7 @@ namespace Assumptions
 open Defs Prog Proto Emit
 
 variable {L : Language}
+variable {W : Type} [WeightModel W]
 
 -- ============================================================
 -- 1) Traced utility
@@ -54,7 +55,7 @@ structure GameAssumptions (Ev : Type) (τ : L.Ty) where
 /-- A game with events: an EProtoProg plus assumptions. -/
 structure GameE (Ev : Type) (Γ : L.Ctx) where
   τ : L.Ty
-  protocol : EProtoProg (L := L) Ev Γ τ
+  protocol : EProtoProg (L := L) (W := W) Ev Γ τ
   assumptions : GameAssumptions (L := L) Ev τ
 
 -- ============================================================
@@ -64,17 +65,17 @@ structure GameE (Ev : Type) (Γ : L.Ctx) where
 /-- Expected utility of a traced distribution for one player.
 Finite-support sum: `Σ w * u(v, tr, who)` over all (value, trace, weight) triples. -/
 noncomputable def EU_traced {Ev : Type} {τ : L.Ty}
-    (d : TracedWDist Ev (L.Val τ))
+    (d : TracedWDist (W := W) Ev (L.Val τ))
     (u : TracedUtility (L := L) Ev τ)
     (who : Player) : Real :=
   d.weights.foldr
-    (fun (xw : (L.Val τ × Trace Ev) × NNReal) acc =>
-      acc + (xw.2 : Real) * u xw.1.1 xw.1.2 who)
+    (fun (xw : (L.Val τ × Trace Ev) × W) acc =>
+      acc + WeightModel.toReal xw.2 * u xw.1.1 xw.1.2 who)
     0
 
 /-- Expected utility of a game under a profile at a given environment. -/
 noncomputable def EU {Ev : Type} {Γ : L.Ctx}
-    (G : GameE (L := L) Ev Γ) (σ : Profile (L := L)) (env : L.Env Γ)
+    (G : GameE (L := L) (W := W) Ev Γ) (σ : Profile (L := L) (W := W)) (env : L.Env Γ)
     (who : Player) : Real :=
   EU_traced (evalEProto σ G.protocol env) G.assumptions.utility who
 
@@ -86,18 +87,18 @@ noncomputable def EU {Ev : Type} {Γ : L.Ctx}
 Both σ and deviated profiles must satisfy `WFOnProgE`. -/
 def IsNash_WF {Ev : Type} {Γ : L.Ctx}
     (Reach : ReachSpec (L := L))
-    (G : GameE (L := L) Ev Γ)
-    (σ : Profile (L := L))
+    (G : GameE (L := L) (W := W) Ev Γ)
+    (σ : Profile (L := L) (W := W))
     (env : L.Env Γ) : Prop :=
   WFOnProgE Reach σ G.protocol ∧
-  ∀ (who : Player) (δ : Deviator (L := L) who),
+  ∀ (who : Player) (δ : Deviator (L := L) (W := W) who),
     WFOnProgE Reach (Profile.applyDev σ δ) G.protocol →
       EU G σ env who ≥ EU G (Profile.applyDev σ δ) env who
 
 /-- Milestone default Nash: all environments reachable. -/
 def IsNash {Ev : Type} {Γ : L.Ctx}
-    (G : GameE (L := L) Ev Γ)
-    (σ : Profile (L := L))
+    (G : GameE (L := L) (W := W) Ev Γ)
+    (σ : Profile (L := L) (W := W))
     (env : L.Env Γ) : Prop :=
   IsNash_WF ReachAll G σ env
 
@@ -111,8 +112,8 @@ def liftUtility {Ev : Type} {τ : L.Ty} (u : Proto.Utility (L := L) τ) :
   fun v _tr who => u v who
 
 /-- Lift a Proto.Game to a GameE (using liftProto for the protocol, liftUtility for utility). -/
-def liftGame {Ev : Type} {Γ : L.Ctx} (G : Proto.Game (L := L) Γ) :
-    GameE (L := L) Ev Γ where
+def liftGame {Ev : Type} {Γ : L.Ctx} (G : Proto.Game (L := L) (W := W) Γ) :
+    GameE (L := L) (W := W) Ev Γ where
   τ := G.τ
   protocol := liftProto G.p
   assumptions := {
