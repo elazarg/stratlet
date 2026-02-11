@@ -11,9 +11,6 @@ namespace Proto
 
 open Defs Prog
 
-variable {L : Language}
-variable {W : Type} [WeightModel W]
-
 /-- Callback interface for handling protocol events during IO evaluation. -/
 structure ProtoHandler (L : Language) (W : Type) [WeightModel W] where
   /-- Handle a sample event: given yield id and the distribution, produce a value. -/
@@ -22,7 +19,9 @@ structure ProtoHandler (L : Language) (W : Type) [WeightModel W] where
   onChoose : {τ : L.Ty} → YieldId → Player → List (L.Val τ) → IO (L.Val τ)
 
 /-- Evaluate a `ProtoProg` using IO, delegating to a handler for sample/choose events. -/
-def stepProto (h : ProtoHandler L W) {Γ τ} : ProtoProg (L := L) (W := W) Γ τ → L.Env Γ → IO (L.Val τ)
+def stepProto {L : Language} {W : Type} [WeightModel W]
+    (h : ProtoHandler L W) {Γ τ} :
+    ProtoProg (W := W) Γ τ → L.Env Γ → IO (L.Val τ)
   | .ret e, env => pure (L.eval e env)
   | .letDet e k, env => stepProto h k (L.eval e env, env)
   | .doStmt (.observe cond) k, env =>

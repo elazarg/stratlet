@@ -12,7 +12,6 @@ namespace Emit
 
 open Defs Prog Proto
 
-variable {L : Language}
 variable {W : Type} [WeightModel W]
 
 -- ============================================================
@@ -20,7 +19,7 @@ variable {W : Type} [WeightModel W]
 -- ============================================================
 
 /-- WDist.map with identity is the identity. -/
-private theorem WDist_map_id {α : Type*} (d : WDist W α) :
+private theorem WDist_map_id {α : Type*} {W : Type} (d : WDist W α) :
     WDist.map (fun x => x) d = d := by
   cases d with
   | mk ws =>
@@ -31,7 +30,7 @@ private theorem WDist_map_id {α : Type*} (d : WDist W α) :
     simp
 
 /-- `WDist.map` composition law. -/
-private theorem WDist_map_map {α β γ : Type*} (f : β → γ) (g : α → β) (d : WDist W α) :
+private theorem WDist_map_map {α β γ : Type*} {W : Type} (f : β → γ) (g : α → β) (d : WDist W α) :
     WDist.map f (WDist.map g d) = WDist.map (f ∘ g) d := by
   cases d with
   | mk ws => apply WDist.ext_weights; simp [WDist.map, List.map_map]
@@ -62,6 +61,8 @@ private theorem WDist_map_bind {α β γ : Type*} (f : β → γ) (d : WDist W �
 -- ============================================================
 -- 0) Simp lemmas for evalEProto
 -- ============================================================
+
+variable {L : Language}
 
 @[simp] lemma evalEProto_ret {Ev : Type} {Γ τ} (σ : Profile (L := L) (W := W))
     (e : L.Expr Γ τ) (env : L.Env Γ) :

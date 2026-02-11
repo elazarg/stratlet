@@ -172,7 +172,8 @@ theorem mass_evalP_observe_le_toReal {Γ τ}
     WeightModel.toReal (WDist.mass (evalP k env)) := by
   by_cases h : L.toBool (L.eval c env)
   · simp [evalP_observe, h]
-  · simp [evalP_observe, h, WDist.mass, WeightModel.toReal_zero]
+  · simp only [WDist.mass, evalP_observe, h, Bool.false_eq_true, ↓reduceIte, WDist_zero_weights,
+               List.map_nil, List.sum_nil, WeightModel.toReal_zero]
     exact WeightModel.toReal_nonneg _
 
 /-! ## Observe true/false -/
