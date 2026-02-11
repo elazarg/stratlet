@@ -21,7 +21,6 @@ works with `Eq`.
 - `@[simp]` lemmas: `sem_ret`, `sem_letDet`, `sem_observe`, `sem_sample`, `sem_choose`
 - Commuting conversions: `sem_observe_fuse`, `sem_letDet_observe_commute`,
   `sem_sample_observe_commute`
-- EU preservation templates
 -/
 
 namespace Proto
@@ -245,49 +244,5 @@ theorem sem_applyProfile_congr
   rw [h_apply p env, h_apply q env]
   exact congr_fun (congr_fun hpq σπ) env
 
-
--- ============================================================
--- 6) EU preservation templates
--- ============================================================
-
-/-- A program transformation that preserves denotations preserves EU. -/
-theorem EU_preserved_of_sem_eq
-    {Γ : L.Ctx} (G : Game Γ)
-    {p' : ProtoProg Γ G.τ}
-    (hEq : sem G.p = sem p')
-    (σ : Profile) (env : L.Env Γ) (who : Player) :
-    EU G σ env who =
-      EU_dist (evalProto σ p' env) G.u who := by
-  unfold EU OutcomeDist
-  rw [show evalProto σ G.p env = evalProto σ p' env
-      from congr_fun (congr_fun hEq σ) env]
-
-/-- A transformation preserving yield structure and denotations
-    produces a program with the same EU as the original game. -/
-theorem EU_preserved_of_pass
-    {Γ : L.Ctx} (G : Game Γ)
-    (f : {Γ' : L.Ctx} → {τ' : L.Ty} →
-         ProtoProg (L := L) Γ' τ' → ProtoProg Γ' τ')
-    (_hStruct : PreservesYieldStructure f)
-    (hEq : sem G.p = sem (f G.p))
-    (σ : Profile) (env : L.Env Γ) (who : Player) :
-    EU G σ env who =
-      EU_dist (evalProto σ (f G.p) env) G.u who :=
-  EU_preserved_of_sem_eq G hEq σ env who
-
-/-- Specialization: if `f` preserves denotations and NoChoose,
-    then the compiled ProbLet program has the same EU. -/
-theorem EU_preserved_of_noChoose_pass
-    {Γ : L.Ctx} (G : Game Γ)
-    (f : {Γ' : L.Ctx} → {τ' : L.Ty} →
-         ProtoProg (L := L) Γ' τ' → ProtoProg Γ' τ')
-    (hStruct : PreservesYieldStructure f)
-    (hEq : sem G.p = sem (f G.p))
-    (hNC : NoChoose G.p)
-    (σ : Profile) (env : L.Env Γ) (who : Player) :
-    EU G σ env who =
-      EU_dist (evalProto σ (f G.p) env) G.u who := by
-  have _hNC' := hStruct.preserves_noChoose G.p hNC
-  exact EU_preserved_of_pass G f hStruct hEq σ env who
 
 end Proto

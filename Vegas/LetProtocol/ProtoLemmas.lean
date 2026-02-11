@@ -110,18 +110,11 @@ def p_chooseBool (EL : ExprLaws L) :
 
 /-- Utility: player 0 gets 1 if result is true; others get 0. -/
 def u_bool [DecidableEq (L.Val L.bool)] :
-    Utility L.bool :=
+    L.Val L.bool → Player → Real :=
   fun b who =>
     if who = 0
     then (if b = L.fromBool true then (1 : Real) else 0)
     else 0
-
-def G_chooseBool (EL : ExprLaws L)
-    [DecidableEq (L.Val L.bool)] :
-    Game (L := L) Γ0 where
-  τ := L.bool
-  p := p_chooseBool EL
-  u := u_bool
 
 end Examples
 

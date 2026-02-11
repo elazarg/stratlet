@@ -1,4 +1,4 @@
-import Vegas.LetProtocol.Proto
+import Vegas.LetGames.ProtoGame
 import Vegas.LetProtocol.ProtoLemmas
 import Vegas.LetProb.ConditionalEU
 

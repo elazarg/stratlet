@@ -1,8 +1,6 @@
 import Vegas.LetProtocol.Proto
 import Vegas.LetProtocol.ProtoLemmas
 import Vegas.LetProtocol.ProtoEquiv
-import Vegas.LetProtocol.ProtoGameLemmas
-import Vegas.LetProtocol.ProtoCondEU
 import Vegas.LetProtocol.FullInfo
 import Vegas.LetProtocol.FullInfoLemmas
 import Vegas.LetProtocol.PartialInfo
@@ -14,5 +12,5 @@ import Vegas.LetProtocol.ParentViewLemmas
 import Vegas.LetProtocol.ParentViewExample
 import Vegas.LetProtocol.Step
 import Vegas.LetProtocol.Play
-import Vegas.LetProtocol.Denotations
-import Vegas.LetProtocol.EUBridge
+import Vegas.LetProtocol.Emit
+import Vegas.LetProtocol.EmitLemmas

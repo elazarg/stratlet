@@ -1,3 +1,4 @@
+import Vegas.LetGames.ProtoGame
 import Vegas.LetProtocol.ParentView
 import GameTheory.EFG
 import GameTheory.MAID
@@ -12,8 +13,7 @@ Two bridge layers:
 2. **Semantic**: `ParentProtoProg.toEFG` unfolds a `ParentProtoProg` (scoped to
    the bool-only fragment via `BasicLang`) into an `EFG.GameTree`.
 
-This file lives in `LetProtocol` (not `GameTheory`) because it bridges FROM
-protocol programs TO game-theoretic structures. `GameTheory` is self-contained.
+This file bridges FROM protocol programs TO game-theoretic structures.
 -/
 
 namespace Proto

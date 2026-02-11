@@ -1,4 +1,4 @@
-import Vegas.LetProtocol.Denotations
+import Vegas.LetGames.Denotations
 import Vegas.LetProb.ConditionalEU
 
 /-!
@@ -18,9 +18,6 @@ computation via `WDist.EV_bind` (the tower property).
 
 1. `Proto.directEU` — structural recursive EU on ParentProtoProg (fuel-free)
 2. `Proto.eu_preservation_directEU` — the main preservation theorem
-
-This file lives in `LetProtocol` (not `GameTheory`) because it bridges FROM
-protocol programs TO game-theoretic structures.
 -/
 
 namespace Proto

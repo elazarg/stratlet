@@ -51,7 +51,8 @@ within visible state. A secrecy-capable version will require
 inductive CmdBindS : Prog.CmdB where
   | choose {Γ τ}  (who : Player) (v : View Γ) (A : Act v τ) : CmdBindS Γ τ
   | commit {Γ τ}  (who : Player) (v : View Γ) (x : Env.Var v.Δ τ) : CmdBindS Γ .int
-  | reveal {Γ τ}  (who : Player) (v : View Γ) (c : Env.Var v.Δ .int) (x : Env.Var v.Δ τ) : CmdBindS Γ τ
+  | reveal {Γ τ}  (who : Player) (v : View Γ)
+      (c : Env.Var v.Δ .int) (x : Env.Var v.Δ τ) : CmdBindS Γ τ
 
 abbrev CmdStmtS := Prog.CmdStmtObs (L := L)
 abbrev SProg := Prog.Prog CmdBindS CmdStmtS

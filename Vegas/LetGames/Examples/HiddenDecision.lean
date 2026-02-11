@@ -1,3 +1,4 @@
+import Vegas.LetGames.ProtoGame
 import Vegas.LetProtocol.ProtoLemmas
 import Vegas.LetCore.Concrete
 

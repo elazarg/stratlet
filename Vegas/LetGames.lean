@@ -1,1 +1,8 @@
 import Vegas.LetGames.Game
+import Vegas.LetGames.ProtoGame
+import Vegas.LetGames.ProtoGameLemmas
+import Vegas.LetGames.ProtoCondEU
+import Vegas.LetGames.Denotations
+import Vegas.LetGames.EUBridge
+import Vegas.LetGames.Assumptions
+import Vegas.LetGames.Assume
