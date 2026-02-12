@@ -10,8 +10,8 @@ import Vegas.LetCore.Concrete
 Two bridge layers:
 1. **Structural**: `ParentProtoProg.toMAIDNodes` / `ParentProtoProg.toMAID`
    extracts the DAG structure (nodes + parent sets) as a MAID diagram.
-2. **Semantic**: `ParentProtoProg.toEFG` unfolds a `ParentProtoProg` (scoped to
-   the bool-only fragment via `BasicLang`) into an `EFG.GameTree`.
+2. **Semantic**: `ParentProtoProg.toEFG` unfolds a `ParentProtoProg`
+   (specialized to `BasicLang` and `NNReal`) into an `EFG.GameTree`.
 
 This file bridges FROM protocol programs TO game-theoretic structures.
 -/
@@ -76,11 +76,11 @@ def ParentProtoProg.toMAID (p : ParentProtoProg W Γ τ)
   acyclic := htopo
 
 -- ============================================================
--- Layer 2: Semantic — ParentProtoProg → EFG.GameTree (bool-only)
+-- Layer 2: Semantic — ParentProtoProg → EFG.GameTree (BasicLang)
 -- ============================================================
 
 /-- For all `choose` sites, the action list has no duplicates
-    for all reachable observations. -/
+    for all observations. -/
 def NodupActions : ParentProtoProg (L := L) W Γ τ → Prop
   | .ret _ => True
   | .letDet _ k => NodupActions k
@@ -90,7 +90,7 @@ def NodupActions : ParentProtoProg (L := L) W Γ τ → Prop
       (∀ obs : L.Env (viewOfVarSpec ps.vars).Δ, (A obs).Nodup) ∧ NodupActions k
 
 /-- For all `choose` sites, the action list is non-empty
-    for all reachable observations. -/
+    for all observations. -/
 def NonEmptyActions : ParentProtoProg (L := L) W Γ τ → Prop
   | .ret _ => True
   | .letDet _ k => NonEmptyActions k
@@ -111,8 +111,8 @@ def ConstantArityAtSite : ParentProtoProg (L := L) W Γ τ → Prop
         (A obs₁).length = (A obs₂).length) ∧ ConstantArityAtSite k
 
 /-- Convert a `ParentProtoProg` to an `EFG.GameTree`.
-    Specialized to `W = NNReal` because `EFG.GameTree` uses `NNReal` for chance weights.
-    Scoped to the bool-only fragment with `BasicLang`.
+    Specialized to `W = NNReal` because `EFG.GameTree` uses `NNReal` for chance weights,
+    and to `BasicLang` because `toEFG` evaluates expressions concretely.
     The utility function maps terminal values to player payoffs. -/
 def ParentProtoProg.toEFG
     (u : Proto.Utility (L := BasicLang) τ) :

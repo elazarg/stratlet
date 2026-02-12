@@ -5,11 +5,13 @@ import Vegas.LetGames.EUBridge
 # WF_GameProg: Well-Formedness Bundle for ParentProtoProg
 
 Bundles the scattered well-formedness predicates into a single structure:
-- `NodupActions` (from Denotations)
-- `NonEmptyActions` (from Denotations)
-- `WFChanceOnProg` (from Proto)
-- `ObserveFree` (from EUBridge)
-- `NoDupYieldIds` (from Proto)
+- `NodupActions` (from Denotations) — action lists have no duplicates
+- `NonEmptyActions` (from Denotations) — action lists are non-empty
+- `WFChanceOnProg` (from Proto) — chance kernels are proper distributions
+- `ObserveFree` (from EUBridge) — no `observe` nodes
+- `NoDupYieldIds` (from Proto) — yield IDs are unique
+- `ConstantArityAtSite` (from Denotations) — action list length is
+  independent of observation (needed for infoset consistency)
 
 Master theorems combine existing results:
 - `WF_GameProg.wfTree`: well-formed programs produce well-formed EFG trees

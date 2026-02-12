@@ -2,7 +2,7 @@ import Vegas.LetGames.Denotations
 import Vegas.LetProb.ConditionalEU
 
 /-!
-# EU Bridge: Proto ↔ EFG Expected Utility Preservation
+# EU Bridge: Proto → EFG Expected Utility Preservation
 
 This module establishes the connection between Proto's `EU_dist` and the
 expected utility computed on the EFG tree produced by `ParentProtoProg.toEFG`.

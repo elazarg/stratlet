@@ -22,7 +22,9 @@ inductive GameTree (ι : Type) where
   | decision (pid : Nat) (player : ι) (actions : List (GameTree ι))
 
 /-- An information set: groups decision nodes for a player
-    where the player cannot distinguish between them. -/
+    where the player cannot distinguish between them.
+    Currently unused — the infoset consistency property is expressed
+    via `DecisionNodeIn` and `InfoSetConsistent` instead. -/
 structure InformationSet (ι : Type) where
   player : ι
   actionCount : Nat
@@ -84,10 +86,8 @@ noncomputable def GameTree.EU {ι : Type} (t : GameTree ι) (σ : PureStrategy) 
 /-! ## Structural recursive EU on GameTree -/
 
 /-- Expected utility computed structurally on a `GameTree`, given a
-    behavioral strategy. No fuel needed.
-
-    Uses fuel internally to work around nested-inductive termination.
-    The fuel is set high enough (depth of the tree) to be transparent. -/
+    behavioral strategy. Uses fuel to work around nested-inductive
+    termination; callers should use `euStruct` which supplies enough fuel. -/
 noncomputable def GameTree.euStructAux
     {ι : Type} (σ : BehavioralStrategy) (who : ι) : Nat → GameTree ι → ℝ
   | _, .terminal payoff => payoff who

@@ -11,7 +11,7 @@ non-vacuity certificate for information sets.
 
 1. `toEFG_choose_pid` — each `choose` site with YieldId `id` produces
    a decision node with `pid = id` in the EFG tree.
-2. The same view (VarSpec) and same YieldId means the same pid in EFG,
+2. The same YieldId means the same pid in EFG,
    so information structure is enforced by the compilation.
 3. `toEFG_infoset_consistent` — compiled EFG trees have consistent
    information sets (same pid ⟹ same player and arity).
@@ -62,14 +62,10 @@ theorem toEFG_ret_is_terminal
       .terminal payoff :=
   ⟨_, rfl⟩
 
-/-- Key non-vacuity theorem: two `choose` sites with the same YieldId
-    produce decision nodes with the same pid. This is trivially true
-    because `toEFG` maps `choose id who ps A k` to `.decision id who ...`,
-    so the pid IS the YieldId.
-
-    Combined with `NoDupYieldIds`, this means different choose sites
-    get different pids, and same-id choose sites (which represent the
-    same information set) get the same pid. -/
+/-- Two `choose` sites sharing a YieldId produce decision nodes with the
+    same pid. Trivially true because `toEFG` maps `choose id` to
+    `.decision id ...`, so the pid IS the YieldId. Stated explicitly for
+    completeness alongside the stronger `toEFG_infoset_consistent`. -/
 theorem view_determines_pid
     {Γ₁ Γ₂ : BasicLang.Ctx} {τ₁ τ₂ τ₁' τ₂' : BasicLang.Ty}
     (id : YieldId)

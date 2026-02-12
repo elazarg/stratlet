@@ -44,7 +44,7 @@ private def A_bool : Act (L := L) (v := vEmpty1) Ty.bool :=
 /-- Hidden-info protocol:
 1. Nature samples a bit (YieldId 0, empty view)
 2. Player 0 guesses a bool (YieldId 1, empty view — no info)
-3. Return both as a pair via letDet + ret -/
+3. Return the guess (utility determines payoff) -/
 noncomputable def hiddenProto :
     ProtoProg (W := NNReal) (L := L) Γ0 Ty.bool :=
   -- Sample nature's bit
