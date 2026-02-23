@@ -1,5 +1,6 @@
 import Mathlib.Data.List.Basic
 import Mathlib.Data.Rat.Defs
+import Mathlib.Data.NNRat.Defs
 
 /-!
 # Vegas: A Typed Game Calculus
@@ -77,13 +78,6 @@ def viewCtx (p : Player) : Ctx → Ctx
     if canSee p τ then (x, τ) :: viewCtx p Γ
     else viewCtx p Γ
 
-def pubCtx : Ctx → Ctx
-  | [] => []
-  | (x, τ) :: Γ =>
-    match τ with
-    | .pub _ => (x, τ) :: pubCtx Γ
-    | .hidden _ _ => pubCtx Γ
-
 /-- Embedding: a variable in the player's view is a variable in the full context. -/
 def HasVar.ofViewCtx {p : Player} :
     HasVar (viewCtx p Γ) x τ → HasVar Γ x τ := by
@@ -100,25 +94,8 @@ def HasVar.ofViewCtx {p : Player} :
     · intro h
       exact .there (ih h)
 
-/-- Embedding: a variable in the public view is a variable in the full context. -/
-def HasVar.ofPubCtx : HasVar (pubCtx Γ) x τ → HasVar Γ x τ := by
-  induction Γ with
-  | nil => intro h; exact nomatch h
-  | cons hd tl ih =>
-    obtain ⟨y, σ⟩ := hd
-    simp only [pubCtx]
-    split
-    · intro h
-      match h with
-      | .here => exact .here
-      | .there h' => exact .there (ih h')
-    · intro h; exact .there (ih h)
-
 def Env.toView (p : Player) (env : Env Γ) : Env (viewCtx p Γ) :=
   fun x τ h => env x τ h.ofViewCtx
-
-def Env.toPub (env : Env Γ) : Env (pubCtx Γ) :=
-  fun x τ h => env x τ h.ofPubCtx
 
 -- ============================================================================
 -- § 4. Expressions (pub-only variable access; to be defined over obligation,
@@ -154,7 +131,7 @@ def evalExpr : Expr Γ b → Env Γ → Val b
 -- ============================================================================
 
 structure WDist (α : Type) where
-  weights : List (α × Rat)
+  weights : List (α × ℚ≥0)
 deriving Inhabited
 
 namespace WDist
@@ -168,7 +145,7 @@ def bind (d : WDist α) (f : α → WDist β) : WDist β :=
 def map (f : α → β) (d : WDist α) : WDist β :=
   ⟨d.weights.map (fun (a, w) => (f a, w))⟩
 
-def scale (w : Rat) (d : WDist α) : WDist α :=
+def scale (w : ℚ≥0) (d : WDist α) : WDist α :=
   ⟨d.weights.map (fun (a, w') => (a, w * w'))⟩
 
 def append (d₁ d₂ : WDist α) : WDist α :=
@@ -177,22 +154,8 @@ def append (d₁ d₂ : WDist α) : WDist α :=
 end WDist
 
 -- ============================================================================
--- § 6. Coherent sampling, kernels, action sets, asserts
+-- § 6. Kernels and action sets
 -- ============================================================================
-
-inductive SampleMode : BindTy → Type where
-  | NaturePub {b} : SampleMode (.pub b)
-  | NaturePriv {p b} : SampleMode (.hidden p b)
-  | PlayerPriv {p b} : SampleMode (.hidden p b)
-
-abbrev sampleCtx (τ : BindTy) (m : SampleMode τ) (Γ : Ctx) : Ctx :=
-  match τ, m with
-  | .pub _, .NaturePub => pubCtx Γ
-  | .hidden _ _, .NaturePriv => pubCtx Γ
-  | .hidden p _, .PlayerPriv => viewCtx p Γ
-
-abbrev SampleKernel (τ : BindTy) (m : SampleMode τ) (Γ : Ctx) : Type :=
-  Env (sampleCtx τ m Γ) → WDist (Val τ.base)
 
 abbrev CommitKernel (who : Player) (Γ : Ctx) (b : BaseTy) : Type :=
   Env (viewCtx who Γ) → WDist (Val b)
@@ -200,18 +163,8 @@ abbrev CommitKernel (who : Player) (Γ : Ctx) (b : BaseTy) : Type :=
 abbrev ActSet (who : Player) (Γ : Ctx) (b : BaseTy) : Type :=
   Env (viewCtx who Γ) → List (Val b)
 
-abbrev Assert (who : Player) (Γ : Ctx) : Type :=
-  Env (viewCtx who Γ) → Bool
-
-def Env.projectSample (τ : BindTy) (m : SampleMode τ)
-    (env : Env Γ) : Env (sampleCtx τ m Γ) :=
-  match τ, m with
-  | .pub _, .NaturePub => env.toPub
-  | .hidden _ _, .NaturePriv => env.toPub
-  | .hidden p _, .PlayerPriv => env.toView p
-
 -- ============================================================================
--- § 7. Payoff maps and program type (7 constructors)
+-- § 7. Payoff maps and program type (6 constructors)
 -- ============================================================================
 
 structure PayoffMap (Γ : Ctx) where
@@ -226,16 +179,13 @@ inductive Prog : Ctx → Type where
   | ret (u : PayoffMap Γ) : Prog Γ
   | letExpr (x : VarId) {b : BaseTy} (e : Expr Γ b)
       (k : Prog ((x, .pub b) :: Γ)) : Prog Γ
-  | sample (x : VarId) (τ : BindTy) (m : SampleMode τ)
-      (K : SampleKernel τ m Γ)
-      (k : Prog ((x, τ) :: Γ)) : Prog Γ
   | commit (x : VarId) (who : Player) {b : BaseTy}
       (A : ActSet who Γ b)
       (k : Prog ((x, .hidden who b) :: Γ)) : Prog Γ
   | reveal (y : VarId) (who : Player) (x : VarId) {b : BaseTy}
       (hx : HasVar Γ x (.hidden who b))
       (k : Prog ((y, .pub b) :: Γ)) : Prog Γ
-  | assert (who : Player) (P : Assert who Γ)
+  | assert (who : Player) (c : Expr Γ .bool)
       (k : Prog Γ) : Prog Γ
   | observe (c : Expr Γ .bool)
       (k : Prog Γ) : Prog Γ
@@ -247,6 +197,30 @@ inductive Prog : Ctx → Type where
 structure Profile where
   commit : {Γ : Ctx} → {b : BaseTy} → (who : Player) →
     (x : VarId) → ActSet who Γ b → CommitKernel who Γ b
+
+-- ============================================================================
+-- § 9. Denotational semantics
+-- ============================================================================
+
+def outcomeDist (σ : Profile) : Prog Γ → Env Γ → WDist (Player → Int)
+  | .ret u, env =>
+    WDist.pure (fun who => evalPayoffMap u env who)
+  | .letExpr x e k, env =>
+    outcomeDist σ k (Env.cons (x := x) (evalExpr e env) env)
+  | .commit x who A k, env =>
+    WDist.bind (σ.commit who x A (env.toView who)) (fun v =>
+      outcomeDist σ k (Env.cons (x := x) v env))
+  | .reveal y _who _x (b := b) hx k, env =>
+    let v : Val b := env.get hx
+    outcomeDist σ k (Env.cons (x := y) v env)
+  | .assert _who c k, env =>
+    if evalExpr c env then outcomeDist σ k env else WDist.zero
+  | .observe c k, env =>
+    if evalExpr c env then outcomeDist σ k env else WDist.zero
+
+-- ============================================================================
+-- § 10. Partial profiles
+-- ============================================================================
 
 structure PProfile where
   commit? : {Γ : Ctx} → {b : BaseTy} → (who : Player) →
@@ -263,47 +237,7 @@ def PProfile.commitOfComplete (π : PProfile) (hπ : π.Complete)
   (π.commit? who x A).get (hπ who x A)
 
 -- ============================================================================
--- § 9. Denotational semantics
--- ============================================================================
-
-def outcomeDist (σ : Profile) : Prog Γ → Env Γ → WDist (Player → Int)
-  | .ret u, env =>
-    WDist.pure (fun who => evalPayoffMap u env who)
-  | .letExpr x e k, env =>
-    outcomeDist σ k (Env.cons (x := x) (evalExpr e env) env)
-  | .sample x τ m K k, env =>
-    WDist.bind (K (env.projectSample τ m)) (fun v =>
-      outcomeDist σ k (Env.cons (x := x) v env))
-  | .commit x who A k, env =>
-    WDist.bind (σ.commit who x A (env.toView who)) (fun v =>
-      outcomeDist σ k (Env.cons (x := x) v env))
-  | .reveal y _who _x (b := b) hx k, env =>
-    let v : Val b := env.get hx
-    outcomeDist σ k (Env.cons (x := y) v env)
-  | .assert p P k, env =>
-    if P (env.toView p) then outcomeDist σ k env else WDist.zero
-  | .observe c k, env =>
-    if evalExpr c env then outcomeDist σ k env else WDist.zero
-
--- ============================================================================
--- § 11. Profile application
--- ============================================================================
-
-def applyPProfile (π : PProfile) : Prog Γ → Prog Γ
-  | .ret u => .ret u
-  | .letExpr x e k => .letExpr x e (applyPProfile π k)
-  | .sample x τ m K k => .sample x τ m K (applyPProfile π k)
-  | @Prog.commit _ x who b A k =>
-    match π.commit? who x A with
-    | some Kdec =>
-      .sample x (.hidden who b) .PlayerPriv Kdec (applyPProfile π k)
-    | none => .commit x who A (applyPProfile π k)
-  | .reveal y who' x hx k => .reveal y who' x hx (applyPProfile π k)
-  | .assert who' P k => .assert who' P (applyPProfile π k)
-  | .observe c k => .observe c (applyPProfile π k)
-
--- ============================================================================
--- § 12. Examples
+-- § 11. Examples
 -- ============================================================================
 
 namespace Examples

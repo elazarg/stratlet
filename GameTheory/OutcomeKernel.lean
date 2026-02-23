@@ -1,6 +1,6 @@
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.NNReal.Basic
-import Mathlib.Data.List.Basic
+import Mathlib.Probability.ProbabilityMassFunction.Monad
 
 /-!
 # GameTheory.OutcomeKernel
@@ -13,176 +13,132 @@ This file intentionally knows nothing about:
 - any external "calculus"
 
 It defines:
-- finitely-supported distributions (`FDist`)
-- Markov kernels (`Kernel`)
-- linear extension / pushforward of a kernel to distributions (`linExt`)
-- expectation and player-indexed expected utilities
+- stochastic kernels (`Kernel`) using Mathlib's `PMF`
+- player-indexed expected utilities
+- kernel-based game structure with Nash equilibrium
 
 Representations (EFG/NFG/MAID/...) should *export* kernels into this interface
 and then reuse generic theorems.
+
+PMF monad laws (`PMF.pure_bind`, `PMF.bind_pure`, `PMF.bind_bind`,
+`PMF.bind_comm`) are provided by Mathlib.
 -/
 
 namespace GameTheory
 
 -- ============================================================================
--- § 1. Finite-support distributions (list-based)
+-- § 1. Kernels (using Mathlib's PMF)
 -- ============================================================================
 
-/-- Finitely-supported distribution as a weighted list.
-
-Intended invariants (not baked into the type):
-- weights are nonnegative
-- optionally: weights sum to 1
-
-We keep this minimal; each representation can impose its own well-formedness.
--/
-structure FDist (α : Type) where
-  weights : List (α × NNReal)
-deriving Inhabited
-
-namespace FDist
-
-abbrev Kernel (α β : Type) : Type := α → FDist β
-
-/-- Point mass. -/
-def pure (a : α) : FDist α := ⟨[(a, 1)]⟩
-
-/-- Empty support (zero mass). -/
-def zero : FDist α := ⟨[]⟩
-
-/-- Map values, keep weights. -/
-def map (f : α → β) (d : FDist α) : FDist β :=
-  ⟨d.weights.map (fun (a,w) => (f a, w))⟩
-
-/-- Scale all weights by `c`. -/
-def scale (c : NNReal) (d : FDist α) : FDist α :=
-  ⟨d.weights.map (fun (a,w) => (a, c * w))⟩
-
-/-- Append supports (mixture without normalization and without merging equal atoms). -/
-def append (d₁ d₂ : FDist α) : FDist α := ⟨d₁.weights ++ d₂.weights⟩
-
-/-- Monadic bind: linear extension of a kernel `α → FDist β`. -/
-def bind (d : FDist α) (k : α → FDist β) : FDist β :=
-  ⟨d.weights.flatMap (fun (a, w) =>
-    (k a).weights.map (fun (b, w') => (b, w * w')))⟩
-
-/-- Total mass (sum of weights). -/
-noncomputable def mass (d : FDist α) : NNReal :=
-  (d.weights.map Prod.snd).sum
-
-/-- Expectation of a real-valued function (no normalization assumed). -/
-noncomputable def expect (f : α → ℝ) (d : FDist α) : ℝ :=
-  (d.weights.map (fun (a,w) => (w : ℝ) * f a)).sum
-
-end FDist
-
--- ============================================================================
--- § 2. Kernels and linear extension
--- ============================================================================
-
-/-- A (finite-support) stochastic kernel from `α` to `β`. -/
-abbrev Kernel (α β : Type) : Type := α → FDist β
+/-- A stochastic kernel from `α` to `β`: maps each input to a PMF over outputs. -/
+abbrev Kernel (α β : Type) : Type := α → PMF β
 
 namespace Kernel
 
 /-- Identity kernel. -/
-def id (α : Type) : Kernel α α := fun a => FDist.pure a
+noncomputable def id (α : Type) : Kernel α α := PMF.pure
 
 /-- Kernel composition (Kleisli composition). -/
-def comp (k₁ : Kernel α β) (k₂ : Kernel β γ) : Kernel α γ :=
+noncomputable def comp (k₁ : Kernel α β) (k₂ : Kernel β γ) : Kernel α γ :=
   fun a => (k₁ a).bind k₂
 
-/-- Linear extension / pushforward of a kernel to input distributions.
-
-This is the canonical `FDist α → FDist β` induced by a kernel `α → FDist β`.
--/
-def linExt (k : Kernel α β) : FDist α → FDist β :=
+/-- Linear extension / pushforward of a kernel to input distributions. -/
+noncomputable def linExt (k : Kernel α β) : PMF α → PMF β :=
   fun μ => μ.bind k
 
-/-- Pushforward along a pure function as a special case (deterministic kernel). -/
-def ofFun (f : α → β) : Kernel α β := fun a => FDist.pure (f a)
+/-- Pushforward along a pure function (deterministic kernel). -/
+noncomputable def ofFun (f : α → β) : Kernel α β := fun a => PMF.pure (f a)
+
+
+@[simp] theorem comp_apply (k₁ : Kernel α β) (k₂ : Kernel β γ) (a : α) :
+    Kernel.comp k₁ k₂ a = (k₁ a).bind k₂ := rfl
+
+@[simp] theorem comp_assoc (k₁ : Kernel α β) (k₂ : Kernel β γ) (k₃ : Kernel γ δ) :
+    Kernel.comp (Kernel.comp k₁ k₂) k₃ = Kernel.comp k₁ (Kernel.comp k₂ k₃) := by
+  funext a
+  simp_all only [comp_apply, PMF.bind_bind]
+  rfl
+
+@[simp] theorem comp_id_left (k : Kernel α β) :
+    Kernel.comp (Kernel.id α) k = k := by
+  funext a
+  simp [Kernel.comp, Kernel.id]
+
+@[simp] theorem comp_id_right (k : Kernel α β) :
+    Kernel.comp k (Kernel.id β) = k := by
+  funext a
+  simp [Kernel.comp, Kernel.id]
+
+/-- Linear extension is just `bind` at the PMF level. -/
+@[simp] theorem linExt_apply (k : Kernel α β) (μ : PMF α) :
+    Kernel.linExt k μ = μ.bind k := rfl
+
+/-- `linExt` along a deterministic kernel is exactly `mapPMF`. -/
+@[simp] theorem linExt_ofFun (f : α → β) (μ : PMF α) :
+    Kernel.linExt (Kernel.ofFun f) μ = μ.bind (fun a => PMF.pure (f a)) := by
+  rfl
+
+/-- Linear extension respects Kleisli composition. -/
+@[simp] theorem linExt_comp (k₁ : Kernel α β) (k₂ : Kernel β γ) (μ : PMF α) :
+    Kernel.linExt (Kernel.comp k₁ k₂) μ = Kernel.linExt k₂ (Kernel.linExt k₁ μ) := by
+  -- μ.bind (fun a => (k₁ a).bind k₂) = (μ.bind k₁).bind k₂
+  simp_all only [linExt_apply, PMF.bind_bind]
+  rfl
 
 end Kernel
 
 -- ============================================================================
--- § 3. Player-indexed payoffs and expected utilities
+-- § 2. Player-indexed payoffs and expected utilities
 -- ============================================================================
 
 /-- A payoff vector for `ι` players. -/
 abbrev Payoff (ι : Type) : Type := ι → ℝ
 
-/-- Expected utility of player `who` under an outcome distribution on payoff vectors. -/
-noncomputable def EU {ι : Type} (who : ι) (d : FDist (Payoff ι)) : ℝ :=
-  d.expect (fun u => u who)
+/-- Expected value of a real-valued function under a PMF. -/
+noncomputable def expect {Ω : Type} (d : PMF Ω) (f : Ω → ℝ) : ℝ :=
+  ∑' ω, (d ω).toReal * f ω
+
+/--
+For finite `Ω`, your `expect` is literally a finite sum.
+This is a *huge* simplification for many game models (EFG/NFG/MAID with finite outcomes).
+-/
+theorem expect_eq_sum {Ω : Type} [Fintype Ω] (d : PMF Ω) (f : Ω → ℝ) :
+    expect d f = (∑ ω : Ω, (d ω).toReal * f ω) := by
+  simp [expect]
 
 -- ============================================================================
--- § 4. Generic kernel laws (extensional, representation-agnostic)
+-- § 3. Kernel-based game (strategies + outcome kernel → EU + Nash)
 -- ============================================================================
 
-namespace Laws
+/-- A kernel-based game with explicit outcome type.
+    - `Outcome` is the type of game outcomes (e.g. terminal nodes, action profiles)
+    - `payoff` maps outcomes to player payoffs
+    - `outcomeKernel` maps strategy profiles to outcome distributions -/
+structure KernelGame (ι : Type) [DecidableEq ι] where
+  Strategy : ι → Type
+  Outcome : Type
+  payoff : Outcome → Payoff ι
+  outcomeKernel : Kernel (∀ i, Strategy i) Outcome
 
-/-- `linExt` is exactly `bind`. (Useful for rewriting.) -/
-@[simp] theorem linExt_def (k : Kernel α β) (μ : FDist α) :
-    Kernel.linExt k μ = μ.bind k := rfl
+namespace KernelGame
 
-/-- `map` is `bind` with a deterministic kernel. -/
-theorem map_eq_bind_ofFun (f : α → β) (μ : FDist α) :
-    μ.map f = μ.bind (Kernel.ofFun f) := by
-  cases μ with | mk ws =>
-  simp only [FDist.map, FDist.bind, Kernel.ofFun, FDist.pure]
-  congr 1
-  induction ws with
-  | nil => rfl
-  | cons hd tl ih =>
-    obtain ⟨a, w⟩ := hd
-    simp only [List.map_cons, List.flatMap_cons, List.map_cons, List.map_nil, mul_one] at ih ⊢
-    exact congrArg ((f a, w) :: ·) ih
+variable {ι : Type} [DecidableEq ι]
 
-/-- Left identity: `pure` then `bind` is kernel application. -/
-@[simp] theorem bind_pure (a : α) (k : Kernel α β) :
-    (FDist.pure a).bind k = k a := by
-  change FDist.mk _ = k a
-  simp only [FDist.pure, List.flatMap_cons, List.flatMap_nil, List.append_nil, one_mul]
-  congr 1
-  exact List.map_id' (k a).weights
+abbrev Profile (G : KernelGame ι) := ∀ i, G.Strategy i
 
-/-- Right identity: `bind` with `id` is identity. -/
-theorem bind_id (μ : FDist α) :
-    μ.bind (Kernel.id α) = μ := by
-  cases μ with | mk ws =>
-  simp only [FDist.bind, Kernel.id, FDist.pure]
-  congr 1
-  induction ws with
-  | nil => rfl
-  | cons hd tl ih =>
-    obtain ⟨a, w⟩ := hd
-    simp only [List.flatMap_cons, List.map_cons, List.map_nil, mul_one] at ih ⊢
-    exact congrArg ((a, w) :: ·) ih
+/-- Expected utility of player `who` under strategy profile `σ`. -/
+noncomputable def eu (G : KernelGame ι) (σ : Profile G) (who : ι) : ℝ :=
+  expect (G.outcomeKernel σ) (fun ω => G.payoff ω who)
 
-/-- Associativity of `bind`. -/
-theorem bind_assoc (μ : FDist α) (k₁ : Kernel α β) (k₂ : Kernel β γ) :
-    (μ.bind k₁).bind k₂ = μ.bind (Kernel.comp k₁ k₂) := by
-  cases μ with | mk ws =>
-  simp only [FDist.bind, Kernel.comp]
-  congr 1
-  induction ws with
-  | nil => simp
-  | cons hd tl ih =>
-    obtain ⟨a, w⟩ := hd
-    simp only [List.flatMap_cons, List.flatMap_append]
-    rw [ih]; congr 1
-    -- inner: (k₁ a).weights.map(scale w) |>.flatMap(bind k₂)
-    --      = (k₁ a).weights.flatMap(bind k₂) |>.map(scale w)
-    induction (k₁ a).weights with
-    | nil => simp
-    | cons hd' tl' ih' =>
-      obtain ⟨b, w'⟩ := hd'
-      simp only [List.map_cons, List.flatMap_cons, List.map_append, List.map_map]
-      rw [ih']; congr 1
-      congr 1; funext x
-      obtain ⟨c, w''⟩ := x
-      exact Prod.ext rfl (mul_assoc w w' w'')
+def IsNash (G : KernelGame ι) (σ : Profile G) : Prop :=
+  ∀ (who : ι) (s' : G.Strategy who),
+    G.eu σ who ≥ G.eu (Function.update σ who s') who
 
-end Laws
+/-- Outcome distribution under a correlated profile distribution (correlation device). -/
+noncomputable def correlatedOutcome (G : KernelGame ι)
+    (μ : PMF (Profile G)) : PMF G.Outcome :=
+  Kernel.linExt G.outcomeKernel μ
+
+end KernelGame
 
 end GameTheory
