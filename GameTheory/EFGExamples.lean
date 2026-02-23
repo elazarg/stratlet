@@ -30,34 +30,6 @@ def alwaysLeft : PureStrategy := fun _ => 0
 /-- Strategy: always pick action 1 (Right). -/
 def alwaysRight : PureStrategy := fun _ => 1
 
-/-- Under (Left, Left), seqTree yields payoff 3 for P0. -/
-private noncomputable example :
-    GameTree.evalAux alwaysLeft 1000 seqTree 0 = 3 := by
-  simp only [seqTree, alwaysLeft, GameTree.evalAux,
-    List.getElem?_cons_zero]
-  norm_num
-
-/-- Under (Left, Left), seqTree yields payoff 3 for P1. -/
-private noncomputable example :
-    GameTree.evalAux alwaysLeft 1000 seqTree 1 = 3 := by
-  simp only [seqTree, alwaysLeft, GameTree.evalAux,
-    List.getElem?_cons_zero]
-  norm_num
-
-/-- Under (Right, Right), seqTree yields payoff 1 for P0. -/
-private noncomputable example :
-    GameTree.evalAux alwaysRight 1000 seqTree 0 = 1 := by
-  simp only [seqTree, alwaysRight, GameTree.evalAux,
-    List.getElem?_cons_succ, List.getElem?_cons_zero]
-  norm_num
-
-/-- Under (Right, Right), seqTree yields payoff 1 for P1. -/
-private noncomputable example :
-    GameTree.evalAux alwaysRight 1000 seqTree 1 = 1 := by
-  simp only [seqTree, alwaysRight, GameTree.evalAux,
-    List.getElem?_cons_succ, List.getElem?_cons_zero]
-  norm_num
-
 /-! ## Golden trees -/
 
 /-- Matching pennies: P0 picks H(0)/T(1), P1 picks H(0)/T(1).

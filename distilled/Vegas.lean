@@ -14,7 +14,6 @@ See `distilled/DESIGN.md` for the full specification.
 -- ============================================================================
 
 abbrev VarId : Type := Nat
-abbrev ChannelId : Type := Nat
 abbrev Player : Type := Nat
 
 inductive BaseTy where
@@ -26,24 +25,23 @@ abbrev Val : BaseTy → Type
   | .int => Int
   | .bool => Bool
 
-inductive Vis where
-  | pub : Vis
-  | priv : Player → Vis
-deriving Repr, DecidableEq
+inductive BindTy where
+  | pub (b : BaseTy)
+  | hidden (owner : Player) (b : BaseTy)
+deriving DecidableEq
 
-structure Ty where
-  base : BaseTy
-  vis : Vis
-deriving Repr, DecidableEq
+def BindTy.base : BindTy → BaseTy
+  | .pub b => b
+  | .hidden _ b => b
 
-abbrev Ctx : Type := List (VarId × Ty)
+abbrev Ctx : Type := List (VarId × BindTy)
 
 -- ============================================================================
 -- § 2. HasVar and Env (function-based)
 -- ============================================================================
 
 /-- Proof that variable `x` has type `τ` in context `Γ`. -/
-inductive HasVar : Ctx → VarId → Ty → Type where
+inductive HasVar : Ctx → VarId → BindTy → Type where
   | here {Γ x τ} : HasVar ((x, τ) :: Γ) x τ
   | there {Γ x y τ τ'} (h : HasVar Γ x τ) : HasVar ((y, τ') :: Γ) x τ
 
@@ -69,22 +67,22 @@ end Env
 -- § 3. Views and projections
 -- ============================================================================
 
-def canSee (p : Player) : Vis → Bool
-  | .pub => true
-  | .priv q => p == q
+def canSee (p : Player) : BindTy → Bool
+  | .pub _ => true
+  | .hidden q _ => p == q
 
 def viewCtx (p : Player) : Ctx → Ctx
   | [] => []
   | (x, τ) :: Γ =>
-    if canSee p τ.vis then (x, τ) :: viewCtx p Γ
+    if canSee p τ then (x, τ) :: viewCtx p Γ
     else viewCtx p Γ
 
 def pubCtx : Ctx → Ctx
   | [] => []
   | (x, τ) :: Γ =>
-    match τ.vis with
-    | .pub => (x, τ) :: pubCtx Γ
-    | .priv _ => pubCtx Γ
+    match τ with
+    | .pub _ => (x, τ) :: pubCtx Γ
+    | .hidden _ _ => pubCtx Γ
 
 /-- Embedding: a variable in the player's view is a variable in the full context. -/
 def HasVar.ofViewCtx {p : Player} :
@@ -93,13 +91,14 @@ def HasVar.ofViewCtx {p : Player} :
   | nil => intro h; exact nomatch h
   | cons hd tl ih =>
     obtain ⟨y, σ⟩ := hd
-    simp [viewCtx]
+    simp only [viewCtx]
     split
     · intro h
       match h with
       | .here => exact .here
       | .there h' => exact .there (ih h')
-    · intro h; exact .there (ih h)
+    · intro h
+      exact .there (ih h)
 
 /-- Embedding: a variable in the public view is a variable in the full context. -/
 def HasVar.ofPubCtx : HasVar (pubCtx Γ) x τ → HasVar Γ x τ := by
@@ -107,7 +106,7 @@ def HasVar.ofPubCtx : HasVar (pubCtx Γ) x τ → HasVar Γ x τ := by
   | nil => intro h; exact nomatch h
   | cons hd tl ih =>
     obtain ⟨y, σ⟩ := hd
-    simp [pubCtx]
+    simp only [pubCtx]
     split
     · intro h
       match h with
@@ -122,12 +121,14 @@ def Env.toPub (env : Env Γ) : Env (pubCtx Γ) :=
   fun x τ h => env x τ h.ofPubCtx
 
 -- ============================================================================
--- § 4. Expressions (pub-only variable access)
+-- § 4. Expressions (pub-only variable access; to be defined over obligation,
+--      a capture lambda would transform BindTy.hidden to BindTy.pub, turning
+--      negative polarity into positive.)
 -- ============================================================================
 
 /-- Expressions can only reference public variables. -/
 inductive Expr : Ctx → BaseTy → Type where
-  | var (x : VarId) (h : HasVar Γ x ⟨b, .pub⟩) : Expr Γ b
+  | var (x : VarId) (h : HasVar Γ x (.pub b)) : Expr Γ b
   | constInt (i : Int) : Expr Γ .int
   | constBool (b : Bool) : Expr Γ .bool
   | addInt (l r : Expr Γ .int) : Expr Γ .int
@@ -176,141 +177,133 @@ def append (d₁ d₂ : WDist α) : WDist α :=
 end WDist
 
 -- ============================================================================
--- § 6. Samplers, kernels, action sets, asserts
+-- § 6. Coherent sampling, kernels, action sets, asserts
 -- ============================================================================
 
-inductive Sampler where
-  | Nature : Sampler
-  | Player : Player → Sampler
+inductive SampleMode : BindTy → Type where
+  | NaturePub {b} : SampleMode (.pub b)
+  | NaturePriv {p b} : SampleMode (.hidden p b)
+  | PlayerPriv {p b} : SampleMode (.hidden p b)
 
-def samplerCtx (s : Sampler) (Γ : Ctx) : Ctx :=
-  match s with
-  | .Nature => pubCtx Γ
-  | .Player p => viewCtx p Γ
+abbrev sampleCtx (τ : BindTy) (m : SampleMode τ) (Γ : Ctx) : Ctx :=
+  match τ, m with
+  | .pub _, .NaturePub => pubCtx Γ
+  | .hidden _ _, .NaturePriv => pubCtx Γ
+  | .hidden p _, .PlayerPriv => viewCtx p Γ
 
-def SampleKernel (s : Sampler) (Γ : Ctx) (b : BaseTy) : Type :=
-  Env (samplerCtx s Γ) → WDist (Val b)
+abbrev SampleKernel (τ : BindTy) (m : SampleMode τ) (Γ : Ctx) : Type :=
+  Env (sampleCtx τ m Γ) → WDist (Val τ.base)
 
-def ActSet (who : Player) (Γ : Ctx) (b : BaseTy) : Type :=
+abbrev CommitKernel (who : Player) (Γ : Ctx) (b : BaseTy) : Type :=
+  Env (viewCtx who Γ) → WDist (Val b)
+
+abbrev ActSet (who : Player) (Γ : Ctx) (b : BaseTy) : Type :=
   Env (viewCtx who Γ) → List (Val b)
 
-def Assert (who : Player) (Γ : Ctx) : Type :=
+abbrev Assert (who : Player) (Γ : Ctx) : Type :=
   Env (viewCtx who Γ) → Bool
 
-def Env.projectSampler (s : Sampler) (env : Env Γ) : Env (samplerCtx s Γ) :=
-  match s with
-  | .Nature => env.toPub
-  | .Player p => env.toView p
+def Env.projectSample (τ : BindTy) (m : SampleMode τ)
+    (env : Env Γ) : Env (sampleCtx τ m Γ) :=
+  match τ, m with
+  | .pub _, .NaturePub => env.toPub
+  | .hidden _ _, .NaturePriv => env.toPub
+  | .hidden p _, .PlayerPriv => env.toView p
 
 -- ============================================================================
--- § 7. Program type (8 constructors)
+-- § 7. Payoff maps and program type (7 constructors)
 -- ============================================================================
 
-inductive Prog : Ctx → BaseTy → Type where
-  | ret (e : Expr Γ b) : Prog Γ b
-  | letExpr (x : VarId) (e : Expr Γ b') (k : Prog ((x, ⟨b', .pub⟩) :: Γ) b) : Prog Γ b
-  | sample (x : VarId) (id : ChannelId) (vis : Vis) (s : Sampler)
-      (K : SampleKernel s Γ b') (k : Prog ((x, ⟨b', vis⟩) :: Γ) b) : Prog Γ b
-  | commit (x : VarId) (id : ChannelId) (who : Player) (A : ActSet who Γ b')
-      (k : Prog ((x, ⟨b', .priv who⟩) :: Γ) b) : Prog Γ b
-  | reveal (y : VarId) (who : Player) (x : VarId) {b' : BaseTy}
-      (hx : HasVar Γ x ⟨b', .priv who⟩)
-      (k : Prog ((y, ⟨b', .pub⟩) :: Γ) b) : Prog Γ b
-  | assert (who : Player) (P : Assert who Γ) (k : Prog Γ b) : Prog Γ b
-  | observe (c : Expr Γ .bool) (k : Prog Γ b) : Prog Γ b
-  | withdraw (payoff : Player → Expr Γ .int) : Prog Γ .int
+structure PayoffMap (Γ : Ctx) where
+  entries : List (Player × Expr Γ .int)
+
+def evalPayoffMap (u : PayoffMap Γ) (env : Env Γ) (who : Player) : Int :=
+  match u.entries.find? (fun (p, _) => p == who) with
+  | some (_, e) => evalExpr e env
+  | none => 0
+
+inductive Prog : Ctx → Type where
+  | ret (u : PayoffMap Γ) : Prog Γ
+  | letExpr (x : VarId) {b : BaseTy} (e : Expr Γ b)
+      (k : Prog ((x, .pub b) :: Γ)) : Prog Γ
+  | sample (x : VarId) (τ : BindTy) (m : SampleMode τ)
+      (K : SampleKernel τ m Γ)
+      (k : Prog ((x, τ) :: Γ)) : Prog Γ
+  | commit (x : VarId) (who : Player) {b : BaseTy}
+      (A : ActSet who Γ b)
+      (k : Prog ((x, .hidden who b) :: Γ)) : Prog Γ
+  | reveal (y : VarId) (who : Player) (x : VarId) {b : BaseTy}
+      (hx : HasVar Γ x (.hidden who b))
+      (k : Prog ((y, .pub b) :: Γ)) : Prog Γ
+  | assert (who : Player) (P : Assert who Γ)
+      (k : Prog Γ) : Prog Γ
+  | observe (c : Expr Γ .bool)
+      (k : Prog Γ) : Prog Γ
 
 -- ============================================================================
 -- § 8. Profile and PProfile
 -- ============================================================================
 
 structure Profile where
-  commit : {Γ : Ctx} → {b : BaseTy} → (who : Player) → ChannelId →
-    ActSet who Γ b → Env (viewCtx who Γ) → WDist (Val b)
+  commit : {Γ : Ctx} → {b : BaseTy} → (who : Player) →
+    (x : VarId) → ActSet who Γ b → CommitKernel who Γ b
 
 structure PProfile where
-  commit? : {Γ : Ctx} → {b : BaseTy} → (who : Player) → ChannelId →
-    ActSet who Γ b → Option (Env (viewCtx who Γ) → WDist (Val b))
+  commit? : {Γ : Ctx} → {b : BaseTy} → (who : Player) →
+    (x : VarId) → ActSet who Γ b →
+    Option (CommitKernel who Γ b)
 
 def PProfile.Complete (π : PProfile) : Prop :=
-  ∀ {Γ : Ctx} {b : BaseTy} (who : Player) (id : ChannelId) (A : ActSet who Γ b),
-    (π.commit? who id A).isSome
+  ∀ {Γ : Ctx} {b : BaseTy} (who : Player) (x : VarId) (A : ActSet who Γ b),
+    (π.commit? who x A).isSome
 
 def PProfile.commitOfComplete (π : PProfile) (hπ : π.Complete)
-    {Γ : Ctx} {b : BaseTy} (who : Player) (id : ChannelId)
-    (A : ActSet who Γ b) : Env (viewCtx who Γ) → WDist (Val b) :=
-  (π.commit? who id A).get (hπ who id A)
+    {Γ : Ctx} {b : BaseTy} (who : Player) (x : VarId)
+    (A : ActSet who Γ b) : CommitKernel who Γ b :=
+  (π.commit? who x A).get (hπ who x A)
 
 -- ============================================================================
 -- § 9. Denotational semantics
 -- ============================================================================
 
-def eval (σ : Profile) (who : Player) : Prog Γ b → Env Γ → WDist (Val b)
-  | .ret e, env => WDist.pure (evalExpr e env)
+def outcomeDist (σ : Profile) : Prog Γ → Env Γ → WDist (Player → Int)
+  | .ret u, env =>
+    WDist.pure (fun who => evalPayoffMap u env who)
   | .letExpr x e k, env =>
-    eval σ who k (Env.cons (x := x) (evalExpr e env) env)
-  | .sample x _id _vis s K k, env =>
-    WDist.bind (K (env.projectSampler s)) (fun v =>
-      eval σ who k (Env.cons (x := x) v env))
-  | .commit x id p A k, env =>
-    WDist.bind (σ.commit p id A (env.toView p)) (fun v =>
-      eval σ who k (Env.cons (x := x) v env))
-  | .reveal y _who' _x (b' := b') hx k, env =>
-    let v : Val b' := env.get hx
-    eval σ who k (Env.cons (x := y) v env)
+    outcomeDist σ k (Env.cons (x := x) (evalExpr e env) env)
+  | .sample x τ m K k, env =>
+    WDist.bind (K (env.projectSample τ m)) (fun v =>
+      outcomeDist σ k (Env.cons (x := x) v env))
+  | .commit x who A k, env =>
+    WDist.bind (σ.commit who x A (env.toView who)) (fun v =>
+      outcomeDist σ k (Env.cons (x := x) v env))
+  | .reveal y _who _x (b := b) hx k, env =>
+    let v : Val b := env.get hx
+    outcomeDist σ k (Env.cons (x := y) v env)
   | .assert p P k, env =>
-    if P (env.toView p) then eval σ who k env else WDist.zero
+    if P (env.toView p) then outcomeDist σ k env else WDist.zero
   | .observe c k, env =>
-    if evalExpr c env then eval σ who k env else WDist.zero
-  | .withdraw payoff, env =>
-    WDist.pure (evalExpr (payoff who) env)
-
--- ============================================================================
--- § 10. Expected utility
--- ============================================================================
-
-def EU (p : Prog Γ .int) (σ : Profile) (env : Env Γ) (who : Player) : Rat :=
-  let d := eval σ who p env
-  d.weights.foldl (fun acc (v, w) => acc + w * ↑v) 0
+    if evalExpr c env then outcomeDist σ k env else WDist.zero
 
 -- ============================================================================
 -- § 11. Profile application
 -- ============================================================================
 
-def applyPProfile (π : PProfile) : Prog Γ b → Prog Γ b
-  | .ret e => .ret e
+def applyPProfile (π : PProfile) : Prog Γ → Prog Γ
+  | .ret u => .ret u
   | .letExpr x e k => .letExpr x e (applyPProfile π k)
-  | .sample x id vis s K k => .sample x id vis s K (applyPProfile π k)
-  | .commit x id who A k =>
-    match π.commit? who id A with
-    | some Kdec => .sample x id (.priv who) (.Player who) Kdec (applyPProfile π k)
-    | none => .commit x id who A (applyPProfile π k)
+  | .sample x τ m K k => .sample x τ m K (applyPProfile π k)
+  | @Prog.commit _ x who b A k =>
+    match π.commit? who x A with
+    | some Kdec =>
+      .sample x (.hidden who b) .PlayerPriv Kdec (applyPProfile π k)
+    | none => .commit x who A (applyPProfile π k)
   | .reveal y who' x hx k => .reveal y who' x hx (applyPProfile π k)
   | .assert who' P k => .assert who' P (applyPProfile π k)
   | .observe c k => .observe c (applyPProfile π k)
-  | .withdraw payoff => .withdraw payoff
 
 -- ============================================================================
--- § 12. Deviation and Nash equilibrium
--- ============================================================================
-
-structure Deviator (who : Player) where
-  commit : {Γ : Ctx} → {b : BaseTy} → ChannelId →
-    ActSet who Γ b → Env (viewCtx who Γ) → WDist (Val b)
-
-def Profile.deviate (σ : Profile) {who : Player} (δ : Deviator who) : Profile where
-  commit := fun {_Γ} {_b} p id A obs =>
-    if h : p = who then
-      δ.commit id (h ▸ A) (h ▸ obs)
-    else
-      σ.commit p id A obs
-
-def IsNash (p : Prog Γ .int) (σ : Profile) (env : Env Γ) : Prop :=
-  ∀ (who : Player) (δ : Deviator who),
-    EU p σ env who ≥ EU p (σ.deviate δ) env who
-
--- ============================================================================
--- § 13. Examples
+-- § 12. Examples
 -- ============================================================================
 
 namespace Examples
@@ -323,50 +316,50 @@ def vb' : VarId := 3  -- P1's reveal
 
 -- Contexts at each program point
 def Γ0 : Ctx := []
-def Γ1 : Ctx := [(va, ⟨.bool, .priv 0⟩)]
-def Γ2 : Ctx := [(vb, ⟨.bool, .priv 1⟩), (va, ⟨.bool, .priv 0⟩)]
-def Γ3 : Ctx := [(va', ⟨.bool, .pub⟩), (vb, ⟨.bool, .priv 1⟩), (va, ⟨.bool, .priv 0⟩)]
+def Γ1 : Ctx := [(va, .hidden 0 .bool)]
+def Γ2 : Ctx := [(vb, .hidden 1 .bool), (va, .hidden 0 .bool)]
+def Γ3 : Ctx := [(va', .pub .bool), (vb, .hidden 1 .bool), (va, .hidden 0 .bool)]
 def Γ4 : Ctx :=
-  [(vb', ⟨.bool, .pub⟩), (va', ⟨.bool, .pub⟩),
-   (vb, ⟨.bool, .priv 1⟩), (va, ⟨.bool, .priv 0⟩)]
+  [(vb', .pub .bool), (va', .pub .bool),
+   (vb, .hidden 1 .bool), (va, .hidden 0 .bool)]
 
 -- Action sets: {true, false} regardless of view
 def boolActs (who : Player) : ActSet who Γ .bool := fun _ => [true, false]
 
 -- HasVar proofs
-def hva_in_Γ2 : HasVar Γ2 va ⟨.bool, .priv 0⟩ :=
+def hva_in_Γ2 : HasVar Γ2 va (.hidden 0 .bool) :=
   .there .here
 
-def hvb_in_Γ3 : HasVar Γ3 vb ⟨.bool, .priv 1⟩ :=
+def hvb_in_Γ3 : HasVar Γ3 vb (.hidden 1 .bool) :=
   .there .here
 
-def hva'_in_Γ4 : HasVar Γ4 va' ⟨.bool, .pub⟩ :=
+def hva'_in_Γ4 : HasVar Γ4 va' (.pub .bool) :=
   .there .here
 
-def hvb'_in_Γ4 : HasVar Γ4 vb' ⟨.bool, .pub⟩ :=
+def hvb'_in_Γ4 : HasVar Γ4 vb' (.pub .bool) :=
   .here
 
 /-- Matching pennies:
   P0 commits a ∈ {T,F}, P1 commits b ∈ {T,F},
   both reveal, payoff = ±1 based on match. -/
-def matchingPennies : Prog Γ0 .int :=
-  .commit va 0 0 (boolActs 0)
-    (.commit vb 1 1 (boolActs 1)
+def matchingPennies : Prog Γ0 :=
+  .commit va 0 (boolActs 0)
+    (.commit vb 1 (boolActs 1)
       (.reveal va' 0 va hva_in_Γ2
         (.reveal vb' 1 vb hvb_in_Γ3
-          (.withdraw (fun who =>
-            .ite
-              (.eqBool (.var va' hva'_in_Γ4)
-                       (.var vb' hvb'_in_Γ4))
-              (if who = 0 then .constInt 1
-               else .constInt (-1))
-              (if who = 0 then .constInt (-1)
-               else .constInt 1))))))
+          (.ret ⟨[
+            (0, .ite
+              (.eqBool (.var va' hva'_in_Γ4) (.var vb' hvb'_in_Γ4))
+              (.constInt 1) (.constInt (-1))),
+            (1, .ite
+              (.eqBool (.var va' hva'_in_Γ4) (.var vb' hvb'_in_Γ4))
+              (.constInt (-1)) (.constInt 1))
+          ]⟩))))
 
-/-- Profile: pick from action set by channel id. -/
+/-- Profile: pick from action set by variable id. -/
 def mpProfile : Profile where
-  commit := fun {_Γ} {_b} _who id A obs =>
-    match id with
+  commit := fun {_Γ} {_b} _who x A obs =>
+    match x with
     | 0 => -- P0 plays first action (true)
       match A obs with
       | a :: _ => WDist.pure a
@@ -380,11 +373,5 @@ def mpProfile : Profile where
       match A obs with
       | a :: _ => WDist.pure a
       | [] => WDist.zero
-
--- Expected utility computations
-def mpEU_p0 : Rat :=
-  EU matchingPennies mpProfile Env.empty 0
-def mpEU_p1 : Rat :=
-  EU matchingPennies mpProfile Env.empty 1
 
 end Examples

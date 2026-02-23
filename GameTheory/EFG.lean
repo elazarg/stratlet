@@ -61,59 +61,40 @@ def GameTree.isTerminal {ι : Type} : GameTree ι → Bool
   | .terminal _ => true
   | _ => false
 
-/-! ## Pure strategy evaluator -/
+/-- Finitely supported distribution over payoff functions. -/
+abbrev PayoffDist (ι : Type) := List ((ι → ℝ) × NNReal)
 
-/-- Evaluate a game tree under a pure strategy with bounded recursion depth.
-    Terminal nodes return immediately regardless of fuel. -/
-noncomputable def GameTree.evalAux {ι : Type} (σ : PureStrategy) : Nat → GameTree ι → (ι → ℝ)
-  | _, .terminal payoff => payoff
-  | 0, _ => fun _ => 0
-  | n + 1, .chance branches =>
-      fun i => (branches.map (fun ⟨t, w⟩ => (w : ℝ) * (GameTree.evalAux σ n t i))).sum
-  | n + 1, .decision pid _player actions =>
-      match actions[σ pid]? with
-      | some t => GameTree.evalAux σ n t
-      | none => fun _ => 0
+namespace PayoffDist
+def pure {ι} (u : ι → ℝ) : PayoffDist ι := [(u, 1)]
+def zero {ι} : PayoffDist ι := []
+def scale {ι} (w : NNReal) (d : PayoffDist ι) : PayoffDist ι :=
+  d.map (fun (u,p) => (u, w * p))
+def append {ι} (d₁ d₂ : PayoffDist ι) : PayoffDist ι := d₁ ++ d₂
+end PayoffDist
 
-/-- Evaluate with sufficient fuel (1000 levels deep). -/
-noncomputable def GameTree.eval {ι : Type} (σ : PureStrategy) (t : GameTree ι) : (ι → ℝ) :=
-  GameTree.evalAux σ 1000 t
+/-- Tree-to-probability semantics: resolve a `GameTree` to a payoff distribution
+    given a behavioral strategy. -/
+noncomputable def GameTree.evalDist {ι : Type}
+    (σ : BehavioralStrategy) : GameTree ι → PayoffDist ι
+  | .terminal payoff => PayoffDist.pure payoff
+  | .chance branches => go_chance branches
+  | .decision pid _player actions => go_decision (σ pid) actions
+where
+  go_chance : List (GameTree ι × NNReal) → PayoffDist ι
+    | [] => []
+    | (t, w) :: rest =>
+        PayoffDist.append (PayoffDist.scale w (GameTree.evalDist σ t))
+                          (go_chance rest)
+  go_decision : List NNReal → List (GameTree ι) → PayoffDist ι
+    | _, [] => []
+    | [], _ :: _ => []          -- strategy missing weights: treat as zero
+    | w :: ws, t :: ts =>
+        PayoffDist.append (PayoffDist.scale w (GameTree.evalDist σ t))
+                          (go_decision ws ts)
 
-/-- Expected utility under a pure strategy. -/
-noncomputable def GameTree.EU {ι : Type} (t : GameTree ι) (σ : PureStrategy) (who : ι) : ℝ :=
-  t.eval σ who
-
-/-! ## Structural recursive EU on GameTree -/
-
-/-- Expected utility computed structurally on a `GameTree`, given a
-    behavioral strategy. Uses fuel to work around nested-inductive
-    termination; callers should use `euStruct` which supplies enough fuel. -/
-noncomputable def GameTree.euStructAux
-    {ι : Type} (σ : BehavioralStrategy) (who : ι) : Nat → GameTree ι → ℝ
-  | _, .terminal payoff => payoff who
-  | 0, _ => 0
-  | n + 1, .chance branches =>
-      (branches.map fun (t, w) => (w : ℝ) * GameTree.euStructAux σ who n t).sum
-  | n + 1, .decision pid _player actions =>
-      let weights := σ pid
-      let pairs := actions.zip weights
-      (pairs.map fun (t, w) => (w : ℝ) * GameTree.euStructAux σ who n t).sum
-
-/-- Expected utility under a behavioral strategy. Uses 1000 levels of fuel. -/
-noncomputable def GameTree.euStruct
-    {ι : Type} (σ : BehavioralStrategy) (who : ι) (t : GameTree ι) : ℝ :=
-  GameTree.euStructAux σ who 1000 t
-
-@[simp] theorem GameTree.euStructAux_terminal
-    {ι : Type} (σ : BehavioralStrategy) (who : ι) (n : Nat) (payoff : ι → ℝ) :
-    GameTree.euStructAux σ who n (.terminal payoff) = payoff who := by
-  cases n <;> rfl
-
-/-! ## Simp lemmas -/
-
-@[simp] theorem eval_terminal {ι : Type} (σ : PureStrategy) (payoff : ι → ℝ) :
-    (GameTree.terminal payoff).eval σ = payoff := by
-  simp [GameTree.eval, GameTree.evalAux]
+noncomputable def GameTree.EUdist {ι : Type}
+    (t : GameTree ι) (σ : BehavioralStrategy) (who : ι) : ℝ :=
+  ((t.evalDist σ).map (fun (uw : (ι → ℝ) × NNReal) => (uw.2 : ℝ) * (uw.1 who))).sum
 
 /-! ## Depth of a game tree -/
 
