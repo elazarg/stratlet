@@ -1,3 +1,4 @@
+import GameTheory.OutcomeKernel
 import GameTheory.StrategicForm
 import GameTheory.NFG
 import GameTheory.NFGExamples
