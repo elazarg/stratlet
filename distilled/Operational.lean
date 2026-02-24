@@ -204,19 +204,48 @@ inductive Reach (σ : Profile) :
 theorem legal_trace_canReach {Γ : Ctx} {p : Prog Γ} {env : Env Γ}
     (t : Trace Γ p) (hl : t.legal p env) :
     CanReach p env (traceOutcome p env t) := by
-  sorry
+  induction t with
+  | ret => exact .ret
+  | letExpr _ ih => exact .letExpr (ih hl)
+  | sample v _ ih => exact .sample v hl.1 (ih hl.2)
+  | commit v _ ih => exact .commit v hl.1 hl.2.1 (ih hl.2.2)
+  | reveal _ ih => exact .reveal (ih hl)
 
 /-- A positive-weight trace witnesses profile-dependent reachability. -/
 theorem pos_weight_trace_reach {Γ : Ctx} {p : Prog Γ} {env : Env Γ}
     (σ : Profile) (t : Trace Γ p) (hw : traceWeight σ p env t ≠ 0) :
     Reach σ p env (traceOutcome p env t) := by
-  sorry
+  induction t with
+  | ret => exact .ret
+  | letExpr _ ih => exact .letExpr (ih hw)
+  | sample v _ ih =>
+    have h1 := left_ne_zero_of_mul hw
+    have h2 := right_ne_zero_of_mul hw
+    exact .sample v (Finsupp.mem_support_iff.mpr h1) (ih h2)
+  | commit v _ ih =>
+    have h1 := left_ne_zero_of_mul hw
+    have h2 := right_ne_zero_of_mul hw
+    exact .commit v (Finsupp.mem_support_iff.mpr h1) (ih h2)
+  | reveal _ ih => exact .reveal (ih hw)
 
 /-- Every reachable outcome has a witnessing trace. -/
 theorem canReach_has_trace {Γ : Ctx} {p : Prog Γ} {env : Env Γ} {oc : Outcome}
     (h : CanReach p env oc) :
     ∃ t : Trace Γ p, t.legal p env ∧ traceOutcome p env t = oc := by
-  sorry
+  induction h with
+  | ret => exact ⟨.ret, trivial, rfl⟩
+  | letExpr _ ih =>
+    obtain ⟨t, hl, ho⟩ := ih
+    exact ⟨.letExpr t, hl, ho⟩
+  | sample v hsupp _ ih =>
+    obtain ⟨t, hl, ho⟩ := ih
+    exact ⟨.sample v t, ⟨hsupp, hl⟩, ho⟩
+  | commit v hacts hR _ ih =>
+    obtain ⟨t, hl, ho⟩ := ih
+    exact ⟨.commit v t, ⟨hacts, hR, hl⟩, ho⟩
+  | reveal _ ih =>
+    obtain ⟨t, hl, ho⟩ := ih
+    exact ⟨.reveal t, hl, ho⟩
 
 -- ============================================================================
 -- § 7. Adequacy
@@ -227,7 +256,36 @@ theorem canReach_has_trace {Γ : Ctx} {p : Prog Γ} {env : Env Γ} {oc : Outcome
 theorem reach_iff_outcomeDist_support {Γ : Ctx} (σ : Profile)
     (p : Prog Γ) (env : Env Γ) (oc : Outcome) :
     Reach σ p env oc ↔ oc ∈ (outcomeDist σ p env).support := by
-  sorry
+  induction p with
+  | ret u =>
+    simp only [outcomeDist, FDist.mem_support_pure]
+    constructor
+    · intro h; cases h; rfl
+    · intro h; subst h; exact .ret
+  | letExpr x _ k ih =>
+    simp only [outcomeDist]
+    exact ⟨fun h => by cases h with | letExpr h => exact (ih _).mp h,
+           fun h => .letExpr ((ih _).mpr h)⟩
+  | sample x τ m D k ih =>
+    simp only [outcomeDist, FDist.mem_support_bind]
+    constructor
+    · intro h
+      cases h with
+      | sample v hsupp hk => exact ⟨v, hsupp, (ih _).mp hk⟩
+    · rintro ⟨v, hsupp, hmem⟩
+      exact .sample v hsupp ((ih _).mpr hmem)
+  | commit x who acts R k ih =>
+    simp only [outcomeDist, FDist.mem_support_bind]
+    constructor
+    · intro h
+      cases h with
+      | commit v hsupp hk => exact ⟨v, hsupp, (ih _).mp hk⟩
+    · rintro ⟨v, hsupp, hmem⟩
+      exact .commit v hsupp ((ih _).mpr hmem)
+  | reveal y who x hx k ih =>
+    simp only [outcomeDist]
+    exact ⟨fun h => by cases h with | reveal h => exact (ih _).mp h,
+           fun h => .reveal ((ih _).mpr h)⟩
 
 /-- **Adequacy** (pointwise form): the weight `outcomeDist` assigns to outcome
     `oc` equals the sum of `traceWeight` over all traces producing `oc`.
@@ -256,7 +314,19 @@ theorem admissible_pos_weight_legal {Γ : Ctx} {σ : Profile}
     (hadm : AdmissibleProfile σ p)
     (t : Trace Γ p) (hw : traceWeight σ p env t ≠ 0) :
     t.legal p env := by
-  sorry
+  induction t with
+  | ret => trivial
+  | letExpr _ ih => exact ih hadm hw
+  | sample v _ ih =>
+    have h1 := left_ne_zero_of_mul hw
+    have h2 := right_ne_zero_of_mul hw
+    exact ⟨Finsupp.mem_support_iff.mpr h1, ih hadm h2⟩
+  | commit v _ ih =>
+    have h1 := left_ne_zero_of_mul hw
+    have h2 := right_ne_zero_of_mul hw
+    have hv := hadm.1 _ v (Finsupp.mem_support_iff.mpr h1)
+    exact ⟨hv.1, hv.2, ih hadm.2 h2⟩
+  | reveal _ ih => exact ih hadm hw
 
 /-- Under an admissible profile, `Reach` implies `CanReach`. -/
 theorem admissible_reach_canReach {Γ : Ctx} {σ : Profile}
@@ -264,7 +334,14 @@ theorem admissible_reach_canReach {Γ : Ctx} {σ : Profile}
     (hadm : AdmissibleProfile σ p)
     (h : Reach σ p env oc) :
     CanReach p env oc := by
-  sorry
+  induction h with
+  | ret => exact .ret
+  | letExpr _ ih => exact .letExpr (ih hadm)
+  | sample v hsupp _ ih => exact .sample v hsupp (ih hadm)
+  | commit v hsupp _ ih =>
+    have hv := hadm.1 _ v hsupp
+    exact .commit v hv.1 hv.2 (ih hadm.2)
+  | reveal _ ih => exact .reveal (ih hadm)
 
 -- ============================================================================
 -- § 9. Commutativity (DAG property)

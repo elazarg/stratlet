@@ -2,6 +2,7 @@ import Mathlib.Data.List.Basic
 import Mathlib.Data.List.Nodup
 import Mathlib.Data.Rat.Defs
 import Mathlib.Data.NNRat.Defs
+import Mathlib.Data.NNRat.Order
 import Mathlib.Data.Finsupp.Defs
 import Mathlib.Data.Finsupp.Basic
 
@@ -180,7 +181,8 @@ theorem flattenCtx_map_fst :
 theorem flattenCtx_length :
     (flattenCtx Γ).length = Γ.length := by
   have h := congrArg List.length (flattenCtx_map_fst (Γ := Γ))
-  simp [List.length_map] at h; exact h
+  simp only [List.length_map] at h
+  exact h
 
 theorem flattenCtx_idempotent :
     flattenCtx (flattenCtx Γ) = flattenCtx Γ := by
@@ -339,7 +341,9 @@ theorem pure_bind (x : α) (f : α → FDist β) : (FDist.pure x).bind f = f x :
   · ext a; simp [Finsupp.mapRange_apply]
 
 theorem bind_pure (d : FDist α) : d.bind FDist.pure = d := by
-  sorry -- Finsupp algebra
+  simp only [bind, FDist.pure]
+  simp_rw [Finsupp.mapRange_single, mul_one]
+  exact d.sum_single
 
 theorem bind_zero_left (f : α → FDist β) :
     (FDist.zero : FDist α).bind f = FDist.zero := by
@@ -349,7 +353,77 @@ theorem bind_zero_left (f : α → FDist β) :
 
 theorem ofList_cons (a : α) (w : ℚ≥0) (rest : List (α × ℚ≥0)) :
     FDist.ofList ((a, w) :: rest) = Finsupp.single a w + FDist.ofList rest := by
-  sorry -- foldl associativity
+  simp only [ofList, List.foldl_cons, zero_add]
+  suffices ∀ (init : FDist α) (l : List (α × ℚ≥0)),
+      l.foldl (fun acc (p : α × ℚ≥0) => acc + Finsupp.single p.1 p.2) init =
+      init + l.foldl (fun acc (p : α × ℚ≥0) => acc + Finsupp.single p.1 p.2) 0 by
+    exact this _ _
+  intro init l
+  induction l generalizing init with
+  | nil => simp
+  | cons hd tl ih =>
+    simp only [List.foldl_cons, zero_add]
+    rw [ih, ih (Finsupp.single hd.1 hd.2), add_assoc]
+
+/-- Pointwise evaluation of `bind`. -/
+theorem bind_apply (d : FDist α) (f : α → FDist β) (b : β) :
+    (d.bind f) b = d.support.sum (fun a => d a * (f a) b) := by
+  simp only [bind, Finsupp.sum, Finsupp.finset_sum_apply, Finsupp.mapRange_apply]
+
+/-- Support characterization for `bind`: `b` is in the support of `d.bind f`
+    iff there exists some `a` in `d`'s support with `b` in `(f a)`'s support. -/
+theorem mem_support_bind {d : FDist α} {f : α → FDist β} {b : β} :
+    b ∈ (d.bind f).support ↔ ∃ a ∈ d.support, b ∈ (f a).support := by
+  rw [Finsupp.mem_support_iff, bind_apply]
+  constructor
+  · intro h
+    by_contra hall
+    push_neg at hall
+    apply h
+    apply Finset.sum_eq_zero
+    intro a ha
+    have hfab : (f a) b = 0 := by
+      by_contra hne
+      exact hall a ha (Finsupp.mem_support_iff.mpr hne)
+    rw [hfab, mul_zero]
+  · rintro ⟨a, ha, hb⟩
+    intro heq
+    have hsplit := Finset.add_sum_erase d.support
+      (fun a => d a * (f a) b) ha
+    rw [heq] at hsplit
+    -- hsplit : d a * (f a) b + rest = 0
+    -- In ℚ≥0, le_self_add gives: d a * (f a) b ≤ d a * (f a) b + rest
+    have hle : d a * (f a) b ≤ 0 := hsplit ▸ le_self_add
+    -- 0 ≤ d a * (f a) b from le_self_add with a := 0
+    have hge : 0 ≤ d a * (f a) b := zero_add (d a * (f a) b) ▸ le_self_add
+    exact mul_ne_zero (Finsupp.mem_support_iff.mp ha)
+      (Finsupp.mem_support_iff.mp hb) (le_antisymm hle hge)
+
+@[simp] theorem mem_support_pure {a b : α} :
+    b ∈ (FDist.pure a).support ↔ b = a := by
+  rw [support_pure, Finset.mem_singleton]
+
+theorem totalWeight_bind (d : FDist α) (f : α → FDist β) :
+    (d.bind f).totalWeight = d.support.sum (fun a => d a * (f a).totalWeight) := by
+  unfold totalWeight bind
+  rw [Finsupp.sum_sum_index (fun _ => rfl) (fun _ _ _ => rfl)]
+  have hmr : ∀ (a : α) (w : ℚ≥0),
+      (Finsupp.mapRange (w * ·) (mul_zero w) (f a)).sum (fun _ x => x) =
+      (f a).sum (fun _ b => w * b) :=
+    fun _ _ => Finsupp.sum_mapRange_index (fun _ => rfl)
+  simp_rw [hmr]
+  simp only [Finsupp.sum, Finset.mul_sum]
+
+theorem totalWeight_bind_of_normalized {d : FDist α} {f : α → FDist β}
+    (hd : d.totalWeight = 1) (hf : ∀ a ∈ d.support, (f a).totalWeight = 1) :
+    (d.bind f).totalWeight = 1 := by
+  rw [totalWeight_bind]
+  have : d.support.sum (fun a => d a * (f a).totalWeight) = d.support.sum (fun a => d a) := by
+    apply Finset.sum_congr rfl
+    intro a ha
+    rw [hf a ha, mul_one]
+  rw [this]
+  exact hd
 
 end FDist
 
@@ -386,7 +460,7 @@ theorem evalDistExpr_ite_false {Γ : Ctx} {b : BaseTy}
 
 def DistExpr.point (v : Val b) : DistExpr Γ b := .weighted [(v, 1)]
 
-def DistExpr.uniform (vs : List (Val b)) (hvs : vs ≠ []) : DistExpr Γ b :=
+def DistExpr.uniform (vs : List (Val b)) : DistExpr Γ b :=
   let w : ℚ≥0 := 1 / (vs.length : ℚ≥0)
   .weighted (vs.map fun v => (v, w))
 
@@ -521,7 +595,7 @@ def WF : Prog Γ → Prop
 theorem WFCtx.cons {x : VarId} {τ : BindTy} {Γ : Ctx}
     (hfresh : Fresh x Γ) (hwf : WFCtx Γ) :
     WFCtx ((x, τ) :: Γ) := by
-  show (((x, τ) :: Γ).map Prod.fst).Nodup
+  change (((x, τ) :: Γ).map Prod.fst).Nodup
   exact List.Nodup.cons hfresh hwf
 
 theorem WFCtx.tail {x : VarId} {τ : BindTy} {Γ : Ctx} :
@@ -587,7 +661,7 @@ def Legal : Prog Γ → Prop
   | .ret _ => True
   | .letExpr _ _ k => Legal k
   | .sample _ _ _ _ k => Legal k
-  | .commit x who acts R k =>
+  | .commit _ who acts R k =>
     (∀ view : Env (viewCtx who Γ), ∃ a ∈ acts, evalR R a view = true) ∧ Legal k
   | .reveal _ _ _ _ k => Legal k
 
@@ -632,14 +706,24 @@ theorem DistExpr.Normalized_ite {Γ : Ctx} {b : BaseTy}
     {c : Expr Γ .bool} {t f : DistExpr Γ b}
     (ht : t.Normalized) (hf : f.Normalized) :
     (DistExpr.ite c t f).Normalized := by
-  intro env; simp [evalDistExpr]
+  intro env
+  simp only [evalDistExpr]
   split <;> first | exact ht env | exact hf env
 
 theorem outcomeDist_totalWeight_eq_one {Γ : Ctx} {σ : Profile}
     {p : Prog Γ} {env : Env Γ}
     (hd : NormalizedDists p) (hσ : σ.NormalizedOn p) :
     (outcomeDist σ p env).totalWeight = 1 := by
-  sorry -- structural induction + FDist.totalWeight_bind_of_normalized
+  induction p with
+  | ret u => simp [outcomeDist, FDist.totalWeight_pure]
+  | letExpr x e k ih => exact ih hd hσ
+  | sample x τ m D k ih =>
+    simp only [outcomeDist]
+    exact FDist.totalWeight_bind_of_normalized (hd.1 _) (fun _ _ => ih hd.2 hσ)
+  | commit x who acts R k ih =>
+    simp only [outcomeDist]
+    exact FDist.totalWeight_bind_of_normalized (hσ.1 _) (fun _ _ => ih hd hσ.2)
+  | reveal y who x hx k ih => exact ih hd hσ
 
 -- ============================================================================
 -- § 14. Examples
