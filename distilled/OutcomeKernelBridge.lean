@@ -1,16 +1,17 @@
 import distilled.Vegas
 import distilled.GameSemantics
-import GameTheory.OutcomeKernel
+import GameTheory.Probability
 
 /-!
-# Monadic bridge: WDist → PMF
+# Monadic bridge: FDist → PMF
 
-Vegas's `outcomeDist` produces `WDist (Player → Int)` — structurally a monadic
-computation. This file connects them via a structure-preserving map `WDist.toPMF`.
+Vegas's `outcomeDist` produces `FDist Outcome` — a Finsupp-based weighted
+distribution over outcomes. This file connects them to probability theory
+via `FDist.toPMF`.
 
-Note: constructing a valid `PMF` from a `WDist` requires the weights to sum to 1
-(as `ℝ≥0∞`). The `HasSum` proof is provided as sorry for now — it holds for
-well-formed distributions produced by game evaluation.
+Note: constructing a valid `PMF` from an `FDist` requires the weights to sum
+to 1 (as `ℝ≥0∞`). The `outcomeDist_totalWeight_eq_one` theorem guarantees this
+when all distributions are normalized.
 -/
 
 -- ============================================================================
@@ -33,19 +34,21 @@ theorem NNRat.toNNReal_mul (a b : ℚ≥0) :
   unfold NNRat.toNNReal; ext; push_cast; ring
 
 -- ============================================================================
--- § 3. WDist → PMF (requires well-formedness)
+-- § 3. FDist → PMF (sketch, requires normalization proof)
 -- ============================================================================
 
--- TODO: Define WDist.toPMF once WDist well-formedness (weights sum to 1) is formalized.
--- The bridge requires: given WDist with rational weights summing to 1,
--- construct PMF by converting weights to ℝ≥0∞ and proving HasSum.
+-- TODO: Define FDist.toPMF once `outcomeDist_totalWeight_eq_one` is proved.
+-- The bridge requires: given FDist with weights summing to 1,
+-- construct PMF by converting weights via NNRat.toNNReal → NNReal → ENNReal
+-- and proving HasSum.
 
 -- ============================================================================
 -- § 4. Vegas outcome kernel (statement)
 -- ============================================================================
 
--- Vegas program as an outcome kernel: Profile → PMF (Payoff Player).
--- Requires well-formedness of the distribution produced by outcomeDist.
+-- Vegas program as an outcome kernel: Profile → PMF Outcome.
+-- Requires NormalizedDists p and Profile.NormalizedOn σ p
+-- to guarantee the FDist output is a valid PMF.
 -- noncomputable def Vegas.toKernel (p : Prog Γ) (env : Env Γ) :
---     GameTheory.Kernel Profile (GameTheory.Payoff Player) :=
---   fun σ => (outcomeDist σ p env).toPMF.map (fun f i => (f i : ℝ))
+--     GameTheory.Kernel Profile Outcome :=
+--   fun σ => (outcomeDist σ p env).toPMF

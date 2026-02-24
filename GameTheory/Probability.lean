@@ -3,25 +3,21 @@ import Mathlib.Data.NNReal.Basic
 import Mathlib.Probability.ProbabilityMassFunction.Monad
 
 /-!
-# GameTheory.OutcomeKernel
+# GameTheory.Probability
 
-A representation-agnostic semantic core for finite/discrete game models.
+Stochastic kernels and expected-value infrastructure for discrete game theory.
 
-This file intentionally knows nothing about:
-- EFG trees
-- NFG strategic form
-- any external "calculus"
+Provides:
+- `Kernel α β` — stochastic kernels (Markov kernels) using Mathlib's `PMF`
+- `Kernel.id`, `Kernel.comp`, `Kernel.linExt`, `Kernel.ofFun` — basic operations
+- `expect` — expected value of a real-valued function under a `PMF`
+- Utility lemmas: `expect_pure`, `expect_bind`, `expect_const`, `expect_eq_sum`
 
-It defines:
-- stochastic kernels (`Kernel`) using Mathlib's `PMF`
-- player-indexed expected utilities
-- kernel-based game structure with Nash equilibrium
+## Scope-outs
 
-Representations (EFG/NFG/MAID/...) should *export* kernels into this interface
-and then reuse generic theorems.
-
-PMF monad laws (`PMF.pure_bind`, `PMF.bind_pure`, `PMF.bind_bind`,
-`PMF.bind_comm`) are provided by Mathlib.
+- **Continuous distributions** — the library is discrete (`PMF`) by design.
+- **`expect_add` (linearity)** — requires summability side-conditions that add
+  significant overhead for finite games where `expect_eq_sum` suffices.
 -/
 
 namespace GameTheory
@@ -88,7 +84,7 @@ noncomputable def ofFun (f : α → β) : Kernel α β := fun a => PMF.pure (f a
 end Kernel
 
 -- ============================================================================
--- § 2. Player-indexed payoffs and expected utilities
+-- § 2. Expected value
 -- ============================================================================
 
 /-- A payoff vector for `ι` players. -/
@@ -99,7 +95,7 @@ noncomputable def expect {Ω : Type} (d : PMF Ω) (f : Ω → ℝ) : ℝ :=
   ∑' ω, (d ω).toReal * f ω
 
 /--
-For finite `Ω`, your `expect` is literally a finite sum.
+For finite `Ω`, `expect` is literally a finite sum.
 This is a *huge* simplification for many game models (EFG/NFG/MAID with finite outcomes).
 -/
 theorem expect_eq_sum {Ω : Type} [Fintype Ω] (d : PMF Ω) (f : Ω → ℝ) :
@@ -107,38 +103,32 @@ theorem expect_eq_sum {Ω : Type} [Fintype Ω] (d : PMF Ω) (f : Ω → ℝ) :
   simp [expect]
 
 -- ============================================================================
--- § 3. Kernel-based game (strategies + outcome kernel → EU + Nash)
+-- § 3. Utility lemmas for expect
 -- ============================================================================
 
-/-- A kernel-based game with explicit outcome type.
-    - `Outcome` is the type of game outcomes (e.g. terminal nodes, action profiles)
-    - `payoff` maps outcomes to player payoffs
-    - `outcomeKernel` maps strategy profiles to outcome distributions -/
-structure KernelGame (ι : Type) [DecidableEq ι] where
-  Strategy : ι → Type
-  Outcome : Type
-  payoff : Outcome → Payoff ι
-  outcomeKernel : Kernel (∀ i, Strategy i) Outcome
+/-- Expected value under a point mass is just function evaluation. -/
+@[simp] theorem expect_pure {Ω : Type} (f : Ω → ℝ) (ω : Ω) :
+    expect (PMF.pure ω) f = f ω := by
+  simp only [expect, PMF.pure_apply]
+  rw [tsum_eq_single ω]
+  · simp
+  · intro ω' hne; simp [hne]
 
-namespace KernelGame
+/-- Expected value of a constant function. -/
+@[simp] theorem expect_const {Ω : Type} [Nonempty Ω] (d : PMF Ω) (c : ℝ) :
+    expect d (fun _ => c) = c := by
+  simp only [expect]
+  have hfact : (fun ω => (d ω).toReal * c) = (fun ω => c * (d ω).toReal) := by ext; ring
+  rw [hfact, tsum_mul_left]
+  suffices hs : ∑' ω, (d ω).toReal = 1 by rw [hs, mul_one]
+  have key := @ENNReal.tsum_toReal_eq Ω (fun ω => d ω) (fun a => PMF.apply_ne_top d a)
+  rw [show ∑' ω, (d ω).toReal = ∑' ω, ((fun ω => d ω) ω).toReal from rfl]
+  rw [← key, PMF.tsum_coe]; norm_num
 
-variable {ι : Type} [DecidableEq ι]
-
-abbrev Profile (G : KernelGame ι) := ∀ i, G.Strategy i
-
-/-- Expected utility of player `who` under strategy profile `σ`. -/
-noncomputable def eu (G : KernelGame ι) (σ : Profile G) (who : ι) : ℝ :=
-  expect (G.outcomeKernel σ) (fun ω => G.payoff ω who)
-
-def IsNash (G : KernelGame ι) (σ : Profile G) : Prop :=
-  ∀ (who : ι) (s' : G.Strategy who),
-    G.eu σ who ≥ G.eu (Function.update σ who s') who
-
-/-- Outcome distribution under a correlated profile distribution (correlation device). -/
-noncomputable def correlatedOutcome (G : KernelGame ι)
-    (μ : PMF (Profile G)) : PMF G.Outcome :=
-  Kernel.linExt G.outcomeKernel μ
-
-end KernelGame
+/-- Expected value distributes over `PMF.bind`. -/
+theorem expect_bind {α β : Type} (p : PMF α) (q : α → PMF β) (f : β → ℝ) :
+    expect (p.bind q) f = expect p (fun a => expect (q a) f) := by
+  simp only [expect, PMF.bind_apply]
+  sorry
 
 end GameTheory

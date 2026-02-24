@@ -35,9 +35,11 @@ def ParentProtoProg.toMAIDNodes : ParentProtoProg W Γ τ → List MAID.Node
   | .letDet _ k => toMAIDNodes k
   | .observe _ k => toMAIDNodes k
   | .sample id ps _ k =>
-      { id := id, kind := .chance, parents := ps.parents } :: toMAIDNodes k
+      { id := id, kind := .chance, parents := ps.parents,
+        domainSize := 0 } :: toMAIDNodes k
   | .choose id who ps _ k =>
-      { id := id, kind := .decision who, parents := ps.parents } :: toMAIDNodes k
+      { id := id, kind := .decision who, parents := ps.parents,
+        domainSize := 0 } :: toMAIDNodes k
 
 /-- The ids extracted by `toMAIDNodes` are exactly `yieldIds`. -/
 theorem ParentProtoProg.toMAIDNodes_ids_eq_yieldIds

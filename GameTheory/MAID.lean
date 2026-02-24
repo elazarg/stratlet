@@ -2,13 +2,26 @@ import Mathlib.Data.List.Basic
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.NNReal.Basic
 import Mathlib.Probability.ProbabilityMassFunction.Constructions
-import GameTheory.OutcomeKernel
+import GameTheory.SolutionConcepts
 
 /-!
 # Multi-Agent Influence Diagrams (MAID)
 
 Structural representation of multi-agent decision problems
 as directed acyclic graphs with decision, chance, and utility nodes.
+
+Provides:
+- `Diagram` — MAID structure (DAG with decision/chance/utility nodes)
+- `MAIDModel` — MAID with full semantic data (CPDs, utility functions)
+- `CondPolicy` — conditional policy type
+- `mergeCondPolicies` — per-agent → joint policy assembly
+- `toKernelGame` — bridge to `KernelGame`
+- `MAIDModel.IsNash`, `MAIDModel.eu` — solution concepts via `KernelGame`
+
+## Scope-outs
+
+- **d-separation / s-reachability** — graph-algorithmic, orthogonal to game semantics
+- **Structural equilibrium** — needs relevance graph
 -/
 
 namespace MAID
@@ -32,6 +45,12 @@ structure Node where
   domainSize : Nat
 deriving Repr
 
+/-- Extract the owning agent of a decision node, if applicable. -/
+def Node.decisionAgent (n : Node) : Option Nat :=
+  match n.kind with
+  | .decision a => some a
+  | _ => none
+
 /-- The node list is in topological order: every parent id of node `i`
     belongs to a node that appears earlier in the list. -/
 def TopologicalOrder (nodes : List Node) : Prop :=
@@ -46,7 +65,17 @@ structure Diagram where
     ∃ m ∈ nodes, m.id = pid
   acyclic : TopologicalOrder nodes
 
-/-- A conditional policy maps (decision node id, parent assignment) to a PMF over values. -/
+/-- A conditional policy maps (decision node id, parent assignment) to a PMF over values.
+
+    **Design note**: `CondPolicy` is intentionally permissive — it accepts any
+    `(Nat → Nat) → PMF Nat` regardless of locality or domain bounds. This is
+    deliberate: `Admissible` is the enforcement point where locality (only
+    reads parent values) and domain bounds (support ⊆ `{0, ..., domainSize-1}`)
+    are checked. Unlike `EFG.BehavioralStrategy`, there is no emptiness problem
+    here: `PMF Nat` is always inhabited (e.g., via `PMF.pure 0`).
+
+    This type represents a **joint** policy over all decision nodes. For
+    per-agent decomposition, see `mergeCondPolicies`. -/
 def CondPolicy := Nat → (Nat → Nat) → PMF Nat
 
 /-- Get all decision nodes for a given agent. -/
@@ -74,6 +103,18 @@ def Diagram.agents (m : Diagram) : List Nat :=
 /-- Look up a node by id. -/
 def Diagram.findNode (m : Diagram) (nid : Nat) : Option Node :=
   m.nodes.find? (fun n => n.id == nid)
+
+/-! ## Per-agent policy decomposition -/
+
+/-- Merge per-agent policies into a joint `CondPolicy`.
+    At each decision node, dispatches to the owning agent's policy.
+    For non-decision nodes (or nodes not found in the diagram),
+    returns a default point mass at 0. -/
+noncomputable def mergeCondPolicies (d : Diagram) (σ : Nat → CondPolicy) : CondPolicy :=
+  fun nodeId assign =>
+    match (d.findNode nodeId).bind Node.decisionAgent with
+    | some agent => σ agent nodeId assign
+    | none => PMF.pure 0
 
 /-! ## Well-formedness predicates -/
 
@@ -115,7 +156,10 @@ structure MAIDModel.WellFormed (m : MAIDModel) : Prop where
   utility_domain : ∀ n ∈ m.diagram.nodes, ∀ a, n.kind = .utility a →
     n.domainSize = 1
 
-/-- A conditional policy respects the MAID's structure. -/
+/-- A conditional policy respects the MAID's structure.
+    This is the enforcement point for the two key MAID discipline constraints:
+    - **Locality**: the policy for each decision node depends only on parent values.
+    - **Domain bounds**: the policy's support stays within `{0, ..., domainSize-1}`. -/
 structure CondPolicy.Admissible (d : Diagram) (π : CondPolicy) : Prop where
   local_ : ∀ n ∈ d.nodes, ∀ a, n.kind = .decision a →
     LocalTo n.parents (π n.id)
@@ -156,5 +200,29 @@ noncomputable def MAIDModel.evalDist (m : MAIDModel) (π : CondPolicy)
 noncomputable def MAIDModel.toKernel (m : MAIDModel)
     : GameTheory.Kernel CondPolicy (GameTheory.Payoff Nat) :=
   fun π => m.evalDist π
+
+/-! ## MAID → KernelGame conversion -/
+
+/-- Convert a MAID model to a kernel-based game with per-agent strategies.
+    Each agent independently chooses a `CondPolicy`; the joint policy is
+    assembled via `mergeCondPolicies` which dispatches each decision node
+    to its owning agent's policy. -/
+noncomputable def MAIDModel.toKernelGame (m : MAIDModel) :
+    GameTheory.KernelGame Nat where
+  Strategy := fun _ => CondPolicy
+  Outcome := Assign
+  payoff := m.payoffOf
+  outcomeKernel := fun σ => m.evalAssignDist (mergeCondPolicies m.diagram σ)
+
+/-! ## Solution concepts -/
+
+/-- Expected utility for agent `who` under per-agent policies. -/
+noncomputable def MAIDModel.eu (m : MAIDModel) (σ : Nat → CondPolicy) (who : Nat) : ℝ :=
+  m.toKernelGame.eu σ who
+
+/-- Nash equilibrium for a MAID: no agent can improve EU by unilaterally
+    changing their conditional policy. -/
+def MAIDModel.IsNash (m : MAIDModel) (σ : Nat → CondPolicy) : Prop :=
+  m.toKernelGame.IsNash σ
 
 end MAID

@@ -42,10 +42,9 @@ section Env
 
 variable {Ty : Type}
 
-/-- Environments are generic over the Value interpretation. -/
-def Env (Val : Ty → Type) : Ctx (Ty := Ty) → Type
-  | []      => Unit
-  | τ :: Γ  => Val τ × Env Val Γ
+def Env : Ctx → Type
+  | [] => Unit
+  | τ :: Γ => Val τ × Env Γ
 
 namespace Env
 

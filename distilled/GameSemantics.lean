@@ -27,24 +27,26 @@ inductive RGameTree where
 -- ============================================================================
 
 /-- Compile a Vegas program to a computable game tree.
-    Commit sites become decision nodes; reveal/letExpr/assert/observe
-    are transparent. -/
-def toRGameTree : Prog Γ → Env Γ → RGameTree
-  | .ret u, env => .terminal (fun who => evalPayoffMap u env who)
-  | .letExpr x e k, env =>
-    toRGameTree k (Env.cons (x := x) (evalExpr e env) env)
-  | .commit x who A k, env =>
-    .decision x who ((A (env.toView who)).map
-      (fun a => toRGameTree k (Env.cons (x := x) a env)))
-  | .reveal y _who _x (b := b) hx k, env =>
+    Commit sites become decision nodes with actions filtered by `R`.
+    Sample sites evaluate the syntactic `DistExpr` and enumerate support.
+    Requires `Legal p` and `WF p`. -/
+def toRGameTree : (p : Prog Γ) → Legal p → WF p → Env Γ → RGameTree
+  | .ret u, _, _, env => .terminal (fun who => sorry) -- evalPayoffMap returns Outcome now
+  | .letExpr x e k, hl, hw, env =>
+    toRGameTree k hl hw.2 (Env.cons (x := x) (evalExpr e env) env)
+  | .sample x τ m D k, hl, hw, env =>
+    -- Evaluate the DistExpr to get support + weights
+    -- For compilation we need to enumerate the support, which requires
+    -- evaluating the noncomputable FDist. Use sorry for now.
+    sorry
+  | .commit x who acts R k, hl, hw, env =>
+    let view := env.toView who
+    let allowed := acts.filter (evalR R · view)
+    .decision x who (allowed.map
+      (fun a => toRGameTree k hl.2 hw.2 (Env.cons (x := x) a env)))
+  | .reveal y _who _x (b := b) hx k, hl, hw, env =>
     let v : Val b := env.get hx
-    toRGameTree k (Env.cons (x := y) v env)
-  | .assert _who c k, env =>
-    if evalExpr c env then toRGameTree k env
-    else .terminal (fun _ => 0)
-  | .observe c k, env =>
-    if evalExpr c env then toRGameTree k env
-    else .terminal (fun _ => 0)
+    toRGameTree k hl hw.2 (Env.cons (x := y) (τ := .pub b) v env)
 
 -- ============================================================================
 -- § 3. Bridge to classic EFG (noncomputable)
@@ -96,27 +98,10 @@ where
 -- § 4. Compilation from Vegas to MAID
 -- ============================================================================
 
-/-! Extract variable IDs referenced by an expression. -/
-def exprVars : Expr Γ b → List VarId
-  | .var x _     => [x]
-  | .constInt _  => []
-  | .constBool _ => []
-  | .addInt l r  => exprVars l ++ exprVars r
-  | .eqInt l r   => exprVars l ++ exprVars r
-  | .eqBool l r  => exprVars l ++ exprVars r
-  | .andBool l r => exprVars l ++ exprVars r
-  | .notBool e   => exprVars e
-  | .ite c t f   => exprVars c ++ exprVars t ++ exprVars f
-
 def payoffVars (u : PayoffMap Γ) : List VarId :=
   (u.entries.map (fun (_, e) => exprVars e)).flatten
 
-/-- Internal state for MAID compilation.
-
-    **Variables**: For each Vegas variable, tracks its binding type and
-    the set of MAID node IDs it transitively depends on. Transparent
-    operations (`letExpr`, `reveal`, `assert`, `observe`) propagate
-    dependencies without creating MAID nodes. -/
+/-- Internal state for MAID compilation. -/
 structure MAIDBuilder where
   nextId : Nat
   nodes  : List MAID.Node
@@ -135,12 +120,14 @@ def lookupDeps (st : MAIDBuilder) (x : VarId) : List Nat :=
 def depsOfVars (st : MAIDBuilder) (xs : List VarId) : List Nat :=
   ((xs.map st.lookupDeps).flatten).dedup
 
-/-- MAID parents: all nodes reachable through variables visible to `who`. -/
 def playerDeps (st : MAIDBuilder) (who : Player) : List Nat :=
   ((st.vars.filter (fun (_, τ, _) => canSee who τ)).map
     (fun (_, _, ds) => ds)).flatten.dedup
 
-/-- Emit a MAID node. -/
+def pubDeps (st : MAIDBuilder) : List Nat :=
+  ((st.vars.filter (fun (_, τ, _) => match τ with | .pub _ => true | .hidden _ _ => false)).map
+    (fun (_, _, ds) => ds)).flatten.dedup
+
 def addNode (st : MAIDBuilder) (kind : MAID.NodeKind) (parents : List Nat)
     (domainSize : Nat) : Nat × MAIDBuilder :=
   (st.nextId,
@@ -155,35 +142,13 @@ def addVar (st : MAIDBuilder) (x : VarId) (τ : BindTy) (deps : List Nat) :
 
 end MAIDBuilder
 
-/-- Domain cardinality for a base type.
-    `bool` has 2 values; `int` is unbounded (0 = unbounded). -/
 def BaseTy.domainSize : BaseTy → Nat
   | .bool => 2
-  | .int => 0  -- unbounded; honest about int's infinite domain
+  | .int => 0
 
 /-- Compile a Vegas program to MAID nodes.
-
-    **Node mapping:**
-    - `commit` → decision node (domainSize from `BaseTy`)
-    - `ret` → one utility node per player (domainSize = 1)
-    - `letExpr`/`reveal`/`assert`/`observe` → transparent (propagate
-      dependencies only, no MAID nodes emitted)
-
-    **Domain sizes**: Decision nodes get `BaseTy.domainSize` (bool=2,
-    int=0 for unbounded). Utility nodes get domainSize=1.
-
-    **EU equivalence only.** Combined with `MAIDModel.evalDist`, this gives
-    expected-utility equivalence with Vegas (under a value encoding), NOT
-    distributional equivalence. See `MAIDModel.evalDist` doc.
-
-    **Proof obligations** (not yet discharged):
-    1. *Dependency over-approximation*: Parent sets are a superset of true
-       semantic dependencies. Formally: for any two assignments that agree
-       on `node.parents`, the node's distribution (under a well-formed
-       `MAIDModel`, see `MAID.LocalTo`) is identical.
-    2. *Value encoding*: A pair `encodeVal : Val b → Nat` /
-       `decodeVal : Nat → Option (Val b)` with round-trip, plus a proof
-       that `CondPolicy` under this encoding corresponds to Vegas `Profile`. -/
+    Sample arm uses `distExprVars D` for dependencies.
+    Commit arm uses `exprVars R` for restriction dependencies. -/
 def toMAIDBuild : Prog Γ → MAIDBuilder → MAIDBuilder
   | .ret u, st =>
     let deps := st.depsOfVars (payoffVars u)
@@ -193,17 +158,25 @@ def toMAIDBuild : Prog Γ → MAIDBuilder → MAIDBuilder
   | @Prog.letExpr _ x b e k, st =>
     let deps := st.depsOfVars (exprVars e)
     toMAIDBuild k (st.addVar x (.pub b) deps)
-  | @Prog.commit _ x who b _A k, st =>
+  | @Prog.sample _ x τ m D k, st =>
+    let parents := match τ, m with
+      | .pub _, .NaturePub => st.pubDeps
+      | .hidden _ _, .NaturePriv => st.pubDeps
+      | .hidden p _, .PlayerPriv => st.playerDeps p
+    let distDeps := st.depsOfVars (distExprVars D)
+    let allParents := (parents ++ distDeps).dedup
+    let (id, st') := st.addNode .chance allParents τ.base.domainSize
+    toMAIDBuild k (st'.addVar x τ [id])
+  | @Prog.commit _ x who b acts R k, st =>
     let parents := st.playerDeps who
-    let (id, st') := st.addNode (.decision who) parents b.domainSize
+    let rDeps := st.depsOfVars (exprVars R)
+    let allParents := (parents ++ rDeps).dedup
+    let (id, st') := st.addNode (.decision who) allParents b.domainSize
     toMAIDBuild k (st'.addVar x (.hidden who b) [id])
   | @Prog.reveal _ y _who x b _hx k, st =>
     let deps := st.lookupDeps x
     toMAIDBuild k (st.addVar y (.pub b) deps)
-  | .assert _who _c k, st => toMAIDBuild k st
-  | .observe _c k, st => toMAIDBuild k st
 
-/-- Extract MAID nodes from a Vegas program. -/
 def toMAIDNodes (p : Prog Γ) : List MAID.Node :=
   (toMAIDBuild p .empty).nodes
 
@@ -217,22 +190,12 @@ def toMAIDNodes (p : Prog Γ) : List MAID.Node :=
 #eval! (toMAIDNodes Examples.matchingPennies).map
   (fun n => (n.id, n.kind, n.parents))
 
-/-! ### Example: conditioned game (observe is transparent in MAID) -/
+/-! ### Example: conditioned game MAID -/
 
-/-- P0 commits, reveal P0's choice, observe guards on it being true,
-    then P1 commits. The observe is transparent in the MAID — conditioning
-    is handled by the Vegas denotational semantics, not the MAID structure. -/
-def Examples.conditionedGame : Prog Examples.Γ0 :=
-  .commit Examples.va 0 (Examples.boolActs 0)  -- ctx: [(va, hidden 0 bool)]
-    (.reveal Examples.va' 0 Examples.va .here   -- ctx: [(va', pub bool), (va, hidden 0 bool)]
-      (.observe (.var Examples.va' .here)        -- transparent in MAID
-        (.commit Examples.vb 1 (Examples.boolActs 1) -- ctx grows
-          (.ret ⟨[(0, .constInt 1), (1, .constInt 0)]⟩))))
-
--- Expected (observe is transparent, no guard node):
+-- Expected (restriction now uses syntactic exprVars for dependency tracking):
 --   Node 0: decision(P0), parents=[]
---   Node 1: decision(P1), parents=[0]   ← P1 sees va' (pub) which depends on P0
---   Node 2: utility(P0), parents=[]     ← constant payoff, no dependencies
+--   Node 1: decision(P1), parents=[0]   ← P1's R references va'
+--   Node 2: utility(P0), parents=[]
 --   Node 3: utility(P1), parents=[]
 #eval! (toMAIDNodes Examples.conditionedGame).map
   (fun n => (n.id, n.kind, n.parents))
