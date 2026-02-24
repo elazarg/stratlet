@@ -12,8 +12,9 @@ correspond to silent/inlined transitions (as in the blockchain execution model).
 
 The central connection to the denotational semantics:
 
-  `outcomeDist σ p env` = weighted sum over traces, where each trace `t`
-  contributes `traceWeight σ p env t` to the outcome `traceOutcome p env t`.
+  `outcomeDist σ p env` agrees pointwise with `traceWeightSum σ p env`, a nested
+  sum over distribution supports that corresponds to summing `traceWeight σ p env t`
+  over the finitely many positive-weight traces `t`.
 
 ## Design notes
 
@@ -60,6 +61,43 @@ inductive Trace : (Γ : Ctx) → Prog Γ → Type where
   | reveal {Γ : Ctx} {y : VarId} {who : Player} {x : VarId} {b : BaseTy}
       {hx : HasVar Γ x (.hidden who b)} {k : Prog ((y, .pub b) :: Γ)} :
       Trace ((y, .pub b) :: Γ) k → Trace Γ (.reveal y who x hx k)
+
+noncomputable instance : DecidableEq (Trace Γ p) := by
+  intro t₁ t₂
+  induction t₁ with
+  | ret =>
+    cases t₂
+    exact isTrue rfl
+  | letExpr t₁ ih =>
+    cases t₂ with
+    | letExpr t₂ =>
+      exact match ih t₂ with
+      | .isTrue h => .isTrue (h ▸ rfl)
+      | .isFalse h => .isFalse (fun heq => h (Trace.letExpr.inj heq))
+  | sample v₁ t₁ ih =>
+    cases t₂ with
+    | sample v₂ t₂ =>
+      exact match decEq v₁ v₂ with
+      | .isTrue hv =>
+        match ih t₂ with
+        | .isTrue ht => .isTrue (by subst hv; subst ht; rfl)
+        | .isFalse ht => .isFalse (fun heq => ht (Trace.sample.inj heq).2)
+      | .isFalse hv => .isFalse (fun heq => hv (Trace.sample.inj heq).1)
+  | commit v₁ t₁ ih =>
+    cases t₂ with
+    | commit v₂ t₂ =>
+      exact match decEq v₁ v₂ with
+      | .isTrue hv =>
+        match ih t₂ with
+        | .isTrue ht => .isTrue (by subst hv; subst ht; rfl)
+        | .isFalse ht => .isFalse (fun heq => ht (Trace.commit.inj heq).2)
+      | .isFalse hv => .isFalse (fun heq => hv (Trace.commit.inj heq).1)
+  | reveal t₁ ih =>
+    cases t₂ with
+    | reveal t₂ =>
+      exact match ih t₂ with
+      | .isTrue h => .isTrue (h ▸ rfl)
+      | .isFalse h => .isFalse (fun heq => h (Trace.reveal.inj heq))
 
 -- ============================================================================
 -- § 2. Trace outcome
@@ -287,22 +325,161 @@ theorem reach_iff_outcomeDist_support {Γ : Ctx} (σ : Profile)
     exact ⟨fun h => by cases h with | reveal h => exact (ih _).mp h,
            fun h => .reveal ((ih _).mpr h)⟩
 
-/-- **Adequacy** (pointwise form): the weight `outcomeDist` assigns to outcome
-    `oc` equals the sum of `traceWeight` over all traces producing `oc`.
+/-- The weighted count of traces producing outcome `oc`, computed as a nested
+    sum over distribution supports by structural induction on `p`. Corresponds
+    to summing `traceWeight` over the finitely many positive-weight traces, but
+    avoids requiring `Fintype (Trace Γ p)` (which would need `Fintype Int`). -/
+noncomputable def traceWeightSum (σ : Profile) :
+    {Γ : Ctx} → (p : Prog Γ) → Env Γ → Outcome → ℚ≥0
+  | _, .ret u, env, oc =>
+      if oc = evalPayoffMap u env then 1 else 0
+  | _, .letExpr x e k, env, oc =>
+      traceWeightSum σ k (Env.cons (x := x) (evalExpr e env) env) oc
+  | _, .sample x τ m D k, env, oc =>
+      (evalDistExpr D (env.projectDist τ m)).support.sum fun v =>
+        (evalDistExpr D (env.projectDist τ m)) v *
+        traceWeightSum σ k (Env.cons (x := x) v env) oc
+  | _, .commit x who acts R k, env, oc =>
+      (σ.commit who x acts R (env.toView who)).support.sum fun v =>
+        (σ.commit who x acts R (env.toView who)) v *
+        traceWeightSum σ k (Env.cons (x := x) v env) oc
+  | _, .reveal y _who _x (b := b) hx k, env, oc =>
+      let val : Val b := env.get hx
+      traceWeightSum σ k (Env.cons (x := y) (τ := .pub b) val env) oc
 
-    Formally: `(outcomeDist σ p env) oc = Σ_{t | traceOutcome = oc} traceWeight σ p env t`
-
-    The sum is well-defined because `FDist` has finite support, so only finitely
-    many traces have nonzero weight. -/
+/-- **Adequacy** (pointwise form): `outcomeDist σ p env` and `traceWeightSum σ p env`
+    agree pointwise. Since `traceWeightSum` computes the same nested-support sums
+    that `FDist.bind` produces, this is a direct structural induction with
+    `FDist.bind_apply` at each `sample`/`commit` step. -/
 theorem adequacy_pointwise {Γ : Ctx} (σ : Profile)
     (p : Prog Γ) (env : Env Γ) (oc : Outcome) :
-    (outcomeDist σ p env) oc =
-    -- TODO: state RHS as a Finsupp.sum or finitary sum over traces with
-    -- nonzero weight. The key insight: outcomeDist is defined by FDist.bind,
-    -- which distributes as Σ_{v} weight(v) * (recursive outcomeDist at v).
-    -- Unfolding this recursion yields the product-of-weights over traces.
-    sorry := by
-  sorry
+    (outcomeDist σ p env) oc = traceWeightSum σ p env oc := by
+  induction p with
+  | ret u =>
+    simp only [outcomeDist, traceWeightSum, FDist.pure, Finsupp.single_apply, eq_comm]
+  | letExpr x _ k ih =>
+    simp only [outcomeDist, traceWeightSum]
+    exact ih _
+  | sample x τ m D k ih =>
+    simp only [outcomeDist, traceWeightSum, FDist.bind_apply]
+    exact Finset.sum_congr rfl fun v _ => by rw [ih]
+  | commit x who acts R k ih =>
+    simp only [outcomeDist, traceWeightSum, FDist.bind_apply]
+    exact Finset.sum_congr rfl fun v _ => by rw [ih]
+  | reveal y who x hx k ih =>
+    simp only [outcomeDist, traceWeightSum]
+    exact ih _
+
+/-- The distribution on traces induced by profile `σ`. Each trace gets
+    its `traceWeight` as its probability mass. -/
+noncomputable def traceDist (σ : Profile) :
+    {Γ : Ctx} → (p : Prog Γ) → Env Γ → FDist (Trace Γ p)
+  | _, .ret _, _ => FDist.pure .ret
+  | _, .letExpr x e k, env =>
+      (traceDist σ k (Env.cons (x := x) (evalExpr e env) env)).map (.letExpr ·)
+  | _, .sample x τ m D k, env =>
+      (evalDistExpr D (env.projectDist τ m)).bind fun v =>
+        (traceDist σ k (Env.cons (x := x) v env)).map (.sample v ·)
+  | _, .commit x who acts R k, env =>
+      (σ.commit who x acts R (env.toView who)).bind fun v =>
+        (traceDist σ k (Env.cons (x := x) v env)).map (.commit v ·)
+  | _, .reveal y _who _x (b := b) hx k, env =>
+      let val : Val b := env.get hx
+      (traceDist σ k (Env.cons (x := y) (τ := .pub b) val env)).map (.reveal ·)
+
+private theorem Trace.letExpr_injective {Γ : Ctx} {x : VarId} {b : BaseTy}
+    {e : Expr Γ b} {k : Prog ((x, .pub b) :: Γ)} :
+    Function.Injective (@Trace.letExpr Γ x b e k) :=
+  fun _ _ h => Trace.letExpr.inj h
+
+private theorem Trace.sample_injective {Γ : Ctx} {x : VarId} {τ : BindTy}
+    {m : SampleMode τ} {D : DistExpr (distCtx τ m Γ) τ.base}
+    {k : Prog ((x, τ) :: Γ)} (v : Val τ.base) :
+    Function.Injective (@Trace.sample Γ x τ m D k v ·) :=
+  fun _ _ h => (Trace.sample.inj h).2
+
+private theorem Trace.commit_injective {Γ : Ctx} {x : VarId} {who : Player}
+    {b : BaseTy} {acts : List (Val b)}
+    {R : Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) .bool}
+    {k : Prog ((x, .hidden who b) :: Γ)} (v : Val b) :
+    Function.Injective (@Trace.commit Γ x who b acts R k v ·) :=
+  fun _ _ h => (Trace.commit.inj h).2
+
+private theorem Trace.reveal_injective {Γ : Ctx} {y : VarId} {who : Player}
+    {x : VarId} {b : BaseTy} {hx : HasVar Γ x (.hidden who b)}
+    {k : Prog ((y, .pub b) :: Γ)} :
+    Function.Injective (@Trace.reveal Γ y who x b hx k) :=
+  fun _ _ h => Trace.reveal.inj h
+
+/-- Each trace gets exactly its `traceWeight` as mass in `traceDist`. -/
+theorem traceDist_apply (σ : Profile) {Γ : Ctx} (p : Prog Γ) (env : Env Γ)
+    (t : Trace Γ p) :
+    (traceDist σ p env) t = traceWeight σ p env t := by
+  induction p with
+  | ret u =>
+    cases t
+    simp [traceDist, traceWeight, FDist.pure, Finsupp.single_eq_same]
+  | letExpr x e k ih =>
+    cases t with
+    | letExpr t =>
+      simp only [traceDist, traceWeight]
+      rw [FDist.map_apply_injective _ _ _ Trace.letExpr_injective]
+      exact ih _ t
+  | sample x τ m D k ih =>
+    cases t with
+    | sample v t =>
+      simp only [traceDist, traceWeight]
+      rw [FDist.bind_apply]
+      conv_rhs => rw [← ih _ t]
+      rw [← FDist.map_apply_injective _ _ _ (Trace.sample_injective v)]
+      apply Finset.sum_eq_single v
+      · intro v' _ hne
+        rw [FDist.map_apply_of_forall_ne _ _ _
+          (fun t' _ h => hne ((Trace.sample.inj h).1)), mul_zero]
+      · intro hv
+        rw [Finsupp.mem_support_iff, not_not] at hv; simp [hv]
+  | commit x who acts R k ih =>
+    cases t with
+    | commit v t =>
+      simp only [traceDist, traceWeight]
+      rw [FDist.bind_apply]
+      conv_rhs => rw [← ih _ t]
+      rw [← FDist.map_apply_injective _ _ _ (Trace.commit_injective v)]
+      apply Finset.sum_eq_single v
+      · intro v' _ hne
+        rw [FDist.map_apply_of_forall_ne _ _ _
+          (fun t' _ h => hne ((Trace.commit.inj h).1)), mul_zero]
+      · intro hv
+        rw [Finsupp.mem_support_iff, not_not] at hv; simp [hv]
+  | reveal y who x hx k ih =>
+    cases t with
+    | reveal t =>
+      simp only [traceDist, traceWeight]
+      rw [FDist.map_apply_injective _ _ _ Trace.reveal_injective]
+      exact ih _ t
+
+/-- The outcome distribution is the pushforward of the trace distribution.
+    This is the literal "sum over traces" adequacy theorem: evaluated pointwise
+    via `FDist.map_apply`, it says
+    `(outcomeDist σ p env) oc = ∑ t in (traceDist σ p env).support,
+      if traceOutcome p env t = oc then traceWeight σ p env t else 0`. -/
+theorem outcomeDist_eq_map_traceDist (σ : Profile) {Γ : Ctx}
+    (p : Prog Γ) (env : Env Γ) :
+    outcomeDist σ p env = (traceDist σ p env).map (traceOutcome p env) := by
+  induction p with
+  | ret u =>
+    simp only [outcomeDist, traceDist]
+    rw [FDist.map_pure]; rfl
+  | letExpr x e k ih =>
+    simp only [outcomeDist, traceDist]; rw [ih, FDist.map_map]; congr 1
+  | sample x τ m D k ih =>
+    simp only [outcomeDist, traceDist]; rw [FDist.bind_map]
+    congr 1; ext v; rw [ih, FDist.map_map]; congr 1
+  | commit x who acts R k ih =>
+    simp only [outcomeDist, traceDist]; rw [FDist.bind_map]
+    congr 1; ext v; rw [ih, FDist.map_map]; congr 1
+  | reveal y who x hx k ih =>
+    simp only [outcomeDist, traceDist]; rw [ih, FDist.map_map]; congr 1
 
 -- ============================================================================
 -- § 8. Admissibility and legality of traces

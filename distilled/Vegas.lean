@@ -425,6 +425,61 @@ theorem totalWeight_bind_of_normalized {d : FDist α} {f : α → FDist β}
   rw [this]
   exact hd
 
+/-- Pointwise evaluation of `map`. -/
+theorem map_apply (g : α → β) (d : FDist α) (b : β) :
+    (d.map g) b = d.support.sum (fun a => if g a = b then d a else 0) := by
+  simp only [map, Finsupp.sum, Finsupp.finset_sum_apply, Finsupp.single_apply]
+
+theorem map_apply_injective (g : α → β) (d : FDist α) (a : α)
+    (hinj : Function.Injective g) :
+    (d.map g) (g a) = d a := by
+  rw [map_apply]
+  simp only [hinj.eq_iff]
+  rw [Finset.sum_ite_eq' d.support a (fun x => d x)]
+  split
+  · rfl
+  · next h => simp [Finsupp.mem_support_iff] at h; exact h.symm
+
+theorem map_apply_of_forall_ne (g : α → β) (d : FDist α) (b : β)
+    (h : ∀ a ∈ d.support, g a ≠ b) :
+    (d.map g) b = 0 := by
+  rw [map_apply]
+  apply Finset.sum_eq_zero
+  intro a ha
+  simp [h a ha]
+
+theorem map_pure (g : α → β) (a : α) :
+    (FDist.pure a).map g = FDist.pure (g a) := by
+  simp only [FDist.pure, map]
+  rw [Finsupp.sum_single_index (Finsupp.single_zero _)]
+
+theorem map_map {γ : Type} [DecidableEq γ] (f : α → β) (g : β → γ) (d : FDist α) :
+    (d.map f).map g = d.map (g ∘ f) := by
+  simp only [map]
+  rw [Finsupp.sum_sum_index (fun _ => Finsupp.single_zero _)
+    (fun _ _ _ => Finsupp.single_add _ _ _)]
+  have hz : ∀ b : β, (fun x : ℚ≥0 => Finsupp.single (g b) x) 0 = 0 :=
+    fun b => Finsupp.single_zero _
+  simp_rw [show ∀ b w, (Finsupp.single (f b) w).sum (fun x => Finsupp.single (g x)) =
+    Finsupp.single (g (f b)) w from fun b w => Finsupp.sum_single_index (hz (f b))]
+  rfl
+
+theorem bind_map (d : FDist α) (f : α → FDist β) {γ : Type} [DecidableEq γ]
+    (g : β → γ) :
+    (d.bind f).map g = d.bind (fun a => (f a).map g) := by
+  simp only [bind, map]
+  rw [Finsupp.sum_sum_index (fun _ => Finsupp.single_zero _)
+    (fun _ _ _ => Finsupp.single_add _ _ _)]
+  congr 1; ext a w
+  rw [Finsupp.sum_mapRange_index (fun _ => Finsupp.single_zero _)]
+  -- LHS: (f a).sum fun b u => single (g b) (w * u)
+  -- RHS: ((f a).sum fun b u => single (g b) u).mapRange (w * ·) ...
+  simp only [Finsupp.sum, Finsupp.mapRange_apply, Finsupp.finset_sum_apply,
+    Finsupp.single_apply]
+  congr 1; rw [Finset.mul_sum]
+  apply Finset.sum_congr rfl; intro b _
+  split <;> simp [mul_zero]
+
 end FDist
 
 -- ============================================================================
