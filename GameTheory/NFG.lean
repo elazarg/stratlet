@@ -2,8 +2,11 @@ import Mathlib.Data.Real.Basic
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Probability.ProbabilityMassFunction.Constructions
+
+import GameTheory.KernelGame
+import GameTheory.Probability
+import GameTheory.PMFProduct
 import GameTheory.SolutionConcepts
-import GameTheory.EFG
 
 /-!
 # Normal-Form Games (NFG)
@@ -100,50 +103,10 @@ theorem IsDominant_iff_kernelGame (G : NFGame ι A) (i : ι) (a : A i) :
   simp only [IsDominant, GameTheory.KernelGame.IsDominant, GameTheory.KernelGame.eu,
       NFGame.toKernelGame, GameTheory.expect_pure, deviate]
 
-/-! ## NFG → EFG: simultaneous game as a sequential tree -/
-
-/-- Build an EFG tree from an NFG-style payoff function over action indices.
-    Player 0 moves first (infoSet=0), then player 1 (infoSet=1), sequentially. -/
-noncomputable def mkSimultaneousTree {ι : Type} (n₁ n₂ : Nat) (p₁ p₂ : ι)
-    (payoff : Fin n₁ → Fin n₂ → GameTheory.Payoff ι) : EFG.GameTree ι :=
-  .decision 0 p₁ n₁ (fun a₁ =>
-    .decision 1 p₂ n₂ (fun a₂ =>
-      .terminal (payoff a₁ a₂)))
-
-/-- The EFG tree under a pure behavioral strategy produces the correct payoff. -/
-theorem mkSimultaneousTree_evalDist {ι : Type} (n₁ n₂ : Nat) (p₁ p₂ : ι)
-    (payoff : Fin n₁ → Fin n₂ → GameTheory.Payoff ι)
-    (a₁ : Fin n₁) (a₂ : Fin n₂)
-    (σ : EFG.BehavioralStrategy)
-    (hn₁ : 0 < n₁) (hn₂ : 0 < n₂)
-    (hσ₁ : σ 0 n₁ hn₁ = PMF.pure a₁) (hσ₂ : σ 1 n₂ hn₂ = PMF.pure a₂) :
-    (mkSimultaneousTree n₁ n₂ p₁ p₂ payoff).evalDist σ = PMF.pure (payoff a₁ a₂) := by
-  simp [mkSimultaneousTree, EFG.GameTree.evalDist, dif_pos hn₁, dif_pos hn₂, hσ₁, hσ₂]
-
 /-! ## Mixed strategies -/
 
 /-- A mixed strategy profile: each player independently randomizes over actions. -/
 abbrev MixedProfile (A : ι → Type) [∀ i, Fintype (A i)] := ∀ i, PMF (A i)
-
-/-- Independent product of PMFs over a finite index type.
-    Assigns probability `∏ i, σ i (f i)` to each profile `f : ∀ i, A i`.
-    The sum-to-one proof follows from the finite Fubini theorem:
-    `∑ f, ∏ i, σ i (f i) = ∏ i, (∑ a, σ i a) = ∏ i, 1 = 1`. -/
-noncomputable def pmfPi
-    (σ : ∀ i, PMF (A i)) : PMF (∀ i, A i) :=
-  PMF.ofFintype (fun f => ∏ i : ι, σ i (f i)) (by
-    rw [← Fintype.prod_sum]
-    have : ∀ i, ∑ j : A i, (σ i) j = 1 :=
-      fun i => by
-        have h := PMF.tsum_coe (σ i)
-        rwa [tsum_eq_sum (s := Finset.univ)
-          (fun x hx => absurd (Finset.mem_univ x) hx)] at h
-    simp [this])
-
-omit [∀ i, DecidableEq (A i)] in
-@[simp] theorem pmfPi_apply (σ : ∀ i, PMF (A i)) (f : ∀ i, A i) :
-    (pmfPi σ) f = ∏ i, σ i (f i) := by
-  simp [pmfPi, PMF.ofFintype_apply]
 
 /-- NFG as a kernel-based game with mixed strategies.
     The outcome kernel maps independent per-player PMFs to a joint distribution

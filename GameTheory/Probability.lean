@@ -87,9 +87,6 @@ end Kernel
 -- § 2. Expected value
 -- ============================================================================
 
-/-- A payoff vector for `ι` players. -/
-abbrev Payoff (ι : Type) : Type := ι → ℝ
-
 /-- Expected value of a real-valued function under a PMF. -/
 noncomputable def expect {Ω : Type} (d : PMF Ω) (f : Ω → ℝ) : ℝ :=
   ∑' ω, (d ω).toReal * f ω
