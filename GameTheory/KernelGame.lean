@@ -6,7 +6,7 @@ import GameTheory.Probability
 Kernel-based game structure: the semantic core for finite/discrete game models.
 
 Provides:
-- `KernelGame` — a game with player-indexed strategies, stochastic outcome kernel, and payoff
+- `KernelGame` — a game with player-indexed strategies, stochastic outcome kernel, and utility
 - `eu` — expected utility for a player under a strategy profile
 - `Profile`, `correlatedOutcome` — standard game-theoretic notions
 - `KernelGame.ofEU` — constructs a kernel game from a direct EU function
@@ -29,12 +29,12 @@ abbrev Payoff (ι : Type) : Type := ι → ℝ
 
 /-- A kernel-based game with explicit outcome type.
     - `Outcome` is the type of game outcomes (e.g. terminal nodes, action profiles)
-    - `payoff` maps outcomes to player payoffs
+    - `utility` maps outcomes to player payoffs
     - `outcomeKernel` maps strategy profiles to outcome distributions -/
-structure KernelGame (ι : Type) [DecidableEq ι] where
+structure KernelGame (ι : Type) where
   Strategy : ι → Type
   Outcome : Type
-  payoff : Outcome → Payoff ι
+  utility : Outcome → Payoff ι
   outcomeKernel : Kernel (∀ i, Strategy i) Outcome
 
 namespace KernelGame
@@ -45,7 +45,7 @@ abbrev Profile (G : KernelGame ι) := ∀ i, G.Strategy i
 
 /-- Expected utility of player `who` under strategy profile `σ`. -/
 noncomputable def eu (G : KernelGame ι) (σ : Profile G) (who : ι) : ℝ :=
-  expect (G.outcomeKernel σ) (fun ω => G.payoff ω who)
+  expect (G.outcomeKernel σ) (fun ω => G.utility ω who)
 
 /-- Outcome distribution under a correlated profile distribution (correlation device). -/
 noncomputable def correlatedOutcome (G : KernelGame ι)
@@ -57,13 +57,13 @@ noncomputable def correlatedOutcome (G : KernelGame ι)
 -- ============================================================================
 
 /-- Build a KernelGame from a direct expected-utility function (no stochastic kernel).
-    This is the "strategic form" special case: outcome = payoff vector, kernel = point mass.
+    This is the "strategic form" special case: outcome = utility vector, kernel = point mass.
     Absorbs the former `StrategicForm.Game`. -/
 noncomputable def ofEU [DecidableEq ι]
     (Strategy : ι → Type) (eu : (∀ i, Strategy i) → Payoff ι) : KernelGame ι where
   Strategy := Strategy
   Outcome := Payoff ι
-  payoff := id
+  utility := id
   outcomeKernel := fun σ => PMF.pure (eu σ)
 
 /-- EU of a game built from `ofEU` is just the direct EU function. -/
