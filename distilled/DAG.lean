@@ -390,19 +390,6 @@ theorem execution_env_unique {c₁ c_term₁ c_term₂ : Config}
   rw [execution_env_at exec₁ hterm₁ huniq x,
       execution_env_at exec₂ hterm₂ huniq x, hsame]
 
-/-- The DAG-based outcome distribution: sum of execution weights over all
-    complete executions that produce outcome `oc`.
-    This requires enumerating executions, so remains sorry'd. -/
-noncomputable def dagOutcomeDist (_σ : Profile) (_p : Prog Γ)
-    (_env : Env Γ) : FDist Outcome := sorry
-
-/-- The DAG outcome distribution equals the denotational semantics.
-    Proof requires showing that any topological sort of the DAG produces
-    the same `outcomeDist`, reducing to commutativity theorems. -/
-theorem dagOutcomeDist_eq_outcomeDist (σ : Profile)
-    (p : Prog Γ) (env : Env Γ) :
-    dagOutcomeDist σ p env = outcomeDist σ p env := sorry
-
 -- ============================================================================
 -- § 10. Examples
 -- ============================================================================
