@@ -373,19 +373,55 @@ def swapAdj (l : List α) (i : Nat) (hi : i + 1 < l.length) : List α :=
   let b := l[i + 1]'hi
   (l.set i b).set (i + 1) a
 
+/-- General lemma: swapping adjacent elements in a `foldl` is invariant when
+    the fold function commutes on those two elements (for any accumulator). -/
+theorem foldl_swapAdj {α β : Type*} (f : α → β → α) (init : α) (l : List β)
+    (i : Nat) (hi : i + 1 < l.length)
+    (hcomm : ∀ acc, f (f acc (l[i]'(by omega))) (l[i + 1]'hi) =
+                     f (f acc (l[i + 1]'hi)) (l[i]'(by omega))) :
+    l.foldl f init = (swapAdj l i hi).foldl f init := by
+  -- We induct on i and the list simultaneously, generalizing the accumulator
+  induction i generalizing l init with
+  | zero =>
+    match l, hi with
+    | a :: b :: rest, _ =>
+      simp only [swapAdj, List.getElem_cons_zero, List.getElem_cons_succ,
+                  List.set_cons_zero, List.set_cons_succ, List.set_cons_zero,
+                  List.foldl_cons]
+      have h := hcomm init
+      simp only [List.getElem_cons_zero, List.getElem_cons_succ] at h
+      rw [h]
+  | succ j ih =>
+    match l, hi with
+    | x :: xs, hi' =>
+      simp only [List.foldl_cons]
+      have hlen : j + 1 < xs.length := by
+        simp only [List.length_cons] at hi'; omega
+      have hswap : swapAdj (x :: xs) (j + 1) hi' = x :: swapAdj xs j hlen := by
+        unfold swapAdj
+        simp [List.getElem_cons_succ, List.set_cons_succ]
+      rw [hswap, List.foldl_cons]
+      exact ih (f init x) xs hlen (fun acc => by
+        have := hcomm acc
+        simp only [List.getElem_cons_succ] at this
+        exact this)
+
 /-- Swapping two adjacent independent nodes in the fold doesn't change
     `evalAssignDist'`. This is the key lemma toward showing that
-    evaluation depends only on the DAG, not the chosen topological ordering.
-
-    **Status**: statement only — depends on `evalStep_swap` + list fold
-    manipulation. -/
+    evaluation depends only on the DAG, not the chosen topological ordering. -/
 theorem MAIDModel.evalAssignDist'_swap_adj (m : MAIDModel) (π : CondPolicy)
-    (nodes : List Node) (i : Nat)
-    (hi : i + 1 < nodes.length)
-    (hindep : Independent (nodes[i]'(by omega)) (nodes[i + 1]'hi)) :
-    nodes.foldl (m.evalStep π) (PMF.pure (fun _ => 0)) =
-    (swapAdj nodes i hi).foldl (m.evalStep π) (PMF.pure (fun _ => 0)) := by
-  sorry
+    (wf : m.WellFormed) (adm : CondPolicy.Admissible m.diagram π)
+    (i : Nat) (hi : i + 1 < m.diagram.nodes.length)
+    (hne : (m.diagram.nodes[i]'(by omega)).id ≠ (m.diagram.nodes[i + 1]'hi).id)
+    (hindep : Independent (m.diagram.nodes[i]'(by omega)) (m.diagram.nodes[i + 1]'hi)) :
+    m.evalAssignDist' π =
+    (swapAdj m.diagram.nodes i hi).foldl (m.evalStep π) (PMF.pure (fun _ => 0)) := by
+  simp only [evalAssignDist']
+  exact foldl_swapAdj _ _ _ i hi (fun acc =>
+    evalStep_swap m π wf adm _ _
+      (List.getElem_mem (by omega))
+      (List.getElem_mem hi)
+      hne hindep acc)
 
 -- ============================================================================
 -- § 3. Game — KernelGame bridge + solution concepts
