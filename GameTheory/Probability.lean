@@ -122,10 +122,16 @@ theorem expect_eq_sum {Ω : Type} [Fintype Ω] (d : PMF Ω) (f : Ω → ℝ) :
   rw [show ∑' ω, (d ω).toReal = ∑' ω, ((fun ω => d ω) ω).toReal from rfl]
   rw [← key, PMF.tsum_coe]; norm_num
 
+set_option linter.unusedFintypeInType false in
 /-- Expected value distributes over `PMF.bind`. -/
-theorem expect_bind {α β : Type} (p : PMF α) (q : α → PMF β) (f : β → ℝ) :
+theorem expect_bind {α β : Type} [Fintype α] [Fintype β]
+    (p : PMF α) (q : α → PMF β) (f : β → ℝ) :
     expect (p.bind q) f = expect p (fun a => expect (q a) f) := by
-  simp only [expect, PMF.bind_apply]
-  sorry
+  simp only [expect, PMF.bind_apply, tsum_fintype]
+  have hne : ∀ (a : α) (b : β), p a * q a b ≠ ⊤ := fun a b =>
+    ENNReal.mul_ne_top (PMF.apply_ne_top p a) (PMF.apply_ne_top (q a) b)
+  simp_rw [ENNReal.toReal_sum (fun a _ => hne a _), ENNReal.toReal_mul,
+    Finset.sum_mul, Finset.mul_sum, mul_assoc]
+  exact Finset.sum_comm
 
 end GameTheory
