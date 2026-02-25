@@ -20,6 +20,9 @@ Provides:
 
 namespace GameTheory
 
+/-- A payoff vector for `ι` players. -/
+abbrev Payoff (ι : Type) : Type := ι → ℝ
+
 -- ============================================================================
 -- § 1. Kernel-based game (strategies + outcome kernel → EU)
 -- ============================================================================
