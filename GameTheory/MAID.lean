@@ -229,17 +229,23 @@ structure MAIDModel.WellFormed (m : MAIDModel) : Prop where
 
 /-! ### Evaluation -/
 
+/-- The distribution drawn at a node, given the current assignment.
+    Chance → chanceCPD, decision → policy, utility → pure 0. -/
+noncomputable def MAIDModel.nodeDist (m : MAIDModel) (π : CondPolicy)
+    (node : Node) (assign : Assign) : PMF Nat :=
+  match node.kind with
+  | .chance => m.chanceCPD node.id assign
+  | .decision _ => π node.id assign
+  | .utility _ => PMF.pure 0
+
 /-- The fold step for `evalAssignDist`: given an accumulated joint PMF
     and a node, draw a value from the node's CPD or policy and extend
     the assignment. Factored out for reuse in swap lemmas. -/
 noncomputable def MAIDModel.evalStep (m : MAIDModel) (π : CondPolicy)
     (acc : PMF Assign) (node : Node) : PMF Assign :=
   acc.bind (fun assign =>
-    let nodeDist := match node.kind with
-      | .chance => m.chanceCPD node.id assign
-      | .decision _ => π node.id assign
-      | .utility _ => PMF.pure 0
-    nodeDist.bind (fun v => PMF.pure (Function.update assign node.id v)))
+    (m.nodeDist π node assign).bind (fun v =>
+      PMF.pure (Function.update assign node.id v)))
 
 /-- Joint PMF over full assignments, built by folding over nodes in
     topological order. Each node draws a value from its CPD or policy
@@ -309,17 +315,37 @@ theorem MAIDModel.payoffOf_local (m : MAIDModel) (wf : m.WellFormed)
 def Independent (u v : Node) : Prop :=
   u.id ∉ v.parents ∧ v.id ∉ u.parents
 
+/-- `nodeDist` depends only on the node's parent values. -/
+theorem MAIDModel.nodeDist_local (m : MAIDModel) (π : CondPolicy)
+    (wf : m.WellFormed) (adm : CondPolicy.Admissible m.diagram π)
+    (node : Node) (hn : node ∈ m.diagram.nodes) :
+    LocalTo node.parents (m.nodeDist π node) := by
+  intro a₁ a₂ heq
+  simp only [nodeDist]
+  match hk : node.kind with
+  | .chance => exact wf.chance_local node hn hk a₁ a₂ heq
+  | .decision agent =>
+    exact adm.local_ node hn agent hk a₁ a₂ (fun p hp =>
+      heq p (m.diagram.obs_sub_parents node hn p hp))
+  | .utility _ => rfl
+
+/-- Updating a key that is not in a node's parent list doesn't change its
+    distribution. This is the workhorse for the swap proof. -/
+theorem MAIDModel.nodeDist_update_irrel (m : MAIDModel) (π : CondPolicy)
+    (wf : m.WellFormed) (adm : CondPolicy.Admissible m.diagram π)
+    (node : Node) (hn : node ∈ m.diagram.nodes)
+    (a : Assign) (x val : Nat) (hx : x ∉ node.parents) :
+    m.nodeDist π node (Function.update a x val) = m.nodeDist π node a :=
+  nodeDist_local m π wf adm node hn (Function.update a x val) a
+    (fun p hp => by simp [ne_of_mem_of_not_mem hp hx])
+
 /-- Swapping two adjacent independent nodes does not change the result
     of folding `evalStep` from any accumulator.
 
-    **Proof sketch**: since `u` and `v` are independent (neither is a
-    parent of the other), the distribution drawn at each node does not
-    depend on the value assigned to the other. The two `Function.update`s
-    commute because they write to distinct IDs (`hne`). Therefore
-    `evalStep m π (evalStep m π acc u) v = evalStep m π (evalStep m π acc v) u`.
-
-    The formal proof requires showing that the CPD/policy at each node
-    is `LocalTo` its parents, so the other node's value is irrelevant. -/
+    Since `u` and `v` are independent (neither is a parent of the other),
+    the distribution drawn at each node does not depend on the value
+    assigned to the other. The two `Function.update`s commute because
+    they write to distinct IDs. Uses `PMF.bind_comm` (Fubini). -/
 theorem MAIDModel.evalStep_swap (m : MAIDModel) (π : CondPolicy)
     (wf : m.WellFormed) (adm : CondPolicy.Admissible m.diagram π)
     (u v : Node) (hu : u ∈ m.diagram.nodes) (hv : v ∈ m.diagram.nodes)
@@ -328,14 +354,18 @@ theorem MAIDModel.evalStep_swap (m : MAIDModel) (π : CondPolicy)
     (acc : PMF Assign) :
     m.evalStep π (m.evalStep π acc u) v =
     m.evalStep π (m.evalStep π acc v) u := by
-  simp only [evalStep]
-  -- Both sides are: acc >>= (draw u, update) >>= (draw v, update)
-  -- vs:             acc >>= (draw v, update) >>= (draw u, update)
-  -- Key facts needed:
-  --   1. CPD/policy at v doesn't read u.id (hindep.1 : u.id ∉ v.parents)
-  --   2. CPD/policy at u doesn't read v.id (hindep.2 : v.id ∉ u.parents)
-  --   3. Function.update at u.id and v.id commute (hne)
-  sorry
+  simp only [evalStep, PMF.bind_bind, PMF.pure_bind]
+  congr 1; funext a
+  -- Goal: nodeDist u a >>= λ vu. nodeDist v (a[u↦vu]) >>= λ vv. pure (a[u↦vu][v↦vv])
+  --     = nodeDist v a >>= λ vv. nodeDist u (a[v↦vv]) >>= λ vu. pure (a[v↦vv][u↦vu])
+  -- (1) nodeDist v (a[u↦vu]) = nodeDist v a  (u.id ∉ v.parents)
+  simp_rw [nodeDist_update_irrel m π wf adm v hv a _ _ hindep.1]
+  -- (2) nodeDist u (a[v↦vv]) = nodeDist u a  (v.id ∉ u.parents)
+  simp_rw [nodeDist_update_irrel m π wf adm u hu a _ _ hindep.2]
+  -- (3) update commutes: a[u↦vu][v↦vv] = a[v↦vv][u↦vu]
+  simp_rw [Function.update_comm hne]
+  -- (4) Fubini: (du >>= λ x. dv >>= f x) = (dv >>= λ y. du >>= λ x. f x y)
+  exact PMF.bind_comm _ _ _
 
 /-- Swap two adjacent elements in a list. -/
 def swapAdj (l : List α) (i : Nat) (hi : i + 1 < l.length) : List α :=
