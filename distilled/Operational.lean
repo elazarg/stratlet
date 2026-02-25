@@ -20,8 +20,8 @@ The central connection to the denotational semantics:
 
 - **DAG execution model**: The sequential `Prog` syntax linearizes a DAG of
   events. Independent `commit`s and `reveal`s commute — the linearization
-  order doesn't affect `outcomeDist`. This is stated as `outcomeDist_comm_commit`
-  (proof TODO: requires showing the env projections are independent).
+  order doesn't affect `outcomeDist`. This is proved as `outcomeDist_comm_commit`
+  and `outcomeDist_comm_reveal`.
 
 - **`letExpr` is silent**: No operational event. The value is determined by
   the environment, matching the blockchain implementation which inlines lets.
@@ -109,12 +109,12 @@ noncomputable instance : DecidableEq (Trace Γ p) := by
 noncomputable def traceOutcome : {Γ : Ctx} → (p : Prog Γ) → Env Γ → Trace Γ p → Outcome
   | _, .ret u, env, .ret =>
       evalPayoffMap u env
-  | _, .letExpr x e k, env, .letExpr t =>
-      traceOutcome k (Env.cons (x := x) (evalExpr e env) env) t
-  | _, .sample x _ _ _ k, env, .sample v t =>
-      traceOutcome k (Env.cons (x := x) v env) t
-  | _, .commit x _ _ _ k, env, .commit v t =>
-      traceOutcome k (Env.cons (x := x) v env) t
+  | _, .letExpr _ e k, env, .letExpr t =>
+      traceOutcome k (Env.cons (evalExpr e env) env) t
+  | _, .sample _ _ _ _ k, env, .sample v t =>
+      traceOutcome k (Env.cons v env) t
+  | _, .commit _ _ _ _ k, env, .commit v t =>
+      traceOutcome k (Env.cons v env) t
   | _, .reveal y _who _x (b := b) hx k, env, .reveal t =>
       let val : Val b := env.get hx
       traceOutcome k (Env.cons (x := y) (τ := .pub b) val env) t
@@ -131,14 +131,14 @@ noncomputable def traceOutcome : {Γ : Ctx} → (p : Prog Γ) → Env Γ → Tra
 noncomputable def traceWeight (σ : Profile) :
     {Γ : Ctx} → (p : Prog Γ) → Env Γ → Trace Γ p → ℚ≥0
   | _, .ret _, _, .ret => 1
-  | _, .letExpr x e k, env, .letExpr t =>
-      traceWeight σ k (Env.cons (x := x) (evalExpr e env) env) t
-  | _, .sample x τ m D k, env, .sample v t =>
+  | _, .letExpr _ e k, env, .letExpr t =>
+      traceWeight σ k (Env.cons (evalExpr e env) env) t
+  | _, .sample _ τ m D k, env, .sample v t =>
       (evalDistExpr D (env.projectDist τ m)) v *
-      traceWeight σ k (Env.cons (x := x) v env) t
+      traceWeight σ k (Env.cons v env) t
   | _, .commit x who acts R k, env, .commit v t =>
       (σ.commit who x acts R (env.toView who)) v *
-      traceWeight σ k (Env.cons (x := x) v env) t
+      traceWeight σ k (Env.cons v env) t
   | _, .reveal y _who _x (b := b) hx k, env, .reveal t =>
       let val : Val b := env.get hx
       traceWeight σ k (Env.cons (x := y) (τ := .pub b) val env) t
@@ -152,14 +152,14 @@ noncomputable def traceWeight (σ : Profile) :
     distribution's support. -/
 def Trace.legal : {Γ : Ctx} → (p : Prog Γ) → Env Γ → Trace Γ p → Prop
   | _, .ret _, _, .ret => True
-  | _, .letExpr x e k, env, .letExpr t =>
-      legal k (Env.cons (x := x) (evalExpr e env) env) t
-  | _, .sample x τ m D k, env, .sample v t =>
+  | _, .letExpr _ e k, env, .letExpr t =>
+      legal k (Env.cons (evalExpr e env) env) t
+  | _, .sample _ τ m D k, env, .sample v t =>
       v ∈ (evalDistExpr D (env.projectDist τ m)).support ∧
-      legal k (Env.cons (x := x) v env) t
-  | _, .commit x who acts R k, env, .commit v t =>
+      legal k (Env.cons v env) t
+  | _, .commit _ who acts R k, env, .commit v t =>
       v ∈ acts ∧ evalR R v (env.toView who) = true ∧
-      legal k (Env.cons (x := x) v env) t
+      legal k (Env.cons v env) t
   | _, .reveal y _who _x (b := b) hx k, env, .reveal t =>
       let val : Val b := env.get hx
       legal k (Env.cons (x := y) (τ := .pub b) val env) t
@@ -177,14 +177,14 @@ inductive CanReach : {Γ : Ctx} → Prog Γ → Env Γ → Outcome → Prop wher
       CanReach (.ret u) env (evalPayoffMap u env)
   | letExpr {Γ : Ctx} {x : VarId} {b : BaseTy} {e : Expr Γ b}
       {k : Prog ((x, .pub b) :: Γ)} {env : Env Γ} {oc : Outcome} :
-      CanReach k (Env.cons (x := x) (evalExpr e env) env) oc →
+      CanReach k (Env.cons (evalExpr e env) env) oc →
       CanReach (.letExpr x e k) env oc
   | sample {Γ : Ctx} {x : VarId} {τ : BindTy} {m : SampleMode τ}
       {D : DistExpr (distCtx τ m Γ) τ.base} {k : Prog ((x, τ) :: Γ)}
       {env : Env Γ} {oc : Outcome}
       (v : Val τ.base)
       (hsupp : v ∈ (evalDistExpr D (env.projectDist τ m)).support) :
-      CanReach k (Env.cons (x := x) v env) oc →
+      CanReach k (Env.cons v env) oc →
       CanReach (.sample x τ m D k) env oc
   | commit {Γ : Ctx} {x : VarId} {who : Player} {b : BaseTy}
       {acts : List (Val b)}
@@ -193,7 +193,7 @@ inductive CanReach : {Γ : Ctx} → Prog Γ → Env Γ → Outcome → Prop wher
       {env : Env Γ} {oc : Outcome}
       (v : Val b) (hacts : v ∈ acts)
       (hR : evalR R v (env.toView who) = true) :
-      CanReach k (Env.cons (x := x) v env) oc →
+      CanReach k (Env.cons v env) oc →
       CanReach (.commit x who acts R k) env oc
   | reveal {Γ : Ctx} {y : VarId} {who : Player} {x : VarId} {b : BaseTy}
       {hx : HasVar Γ x (.hidden who b)}
@@ -210,14 +210,14 @@ inductive Reach (σ : Profile) :
       Reach σ (.ret u) env (evalPayoffMap u env)
   | letExpr {Γ : Ctx} {x : VarId} {b : BaseTy} {e : Expr Γ b}
       {k : Prog ((x, .pub b) :: Γ)} {env : Env Γ} {oc : Outcome} :
-      Reach σ k (Env.cons (x := x) (evalExpr e env) env) oc →
+      Reach σ k (Env.cons (evalExpr e env) env) oc →
       Reach σ (.letExpr x e k) env oc
   | sample {Γ : Ctx} {x : VarId} {τ : BindTy} {m : SampleMode τ}
       {D : DistExpr (distCtx τ m Γ) τ.base} {k : Prog ((x, τ) :: Γ)}
       {env : Env Γ} {oc : Outcome}
       (v : Val τ.base)
       (hsupp : v ∈ (evalDistExpr D (env.projectDist τ m)).support) :
-      Reach σ k (Env.cons (x := x) v env) oc →
+      Reach σ k (Env.cons v env) oc →
       Reach σ (.sample x τ m D k) env oc
   | commit {Γ : Ctx} {x : VarId} {who : Player} {b : BaseTy}
       {acts : List (Val b)}
@@ -226,7 +226,7 @@ inductive Reach (σ : Profile) :
       {env : Env Γ} {oc : Outcome}
       (v : Val b)
       (hsupp : v ∈ (σ.commit who x acts R (env.toView who)).support) :
-      Reach σ k (Env.cons (x := x) v env) oc →
+      Reach σ k (Env.cons v env) oc →
       Reach σ (.commit x who acts R k) env oc
   | reveal {Γ : Ctx} {y : VarId} {who : Player} {x : VarId} {b : BaseTy}
       {hx : HasVar Γ x (.hidden who b)}
@@ -333,16 +333,16 @@ noncomputable def traceWeightSum (σ : Profile) :
     {Γ : Ctx} → (p : Prog Γ) → Env Γ → Outcome → ℚ≥0
   | _, .ret u, env, oc =>
       if oc = evalPayoffMap u env then 1 else 0
-  | _, .letExpr x e k, env, oc =>
-      traceWeightSum σ k (Env.cons (x := x) (evalExpr e env) env) oc
-  | _, .sample x τ m D k, env, oc =>
+  | _, .letExpr _ e k, env, oc =>
+      traceWeightSum σ k (Env.cons (evalExpr e env) env) oc
+  | _, .sample _ τ m D k, env, oc =>
       (evalDistExpr D (env.projectDist τ m)).support.sum fun v =>
         (evalDistExpr D (env.projectDist τ m)) v *
-        traceWeightSum σ k (Env.cons (x := x) v env) oc
+        traceWeightSum σ k (Env.cons v env) oc
   | _, .commit x who acts R k, env, oc =>
       (σ.commit who x acts R (env.toView who)).support.sum fun v =>
         (σ.commit who x acts R (env.toView who)) v *
-        traceWeightSum σ k (Env.cons (x := x) v env) oc
+        traceWeightSum σ k (Env.cons v env) oc
   | _, .reveal y _who _x (b := b) hx k, env, oc =>
       let val : Val b := env.get hx
       traceWeightSum σ k (Env.cons (x := y) (τ := .pub b) val env) oc
@@ -375,14 +375,14 @@ theorem adequacy_pointwise {Γ : Ctx} (σ : Profile)
 noncomputable def traceDist (σ : Profile) :
     {Γ : Ctx} → (p : Prog Γ) → Env Γ → FDist (Trace Γ p)
   | _, .ret _, _ => FDist.pure .ret
-  | _, .letExpr x e k, env =>
-      (traceDist σ k (Env.cons (x := x) (evalExpr e env) env)).map (.letExpr ·)
-  | _, .sample x τ m D k, env =>
+  | _, .letExpr _ e k, env =>
+      (traceDist σ k (Env.cons (evalExpr e env) env)).map (.letExpr ·)
+  | _, .sample _ τ m D k, env =>
       (evalDistExpr D (env.projectDist τ m)).bind fun v =>
-        (traceDist σ k (Env.cons (x := x) v env)).map (.sample v ·)
+        (traceDist σ k (Env.cons v env)).map (.sample v ·)
   | _, .commit x who acts R k, env =>
       (σ.commit who x acts R (env.toView who)).bind fun v =>
-        (traceDist σ k (Env.cons (x := x) v env)).map (.commit v ·)
+        (traceDist σ k (Env.cons v env)).map (.commit v ·)
   | _, .reveal y _who _x (b := b) hx k, env =>
       let val : Val b := env.get hx
       (traceDist σ k (Env.cons (x := y) (τ := .pub b) val env)).map (.reveal ·)
@@ -536,7 +536,8 @@ The key cases:
 - Two `commit`s for different players whose constraints `R` don't reference
   each other's variables
 - Two `reveal`s of different variables
-- A `commit` and a `reveal` of an unrelated variable
+- `commit` and a `reveal` cannot in general commute: committer should not be
+  allowed to learn the revealed value before committing.
 
 Stating this precisely requires showing that the environment projections
 (viewCtx, pubCtx) are independent of the swapped binding. The proof
@@ -593,13 +594,6 @@ theorem outcomeDist_comm_commit
     {R₁' : Expr ((x₁, .pub b₁) :: flattenCtx
       (viewCtx who₁ ((x₂, .hidden who₂ b₂) :: Γ))) .bool}
     {k' : Prog ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
-    -- independence: each player's constraint doesn't reference the other's var
-    (hindep₁ : x₁ ∉ exprVars R₂)
-    (hindep₂ : x₂ ∉ exprVars R₁)
-    (hfresh₁ : Fresh x₁ Γ) (hfresh₂ : Fresh x₂ Γ) (hne : x₁ ≠ x₂)
-    -- visibility: mutual invisibility of hidden bindings
-    (hvis₁ : canSee who₂ (.hidden who₁ b₁) = false)
-    (hvis₂ : canSee who₁ (.hidden who₂ b₂) = false)
     -- Semantic equivalence: swapped continuation produces the same outcome
     -- for all values and environments. This abstracts over the reindexing
     -- details (which would be derived from hindep + hvis + viewCtx_skip_invisible).
@@ -620,9 +614,47 @@ theorem outcomeDist_comm_commit
     outcomeDist σ
       (.commit x₂ who₂ acts₂ R₂'
         (.commit x₁ who₁ acts₁ R₁' k')) env := by
-  sorry
+  simp only [outcomeDist]
+  simp_rw [hσ₂ _ env]
+  rw [FDist.bind_comm]
+  congr 1; funext v₂
+  rw [hσ₁ v₂ env]
+  congr 1; funext v₁
+  exact hk_eq v₁ v₂ env
 
--- TODO: analogous commutativity theorems for:
--- - reveal/reveal
--- - commit/reveal (when independent)
--- - sample/commit (when independent)
+/-- Two adjacent reveals of distinct hidden variables produce the same
+    outcome distribution regardless of order.
+
+    Unlike commit–commit commutativity, reveals are purely deterministic
+    (no `FDist.bind`). The proof unfolds `outcomeDist` twice on each side
+    and applies the continuation equivalence hypothesis.
+
+    The inner `HasVar` proofs use `.there` to shift through the outer
+    reveal's public binding, ensuring the looked-up values are independent:
+    `(Env.cons v env).get (.there h) = env.get h` (definitional). -/
+theorem outcomeDist_comm_reveal
+    {Γ : Ctx} {σ : Profile} {env : Env Γ}
+    -- original ordering: reveal y₁ then reveal y₂
+    {y₁ : VarId} {who₁ : Player} {x₁ : VarId} {b₁ : BaseTy}
+    {hx₁ : HasVar Γ x₁ (.hidden who₁ b₁)}
+    {y₂ : VarId} {who₂ : Player} {x₂ : VarId} {b₂ : BaseTy}
+    {hx₂ : HasVar Γ x₂ (.hidden who₂ b₂)}
+    {k : Prog ((y₂, .pub b₂) :: (y₁, .pub b₁) :: Γ)}
+    -- swapped ordering: reveal y₂ then reveal y₁
+    {k' : Prog ((y₁, .pub b₁) :: (y₂, .pub b₂) :: Γ)}
+    -- Continuation equivalence: swapped env produces the same outcome
+    (hk_eq : ∀ (v₁ : Val b₁) (v₂ : Val b₂) (e : Env Γ),
+      outcomeDist σ k (Env.cons v₂ (Env.cons v₁ e)) =
+      outcomeDist σ k' (Env.cons v₁ (Env.cons v₂ e))) :
+    outcomeDist σ
+      (.reveal y₁ who₁ x₁ hx₁
+        (.reveal y₂ who₂ x₂ hx₂.there k)) env =
+    outcomeDist σ
+      (.reveal y₂ who₂ x₂ hx₂
+        (.reveal y₁ who₁ x₁ hx₁.there k')) env := by
+  simp only [outcomeDist]
+  exact hk_eq (env.get hx₁) (env.get hx₂) env
+
+-- Refute commutativity for dependent events:
+-- - commit/reveal (committer will see the revealed variable)
+-- - sample/commit (committer will see the sampled variable)
