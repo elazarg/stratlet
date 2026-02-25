@@ -16,7 +16,7 @@ Design:
 - `GameTree` decision nodes store only the info-set id `I`
 - Strategy types are cleanly per-info-set with no `0 < n` guards
 - Chance nodes use `Fin k` with a proof `0 < k`
-- Evaluation functions have no `dif` guards
+- Distributional semantics only (`evalDist`); EU is external via `KernelGame`
 
 ## Scope-outs
 
@@ -110,16 +110,8 @@ theorem allWFTree {S : InfoStructure} {Outcome : Type} (t : GameTree S Outcome) 
   | decision _ _ ih => constructor; exact ih
 
 -- ============================================================================
--- § 5. Evaluation (no `dif` guards)
+-- § 5. Evaluation
 -- ============================================================================
-
-/-- Evaluate a game tree under a pure strategy profile. -/
-noncomputable def GameTree.evalTotal {S : InfoStructure}
-    (σ : PureProfile S) : GameTree S (Payoff S.Player) → Payoff S.Player
-  | .terminal outcome => outcome
-  | .chance k μ _hk next => fun i =>
-      ∑ b : Fin k, (μ b).toReal * (next b).evalTotal σ i
-  | .decision (p := p) I next => (next (σ p I)).evalTotal σ
 
 /-- Evaluate under a behavioral profile, returning a PMF over outcomes. -/
 noncomputable def GameTree.evalDist {S : InfoStructure} {Outcome : Type}
@@ -127,16 +119,6 @@ noncomputable def GameTree.evalDist {S : InfoStructure} {Outcome : Type}
   | .terminal z => PMF.pure z
   | .chance _k μ _hk next => μ.bind (fun b => (next b).evalDist σ)
   | .decision (p := p) I next => (σ p I).bind (fun a => (next a).evalDist σ)
-
-/-- Evaluate under a per-player pure strategy profile (alias for `evalTotal`). -/
-noncomputable def GameTree.evalTotalProfile {S : InfoStructure}
-    (σ : PureProfile S) : GameTree S (Payoff S.Player) → Payoff S.Player :=
-  GameTree.evalTotal σ
-
-/-- Expected utility of player `who` under a pure strategy profile. -/
-noncomputable def GameTree.euPure {S : InfoStructure}
-    (σ : PureProfile S) (who : S.Player) (t : GameTree S (Payoff S.Player)) : ℝ :=
-  t.evalTotal σ who
 
 /-- Evaluate under a per-player behavioral profile (alias for `evalDist`). -/
 noncomputable def GameTree.evalDistProfile {S : InfoStructure} {Outcome : Type}
@@ -146,35 +128,6 @@ noncomputable def GameTree.evalDistProfile {S : InfoStructure} {Outcome : Type}
 -- ============================================================================
 -- § 6. Simp lemmas
 -- ============================================================================
-
-@[simp] theorem evalTotal_terminal {S : InfoStructure}
-    (σ : PureProfile S) (outcome : Payoff S.Player) :
-    (GameTree.terminal outcome : GameTree S (Payoff S.Player)).evalTotal σ = outcome := rfl
-
-@[simp] theorem evalTotal_decision {S : InfoStructure}
-    (σ : PureProfile S) {p : S.Player} (I : S.Infoset p)
-    (next : S.Act I → GameTree S (Payoff S.Player)) :
-    (GameTree.decision I next).evalTotal σ = (next (σ p I)).evalTotal σ := rfl
-
-@[simp] theorem evalTotal_chance {S : InfoStructure}
-    (σ : PureProfile S) (k : Nat) (μ : PMF (Fin k)) {hk : 0 < k}
-    (next : Fin k → GameTree S (Payoff S.Player)) :
-    (GameTree.chance k μ hk next).evalTotal σ = fun i =>
-    ∑ b : Fin k, (μ b).toReal * (next b).evalTotal σ i := rfl
-
-@[simp] theorem euPure_eq_evalTotal {S : InfoStructure}
-    (σ : PureProfile S) (who : S.Player) (t : GameTree S (Payoff S.Player)) :
-    t.euPure σ who = t.evalTotal σ who := rfl
-
-@[simp] theorem evalTotalProfile_terminal {S : InfoStructure}
-    (σ : PureProfile S) (outcome : Payoff S.Player) :
-    (GameTree.terminal outcome : GameTree S (Payoff S.Player)).evalTotalProfile σ = outcome := rfl
-
-@[simp] theorem evalTotalProfile_decision {S : InfoStructure}
-    (σ : PureProfile S) {p : S.Player} (I : S.Infoset p)
-    (next : S.Act I → GameTree S (Payoff S.Player)) :
-    (GameTree.decision I next).evalTotalProfile σ =
-    (next (σ p I)).evalTotalProfile σ := rfl
 
 @[simp] theorem evalDist_terminal {S : InfoStructure} {Outcome : Type}
     (σ : BehavioralProfile S) (z : Outcome) :
@@ -212,11 +165,6 @@ noncomputable def GameTree.evalDistProfile {S : InfoStructure} {Outcome : Type}
 theorem evalDistProfile_const {S : InfoStructure} {Outcome : Type}
     (σ : BehavioralProfile S) (t : GameTree S Outcome) :
     t.evalDistProfile σ = t.evalDist σ := rfl
-
-/-- `evalTotalProfile` is definitionally equal to `evalTotal`. -/
-theorem evalTotalProfile_const {S : InfoStructure}
-    (σ : PureProfile S) (t : GameTree S (Payoff S.Player)) :
-    t.evalTotalProfile σ = t.evalTotal σ := rfl
 
 /-- EFG outcome kernel: behavioral profile → PMF over outcomes. -/
 noncomputable def GameTree.toKernel {S : InfoStructure} {Outcome : Type}
@@ -305,7 +253,7 @@ theorem swap_chances {S : InfoStructure} {Outcome : Type}
   exact PMF.bind_comm μ₁ μ₂ (fun c₁ c₂ => (grid c₁ c₂).evalDist σ)
 
 -- ============================================================================
--- § 9. toKernelGame + IsNashBehavioral
+-- § 9. toKernelGame
 -- ============================================================================
 
 /-- Convert an EFG game to a kernel-based game. -/
@@ -316,40 +264,40 @@ noncomputable def EFGGame.toKernelGame (G : EFGGame) :
   utility := G.utility
   outcomeKernel := fun σ => G.tree.evalDistProfile σ
 
-/-- Behavioral Nash equilibrium for an EFG game. -/
-def EFGGame.IsNashBehavioral (G : EFGGame)
-    (σ : BehavioralProfile G.inf) : Prop :=
-  G.toKernelGame.IsNash σ
-
 -- ============================================================================
 -- § 10. Perfect recall
 -- ============================================================================
 
-/-- A single step in a play history. -/
+/-- A single step in a play history.
+    We store *typed* choices, so histories never mention out-of-range indices. -/
 inductive HistoryStep (S : InfoStructure) where
-  | chance (idx : Nat)
-  | action (p : S.Player) (I : S.Infoset p) (act : Nat)
+  | chance (k : Nat) (b : Fin k)
+  | action (p : S.Player) (I : S.Infoset p) (act : S.Act I)
 
 /-- Reachability: `ReachBy h root target` means following history `h` from
-    `root` leads to `target`. History is cons-based (earliest step first). -/
+    `root` leads to `target`. History is earliest step first. -/
 inductive ReachBy {S : InfoStructure} {Outcome : Type} :
     List (HistoryStep S) → GameTree S Outcome → GameTree S Outcome → Prop where
   | here (t) : ReachBy [] t t
   | chance {k μ hk next rest s} (b : Fin k) :
       ReachBy rest (next b) s →
-      ReachBy (.chance b.val :: rest) (.chance k μ hk next) s
+      ReachBy (HistoryStep.chance k b :: rest) (.chance k μ hk next) s
   | action {p : S.Player} {I : S.Infoset p} {next rest s} (a : S.Act I) :
       ReachBy rest (next a) s →
-      ReachBy (.action p I a.val :: rest) (.decision I next) s
+      ReachBy (HistoryStep.action p I a :: rest) (.decision I next) s
 
-/-- Extract the subsequence of actions by player `who` from a history. -/
+/-- Extract the subsequence of actions by player `who` from a history,
+    keeping the infoset and the *typed* action taken there. -/
 def playerHistory (S : InfoStructure) (who : S.Player) :
-    List (HistoryStep S) → List (S.Infoset who × Nat)
+    List (HistoryStep S) → List (Σ I : S.Infoset who, S.Act I)
   | [] => []
-  | .action p I act :: rest =>
-      if h : p = who then (h ▸ I, act) :: playerHistory S who rest
-      else playerHistory S who rest
-  | .chance _ :: rest => playerHistory S who rest
+  | HistoryStep.action p I act :: rest =>
+      if h : p = who then
+        (by subst h; exact ⟨I, act⟩) :: playerHistory S who rest
+      else
+        playerHistory S who rest
+  | HistoryStep.chance _k _b :: rest =>
+      playerHistory S who rest
 
 /-- Perfect recall: any two paths to nodes in the same info set `I`
     must have the same player-`I`-owner action history. -/
@@ -401,11 +349,13 @@ theorem ReachBy_decision_inv {S : InfoStructure} {Outcome : Type}
     (hr : ReachBy h (.decision I₀ f) (.decision I next)) :
     (h = [] ∧ p = q ∧ HEq I₀ I ∧ HEq f next) ∨
     (∃ (a : S.Act I₀) (rest : List (HistoryStep S)),
-      h = .action p I₀ a.val :: rest ∧
+      h = HistoryStep.action p I₀ a :: rest ∧
       ReachBy rest (f a) (.decision I next)) := by
   cases hr with
-  | here => exact Or.inl ⟨rfl, rfl, HEq.rfl, HEq.rfl⟩
-  | action a hr' => exact Or.inr ⟨a, _, rfl, hr'⟩
+  | here =>
+      exact Or.inl ⟨rfl, rfl, HEq.rfl, HEq.rfl⟩
+  | action a hr' =>
+      exact Or.inr ⟨a, _, rfl, hr'⟩
 
 /-- Inversion for `ReachBy` from a chance node to a decision node. -/
 theorem ReachBy_chance_inv' {S : InfoStructure} {Outcome : Type}
@@ -414,7 +364,7 @@ theorem ReachBy_chance_inv' {S : InfoStructure} {Outcome : Type}
     {next : S.Act I → GameTree S Outcome}
     (hr : ReachBy h (.chance k μ hk f) (.decision I next)) :
     ∃ (b : Fin k) (rest : List (HistoryStep S)),
-      h = .chance b.val :: rest ∧
+      h = HistoryStep.chance k b :: rest ∧
       ReachBy rest (f b) (.decision I next) := by
   cases hr with
   | chance b hr' => exact ⟨b, _, rfl, hr'⟩
@@ -458,13 +408,11 @@ theorem playerHistory_append (S : InfoStructure) (who : S.Player)
   | nil => rfl
   | cons step rest ih =>
     cases step with
-    | chance idx =>
+    | chance k b =>
       simp only [playerHistory, List.cons_append]
       exact ih
     | action p I act =>
       simp only [playerHistory, List.cons_append]
       split <;> simp_all
-
--- Kuhn's theorem (behavioral ↔ mixed strategy equivalence) is in EFGKuhn.lean.
 
 end EFG

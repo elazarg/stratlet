@@ -76,7 +76,11 @@ theorem seqTree_wf : WFTree seqTree := allWFTree seqTree
 theorem matchingPenniesTree_wf : WFTree matchingPenniesTree := allWFTree matchingPenniesTree
 theorem hiddenDecTree_wf : WFTree hiddenDecTree := allWFTree hiddenDecTree
 
-/-! ## evalTotal EU proofs -/
+/-! ## EU proofs (via KernelGame) -/
+
+/-- Lift a pure strategy profile to a behavioral one (point mass at each info set). -/
+noncomputable def pureToBehavioral {S : InfoStructure} (σ : PureProfile S) : BehavioralProfile S :=
+  fun p I => PMF.pure (σ p I)
 
 /-- Strategy profile: always pick the first action. -/
 def alwaysFirst : PureProfile twoPlayerS :=
@@ -87,17 +91,26 @@ def alwaysLast : PureProfile twoPlayerS :=
   fun p I => ⟨twoPlayerS.arity p I - 1,
    Nat.sub_lt (twoPlayerS.arity_pos p I) Nat.one_pos⟩
 
-/-- Under alwaysFirst, seqTree yields payoff 3 for P0. -/
-private noncomputable example :
-    seqTree.evalTotal alwaysFirst (0 : Fin 2) = 3 := by
-  simp only [alwaysFirst, GameTree.evalTotal, twoPlayerS]
-  norm_num
+/-- The sequential game as an `EFGGame`. -/
+noncomputable def seqGame : EFGGame where
+  inf := twoPlayerS
+  Outcome := Payoff twoPlayerS.Player
+  tree := seqTree
+  utility := id
 
-/-- Under alwaysLast, seqTree yields payoff 1 for P0. -/
+/-- Under alwaysFirst, seqGame yields EU 3 for P0. -/
 private noncomputable example :
-    seqTree.evalTotal alwaysLast (0 : Fin 2) = 1 := by
-  simp only [alwaysLast, GameTree.evalTotal, twoPlayerS]
-  norm_num
+    seqGame.toKernelGame.eu (pureToBehavioral alwaysFirst) (0 : Fin 2) = 3 := by
+  simp [KernelGame.eu, EFGGame.toKernelGame, seqGame,
+        GameTree.evalDistProfile, GameTree.evalDist,
+        pureToBehavioral, alwaysFirst, twoPlayerS, expect_pure]
+
+/-- Under alwaysLast, seqGame yields EU 1 for P0. -/
+private noncomputable example :
+    seqGame.toKernelGame.eu (pureToBehavioral alwaysLast) (0 : Fin 2) = 1 := by
+  simp [KernelGame.eu, EFGGame.toKernelGame, seqGame,
+        GameTree.evalDistProfile, GameTree.evalDist,
+        pureToBehavioral, alwaysLast, twoPlayerS, expect_pure]
 
 /-! ## Perfect recall proofs
 
