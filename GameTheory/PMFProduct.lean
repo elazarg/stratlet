@@ -7,10 +7,13 @@ open scoped BigOperators
 universe uι uA uβ
 set_option autoImplicit false
 
+/-- Binding any PMF with a constant pure yields that pure. -/
+theorem PMF.bind_const_pure {α β : Type} (μ : PMF α) (c : β) :
+    μ.bind (fun _ => PMF.pure c) = PMF.pure c :=
+  μ.bind_const (PMF.pure c)
+
 variable {ι : Type uι} [Fintype ι] [DecidableEq ι]
 variable {A : ι → Type uA}
-
-open scoped BigOperators
 
 noncomputable def pmfPi [∀ i, Fintype (A i)] (σ : ∀ i, PMF (A i)) : PMF (∀ i, A i) :=
   PMF.ofFintype (fun s => ∏ i, σ i (s i)) (by
