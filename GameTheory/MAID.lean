@@ -2,40 +2,20 @@ import Mathlib.Data.List.Basic
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.NNReal.Basic
 import Mathlib.Probability.ProbabilityMassFunction.Constructions
-import GameTheory.SolutionConcepts
+
+import GameTheory.KernelGame
 
 /-!
-# Multi-Agent Influence Diagrams (MAID)
+# Multi-Agent Influence Diagrams (MAID) — Typed Redesign
 
-Structural representation of multi-agent decision problems
-as directed acyclic graphs with decision, chance, and utility nodes.
+EFG-style typed MAID: illegality is untypeable.
+Nodes indexed by `Fin n`, values typed by `Val S nd = Fin (S.domainSize nd)`.
 
-Organized in three layers:
-
-## § 1. Core (pure structure)
-- `NodeKind`, `Node`, `Diagram`
-- Graph queries (`findNode`, `decisionNodes`, `utilityNodes`, `agents`)
-- Structural well-formedness (`TopologicalOrder`, `acyclic`, `parents_exist`, `nodup_ids`)
-- No PMF, no ℝ, no policies, no semantics.
-
-## § 2. Semantics (evaluation, locality, admissibility)
-- `LocalTo`, `DomainBounded`
-- `CondPolicy`, `CondPolicy.Admissible`
-- `MAIDModel`, `MAIDModel.WellFormed`
-- `evalAssignDist`, `payoffOf`, `evalDist`
-
-## § 3. Game (KernelGame bridge + solution concepts)
-- `toKernel`, `toKernelGame`
-- `eu`, `IsNash`
-- All imports of `GameTheory.SolutionConcepts` are used here only.
-
-## Scope-outs
-
-- **d-separation / s-reachability** — graph-algorithmic, orthogonal to game semantics
-- **Structural equilibrium** — needs relevance graph
-- **Order-independence theorem** — `evalAssignDist` depends only on the partial
-  order (DAG), not on the chosen topological ordering. Statement is clear;
-  proof (adjacent-swap commutation under independence) is deferred.
+## Sections
+- § 1. Core — `NodeKind`, `Struct`, typed assignments
+- § 2. Semantics — `Sem`, strategies, evaluation
+- § 3. Game — `KernelGame` bridge
+- § 4. Order-independence — swap lemmas
 -/
 
 namespace MAID
@@ -45,326 +25,203 @@ namespace MAID
 -- ============================================================================
 
 /-- The kind of a node in a MAID. -/
-inductive NodeKind where
+inductive NodeKind (Player : Type) where
   | chance
-  | decision (agent : Nat)
-  | utility (agent : Nat)
+  | decision (agent : Player)
+  | utility (agent : Player)
 deriving DecidableEq, Repr
 
-/-- A node in a MAID.
+/-- A MAID structure: DAG with typed nodes over `Fin n`. -/
+structure Struct (Player : Type) [DecidableEq Player] [Fintype Player]
+    (n : Nat) where
+  kind : Fin n → NodeKind Player
+  parents    : Fin n → Finset (Fin n)
+  obsParents : Fin n → Finset (Fin n)
+  domainSize : Fin n → Nat
+  topoOrder  : List (Fin n)
+  -- Invariants
+  obs_sub        : ∀ nd, obsParents nd ⊆ parents nd
+  obs_eq_nondec  : ∀ nd, (¬ ∃ a, kind nd = .decision a) → obsParents nd = parents nd
+  utility_domain : ∀ nd a, kind nd = .utility a → domainSize nd = 1
+  nonutility_pos : ∀ nd, (¬ ∃ a, kind nd = .utility a) → 0 < domainSize nd
+  topo_nodup     : topoOrder.Nodup
+  topo_length    : topoOrder.length = n
+  topo_acyclic   : ∀ (i : Fin topoOrder.length),
+    ∀ p ∈ parents (topoOrder[i]),
+      ∃ j : Fin topoOrder.length, j.val < i.val ∧ topoOrder[j] = p
 
-    **Observed parents** (`obsParents`): for decision nodes, these are the
-    parent nodes whose values are observable at decision time. A decision
-    node may have causal parents that are not observed (imperfect information).
-    For chance and utility nodes, `obsParents` should equal `parents`.
+variable {Player : Type} [DecidableEq Player] [Fintype Player] {n : Nat}
 
-    Invariant: `obsParents ⊆ parents` (enforced by `Diagram`). -/
-structure Node where
-  id : Nat
-  kind : NodeKind
-  parents : List Nat
-  /-- Parent nodes whose values are observed at this node.
-      For decision nodes, this may be a strict subset of `parents`,
-      modeling imperfect information. For chance/utility nodes,
-      this should equal `parents`. -/
-  obsParents : List Nat
-  /-- Domain cardinality (number of distinct values this node can take).
-      Utility nodes: 1 (no domain values).
-      Decision nodes: number of available actions (game-specific).
-      Chance nodes: number of outcomes in the distribution. -/
-  domainSize : Nat
-deriving Repr
+/-- Chance node subtype. -/
+abbrev ChanceNode (S : Struct Player n) := {nd : Fin n // S.kind nd = .chance}
 
-/-- Convenience constructor: a node where all parents are observed. -/
-def Node.mk' (id : Nat) (kind : NodeKind) (parents : List Nat) (domainSize : Nat) : Node :=
-  { id, kind, parents, obsParents := parents, domainSize }
+/-- Decision node subtype for a given player. -/
+abbrev DecisionNode (S : Struct Player n) (p : Player) :=
+  {nd : Fin n // S.kind nd = .decision p}
 
-/-- Extract the owning agent of a decision node, if applicable. -/
-def Node.decisionAgent (n : Node) : Option Nat :=
-  match n.kind with
-  | .decision a => some a
-  | _ => none
+/-- Utility node subtype for a given player. -/
+abbrev UtilityNode (S : Struct Player n) (p : Player) :=
+  {nd : Fin n // S.kind nd = .utility p}
 
-/-- Extract the owning agent of a node (decision or utility), if applicable. -/
-def Node.agent (n : Node) : Option Nat :=
-  match n.kind with
-  | .decision a => some a
-  | .utility a => some a
-  | .chance => none
+/-- Every node has positive domain size. -/
+theorem Struct.dom_pos (S : Struct Player n) (nd : Fin n) :
+    0 < S.domainSize nd := by
+  by_cases h : ∃ a, S.kind nd = .utility a
+  · obtain ⟨a, ha⟩ := h
+    rw [S.utility_domain nd a ha]; exact Nat.one_pos
+  · exact S.nonutility_pos nd h
 
-/-- The node list is in topological order: every parent id of node `i`
-    belongs to a node that appears earlier in the list. -/
-def TopologicalOrder (nodes : List Node) : Prop :=
-  ∀ (i : Fin nodes.length), ∀ pid ∈ (nodes[i]).parents,
-    ∃ (j : Fin nodes.length), j.val < i.val ∧ (nodes[j]).id = pid
+/-- Typed value at a node. -/
+abbrev Val (S : Struct Player n) (nd : Fin n) := Fin (S.domainSize nd)
 
-/-- A multi-agent influence diagram.
+/-- Configuration: values at a subset of nodes. -/
+abbrev Cfg (S : Struct Player n) (ps : Finset (Fin n)) :=
+  (nd : ↥ps) → Val S nd.val
 
-    Structural invariants:
-    - `nodup_ids`: node IDs are unique.
-    - `parents_exist`: every parent reference points to an existing node.
-    - `acyclic`: nodes are in topological order.
-    - `obs_sub_parents`: observed parents are a subset of parents.
-    - `domain_pos`: chance and decision nodes have positive domain size.
-    - `utility_domain`: utility nodes have domain size 1.
-    - `parents_nodup`: parent lists have no duplicates. -/
-structure Diagram where
-  nodes : List Node
-  nodup_ids : (nodes.map Node.id).Nodup
-  parents_exist : ∀ n ∈ nodes, ∀ pid ∈ n.parents,
-    ∃ m ∈ nodes, m.id = pid
-  acyclic : TopologicalOrder nodes
-  obs_sub_parents : ∀ n ∈ nodes, ∀ pid ∈ n.obsParents, pid ∈ n.parents
-  domain_pos : ∀ n ∈ nodes, match n.kind with
-    | .chance | .decision _ => 0 < n.domainSize | .utility _ => True
-  utility_domain : ∀ n ∈ nodes, ∀ a, n.kind = .utility a → n.domainSize = 1
-  parents_nodup : ∀ n ∈ nodes, n.parents.Nodup
+/-- Total assignment: a value at every node. -/
+abbrev TAssign (S : Struct Player n) := ∀ nd : Fin n, Val S nd
 
-/-- Get all decision nodes for a given agent. -/
-def Diagram.decisionNodes (d : Diagram) (agent : Nat) : List Node :=
-  d.nodes.filter fun n =>
-    match n.kind with
-    | .decision a => a == agent
-    | _ => false
+/-- Project a total assignment to a configuration on a subset. -/
+def projCfg {S : Struct Player n} (a : TAssign S) (ps : Finset (Fin n)) :
+    Cfg S ps :=
+  fun nd => a nd.val
 
-/-- Get all utility nodes for a given agent. -/
-def Diagram.utilityNodes (d : Diagram) (agent : Nat) : List Node :=
-  d.nodes.filter fun n =>
-    match n.kind with
-    | .utility a => a == agent
-    | _ => false
+/-- Default assignment: 0 at every node. -/
+def defaultAssign (S : Struct Player n) : TAssign S :=
+  fun nd => ⟨0, S.dom_pos nd⟩
 
-/-- The set of agents mentioned in a MAID. -/
-def Diagram.agents (d : Diagram) : List Nat :=
-  (d.nodes.filterMap Node.agent).dedup
+-- Fintype instances for node subtypes
+instance (S : Struct Player n) : Fintype (ChanceNode S) :=
+  Subtype.fintype _
 
-/-- Look up a node by id. -/
-def Diagram.findNode (d : Diagram) (nid : Nat) : Option Node :=
-  d.nodes.find? (fun n => n.id == nid)
+instance (S : Struct Player n) (p : Player) : Fintype (DecisionNode S p) :=
+  Subtype.fintype _
+
+instance (S : Struct Player n) (p : Player) : Fintype (UtilityNode S p) :=
+  Subtype.fintype _
+
+instance (S : Struct Player n) : DecidableEq (ChanceNode S) :=
+  inferInstanceAs (DecidableEq {nd : Fin n // S.kind nd = .chance})
+
+instance (S : Struct Player n) (p : Player) : DecidableEq (DecisionNode S p) :=
+  inferInstanceAs (DecidableEq {nd : Fin n // S.kind nd = .decision p})
+
+instance (S : Struct Player n) (p : Player) : DecidableEq (UtilityNode S p) :=
+  inferInstanceAs (DecidableEq {nd : Fin n // S.kind nd = .utility p})
 
 -- ============================================================================
--- § 2. Semantics — evaluation, locality, admissibility
+-- § 2. Semantics — evaluation
 -- ============================================================================
 
-/-! ### Well-formedness predicates -/
+/-- Semantic data for a MAID: chance CPDs and utility functions. -/
+structure Sem (S : Struct Player n) where
+  chanceCPD : (c : ChanceNode S) → Cfg S (S.parents c.val) → PMF (Val S c.val)
+  utilityFn : (p : Player) → (u : UtilityNode S p) → Cfg S (S.parents u.val) → ℝ
 
-/-- A function from full assignments is *local* to `ids` if it depends
-    only on values at the listed node IDs. This is the fundamental
-    MAID discipline: CPDs and policies must not read future or
-    non-parent values. -/
-def LocalTo (ids : List Nat) (f : (Nat → Nat) → α) : Prop :=
-  ∀ a₁ a₂, (∀ p ∈ ids, a₁ p = a₂ p) → f a₁ = f a₂
+/-- Per-player strategy: maps each decision node to a distribution over actions,
+    conditioned on observed parent values. -/
+def PlayerStrategy (S : Struct Player n) (p : Player) :=
+  (d : DecisionNode S p) → Cfg S (S.obsParents d.val) → PMF (Val S d.val)
 
-/-- A `PMF Nat` is supported within `{0, ..., n-1}`. -/
-def DomainBounded (n : Nat) (d : PMF Nat) : Prop :=
-  ∀ v, d v ≠ 0 → v < n
+/-- Joint policy: a strategy for every player. -/
+def Policy (S : Struct Player n) := (p : Player) → PlayerStrategy S p
 
-/-! ### Policies -/
+/-- Distribution at a single node, given the current total assignment.
+    Dispatches by node kind using `match` on `S.kind nd`. -/
+noncomputable def nodeDist (S : Struct Player n) (sem : Sem S) (pol : Policy S)
+    (nd : Fin n) (a : TAssign S) : PMF (Val S nd) :=
+  match hk : S.kind nd with
+  | .chance => sem.chanceCPD ⟨nd, hk⟩ (projCfg a (S.parents nd))
+  | .decision p => pol p ⟨nd, hk⟩ (projCfg a (S.obsParents nd))
+  | .utility _ => PMF.pure ⟨0, by rw [S.utility_domain nd _ hk]; exact Nat.one_pos⟩
 
-/-- A conditional policy maps (decision node id, full assignment) to a PMF over values.
+/-- Update a total assignment at node `nd` with value `v`. -/
+def updateAssign {S : Struct Player n} (a : TAssign S) (nd : Fin n) (v : Val S nd) :
+    TAssign S :=
+  fun nd' => if h : nd' = nd then h ▸ v else a nd'
 
-    **Design note**: `CondPolicy` is intentionally permissive — it accepts any
-    `(Nat → Nat) → PMF Nat` regardless of locality or domain bounds. This is
-    deliberate: `Admissible` is the enforcement point where locality (only
-    reads observed-parent values) and domain bounds (support ⊆ `{0, ..., domainSize-1}`)
-    are checked. Unlike `EFG.BehavioralStrategy`, there is no emptiness problem
-    here: `PMF Nat` is always inhabited (e.g., via `PMF.pure 0`).
+/-- One step of the evaluation fold: draw a value at `nd` and update the assignment. -/
+noncomputable def evalStep (S : Struct Player n) (sem : Sem S) (pol : Policy S)
+    (acc : PMF (TAssign S)) (nd : Fin n) : PMF (TAssign S) :=
+  acc.bind (fun a =>
+    (nodeDist S sem pol nd a).bind (fun v =>
+      PMF.pure (updateAssign a nd v)))
 
-    This type represents a **joint** policy over all decision nodes. For
-    per-agent decomposition, see `mergeCondPolicies`. -/
-def CondPolicy := Nat → (Nat → Nat) → PMF Nat
+/-- Joint distribution over total assignments, by folding over the topological order. -/
+noncomputable def evalAssignDist (S : Struct Player n) (sem : Sem S) (pol : Policy S)
+    : PMF (TAssign S) :=
+  S.topoOrder.foldl (evalStep S sem pol) (PMF.pure (defaultAssign S))
 
-/-- A conditional policy respects the MAID's structure.
-    This is the enforcement point for the two key MAID discipline constraints:
-    - **Locality**: the policy for each decision node depends only on
-      *observed* parent values (not all causal parents).
-    - **Domain bounds**: the policy's support stays within `{0, ..., domainSize-1}`. -/
-structure CondPolicy.Admissible (d : Diagram) (π : CondPolicy) : Prop where
-  local_ : ∀ n ∈ d.nodes, ∀ a, n.kind = .decision a →
-    LocalTo n.obsParents (π n.id)
-  bounded : ∀ n ∈ d.nodes, ∀ a, n.kind = .decision a →
-    ∀ assign, DomainBounded n.domainSize (π n.id assign)
+/-- Payoff for a player: sum of utility values over that player's utility nodes. -/
+noncomputable def utilityOf (S : Struct Player n) (sem : Sem S)
+    (a : TAssign S) (p : Player) : ℝ :=
+  Finset.univ.sum (fun (u : UtilityNode S p) =>
+    sem.utilityFn p u (projCfg a (S.parents u.val)))
 
-/-! ### Per-agent policy decomposition -/
+-- ============================================================================
+-- § 3. Game — KernelGame bridge
+-- ============================================================================
 
-/-- Merge per-agent policies into a joint `CondPolicy`.
-    At each decision node, dispatches to the owning agent's policy.
-    For non-decision nodes (or nodes not found in the diagram),
-    returns a default point mass at 0. -/
-noncomputable def mergeCondPolicies (d : Diagram) (σ : Nat → CondPolicy) : CondPolicy :=
-  fun nodeId assign =>
-    match (d.findNode nodeId).bind Node.decisionAgent with
-    | some agent => σ agent nodeId assign
-    | none => PMF.pure 0
+/-- Convert a typed MAID to a kernel-based game. -/
+noncomputable def toKernelGame (S : Struct Player n) (sem : Sem S) :
+    GameTheory.KernelGame Player where
+  Strategy := PlayerStrategy S
+  Outcome := TAssign S
+  utility := fun a => utilityOf S sem a
+  outcomeKernel := fun σ => evalAssignDist S sem σ
 
-/-! ### Full assignment type -/
+-- ============================================================================
+-- § 4. Order-independence — swap lemmas
+-- ============================================================================
 
-/-- Full assignment: maps node IDs to values. -/
-abbrev Assign := Nat → Nat
+/-- Two nodes have no direct edge between them. -/
+def NoDirectEdge (S : Struct Player n) (u v : Fin n) : Prop :=
+  u ∉ S.parents v ∧ v ∉ S.parents u
 
-/-! ### MAID model -/
+/-- Updating at a node not in `ps` doesn't change a projection onto `ps`. -/
+theorem projCfg_update_irrel {S : Struct Player n} (a : TAssign S)
+    (nd : Fin n) (v : Val S nd) (ps : Finset (Fin n)) (hnd : nd ∉ ps) :
+    projCfg (updateAssign a nd v) ps = projCfg a ps := by
+  ext ⟨nd', hnd'⟩
+  simp only [projCfg, updateAssign]
+  split
+  · next h => exact absurd (h ▸ hnd') hnd
+  · rfl
 
-/-- A MAID with full semantic data for evaluation.
+/-- `nodeDist` at `nd₂` is unchanged when we update at `nd₁`, provided `nd₁ ∉ S.parents nd₂`. -/
+theorem nodeDist_update_irrel {S : Struct Player n} (sem : Sem S) (pol : Policy S)
+    (nd₁ nd₂ : Fin n) (a : TAssign S) (v : Val S nd₁)
+    (h : nd₁ ∉ S.parents nd₂) :
+    nodeDist S sem pol nd₂ (updateAssign a nd₁ v) = nodeDist S sem pol nd₂ a := by
+  unfold nodeDist
+  split
+  · congr 1; exact projCfg_update_irrel a nd₁ v _ h
+  · congr 1; exact projCfg_update_irrel a nd₁ v _
+      (fun hmem => h (S.obs_sub nd₂ hmem))
+  · rfl
 
-    **Locality contract**: `chanceCPD` and `utilityFn` receive the full
-    assignment `Nat → Nat`, but a well-formed model must only depend on
-    parent values (see `MAIDModel.WellFormed`). Nothing in the type
-    enforces this; it is a proof obligation. -/
-structure MAIDModel where
-  diagram : Diagram
-  /-- Conditional distribution for chance nodes, given parent values. -/
-  chanceCPD : Nat → (Nat → Nat) → PMF Nat
-  /-- Utility function for utility nodes, given parent values. -/
-  utilityFn : Nat → (Nat → Nat) → ℝ
+/-- `updateAssign` commutes on distinct nodes. -/
+theorem updateAssign_comm {S : Struct Player n} (a : TAssign S)
+    (nd₁ nd₂ : Fin n) (v₁ : Val S nd₁) (v₂ : Val S nd₂) (hne : nd₁ ≠ nd₂) :
+    updateAssign (updateAssign a nd₁ v₁) nd₂ v₂ =
+    updateAssign (updateAssign a nd₂ v₂) nd₁ v₁ := by
+  ext nd'
+  simp only [updateAssign]
+  split <;> split <;> simp_all only [ne_eq]
+  · next h₁ h₂ => exact absurd (h₂.symm ▸ h₁) hne
 
-/-- Well-formedness: all semantic functions respect the DAG's locality
-    discipline (depend only on parent values) and domain bounds. -/
-structure MAIDModel.WellFormed (m : MAIDModel) : Prop where
-  chance_local : ∀ n ∈ m.diagram.nodes, n.kind = .chance →
-    LocalTo n.parents (m.chanceCPD n.id)
-  chance_bounded : ∀ n ∈ m.diagram.nodes, n.kind = .chance →
-    ∀ assign, DomainBounded n.domainSize (m.chanceCPD n.id assign)
-  utility_local : ∀ n ∈ m.diagram.nodes, ∀ a, n.kind = .utility a →
-    LocalTo n.parents (m.utilityFn n.id)
-
-/-! ### Evaluation -/
-
-/-- The distribution drawn at a node, given the current assignment.
-    Chance → chanceCPD, decision → policy, utility → pure 0. -/
-noncomputable def MAIDModel.nodeDist (m : MAIDModel) (π : CondPolicy)
-    (node : Node) (assign : Assign) : PMF Nat :=
-  match node.kind with
-  | .chance => m.chanceCPD node.id assign
-  | .decision _ => π node.id assign
-  | .utility _ => PMF.pure 0
-
-/-- The fold step for `evalAssignDist`: given an accumulated joint PMF
-    and a node, draw a value from the node's CPD or policy and extend
-    the assignment. Factored out for reuse in swap lemmas. -/
-noncomputable def MAIDModel.evalStep (m : MAIDModel) (π : CondPolicy)
-    (acc : PMF Assign) (node : Node) : PMF Assign :=
-  acc.bind (fun assign =>
-    (m.nodeDist π node assign).bind (fun v =>
-      PMF.pure (Function.update assign node.id v)))
-
-/-- Joint PMF over full assignments, built by folding over nodes in
-    topological order. Each node draws a value from its CPD or policy
-    and extends the assignment.
-
-    The computation does not use the proofs; they exist to prevent
-    downstream theorems from silently assuming well-formedness. -/
-noncomputable def MAIDModel.evalAssignDist (m : MAIDModel) (π : CondPolicy)
-    (_wf : m.WellFormed) (_adm : π.Admissible m.diagram)
-    : PMF Assign :=
-  m.diagram.nodes.foldl (m.evalStep π) (PMF.pure (fun _ => 0))
-
-/-- Convenience alias: evaluate without proof obligations.
-    Use `evalAssignDist` when proofs are available; use this when
-    you just need the distribution and will supply proofs separately. -/
-noncomputable def MAIDModel.evalAssignDist' (m : MAIDModel) (π : CondPolicy)
-    : PMF Assign :=
-  m.diagram.nodes.foldl (m.evalStep π) (PMF.pure (fun _ => 0))
-
-/-- `evalAssignDist` equals `evalAssignDist'` (the proofs are erased). -/
-theorem MAIDModel.evalAssignDist_eq (m : MAIDModel) (π : CondPolicy)
-    (wf : m.WellFormed) (adm : π.Admissible m.diagram) :
-    m.evalAssignDist π wf adm = m.evalAssignDist' π :=
-  rfl
-
-/-- Extract payoffs from an assignment. -/
-noncomputable def MAIDModel.payoffOf (m : MAIDModel) (assign : Assign)
-    : GameTheory.Payoff Nat :=
-  fun agent =>
-    (m.diagram.utilityNodes agent).map (fun u => m.utilityFn u.id assign)
-      |>.sum
-
-/-- Evaluate a MAID under a policy by building the joint distribution
-    over assignments and mapping to payoff vectors. -/
-noncomputable def MAIDModel.evalDist (m : MAIDModel) (π : CondPolicy)
-    (wf : m.WellFormed) (adm : π.Admissible m.diagram)
-    : PMF (GameTheory.Payoff Nat) :=
-  (m.evalAssignDist π wf adm).bind (fun assign => PMF.pure (m.payoffOf assign))
-
-/-! ### Locality lemma for payoffs -/
-
-/-- `payoffOf` for a given agent depends only on the values at the
-    parents of that agent's utility nodes, provided `utility_local` holds. -/
-theorem MAIDModel.payoffOf_local (m : MAIDModel) (wf : m.WellFormed)
-    (agent : Nat) :
-    LocalTo
-      ((m.diagram.utilityNodes agent).flatMap Node.parents)
-      (fun assign => m.payoffOf assign agent) := by
-  intro a₁ a₂ heq
-  simp only [payoffOf]
-  congr 1
-  rw [List.map_inj_left]
-  intro u hu
-  have hmem : u ∈ m.diagram.nodes :=
-    List.mem_filter.mp hu |>.1
-  have hkind : ∃ a, u.kind = .utility a := by
-    obtain ⟨_, hf⟩ := List.mem_filter.mp hu
-    match u.kind, hf with
-    | .utility a, _ => exact ⟨a, rfl⟩
-  obtain ⟨a, hka⟩ := hkind
-  exact wf.utility_local u hmem a hka a₁ a₂ (fun p hp => heq p (by
-    exact List.mem_flatMap.mpr ⟨u, hu, hp⟩))
-
-/-! ### Order-independence of evaluation -/
-
-/-- Two nodes are *independent* in the DAG if neither is a parent of the other. -/
-def Independent (u v : Node) : Prop :=
-  u.id ∉ v.parents ∧ v.id ∉ u.parents
-
-/-- `nodeDist` depends only on the node's parent values. -/
-theorem MAIDModel.nodeDist_local (m : MAIDModel) (π : CondPolicy)
-    (wf : m.WellFormed) (adm : CondPolicy.Admissible m.diagram π)
-    (node : Node) (hn : node ∈ m.diagram.nodes) :
-    LocalTo node.parents (m.nodeDist π node) := by
-  intro a₁ a₂ heq
-  simp only [nodeDist]
-  match hk : node.kind with
-  | .chance => exact wf.chance_local node hn hk a₁ a₂ heq
-  | .decision agent =>
-    exact adm.local_ node hn agent hk a₁ a₂ (fun p hp =>
-      heq p (m.diagram.obs_sub_parents node hn p hp))
-  | .utility _ => rfl
-
-/-- Updating a key that is not in a node's parent list doesn't change its
-    distribution. This is the workhorse for the swap proof. -/
-theorem MAIDModel.nodeDist_update_irrel (m : MAIDModel) (π : CondPolicy)
-    (wf : m.WellFormed) (adm : CondPolicy.Admissible m.diagram π)
-    (node : Node) (hn : node ∈ m.diagram.nodes)
-    (a : Assign) (x val : Nat) (hx : x ∉ node.parents) :
-    m.nodeDist π node (Function.update a x val) = m.nodeDist π node a :=
-  nodeDist_local m π wf adm node hn (Function.update a x val) a
-    (fun p hp => by simp [ne_of_mem_of_not_mem hp hx])
-
-/-- Swapping two adjacent independent nodes does not change the result
-    of folding `evalStep` from any accumulator.
-
-    Since `u` and `v` are independent (neither is a parent of the other),
-    the distribution drawn at each node does not depend on the value
-    assigned to the other. The two `Function.update`s commute because
-    they write to distinct IDs. Uses `PMF.bind_comm` (Fubini). -/
-theorem MAIDModel.evalStep_swap (m : MAIDModel) (π : CondPolicy)
-    (wf : m.WellFormed) (adm : CondPolicy.Admissible m.diagram π)
-    (u v : Node) (hu : u ∈ m.diagram.nodes) (hv : v ∈ m.diagram.nodes)
-    (hne : u.id ≠ v.id)
-    (hindep : Independent u v)
-    (acc : PMF Assign) :
-    m.evalStep π (m.evalStep π acc u) v =
-    m.evalStep π (m.evalStep π acc v) u := by
+/-- Swapping two adjacent independent nodes in `evalStep` gives the same result. -/
+theorem evalStep_swap {S : Struct Player n} (sem : Sem S) (pol : Policy S)
+    (nd₁ nd₂ : Fin n) (hne : nd₁ ≠ nd₂)
+    (hindep : NoDirectEdge S nd₁ nd₂)
+    (acc : PMF (TAssign S)) :
+    evalStep S sem pol (evalStep S sem pol acc nd₁) nd₂ =
+    evalStep S sem pol (evalStep S sem pol acc nd₂) nd₁ := by
   simp only [evalStep, PMF.bind_bind, PMF.pure_bind]
   congr 1; funext a
-  -- Goal: nodeDist u a >>= λ vu. nodeDist v (a[u↦vu]) >>= λ vv. pure (a[u↦vu][v↦vv])
-  --     = nodeDist v a >>= λ vv. nodeDist u (a[v↦vv]) >>= λ vu. pure (a[v↦vv][u↦vu])
-  -- (1) nodeDist v (a[u↦vu]) = nodeDist v a  (u.id ∉ v.parents)
-  simp_rw [nodeDist_update_irrel m π wf adm v hv a _ _ hindep.1]
-  -- (2) nodeDist u (a[v↦vv]) = nodeDist u a  (v.id ∉ u.parents)
-  simp_rw [nodeDist_update_irrel m π wf adm u hu a _ _ hindep.2]
-  -- (3) update commutes: a[u↦vu][v↦vv] = a[v↦vv][u↦vu]
-  simp_rw [Function.update_comm hne]
-  -- (4) Fubini: (du >>= λ x. dv >>= f x) = (dv >>= λ y. du >>= λ x. f x y)
+  simp_rw [nodeDist_update_irrel sem pol nd₁ nd₂ a _ hindep.1]
+  simp_rw [nodeDist_update_irrel sem pol nd₂ nd₁ a _ hindep.2]
+  simp_rw [updateAssign_comm a nd₁ nd₂ _ _ hne]
   exact PMF.bind_comm _ _ _
 
 /-- Swap two adjacent elements in a list. -/
@@ -380,7 +237,6 @@ theorem foldl_swapAdj {α β : Type*} (f : α → β → α) (init : α) (l : Li
     (hcomm : ∀ acc, f (f acc (l[i]'(by omega))) (l[i + 1]'hi) =
                      f (f acc (l[i + 1]'hi)) (l[i]'(by omega))) :
     l.foldl f init = (swapAdj l i hi).foldl f init := by
-  -- We induct on i and the list simultaneously, generalizing the accumulator
   induction i generalizing l init with
   | zero =>
     match l, hi with
@@ -406,58 +262,16 @@ theorem foldl_swapAdj {α β : Type*} (f : α → β → α) (init : α) (l : Li
         simp only [List.getElem_cons_succ] at this
         exact this)
 
-/-- Swapping two adjacent independent nodes in the fold doesn't change
-    `evalAssignDist'`. This is the key lemma toward showing that
-    evaluation depends only on the DAG, not the chosen topological ordering. -/
-theorem MAIDModel.evalAssignDist'_swap_adj (m : MAIDModel) (π : CondPolicy)
-    (wf : m.WellFormed) (adm : CondPolicy.Admissible m.diagram π)
-    (i : Nat) (hi : i + 1 < m.diagram.nodes.length)
-    (hne : (m.diagram.nodes[i]'(by omega)).id ≠ (m.diagram.nodes[i + 1]'hi).id)
-    (hindep : Independent (m.diagram.nodes[i]'(by omega)) (m.diagram.nodes[i + 1]'hi)) :
-    m.evalAssignDist' π =
-    (swapAdj m.diagram.nodes i hi).foldl (m.evalStep π) (PMF.pure (fun _ => 0)) := by
-  simp only [evalAssignDist']
+/-- Swapping two adjacent independent nodes in the topological order
+    doesn't change `evalAssignDist`. -/
+theorem evalAssignDist_swap_adj {S : Struct Player n} (sem : Sem S) (pol : Policy S)
+    (i : Nat) (hi : i + 1 < S.topoOrder.length)
+    (hne : S.topoOrder[i]'(by omega) ≠ S.topoOrder[i + 1]'hi)
+    (hindep : NoDirectEdge S (S.topoOrder[i]'(by omega)) (S.topoOrder[i + 1]'hi)) :
+    evalAssignDist S sem pol =
+    (swapAdj S.topoOrder i hi).foldl (evalStep S sem pol) (PMF.pure (defaultAssign S)) := by
+  simp only [evalAssignDist]
   exact foldl_swapAdj _ _ _ i hi (fun acc =>
-    evalStep_swap m π wf adm _ _
-      (List.getElem_mem (by omega))
-      (List.getElem_mem hi)
-      hne hindep acc)
-
--- ============================================================================
--- § 3. Game — KernelGame bridge + solution concepts
--- ============================================================================
-
-/-- MAID as an outcome kernel. -/
-noncomputable def MAIDModel.toKernel (m : MAIDModel)
-    : GameTheory.Kernel CondPolicy (GameTheory.Payoff Nat) :=
-  fun π => (m.evalAssignDist' π).bind (fun assign => PMF.pure (m.payoffOf assign))
-
-/-! ### MAID → KernelGame conversion -/
-
-/-- Convert a MAID model to a kernel-based game with per-agent strategies.
-    Each agent independently chooses a `CondPolicy`; the joint policy is
-    assembled via `mergeCondPolicies` which dispatches each decision node
-    to its owning agent's policy.
-
-    Uses `evalAssignDist'` (proof-free) so that the game structure doesn't
-    require carrying proofs. Use `evalAssignDist` directly when proving
-    properties that need well-formedness/admissibility. -/
-noncomputable def MAIDModel.toKernelGame (m : MAIDModel) :
-    GameTheory.KernelGame Nat where
-  Strategy := fun _ => CondPolicy
-  Outcome := Assign
-  utility := m.payoffOf
-  outcomeKernel := fun σ => m.evalAssignDist' (mergeCondPolicies m.diagram σ)
-
-/-! ### Solution concepts -/
-
-/-- Expected utility for agent `who` under per-agent policies. -/
-noncomputable def MAIDModel.eu (m : MAIDModel) (σ : Nat → CondPolicy) (who : Nat) : ℝ :=
-  m.toKernelGame.eu σ who
-
-/-- Nash equilibrium for a MAID: no agent can improve EU by unilaterally
-    changing their conditional policy. -/
-def MAIDModel.IsNash (m : MAIDModel) (σ : Nat → CondPolicy) : Prop :=
-  m.toKernelGame.IsNash σ
+    evalStep_swap sem pol _ _ hne hindep acc)
 
 end MAID

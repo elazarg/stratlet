@@ -86,6 +86,10 @@ def InfoStructure.PureStrategyFor (S : InfoStructure) (p : S.Player) : Type :=
 def InfoStructure.BehavioralStrategyFor (S : InfoStructure) (p : S.Player) : Type :=
   (I : S.Infoset p) → PMF (S.Act I)
 
+/-- Lift a pure strategy profile to a behavioral one (point mass at each info set). -/
+noncomputable def pureToBehavioral {S : InfoStructure} (σ : PureProfile S) : BehavioralProfile S :=
+  fun p I => PMF.pure (σ p I)
+
 -- ============================================================================
 -- § 4. WFTree
 -- ============================================================================

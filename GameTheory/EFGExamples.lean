@@ -78,10 +78,6 @@ theorem hiddenDecTree_wf : WFTree hiddenDecTree := allWFTree hiddenDecTree
 
 /-! ## EU proofs (via KernelGame) -/
 
-/-- Lift a pure strategy profile to a behavioral one (point mass at each info set). -/
-noncomputable def pureToBehavioral {S : InfoStructure} (σ : PureProfile S) : BehavioralProfile S :=
-  fun p I => PMF.pure (σ p I)
-
 /-- Strategy profile: always pick the first action. -/
 def alwaysFirst : PureProfile twoPlayerS :=
   fun _ _ => ⟨0, twoPlayerS.arity_pos _ _⟩
