@@ -545,6 +545,22 @@ reduces to showing that `Env.cons a (Env.cons b env)` and
 through the appropriate HasVar embeddings.
 -/
 
+/-- Helper: invisible bindings don't affect viewCtx. -/
+theorem viewCtx_skip_invisible {p : Player} {x : VarId} {τ : BindTy} {Γ : Ctx}
+    (h : canSee p τ = false) :
+    viewCtx p ((x, τ) :: Γ) = viewCtx p Γ := by
+  simp [viewCtx, h]
+
+/-- The algebraic core of commit–commit commutativity: two independent
+    `FDist.bind`s commute. Immediate from `FDist.bind_comm`. -/
+theorem outcomeDist_comm_commit_algebraic
+    {b₁ b₂ : BaseTy}
+    (d₁ : FDist (Val b₁)) (d₂ : FDist (Val b₂))
+    (f : Val b₁ → Val b₂ → FDist Outcome) :
+    d₁.bind (fun v₁ => d₂.bind (fun v₂ => f v₁ v₂)) =
+    d₂.bind (fun v₂ => d₁.bind (fun v₁ => f v₁ v₂)) :=
+  FDist.bind_comm d₁ d₂ f
+
 /-- Two adjacent commits with disjoint variable references produce the
     same outcome distribution regardless of order.
 
@@ -552,32 +568,59 @@ through the appropriate HasVar embeddings.
     - `x₁ ∉ exprVars R₂` (player 2's constraint doesn't see player 1's binding)
     - `x₂ ∉ exprVars R₁` (player 1's constraint doesn't see player 2's binding)
     - Both `x₁` and `x₂` are fresh in `Γ` and distinct
+    - Mutual invisibility: each player cannot see the other's hidden binding
 
-    This is the core DAG commutativity property. -/
+    The algebraic core is proved (`outcomeDist_comm_commit_algebraic`).
+    The full program-level proof requires context-swap infrastructure:
+    - `viewCtx_skip_invisible` gives `viewCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ) = viewCtx who₂ Γ`
+    - The swapped `R₂'`, `R₁'`, `k'` are provided as parameters with semantic
+      equivalence hypotheses (`hR₂_eq`, `hR₁_eq`, `hk_eq`).
+    - Once those hypotheses are discharged, the proof reduces to unfolding
+      `outcomeDist` twice on each side and applying `FDist.bind_comm`. -/
 theorem outcomeDist_comm_commit
-    {Γ : Ctx} {σ : Profile} {_env : Env Γ}
-    -- first ordering: commit x₁ then commit x₂
+    {Γ : Ctx} {σ : Profile} {env : Env Γ}
+    -- original ordering: commit x₁ then commit x₂
     {x₁ : VarId} {who₁ : Player} {b₁ : BaseTy}
-    {_acts₁ : List (Val b₁)}
+    {acts₁ : List (Val b₁)}
     {R₁ : Expr ((x₁, .pub b₁) :: flattenCtx (viewCtx who₁ Γ)) .bool}
     {x₂ : VarId} {who₂ : Player} {b₂ : BaseTy}
-    {_acts₂ : List (Val b₂)}
-    -- R₂ in the extended context (after x₁ is bound)
+    {acts₂ : List (Val b₂)}
     {R₂ : Expr ((x₂, .pub b₂) :: flattenCtx
       (viewCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) .bool}
-    {_k : Prog ((x₂, .hidden who₂ b₂) :: (x₁, .hidden who₁ b₁) :: Γ)}
-    -- independence: x₁ not in R₂'s free variables, x₂ not in R₁'s
-    -- (stated via syntactic variable extraction)
-    (_hindep₁ : x₁ ∉ exprVars R₂)
-    (_hindep₂ : x₂ ∉ exprVars R₁)
-    (_hfresh₁ : Fresh x₁ Γ) (_hfresh₂ : Fresh x₂ Γ) (_hne : x₁ ≠ x₂) :
-    -- TODO: full statement requires constructing the swapped program and
-    -- showing outcomeDist equality. This requires:
-    -- 1. R₁' and R₂' adapted to the swapped context
-    -- 2. k' with swapped bindings
-    -- 3. Proof that the env projections commute
-    True := by
-  trivial
+    {k : Prog ((x₂, .hidden who₂ b₂) :: (x₁, .hidden who₁ b₁) :: Γ)}
+    -- swapped ordering: commit x₂ then commit x₁ (different types)
+    {R₂' : Expr ((x₂, .pub b₂) :: flattenCtx (viewCtx who₂ Γ)) .bool}
+    {R₁' : Expr ((x₁, .pub b₁) :: flattenCtx
+      (viewCtx who₁ ((x₂, .hidden who₂ b₂) :: Γ))) .bool}
+    {k' : Prog ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
+    -- independence: each player's constraint doesn't reference the other's var
+    (hindep₁ : x₁ ∉ exprVars R₂)
+    (hindep₂ : x₂ ∉ exprVars R₁)
+    (hfresh₁ : Fresh x₁ Γ) (hfresh₂ : Fresh x₂ Γ) (hne : x₁ ≠ x₂)
+    -- visibility: mutual invisibility of hidden bindings
+    (hvis₁ : canSee who₂ (.hidden who₁ b₁) = false)
+    (hvis₂ : canSee who₁ (.hidden who₂ b₂) = false)
+    -- Semantic equivalence: swapped continuation produces the same outcome
+    -- for all values and environments. This abstracts over the reindexing
+    -- details (which would be derived from hindep + hvis + viewCtx_skip_invisible).
+    (hk_eq : ∀ (v₁ : Val b₁) (v₂ : Val b₂) (e : Env Γ),
+      outcomeDist σ k (Env.cons v₂ (Env.cons v₁ e)) =
+      outcomeDist σ k' (Env.cons v₁ (Env.cons v₂ e)))
+    -- Strategy equivalence: the profiles produce the same distributions
+    -- at both commit sites regardless of binding order.
+    (hσ₁ : ∀ (v₂ : Val b₂) (e : Env Γ),
+      σ.commit who₁ x₁ acts₁ R₁ (e.toView who₁) =
+      σ.commit who₁ x₁ acts₁ R₁' ((Env.cons (τ := .hidden who₂ b₂) v₂ e).toView who₁))
+    (hσ₂ : ∀ (v₁ : Val b₁) (e : Env Γ),
+      σ.commit who₂ x₂ acts₂ R₂ ((Env.cons (τ := .hidden who₁ b₁) v₁ e).toView who₂) =
+      σ.commit who₂ x₂ acts₂ R₂' (e.toView who₂)) :
+    outcomeDist σ
+      (.commit x₁ who₁ acts₁ R₁
+        (.commit x₂ who₂ acts₂ R₂ k)) env =
+    outcomeDist σ
+      (.commit x₂ who₂ acts₂ R₂'
+        (.commit x₁ who₁ acts₁ R₁' k')) env := by
+  sorry
 
 -- TODO: analogous commutativity theorems for:
 -- - reveal/reveal

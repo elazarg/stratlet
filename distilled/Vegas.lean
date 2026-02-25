@@ -480,6 +480,40 @@ theorem bind_map (d : FDist α) (f : α → FDist β) {γ : Type} [DecidableEq �
   apply Finset.sum_congr rfl; intro b _
   split <;> simp [mul_zero]
 
+theorem bind_assoc {γ : Type} [DecidableEq γ]
+    (d : FDist α) (f : α → FDist β) (g : β → FDist γ) :
+    (d.bind f).bind g = d.bind (fun a => (f a).bind g) := by
+  simp only [bind]
+  rw [Finsupp.sum_sum_index
+    (fun b => by ext x; simp [Finsupp.mapRange_apply, zero_mul])
+    (fun b m₁ m₂ => by ext x; simp [Finsupp.mapRange_apply, add_mul])]
+  congr 1; funext a; funext w
+  rw [Finsupp.sum_mapRange_index
+    (fun b => by ext x; simp [Finsupp.mapRange_apply, zero_mul])]
+  -- LHS: (f a).sum (fun b v => (g b).mapRange ((w * v) * ·) ...)
+  -- RHS: ((f a).sum (fun b v => (g b).mapRange (v * ·) ...)).mapRange (w * ·) ...
+  ext c
+  simp only [Finsupp.sum, Finsupp.mapRange_apply, Finsupp.finset_sum_apply]
+  rw [Finset.mul_sum]
+  congr 1
+  apply Finset.sum_congr rfl
+  intro b _
+  exact mul_assoc w ((f a) b) ((g b) c)
+
+theorem bind_comm {γ : Type} [DecidableEq γ]
+    (d₁ : FDist α) (d₂ : FDist β) (f : α → β → FDist γ) :
+    d₁.bind (fun a => d₂.bind (fun b => f a b)) =
+    d₂.bind (fun b => d₁.bind (fun a => f a b)) := by
+  ext c
+  simp only [bind_apply, Finset.mul_sum]
+  rw [Finset.sum_comm]
+  congr 1
+  apply Finset.sum_congr rfl
+  intro b _
+  apply Finset.sum_congr rfl
+  intro a _
+  exact mul_left_comm (d₁ a) (d₂ b) ((f a b) c)
+
 end FDist
 
 -- ============================================================================
@@ -577,6 +611,21 @@ inductive Prog : Ctx → Type where
       (hx : HasVar Γ x (.hidden who b))
       (k : Prog ((y, .pub b) :: Γ)) : Prog Γ
 
+/- **Deferred constructs**: `observe` and `assert` are intentionally omitted from
+   the current implementation. The planned syntax and semantics:
+
+   - `observe (c : Expr Γ .bool) (k : Prog Γ)`:
+     Zero-weights executions where `c` evaluates to false. Context is unchanged
+     (no new binding). Semantics: `if evalExpr c env then outcomeDist σ k env
+     else FDist.zero`.
+
+   - `assert (who : Player) (P : Env (viewCtx who Γ) → Bool) (k : Prog Γ)`:
+     Like `observe` but the predicate has access to the player's full view.
+     Semantics: `if P (env.toView who) then outcomeDist σ k env else FDist.zero`.
+
+   These will be added when conditioning / griefing analysis is needed. See
+   DESIGN.md §10 and §12 for the specification. -/
+
 abbrev CommitKernel (who : Player) (Γ : Ctx) (b : BaseTy) : Type :=
   Env (viewCtx who Γ) → FDist (Val b)
 
@@ -642,6 +691,42 @@ def WF : Prog Γ → Prop
   | .sample x _ _ _ k => Fresh x Γ ∧ WF k
   | .commit x _ _ _ k => Fresh x Γ ∧ WF k
   | .reveal y _ _ _ k => Fresh y Γ ∧ WF k
+
+def decidableWF : (p : Prog Γ) → Decidable (WF p)
+  | .ret _ => .isTrue trivial
+  | .letExpr _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
+  | .sample _ _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
+  | .commit _ _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
+  | .reveal _ _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
+
+instance {Γ : Ctx} {p : Prog Γ} : Decidable (WF p) := decidableWF p
+
+/-- Every committed secret is revealed exactly once. `pending` tracks
+    commit variables awaiting revelation. -/
+def RevealComplete : List VarId → Prog Γ → Prop
+  | pending, .ret _ => pending = []
+  | pending, .letExpr _ _ k => RevealComplete pending k
+  | pending, .sample _ _ _ _ k => RevealComplete pending k
+  | pending, .commit x _ _ _ k => RevealComplete (x :: pending) k
+  | pending, .reveal _ _ x _ k =>
+    x ∈ pending ∧ RevealComplete (pending.filter (· ≠ x)) k
+
+instance : DecidableEq VarId := inferInstanceAs (DecidableEq Nat)
+
+def decidableRevealComplete : (pending : List VarId) → (p : Prog Γ) →
+    Decidable (RevealComplete pending p)
+  | _, .ret _ => inferInstanceAs (Decidable (_ = []))
+  | pending, .letExpr _ _ k => decidableRevealComplete pending k
+  | pending, .sample _ _ _ _ k => decidableRevealComplete pending k
+  | pending, .commit x _ _ _ k => decidableRevealComplete (x :: pending) k
+  | pending, .reveal _ _ x _ k =>
+    @instDecidableAnd _ _ (inferInstance) (decidableRevealComplete (pending.filter (· ≠ x)) k)
+
+instance {pending : List VarId} {Γ : Ctx} {p : Prog Γ} :
+    Decidable (RevealComplete pending p) := decidableRevealComplete pending p
+
+/-- Full well-formedness: SSA freshness AND every committed secret is revealed. -/
+def WFProg (p : Prog Γ) : Prop := WF p ∧ RevealComplete [] p
 
 -- § 11a. Context lemmas
 
@@ -838,6 +923,13 @@ def conditionedGame : Prog Γ0 :=
     (.reveal va' 0 va .here
       (.commit vb 1 (b := .bool) [true, false]
         (.var va' (.there .here))
-        (.ret ⟨[(0, .constInt 1), (1, .constInt 0)], by decide⟩)))
+        (.reveal vb' 1 vb .here
+          (.ret ⟨[(0, .constInt 1), (1, .constInt 0)], by decide⟩))))
+
+-- Verify well-formedness predicates on examples
+#eval decide (WF matchingPennies)          -- true
+#eval decide (RevealComplete [] matchingPennies)  -- true
+#eval decide (WF conditionedGame)          -- true
+#eval decide (RevealComplete [] conditionedGame)  -- true
 
 end Examples
