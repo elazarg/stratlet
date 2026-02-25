@@ -93,17 +93,17 @@ def InfoStructure.BehavioralStrategyFor (S : InfoStructure) (p : S.Player) : Typ
 /-- Well-formedness predicate for a game tree.
     All well-formedness conditions are built into the type structure:
     `arity_pos` for decisions, explicit `hk` for chance nodes. -/
-inductive WFTree {G : EFGGame} {Outcome : Type} : GameTree G.inf Outcome → Prop where
+inductive WFTree {S : InfoStructure} {Outcome : Type} : GameTree S Outcome → Prop where
   | terminal : ∀ z, WFTree (.terminal z)
   | chance : ∀ k μ hk next,
       (∀ b, WFTree (next b)) →
       WFTree (.chance k μ hk next)
-  | decision : ∀ {p} (I : G.inf.Infoset p) next,
+  | decision : ∀ {p} (I : S.Infoset p) next,
       (∀ a, WFTree (next a)) →
       WFTree (.decision I next)
 
 /-- Every `GameTree` is well-formed. -/
-theorem allWFTree {G : EFGGame} {Outcome : Type} (t : GameTree G.inf Outcome) : WFTree t := by
+theorem allWFTree {S : InfoStructure} {Outcome : Type} (t : GameTree S Outcome) : WFTree t := by
   induction t with
   | terminal => constructor
   | chance _ _ _ _ ih => constructor; exact ih

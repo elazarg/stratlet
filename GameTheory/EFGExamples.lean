@@ -1,5 +1,6 @@
-import GameTheory.EFG
 import Mathlib.Probability.ProbabilityMassFunction.Constructions
+
+import GameTheory.EFG
 
 /-!
 # EFG Examples
@@ -9,64 +10,47 @@ Example extensive-form game trees with evaluation and perfect recall proofs.
 
 namespace EFG
 
+open GameTheory
+
 /-! ## InfoStructures for the examples -/
 
-@[reducible] private def seqArity : Nat → Nat
-  | 0 | 1 => 2
-  | _ => 1
+/-- 2-player, each player has one infoset with 2 actions. -/
+abbrev twoPlayerS : InfoStructure where
+  n := 2
+  Infoset := fun _ => Unit
+  arity := fun _ _ => 2
+  arity_pos := fun _ _ => by omega
 
-private theorem seqArity_pos : ∀ I, 0 < seqArity I := by
-  intro I; unfold seqArity; split <;> omega
-
-@[reducible] private def hdArity : Nat → Nat
-  | 1 => 2
-  | _ => 1
-
-private theorem hdArity_pos : ∀ I, 0 < hdArity I := by
-  intro I; unfold hdArity; split <;> omega
-
-/-- Info structure for seqTree: infoSet 0 → player 0, arity 2;
-    infoSet 1 → player 1, arity 2; everything else defaults. -/
-abbrev seqInfoS : InfoStructure Nat where
-  player | 0 => 0 | _ => 1
-  arity := seqArity
-  arity_pos := seqArity_pos
-
-/-- Same info structure as seqInfoS (matching pennies has the same shape). -/
-abbrev mpInfoS : InfoStructure Nat where
-  player | 0 => 0 | _ => 1
-  arity := seqArity
-  arity_pos := seqArity_pos
-
-/-- Info structure for hiddenDecTree: infoSet 1 → player 0, arity 2. -/
-abbrev hdInfoS : InfoStructure Nat where
-  player := fun _ => 0
-  arity := hdArity
-  arity_pos := hdArity_pos
+/-- 1-player, one infoset with 2 actions. -/
+abbrev onePlayerS : InfoStructure where
+  n := 1
+  Infoset := fun _ => Unit
+  arity := fun _ _ => 2
+  arity_pos := fun _ _ => by omega
 
 /-! ## Example trees -/
 
-/-- Sequential game: P0 (infoSet=0) picks L/R, then P1 (infoSet=1) picks L/R.
+/-- Sequential game: P0 picks L/R, then P1 picks L/R.
     Payoffs: (LL)=(3,3), (LR)=(0,0), (RL)=(0,0), (RR)=(1,1) -/
-noncomputable abbrev seqTree : GameTree Nat seqInfoS :=
-  .decision 0 fun
-    | 0 => .decision 1 fun
-      | 0 => .terminal (fun i => if i == 0 then 3 else 3)
-      | 1 => .terminal (fun i => if i == 0 then 0 else 0)
-    | 1 => .decision 1 fun
-      | 0 => .terminal (fun i => if i == 0 then 0 else 0)
-      | 1 => .terminal (fun i => if i == 0 then 1 else 1)
+noncomputable abbrev seqTree : GameTree twoPlayerS (Payoff twoPlayerS.Player) :=
+  .decision (p := (0 : Fin 2)) () fun
+    | 0 => .decision (p := (1 : Fin 2)) () fun
+      | 0 => .terminal (fun i => if i == (0 : Fin 2) then 3 else 3)
+      | 1 => .terminal (fun i => if i == (0 : Fin 2) then 0 else 0)
+    | 1 => .decision (p := (1 : Fin 2)) () fun
+      | 0 => .terminal (fun i => if i == (0 : Fin 2) then 0 else 0)
+      | 1 => .terminal (fun i => if i == (0 : Fin 2) then 1 else 1)
 
 /-- Matching pennies: P0 picks H(0)/T(1), P1 picks H(0)/T(1).
-    P1 cannot observe P0's choice (same infoSet=1 = imperfect info). -/
-noncomputable abbrev matchingPenniesTree : GameTree Nat mpInfoS :=
-  .decision 0 fun
-    | 0 => .decision 1 fun
-      | 0 => .terminal (fun i => if i == 0 then 1 else -1)
-      | 1 => .terminal (fun i => if i == 0 then -1 else 1)
-    | 1 => .decision 1 fun
-      | 0 => .terminal (fun i => if i == 0 then -1 else 1)
-      | 1 => .terminal (fun i => if i == 0 then 1 else -1)
+    P1 cannot observe P0's choice (same infoSet = imperfect info). -/
+noncomputable abbrev matchingPenniesTree : GameTree twoPlayerS (Payoff twoPlayerS.Player) :=
+  .decision (p := (0 : Fin 2)) () fun
+    | 0 => .decision (p := (1 : Fin 2)) () fun
+      | 0 => .terminal (fun i => if i == (0 : Fin 2) then 1 else -1)
+      | 1 => .terminal (fun i => if i == (0 : Fin 2) then -1 else 1)
+    | 1 => .decision (p := (1 : Fin 2)) () fun
+      | 0 => .terminal (fun i => if i == (0 : Fin 2) then -1 else 1)
+      | 1 => .terminal (fun i => if i == (0 : Fin 2) then 1 else -1)
 
 /-- Uniform PMF on `Fin 2` (coin flip). -/
 noncomputable def coinFlip : PMF (Fin 2) :=
@@ -76,15 +60,15 @@ noncomputable def coinFlip : PMF (Fin 2) :=
     exact ENNReal.mul_inv_cancel (by norm_num) (by norm_num))
 
 /-- Hidden decision: chance 50/50, then P0 guesses blind.
-    Same infoSet=1 in both branches = imperfect info. -/
-noncomputable abbrev hiddenDecTree : GameTree Nat hdInfoS :=
-  .chance 1 coinFlip fun
-    | 0 => .decision 1 fun
-      | 0 => .terminal (fun i => if i == 0 then 1 else 0)
-      | 1 => .terminal (fun i => if i == 0 then 0 else 0)
-    | 1 => .decision 1 fun
-      | 0 => .terminal (fun i => if i == 0 then 0 else 0)
-      | 1 => .terminal (fun i => if i == 0 then 1 else 0)
+    Same infoSet in both branches = imperfect info. -/
+noncomputable abbrev hiddenDecTree : GameTree onePlayerS (Payoff onePlayerS.Player) :=
+  .chance 2 coinFlip (by omega) fun
+    | 0 => .decision (p := (0 : Fin 1)) () fun
+      | 0 => .terminal (fun _ => 1)
+      | 1 => .terminal (fun _ => 0)
+    | 1 => .decision (p := (0 : Fin 1)) () fun
+      | 0 => .terminal (fun _ => 0)
+      | 1 => .terminal (fun _ => 1)
 
 /-! ## WFTree proofs -/
 
@@ -94,25 +78,25 @@ theorem hiddenDecTree_wf : WFTree hiddenDecTree := allWFTree hiddenDecTree
 
 /-! ## evalTotal EU proofs -/
 
-/-- Strategy: always pick the first action. -/
-def alwaysFirst : PureStrategy seqInfoS :=
-  fun _ => ⟨0, seqInfoS.arity_pos _⟩
+/-- Strategy profile: always pick the first action. -/
+def alwaysFirst : PureProfile twoPlayerS :=
+  fun _ _ => ⟨0, twoPlayerS.arity_pos _ _⟩
 
-/-- Strategy: always pick the last action. -/
-def alwaysLast : PureStrategy seqInfoS := fun I =>
-  ⟨seqInfoS.arity I - 1,
-   Nat.sub_lt (seqInfoS.arity_pos I) Nat.one_pos⟩
+/-- Strategy profile: always pick the last action. -/
+def alwaysLast : PureProfile twoPlayerS :=
+  fun p I => ⟨twoPlayerS.arity p I - 1,
+   Nat.sub_lt (twoPlayerS.arity_pos p I) Nat.one_pos⟩
 
 /-- Under alwaysFirst, seqTree yields payoff 3 for P0. -/
 private noncomputable example :
-    seqTree.evalTotal alwaysFirst 0 = 3 := by
-  simp only [alwaysFirst, GameTree.evalTotal, seqInfoS, seqArity]
+    seqTree.evalTotal alwaysFirst (0 : Fin 2) = 3 := by
+  simp only [alwaysFirst, GameTree.evalTotal, twoPlayerS]
   norm_num
 
 /-- Under alwaysLast, seqTree yields payoff 1 for P0. -/
 private noncomputable example :
-    seqTree.evalTotal alwaysLast 0 = 1 := by
-  simp only [alwaysLast, GameTree.evalTotal, seqInfoS, seqArity]
+    seqTree.evalTotal alwaysLast (0 : Fin 2) = 1 := by
+  simp only [alwaysLast, GameTree.evalTotal, twoPlayerS]
   norm_num
 
 /-! ## Perfect recall proofs
@@ -124,72 +108,73 @@ histories. -/
 
 /-- Helper: in seqTree, all playerHistories to any reachable decision node are []. -/
 private theorem seqTree_playerHistory_nil :
-    ∀ h I (next : Fin (seqInfoS.arity I) → GameTree Nat seqInfoS),
+    ∀ h {p : twoPlayerS.Player} (I : twoPlayerS.Infoset p)
+    (next : twoPlayerS.Act I → GameTree twoPlayerS (Payoff twoPlayerS.Player)),
     ReachBy h seqTree (.decision I next) →
-    playerHistory seqInfoS (seqInfoS.player I) h = [] := by
-  intro h I next hr
-  -- seqTree is .decision 0 f
-  rcases ReachBy_decision_inv hr with ⟨rfl, rfl, _⟩ | ⟨a, rest, rfl, hr'⟩
-  · -- h = [], I = 0: playerHistory _ _ [] = []
+    playerHistory twoPlayerS p h = [] := by
+  intro h p I next hr
+  -- seqTree is .decision (p:=0) () f
+  rcases ReachBy_decision_inv hr with ⟨rfl, rfl, _, _⟩ | ⟨a, rest, rfl, hr'⟩
+  · -- h = [], playerHistory _ _ [] = []
     rfl
-  · -- h = .action 0 a :: rest, hr' : ReachBy rest (subtree a) (.decision I next)
-    -- subtree a is .decision 1 _, so invert again
+  · -- h = .action 0 () a.val :: rest
     fin_cases a <;> (
-      rcases ReachBy_decision_inv hr' with ⟨rfl, rfl, _⟩ | ⟨b, rest', rfl, hr''⟩
-      · -- rest = [], I = 1
-        -- playerHistory seqInfoS 1 [.action 0 _]
-        -- player 0 = 0 ≠ 1, so filtered → []
+      rcases ReachBy_decision_inv hr' with ⟨rfl, rfl, _, _⟩ | ⟨b, rest', rfl, hr''⟩
+      · -- rest = [], I = player 1's infoset
+        -- playerHistory twoPlayerS 1 [.action 0 () _] → 0 ≠ 1, filtered → []
         simp [playerHistory]
-      · -- hr'' from a terminal to .decision — impossible
-        fin_cases b <;> exact absurd hr'' (by intro h; nomatch h))
+      · -- from terminal to decision — impossible
+        fin_cases b <;> nomatch hr'')
 
 /-- seqTree has perfect recall. -/
 theorem seqTree_perfectRecall : PerfectRecall seqTree := by
-  intro h₁ h₂ I next₁ next₂ hr₁ hr₂
+  intro h₁ h₂ p I next₁ next₂ hr₁ hr₂
   rw [seqTree_playerHistory_nil h₁ I next₁ hr₁,
       seqTree_playerHistory_nil h₂ I next₂ hr₂]
 
 /-- Helper: in matchingPenniesTree, all playerHistories to any reachable decision node are []. -/
 private theorem mpTree_playerHistory_nil :
-    ∀ h I (next : Fin (mpInfoS.arity I) → GameTree Nat mpInfoS),
+    ∀ h {p : twoPlayerS.Player} (I : twoPlayerS.Infoset p)
+    (next : twoPlayerS.Act I → GameTree twoPlayerS (Payoff twoPlayerS.Player)),
     ReachBy h matchingPenniesTree (.decision I next) →
-    playerHistory mpInfoS (mpInfoS.player I) h = [] := by
-  intro h I next hr
-  rcases ReachBy_decision_inv hr with ⟨rfl, rfl, _⟩ | ⟨a, rest, rfl, hr'⟩
+    playerHistory twoPlayerS p h = [] := by
+  intro h p I next hr
+  rcases ReachBy_decision_inv hr with ⟨rfl, rfl, _, _⟩ | ⟨a, rest, rfl, hr'⟩
   · rfl
   · fin_cases a <;> (
-      rcases ReachBy_decision_inv hr' with ⟨rfl, rfl, _⟩ | ⟨b, rest', rfl, hr''⟩
+      rcases ReachBy_decision_inv hr' with ⟨rfl, rfl, _, _⟩ | ⟨b, rest', rfl, hr''⟩
       · simp [playerHistory]
-      · fin_cases b <;> exact absurd hr'' (by intro h; nomatch h))
+      · fin_cases b <;> nomatch hr'')
 
 /-- matchingPenniesTree has perfect recall. -/
 theorem matchingPenniesTree_perfectRecall :
     PerfectRecall matchingPenniesTree := by
-  intro h₁ h₂ I next₁ next₂ hr₁ hr₂
+  intro h₁ h₂ p I next₁ next₂ hr₁ hr₂
   rw [mpTree_playerHistory_nil h₁ I next₁ hr₁,
       mpTree_playerHistory_nil h₂ I next₂ hr₂]
 
 /-- Helper: in hiddenDecTree, all playerHistories to any reachable decision node are []. -/
 private theorem hdTree_playerHistory_nil :
-    ∀ h I (next : Fin (hdInfoS.arity I) → GameTree Nat hdInfoS),
+    ∀ h {p : onePlayerS.Player} (I : onePlayerS.Infoset p)
+    (next : onePlayerS.Act I → GameTree onePlayerS (Payoff onePlayerS.Player)),
     ReachBy h hiddenDecTree (.decision I next) →
-    playerHistory hdInfoS (hdInfoS.player I) h = [] := by
-  intro h I next hr
-  -- hiddenDecTree is .chance 1 coinFlip f
+    playerHistory onePlayerS p h = [] := by
+  intro h p I next hr
+  -- hiddenDecTree is .chance 2 coinFlip _ f
   rcases ReachBy_chance_inv' hr with ⟨b, rest, rfl, hr'⟩
-  -- hr' : ReachBy rest (f b) (.decision I next), f b is .decision 1 _
+  -- hr' : ReachBy rest (f b) (.decision I next), f b is .decision (p:=0) () _
   fin_cases b <;> (
-    rcases ReachBy_decision_inv hr' with ⟨rfl, rfl, _⟩ | ⟨a, rest', rfl, hr''⟩
-    · -- rest = [], I = 1, h = [.chance _]
-      -- playerHistory hdInfoS 0 [.chance _] = [] (chance steps filtered)
+    rcases ReachBy_decision_inv hr' with ⟨rfl, rfl, _, _⟩ | ⟨a, rest', rfl, hr''⟩
+    · -- rest = [], h = [.chance _]
+      -- playerHistory _ _ [.chance _] = [] (chance steps filtered)
       simp [playerHistory]
-    · -- hr'' from terminal to decision — impossible
-      fin_cases a <;> exact absurd hr'' (by intro h; nomatch h))
+    · -- from terminal to decision — impossible
+      fin_cases a <;> nomatch hr'')
 
 /-- hiddenDecTree has perfect recall. -/
 theorem hiddenDecTree_perfectRecall :
     PerfectRecall hiddenDecTree := by
-  intro h₁ h₂ I next₁ next₂ hr₁ hr₂
+  intro h₁ h₂ p I next₁ next₂ hr₁ hr₂
   rw [hdTree_playerHistory_nil h₁ I next₁ hr₁,
       hdTree_playerHistory_nil h₂ I next₂ hr₂]
 
