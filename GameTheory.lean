@@ -5,8 +5,8 @@ import GameTheory.EFG
 import GameTheory.EFGExamples
 import GameTheory.NFG
 import GameTheory.NFGExamples
+import GameTheory.NFG_EFG
 import GameTheory.PMFProduct
+import GameTheory.InfoArena
 import GameTheory.MAID
-import GameTheory.EFG2
-import GameTheory.EFG2Examples
-import GameTheory.EFG2Kuhn
+import GameTheory.EFGKuhn
