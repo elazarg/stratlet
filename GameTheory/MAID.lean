@@ -229,19 +229,41 @@ structure MAIDModel.WellFormed (m : MAIDModel) : Prop where
 
 /-! ### Evaluation -/
 
+/-- The fold step for `evalAssignDist`: given an accumulated joint PMF
+    and a node, draw a value from the node's CPD or policy and extend
+    the assignment. Factored out for reuse in swap lemmas. -/
+noncomputable def MAIDModel.evalStep (m : MAIDModel) (π : CondPolicy)
+    (acc : PMF Assign) (node : Node) : PMF Assign :=
+  acc.bind (fun assign =>
+    let nodeDist := match node.kind with
+      | .chance => m.chanceCPD node.id assign
+      | .decision _ => π node.id assign
+      | .utility _ => PMF.pure 0
+    nodeDist.bind (fun v => PMF.pure (Function.update assign node.id v)))
+
 /-- Joint PMF over full assignments, built by folding over nodes in
     topological order. Each node draws a value from its CPD or policy
-    and extends the assignment. -/
+    and extends the assignment.
+
+    The computation does not use the proofs; they exist to prevent
+    downstream theorems from silently assuming well-formedness. -/
 noncomputable def MAIDModel.evalAssignDist (m : MAIDModel) (π : CondPolicy)
+    (_wf : m.WellFormed) (_adm : π.Admissible m.diagram)
     : PMF Assign :=
-  let step (acc : PMF Assign) (node : Node) : PMF Assign :=
-    acc.bind (fun assign =>
-      let nodeDist := match node.kind with
-        | .chance => m.chanceCPD node.id assign
-        | .decision _ => π node.id assign
-        | .utility _ => PMF.pure 0
-      nodeDist.bind (fun v => PMF.pure (Function.update assign node.id v)))
-  m.diagram.nodes.foldl step (PMF.pure (fun _ => 0))
+  m.diagram.nodes.foldl (m.evalStep π) (PMF.pure (fun _ => 0))
+
+/-- Convenience alias: evaluate without proof obligations.
+    Use `evalAssignDist` when proofs are available; use this when
+    you just need the distribution and will supply proofs separately. -/
+noncomputable def MAIDModel.evalAssignDist' (m : MAIDModel) (π : CondPolicy)
+    : PMF Assign :=
+  m.diagram.nodes.foldl (m.evalStep π) (PMF.pure (fun _ => 0))
+
+/-- `evalAssignDist` equals `evalAssignDist'` (the proofs are erased). -/
+theorem MAIDModel.evalAssignDist_eq (m : MAIDModel) (π : CondPolicy)
+    (wf : m.WellFormed) (adm : π.Admissible m.diagram) :
+    m.evalAssignDist π wf adm = m.evalAssignDist' π :=
+  rfl
 
 /-- Extract payoffs from an assignment. -/
 noncomputable def MAIDModel.payoffOf (m : MAIDModel) (assign : Assign)
@@ -253,8 +275,9 @@ noncomputable def MAIDModel.payoffOf (m : MAIDModel) (assign : Assign)
 /-- Evaluate a MAID under a policy by building the joint distribution
     over assignments and mapping to payoff vectors. -/
 noncomputable def MAIDModel.evalDist (m : MAIDModel) (π : CondPolicy)
+    (wf : m.WellFormed) (adm : π.Admissible m.diagram)
     : PMF (GameTheory.Payoff Nat) :=
-  (m.evalAssignDist π).bind (fun assign => PMF.pure (m.payoffOf assign))
+  (m.evalAssignDist π wf adm).bind (fun assign => PMF.pure (m.payoffOf assign))
 
 /-! ### Locality lemma for payoffs -/
 
@@ -280,6 +303,60 @@ theorem MAIDModel.payoffOf_local (m : MAIDModel) (wf : m.WellFormed)
   exact wf.utility_local u hmem a hka a₁ a₂ (fun p hp => heq p (by
     exact List.mem_flatMap.mpr ⟨u, hu, hp⟩))
 
+/-! ### Order-independence of evaluation -/
+
+/-- Two nodes are *independent* in the DAG if neither is a parent of the other. -/
+def Independent (u v : Node) : Prop :=
+  u.id ∉ v.parents ∧ v.id ∉ u.parents
+
+/-- Swapping two adjacent independent nodes does not change the result
+    of folding `evalStep` from any accumulator.
+
+    **Proof sketch**: since `u` and `v` are independent (neither is a
+    parent of the other), the distribution drawn at each node does not
+    depend on the value assigned to the other. The two `Function.update`s
+    commute because they write to distinct IDs (`hne`). Therefore
+    `evalStep m π (evalStep m π acc u) v = evalStep m π (evalStep m π acc v) u`.
+
+    The formal proof requires showing that the CPD/policy at each node
+    is `LocalTo` its parents, so the other node's value is irrelevant. -/
+theorem MAIDModel.evalStep_swap (m : MAIDModel) (π : CondPolicy)
+    (wf : m.WellFormed) (adm : CondPolicy.Admissible m.diagram π)
+    (u v : Node) (hu : u ∈ m.diagram.nodes) (hv : v ∈ m.diagram.nodes)
+    (hne : u.id ≠ v.id)
+    (hindep : Independent u v)
+    (acc : PMF Assign) :
+    m.evalStep π (m.evalStep π acc u) v =
+    m.evalStep π (m.evalStep π acc v) u := by
+  simp only [evalStep]
+  -- Both sides are: acc >>= (draw u, update) >>= (draw v, update)
+  -- vs:             acc >>= (draw v, update) >>= (draw u, update)
+  -- Key facts needed:
+  --   1. CPD/policy at v doesn't read u.id (hindep.1 : u.id ∉ v.parents)
+  --   2. CPD/policy at u doesn't read v.id (hindep.2 : v.id ∉ u.parents)
+  --   3. Function.update at u.id and v.id commute (hne)
+  sorry
+
+/-- Swap two adjacent elements in a list. -/
+def swapAdj (l : List α) (i : Nat) (hi : i + 1 < l.length) : List α :=
+  let a := l[i]'(by omega)
+  let b := l[i + 1]'hi
+  (l.set i b).set (i + 1) a
+
+/-- Swapping two adjacent independent nodes in the fold doesn't change
+    `evalAssignDist'`. This is the key lemma toward showing that
+    evaluation depends only on the DAG, not the chosen topological ordering.
+
+    **Status**: statement only — depends on `evalStep_swap` + list fold
+    manipulation. -/
+theorem MAIDModel.evalAssignDist'_swap_adj (m : MAIDModel) (π : CondPolicy)
+    (nodes : List Node) (i : Nat)
+    (hi : i + 1 < nodes.length)
+    (hindep : Independent (nodes[i]'(by omega)) (nodes[i + 1]'hi)) :
+    nodes.foldl (m.evalStep π) (PMF.pure (fun _ => 0)) =
+    (swapAdj nodes i hi).foldl (m.evalStep π) (PMF.pure (fun _ => 0)) := by
+  sorry
+
 -- ============================================================================
 -- § 3. Game — KernelGame bridge + solution concepts
 -- ============================================================================
@@ -287,20 +364,24 @@ theorem MAIDModel.payoffOf_local (m : MAIDModel) (wf : m.WellFormed)
 /-- MAID as an outcome kernel. -/
 noncomputable def MAIDModel.toKernel (m : MAIDModel)
     : GameTheory.Kernel CondPolicy (GameTheory.Payoff Nat) :=
-  fun π => m.evalDist π
+  fun π => (m.evalAssignDist' π).bind (fun assign => PMF.pure (m.payoffOf assign))
 
 /-! ### MAID → KernelGame conversion -/
 
 /-- Convert a MAID model to a kernel-based game with per-agent strategies.
     Each agent independently chooses a `CondPolicy`; the joint policy is
     assembled via `mergeCondPolicies` which dispatches each decision node
-    to its owning agent's policy. -/
+    to its owning agent's policy.
+
+    Uses `evalAssignDist'` (proof-free) so that the game structure doesn't
+    require carrying proofs. Use `evalAssignDist` directly when proving
+    properties that need well-formedness/admissibility. -/
 noncomputable def MAIDModel.toKernelGame (m : MAIDModel) :
     GameTheory.KernelGame Nat where
   Strategy := fun _ => CondPolicy
   Outcome := Assign
   utility := m.payoffOf
-  outcomeKernel := fun σ => m.evalAssignDist (mergeCondPolicies m.diagram σ)
+  outcomeKernel := fun σ => m.evalAssignDist' (mergeCondPolicies m.diagram σ)
 
 /-! ### Solution concepts -/
 
