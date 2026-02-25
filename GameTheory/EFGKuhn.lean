@@ -1,4 +1,4 @@
-import GameTheory.EFG2
+import GameTheory.EFG
 import GameTheory.PMFProduct
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Algebra.BigOperators.Ring.Finset
@@ -25,7 +25,7 @@ in extensive-form games with perfect recall.
 - `mixedToBehavioral` — conditional behavioral strategy from a mixed strategy
 -/
 
-namespace EFG2
+namespace EFG
 
 variable {ι : Type} {S : InfoStructure ι}
 
@@ -431,7 +431,7 @@ theorem reachesInfoSet_mem_infoSets {used : Finset Nat}
   | decision I' next ih =>
     simp only [FinPureStrategy.reachesInfoSet] at h
     rcases h with rfl | hsub
-    · exact Finset.mem_insert_self I' _
+    · exact Finset.mem_insert_self I _
     · exact Finset.mem_insert.mpr
         (Or.inr (Finset.mem_biUnion.mpr
           ⟨s.toFull I', Finset.mem_univ _, ih (s.toFull I') hsub⟩))
@@ -441,8 +441,8 @@ theorem reachesInfoSet_mem_infoSets {used : Finset Nat}
 theorem infoSet_unique_subtree [DecidableEq ι]
     {I : Nat} {next : Fin (S.arity I) → GameTree ι S}
     (hpr : PerfectRecall (GameTree.decision I next))
-    (hsp : S.player I = S.player J)
-    (J : Nat) (hJI : J ≠ I)
+    {J : Nat} (hsp : S.player I = S.player J)
+    (_hJI : J ≠ I)
     (a a' : Fin (S.arity I))
     (ha : J ∈ (next a).infoSets) (ha' : J ∈ (next a').infoSets) :
     a = a' := by
@@ -457,9 +457,8 @@ theorem infoSet_unique_subtree [DecidableEq ι]
   -- By perfect recall, player histories must be equal
   have key := hpr _ _ J next₁ next₂ pr₁ pr₂
   -- Player history starts with (I, a) resp (I, a') since player I = player J
-  simp only [playerHistory, hsp] at key
-  exact Fin.val_injective (by omega_nat) -- (I, a.val) :: _ = (I, a'.val) :: _
-    |>.mp (by exact Fin.ext (by simp_all [List.cons.injEq]))
+  simp only [playerHistory, hsp, ite_true, List.cons.injEq, Prod.mk.injEq] at key
+  exact Fin.ext key.1.2
 
 /-- Under single-player perfect recall + NoInfoSetRepeat, reaching J ∈ (next a).infoSets
     from `decision I next` requires `s.toFull I = a`. -/
@@ -479,7 +478,7 @@ theorem reach_decision_forces_action [DecidableEq ι]
   · -- s reaches J in next (s.toFull I), so J ∈ (next (s.toFull I)).infoSets
     have hJa' := reachesInfoSet_mem_infoSets s _ J hsub
     -- By uniqueness, s.toFull I = a
-    exact infoSet_unique_subtree hpr hsp J hJI _ a hJa' hJa
+    exact infoSet_unique_subtree hpr hsp.symm hJI _ a hJa' hJa
 
 /-- Under single-player perfect recall, reaching J through a decision node I
     decomposes as: s.toFull I = a ∧ reachesInfoSet in subtree. -/
@@ -495,7 +494,11 @@ theorem reachesInfoSet_decision_iff [DecidableEq ι]
   constructor
   · intro h
     have ha := reach_decision_forces_action s J a hJI hJa h hpr hnr hsp
-    exact ⟨ha, by rwa [ha] at h; simp [FinPureStrategy.reachesInfoSet, hJI] at h; exact h⟩
+    refine ⟨ha, ?_⟩
+    simp only [FinPureStrategy.reachesInfoSet] at h
+    rcases h with rfl | hsub
+    · exact absurd rfl hJI
+    · rw [← ha]; exact hsub
   · intro ⟨ha, hr⟩
     simp only [FinPureStrategy.reachesInfoSet]
     exact Or.inr (by rw [ha]; exact hr)
@@ -514,7 +517,25 @@ theorem mixed_to_behavioral [DecidableEq ι]
     (p : ι) (hsp : ∀ I ∈ t.infoSets, S.player I = p) :
     t.evalDist (mixedToBehavioral μ t) =
     μ.bind (fun s => t.evalDist (fun I => PMF.pure (s.toFull I))) := by
-  sorry
+  have hnr := PerfectRecall_implies_NoInfoSetRepeat t hpr
+  induction t with
+  | terminal payoff =>
+    simp only [GameTree.evalDist]
+    exact (PMF.bind_const_pure μ payoff).symm
+  | chance n μ_ch next ih =>
+    simp only [GameTree.evalDist]
+    -- LHS: μ_ch.bind (fun b => (next b).evalDist (mixedToBehavioral μ (chance n μ_ch next)))
+    -- Apply IH to each branch
+    conv_lhs => arg 2; ext b; rw [ih b
+      (by intro h₁ h₂ J next₁ next₂ hr₁ hr₂
+          exact hpr (.chance b.val :: h₁) (.chance b.val :: h₂) J next₁ next₂
+            (.chance b hr₁) (.chance b hr₂) |> by simpa [playerHistory])
+      (fun I hI => hsp I (infoSets_chance_sub b hI))
+      (NoInfoSetRepeat_chance_sub hnr b)]
+    -- Now: μ_ch.bind (fun b => μ.bind (fun s => ...)) = μ.bind (fun s => μ_ch.bind (fun b => ...))
+    exact (PMF.bind_comm μ_ch μ _).symm
+  | decision I next ih =>
+    sorry
 
 -- ============================================================================
 -- § 7. Combined Kuhn's theorem
@@ -529,7 +550,8 @@ theorem mixed_to_behavioral [DecidableEq ι]
     Backward direction (mixed→behavioral): given a distribution over finite
     pure strategies, the conditional behavioral strategy induces the same outcome. -/
 theorem kuhn_equiv [DecidableEq ι]
-    (t : GameTree ι S) (hpr : PerfectRecall t) :
+    (t : GameTree ι S) (hpr : PerfectRecall t)
+    (p : ι) (hsp : ∀ I ∈ t.infoSets, S.player I = p) :
     -- Direction 1: every behavioral strategy has an equivalent mixed strategy
     (∀ σ : BehavioralStrategy S,
       ∃ μ : PMF (FinPureStrategy S t.infoSets),
@@ -545,7 +567,7 @@ theorem kuhn_equiv [DecidableEq ι]
     fun σ => ⟨productBehavioral σ t.infoSets,
       behavioral_to_mixed σ t hnr⟩,
     fun μ => ⟨mixedToBehavioral μ t,
-      mixed_to_behavioral t hpr μ⟩
+      mixed_to_behavioral t hpr μ p hsp⟩
   ⟩
 
-end EFG2
+end EFG

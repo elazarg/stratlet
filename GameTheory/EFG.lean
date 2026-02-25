@@ -4,25 +4,25 @@ import Mathlib.Probability.ProbabilityMassFunction.Monad
 import GameTheory.SolutionConcepts
 
 /-!
-# Extensive-Form Games (EFG) — InfoStructure-based redesign
+# Extensive-Form Games (EFG)
 
-Redesigned EFG where `player` and `arity` are derived from an `InfoStructure`,
-eliminating redundant data at decision nodes and the need for `InfoSetConsistent`.
+Extensive-form game trees parameterized by an `InfoStructure` that maps
+info-set IDs to player + action arity.
 
-Key improvements over `EFG.lean`:
+Design:
 - `InfoStructure` maps info-set ids to player + arity (with `arity_pos`)
 - `GameTree` decision nodes store only the info-set id `I`
 - Strategy types are cleanly per-info-set with no `0 < n` guards
-- Chance nodes use `Fin (n+1)` branches, eliminating `n > 0` guards in `WFTree`
+- Chance nodes use `Fin (n+1)` branches, so well-formedness is structural
 - Evaluation functions have no `dif` guards
 
 ## Scope-outs
 
-- **Kuhn's theorem** — statement only (`sorry` proof), under perfect recall
+- **Kuhn's theorem** — see `EFGKuhn.lean`
 - **Subgame perfection / sequential equilibrium** — needs belief systems
 -/
 
-namespace EFG2
+namespace EFG
 
 -- ============================================================================
 -- § 1. InfoStructure
@@ -465,8 +465,8 @@ theorem playerHistory_append [DecidableEq ι] (S : InfoStructure ι) (who : ι)
       simp only [playerHistory, List.cons_append]
       split <;> simp_all
 
--- Kuhn's theorem (behavioral ↔ mixed strategy equivalence) is in EFG2Kuhn.lean.
+-- Kuhn's theorem (behavioral ↔ mixed strategy equivalence) is in EFGKuhn.lean.
 -- It uses `FinPureStrategy` (finite restricted strategies) instead of `PureProfile`
 -- (which ranges over all Nat and cannot support a PMF).
 
-end EFG2
+end EFG

@@ -1,14 +1,13 @@
-import GameTheory.EFG2
+import GameTheory.EFG
 import Mathlib.Probability.ProbabilityMassFunction.Constructions
 
 /-!
-# EFG2 Examples
+# EFG Examples
 
-Example extensive-form game trees using the InfoStructure-based redesign.
-No `InfoSetConsistent` proofs needed — consistency is structural.
+Example extensive-form game trees with evaluation and perfect recall proofs.
 -/
 
-namespace EFG2
+namespace EFG
 
 /-! ## InfoStructures for the examples -/
 
@@ -194,4 +193,4 @@ theorem hiddenDecTree_perfectRecall :
   rw [hdTree_playerHistory_nil h₁ I next₁ hr₁,
       hdTree_playerHistory_nil h₂ I next₂ hr₂]
 
-end EFG2
+end EFG
