@@ -187,13 +187,13 @@ theorem evalDist_toFull_restrict (t : GameTree ι S) (σ : PureStrategy S) :
     Uses `pmfPi` from NFG.lean: assigns weight `∏ I, σ I (s I)` to profile `s`. -/
 noncomputable def productBehavioral (σ : BehavioralStrategy S) (used : Finset Nat) :
     PMF (FinPureStrategy S used) :=
-  NFG.pmfPi (fun (I : used) => σ I.val)
+  pmfPi (fun (I : used) => σ I.val)
 
 @[simp] theorem productBehavioral_apply (σ : BehavioralStrategy S) (used : Finset Nat)
     (s : FinPureStrategy S used) :
     (productBehavioral σ used) s = ∏ I : used, σ I.val (s I) := by
   unfold productBehavioral
-  exact NFG.pmfPi_apply _ s
+  exact pmfPi_apply _ s
 
 /-- Factor the product PMF at coordinate `I`: if `g(a, s)` doesn't depend on
     the `I`-th coordinate of `s`, then the product bind factors into
@@ -206,7 +206,7 @@ theorem productBehavioral_bind_factor (σ : BehavioralStrategy S)
           (∀ J : ↥used, J ≠ ⟨I, hI⟩ → s₁ J = s₂ J) → g a s₁ = g a s₂) :
     (productBehavioral σ used).bind (fun s => g (s ⟨I, hI⟩) s) =
     (σ I).bind (fun a => (productBehavioral σ used).bind (fun s => g a s)) := by
-  exact NFG.pmfPi_bind_factor (fun J : ↥used => σ J.val) ⟨I, hI⟩ g hg
+  exact pmfPi_bind_factor (fun J : ↥used => σ J.val) ⟨I, hI⟩ g hg
 
 -- ============================================================================
 -- § 4b. NoInfoSetRepeat
@@ -239,13 +239,50 @@ theorem NoInfoSetRepeat_decision_sub {I : Nat}
     (h : NoInfoSetRepeat (GameTree.decision I next)) (a : Fin (S.arity I)) :
     NoInfoSetRepeat (next a) := h.2 a
 
+/-- Every `DecisionNodeIn` witness yields a `ReachBy` path. -/
+theorem DecisionNodeIn_to_ReachBy {I : Nat} {t : GameTree ι S}
+    (h : DecisionNodeIn I t) :
+    ∃ (hist : List HistoryStep) (next : Fin (S.arity I) → GameTree ι S),
+      ReachBy hist t (.decision I next) := by
+  induction h with
+  | root next => exact ⟨[], next, .here _⟩
+  | in_chance n μ f b _ ih =>
+    obtain ⟨hist, next, hr⟩ := ih
+    exact ⟨.chance b.val :: hist, next, .chance b hr⟩
+  | in_decision I' f a _ ih =>
+    obtain ⟨hist, next, hr⟩ := ih
+    exact ⟨.action I' a.val :: hist, next, .action a hr⟩
+
 /-- Perfect recall implies no info set repeats on paths.
     Proof: if info set I appears at the root and in subtree `next a`, then
     the player history at the root is `[]` while at the inner occurrence it
     starts with `(I, a)` — contradicting perfect recall. -/
 theorem PerfectRecall_implies_NoInfoSetRepeat [DecidableEq ι]
     (t : GameTree ι S) (hpr : PerfectRecall t) : NoInfoSetRepeat t := by
-  sorry
+  induction t with
+  | terminal _ => trivial
+  | chance n μ next ih =>
+    intro b
+    apply ih b
+    intro h₁ h₂ J next₁ next₂ hr₁ hr₂
+    have := hpr (.chance b.val :: h₁) (.chance b.val :: h₂) J next₁ next₂
+      (.chance b hr₁) (.chance b hr₂)
+    simpa [playerHistory] using this
+  | decision I next ih =>
+    refine ⟨fun a hmem => ?_, fun a => ?_⟩
+    · -- I ∉ (next a).infoSets: by contradiction via perfect recall
+      obtain ⟨hist, next₂, hr₂⟩ :=
+        DecisionNodeIn_to_ReachBy (DecisionNodeIn_of_mem_infoSets hmem)
+      have key := hpr [] (.action I a.val :: hist) I next next₂
+        (.here _) (.action a hr₂)
+      simp [playerHistory] at key
+    · -- NoInfoSetRepeat (next a): perfect recall propagates to subtrees
+      apply ih a
+      intro h₁ h₂ J next₁ next₂ hr₁ hr₂
+      have key := hpr (.action I a.val :: h₁) (.action I a.val :: h₂) J next₁ next₂
+        (.action a hr₁) (.action a hr₂)
+      simp only [playerHistory] at key
+      by_cases heq : S.player I = S.player J <;> simp_all
 
 -- ============================================================================
 -- § 5. Behavioral → Mixed
@@ -266,7 +303,7 @@ theorem behavioral_to_mixed_aux (σ : BehavioralStrategy S) (t : GameTree ι S)
   | terminal p =>
     -- (prod σ used).bind (fun _ => PMF.pure p) = PMF.pure p
     simp only [GameTree.evalDist]
-    exact NFG.PMF.bind_const_pure _ p
+    exact PMF.bind_const_pure _ p
   | chance n μ next ih =>
     -- Swap μ.bind and product.bind, then apply IH per branch
     simp only [GameTree.evalDist]
@@ -348,25 +385,133 @@ noncomputable def mixedToBehavioral {used : Finset Nat}
   fun I =>
     if hI : I ∈ used then
       let pReach := reachProb μ t I
-      if pReach = 0 then PMF.pure ⟨0, S.arity_pos I⟩
+      if hpR : pReach = 0 then PMF.pure ⟨0, S.arity_pos I⟩
       else
         PMF.ofFintype (fun a =>
           (∑ s : FinPureStrategy S used,
             if s.reachesInfoSet t I ∧ s ⟨I, hI⟩ = a then μ s else 0) / pReach)
-          (by sorry) -- sum-to-one from conditional probability
+          (by -- sum-to-one from conditional probability
+            simp only []
+            simp_rw [div_eq_mul_inv]
+            rw [← Finset.sum_mul]
+            conv_lhs => arg 1; rw [Finset.sum_comm]
+            -- Collapse inner sum: for each s, ∑ a, if(reach ∧ s(I)=a) = if(reach) then μ s else 0
+            have hcollapse : ∀ s : FinPureStrategy S used,
+                (∑ a : Fin (S.arity I),
+                  if s.reachesInfoSet t I ∧ s ⟨I, hI⟩ = a then (μ s : ENNReal) else 0) =
+                if s.reachesInfoSet t I then μ s else 0 := by
+              intro s
+              by_cases hr : s.reachesInfoSet t I
+              · simp only [hr, true_and, Finset.sum_ite_eq, Finset.mem_univ, ite_true]
+              · simp [hr]
+            simp_rw [hcollapse]
+            -- Now: pReach * pReach⁻¹ = 1
+            have hpReach_le : pReach ≤ 1 := by
+              calc pReach
+                  = ∑ s, if s.reachesInfoSet t I then (μ s : ENNReal) else 0 := rfl
+                _ ≤ ∑ s, μ s := Finset.sum_le_sum fun s _ => by split_ifs <;> simp
+                _ = 1 := by
+                    have h := PMF.tsum_coe μ
+                    rwa [tsum_eq_sum (s := Finset.univ)
+                      (fun x hx => absurd (Finset.mem_univ x) hx)] at h
+            exact ENNReal.mul_inv_cancel hpR
+              (ne_of_lt (lt_of_le_of_lt hpReach_le (by simp))))
     else PMF.pure ⟨0, S.arity_pos I⟩
 
-/-- Mixed→Behavioral: under perfect recall, the conditional behavioral strategy
-    induces the same outcome as the mixed strategy.
+/-- `reachesInfoSet` implies membership in `infoSets`. -/
+theorem reachesInfoSet_mem_infoSets {used : Finset Nat}
+    (s : FinPureStrategy S used) (t : GameTree ι S) (I : Nat)
+    (h : s.reachesInfoSet t I) : I ∈ t.infoSets := by
+  induction t with
+  | terminal _ => exact absurd h (by simp [FinPureStrategy.reachesInfoSet])
+  | chance _n _μ next ih =>
+    simp only [FinPureStrategy.reachesInfoSet] at h
+    obtain ⟨b, hb⟩ := h
+    exact Finset.mem_biUnion.mpr ⟨b, Finset.mem_univ b, ih b hb⟩
+  | decision I' next ih =>
+    simp only [FinPureStrategy.reachesInfoSet] at h
+    rcases h with rfl | hsub
+    · exact Finset.mem_insert_self I' _
+    · exact Finset.mem_insert.mpr
+        (Or.inr (Finset.mem_biUnion.mpr
+          ⟨s.toFull I', Finset.mem_univ _, ih (s.toFull I') hsub⟩))
 
-    Proof requires:
-    1. Perfect recall ensures the conditional at each info set is well-defined
-       (same regardless of which node in the info set we're at).
-    2. The conditional behavioral strategy reproduces the original mixed strategy's
-       terminal distribution via a chain-rule-of-probability argument. -/
+/-- Under single-player perfect recall, an info set J ≠ I appears in at most one
+    subtree of a decision node I. -/
+theorem infoSet_unique_subtree [DecidableEq ι]
+    {I : Nat} {next : Fin (S.arity I) → GameTree ι S}
+    (hpr : PerfectRecall (GameTree.decision I next))
+    (hsp : S.player I = S.player J)
+    (J : Nat) (hJI : J ≠ I)
+    (a a' : Fin (S.arity I))
+    (ha : J ∈ (next a).infoSets) (ha' : J ∈ (next a').infoSets) :
+    a = a' := by
+  -- Get ReachBy paths to J from both subtrees
+  obtain ⟨hist₁, next₁, hr₁⟩ :=
+    DecisionNodeIn_to_ReachBy (DecisionNodeIn_of_mem_infoSets ha)
+  obtain ⟨hist₂, next₂, hr₂⟩ :=
+    DecisionNodeIn_to_ReachBy (DecisionNodeIn_of_mem_infoSets ha')
+  -- Build paths from root: go through action a and a' respectively
+  have pr₁ := ReachBy.action a hr₁
+  have pr₂ := ReachBy.action a' hr₂
+  -- By perfect recall, player histories must be equal
+  have key := hpr _ _ J next₁ next₂ pr₁ pr₂
+  -- Player history starts with (I, a) resp (I, a') since player I = player J
+  simp only [playerHistory, hsp] at key
+  exact Fin.val_injective (by omega_nat) -- (I, a.val) :: _ = (I, a'.val) :: _
+    |>.mp (by exact Fin.ext (by simp_all [List.cons.injEq]))
+
+/-- Under single-player perfect recall + NoInfoSetRepeat, reaching J ∈ (next a).infoSets
+    from `decision I next` requires `s.toFull I = a`. -/
+theorem reach_decision_forces_action [DecidableEq ι]
+    {I : Nat} {next : Fin (S.arity I) → GameTree ι S} {used : Finset Nat}
+    (s : FinPureStrategy S used) (J : Nat) (a : Fin (S.arity I))
+    (hJI : J ≠ I)
+    (hJa : J ∈ (next a).infoSets)
+    (hreach : s.reachesInfoSet (GameTree.decision I next) J)
+    (hpr : PerfectRecall (GameTree.decision I next))
+    (hnr : NoInfoSetRepeat (GameTree.decision I next))
+    (hsp : S.player J = S.player I) :
+    s.toFull I = a := by
+  simp only [FinPureStrategy.reachesInfoSet] at hreach
+  rcases hreach with rfl | hsub
+  · exact absurd rfl hJI
+  · -- s reaches J in next (s.toFull I), so J ∈ (next (s.toFull I)).infoSets
+    have hJa' := reachesInfoSet_mem_infoSets s _ J hsub
+    -- By uniqueness, s.toFull I = a
+    exact infoSet_unique_subtree hpr hsp J hJI _ a hJa' hJa
+
+/-- Under single-player perfect recall, reaching J through a decision node I
+    decomposes as: s.toFull I = a ∧ reachesInfoSet in subtree. -/
+theorem reachesInfoSet_decision_iff [DecidableEq ι]
+    {I : Nat} {next : Fin (S.arity I) → GameTree ι S} {used : Finset Nat}
+    (s : FinPureStrategy S used) (J : Nat) (a : Fin (S.arity I))
+    (hJI : J ≠ I) (hJa : J ∈ (next a).infoSets)
+    (hpr : PerfectRecall (GameTree.decision I next))
+    (hnr : NoInfoSetRepeat (GameTree.decision I next))
+    (hsp : S.player J = S.player I) :
+    s.reachesInfoSet (GameTree.decision I next) J ↔
+    (s.toFull I = a ∧ s.reachesInfoSet (next a) J) := by
+  constructor
+  · intro h
+    have ha := reach_decision_forces_action s J a hJI hJa h hpr hnr hsp
+    exact ⟨ha, by rwa [ha] at h; simp [FinPureStrategy.reachesInfoSet, hJI] at h; exact h⟩
+  · intro ⟨ha, hr⟩
+    simp only [FinPureStrategy.reachesInfoSet]
+    exact Or.inr (by rw [ha]; exact hr)
+
+/-- Mixed→Behavioral (single-player / MDP version): under perfect recall
+    for a single player, the conditional behavioral strategy induces the same
+    outcome as the mixed strategy.
+
+    NOTE: The general game-theoretic per-player version follows by fixing other
+    players' strategies and applying this to the resulting single-player game.
+    The original multi-player statement (without hsp) is false — a behavioral
+    strategy cannot reproduce cross-player correlations in a mixed strategy. -/
 theorem mixed_to_behavioral [DecidableEq ι]
     (t : GameTree ι S) (hpr : PerfectRecall t)
-    (μ : PMF (FinPureStrategy S t.infoSets)) :
+    (μ : PMF (FinPureStrategy S t.infoSets))
+    (p : ι) (hsp : ∀ I ∈ t.infoSets, S.player I = p) :
     t.evalDist (mixedToBehavioral μ t) =
     μ.bind (fun s => t.evalDist (fun I => PMF.pure (s.toFull I))) := by
   sorry

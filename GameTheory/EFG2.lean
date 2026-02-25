@@ -110,6 +110,19 @@ noncomputable def GameTree.evalDist {ι : Type} {S : InfoStructure ι}
   | .chance _n μ next => μ.bind (fun b => (next b).evalDist σ)
   | .decision I next => (σ I).bind (fun a => (next a).evalDist σ)
 
+/-- Evaluate under a per-player pure strategy profile. -/
+noncomputable def GameTree.evalTotalProfile {ι : Type} {S : InfoStructure ι}
+    (σ : PureProfile ι S) : GameTree ι S → (ι → ℝ)
+  | .terminal payoff => payoff
+  | .chance n μ next => fun i =>
+      ∑ b : Fin (n + 1), (μ b).toReal * (next b).evalTotalProfile σ i
+  | .decision I next => (next (σ (S.player I) I)).evalTotalProfile σ
+
+/-- Expected utility under a pure strategy, fuel-free. -/
+noncomputable def GameTree.euPure {ι : Type} {S : InfoStructure ι}
+    (σ : PureStrategy S) (who : ι) (t : GameTree ι S) : ℝ :=
+  t.evalTotal σ who
+
 /-- Evaluate under a per-player behavioral profile. -/
 noncomputable def GameTree.evalDistProfile {ι : Type} {S : InfoStructure ι}
     (σ : BehavioralProfile ι S) : GameTree ι S → PMF (GameTheory.Payoff ι)
@@ -128,6 +141,25 @@ noncomputable def GameTree.evalDistProfile {ι : Type} {S : InfoStructure ι}
 @[simp] theorem evalTotal_decision {ι : Type} {S : InfoStructure ι}
     (σ : PureStrategy S) (I : Nat) (next : Fin (S.arity I) → GameTree ι S) :
     (GameTree.decision I next).evalTotal σ = (next (σ I)).evalTotal σ := rfl
+
+@[simp] theorem evalTotal_chance {ι : Type} {S : InfoStructure ι}
+    (σ : PureStrategy S) (n : Nat) (μ : PMF (Fin (n + 1)))
+    (next : Fin (n + 1) → GameTree ι S) :
+    (GameTree.chance n μ next).evalTotal σ = fun i =>
+    ∑ b : Fin (n + 1), (μ b).toReal * (next b).evalTotal σ i := rfl
+
+@[simp] theorem euPure_eq_evalTotal {ι : Type} {S : InfoStructure ι}
+    (σ : PureStrategy S) (who : ι) (t : GameTree ι S) :
+    t.euPure σ who = t.evalTotal σ who := rfl
+
+@[simp] theorem evalTotalProfile_terminal {ι : Type} {S : InfoStructure ι}
+    (σ : PureProfile ι S) (payoff : ι → ℝ) :
+    (GameTree.terminal (S := S) payoff).evalTotalProfile σ = payoff := rfl
+
+@[simp] theorem evalTotalProfile_decision {ι : Type} {S : InfoStructure ι}
+    (σ : PureProfile ι S) (I : Nat) (next : Fin (S.arity I) → GameTree ι S) :
+    (GameTree.decision I next).evalTotalProfile σ =
+    (next (σ (S.player I) I)).evalTotalProfile σ := rfl
 
 @[simp] theorem evalDist_terminal {ι : Type} {S : InfoStructure ι}
     (σ : BehavioralStrategy S) (payoff : GameTheory.Payoff ι) :
@@ -173,6 +205,25 @@ theorem evalDistProfile_const {ι : Type} {S : InfoStructure ι}
   | decision I next ih =>
     simp only [GameTree.evalDistProfile, GameTree.evalDist]
     congr 1; funext a; exact ih a
+
+/-- A constant per-player pure profile agrees with joint pure strategy evaluation. -/
+theorem evalTotalProfile_const {ι : Type} {S : InfoStructure ι}
+    (σ : PureStrategy S) (t : GameTree ι S) :
+    t.evalTotalProfile (fun _ => σ) = t.evalTotal σ := by
+  induction t with
+  | terminal _ => rfl
+  | chance _n _μ next ih =>
+    simp only [GameTree.evalTotalProfile, GameTree.evalTotal]
+    funext i; congr 1; funext b; congr 1; exact congrFun (ih b) i
+  | decision I next ih =>
+    simp only [GameTree.evalTotalProfile, GameTree.evalTotal]
+    exact ih _
+
+/-- EFG outcome kernel: behavioral strategy → PMF over payoffs. -/
+noncomputable def GameTree.toKernel {ι : Type} {S : InfoStructure ι}
+    (t : GameTree ι S) :
+    GameTheory.Kernel (BehavioralStrategy S) (GameTheory.Payoff ι) :=
+  fun σ => t.evalDist σ
 
 -- ============================================================================
 -- § 7. DecisionNodeIn
