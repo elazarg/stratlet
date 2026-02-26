@@ -9,4 +9,7 @@ import GameTheory.NFG_EFG
 import GameTheory.PMFProduct
 import GameTheory.InfoArena
 import GameTheory.MAID
+import GameTheory.MAID_EFG
 import GameTheory.EFGKuhn
+import GameTheory.EFGKuhnFull_claude
+import GameTheory.EFGKuhnFull_codex

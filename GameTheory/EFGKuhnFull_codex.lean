@@ -242,13 +242,13 @@ def SatisfiesPath (s : FlatProfile S) (path : DecPath S) : Prop :=
   ∀ c, c ∈ path -> Satisfies (S := S) s c
 
 /-- Evidence that we can condition along `path` step-by-step (each step has nonzero mass). -/
-def GoodPath (S) (mu : PMF (FlatProfile S)) : DecPath S → Type
+def GoodPath {S} (mu : PMF (FlatProfile S)) : DecPath S → Type
   | [] => PUnit
   | c :: cs =>
       Σ' h : muMarginal (S := S) c.I mu c.a ≠ 0,
         GoodPath (S := S) (muCond (S := S) c.I c.a mu h) cs
 
-noncomputable def muCondPath (S) :
+noncomputable def muCondPath {S} :
     (mu : PMF (FlatProfile S)) → (path : DecPath S) → GoodPath (S := S) mu path → PMF (FlatProfile S)
   | mu, [], _ => mu
   | mu, c :: cs, ⟨h, hgood⟩ =>
@@ -263,10 +263,11 @@ noncomputable def muCondPath (S) :
       muCondPath (S := S)
         (mu := muCond (S := S) c.I c.a mu h.1)
         (path := cs) h.2 := rfl
+
 def RelevantTo (p : S.Player) (c : DecConstraint S) : Prop := c.p = p
 
 noncomputable def FilterPlayer (p : S.Player) (path : DecPath S) : DecPath S :=
-  path.filter (fun c => decide (RelevantTo (S := S) p c))
+  path.filter (fun c => decide (RelevantTo p c))
 
 inductive SubtreeAt : GameTree S Outcome -> DecPath S -> GameTree S Outcome -> Prop where
   | refl (t : GameTree S Outcome) : SubtreeAt t [] t
@@ -298,35 +299,43 @@ noncomputable def qHistory (tRoot : GameTree S Outcome) (q : S.Player)
   (qHistoryList (S := S) (Outcome := Outcome) tRoot q J).toFinset
 
 /-- Extend a good path by one more constraint, using a nonzero-mass proof at the end. -/
-def GoodPath.snoc
+noncomputable def GoodPath.snoc
     (mu : PMF (FlatProfile S)) (path : DecPath S)
     (hpath : GoodPath (S := S) mu path)
     (c : DecConstraint S)
     (hc : muMarginal (S := S) c.I (muCondPath (S := S) (mu := mu) (path := path) hpath) c.a ≠ 0) :
     GoodPath (S := S) mu (path ++ [c]) := by
-  -- prove by recursion on `path`
   induction path generalizing mu with
   | nil =>
       -- path = []
-      -- want: GoodPath mu [c] = Σ' h, GoodPath (muCond ...) []
       exact ⟨hc, ⟨⟩⟩
   | cons c0 cs ih =>
-      -- hpath : Σ' h0, GoodPath (muCond c0 ...) cs
       rcases hpath with ⟨h0, hcs⟩
-      -- recurse under the conditioning
       refine ⟨h0, ?_⟩
-      -- goal: GoodPath (muCond c0 ...) (cs ++ [c])
-      exact ih (mu := muCond (S := S) c0.I c0.a mu h0) (hpath := hcs) c h
+      -- now we are under the conditioned measure
+      exact ih
+        (mu := muCond (S := S) c0.I c0.a mu h0)
+        (hpath := hcs)
+        (hc := hc)
 
 theorem muCondPath_step_eq_append
     (mu : PMF (FlatProfile S)) (path : DecPath S)
     (hpath : GoodPath (S := S) mu path)
     (c : DecConstraint S)
-    (hc : muMarginal (S := S) c.I (muCondPath (S := S) mu path hpath) c.a ≠ 0) :
-    muCond (S := S) c.I c.a (muCondPath (S := S) mu path hpath) hc =
-      muCondPath (S := S) mu (path ++ [c]) (by
-        sorry) := by
-  sorry
+    (hc : muMarginal (S := S) c.I (muCondPath (S := S) (mu := mu) (path := path) hpath) c.a ≠ 0) :
+    muCond (S := S) c.I c.a (muCondPath (S := S) (mu := mu) (path := path) hpath) hc =
+      muCondPath (S := S) (mu := mu) (path := path ++ [c])
+        (GoodPath.snoc (S := S) mu path hpath c hc) := by
+  -- unfold muCondPath on (path ++ [c]); it peels off the final `c` exactly once
+  induction path generalizing mu with
+  | nil =>
+      -- path = []
+      rfl
+  | cons c0 cs ih =>
+      -- reduce both sides under the first step `c0`
+      rcases hpath with ⟨h0, hcs⟩
+      -- both sides start with the same conditioning on c0, so recurse
+      simp [muCondPath, GoodPath.snoc, List.cons_append, ih]
 
 theorem PlayerIndep_muCondPath
     (mu : PMF (FlatProfile S)) (path : DecPath S)
@@ -488,7 +497,6 @@ theorem eval_subtree_decision_step
   classical
 
   -- Expand evalDist at decision
-  simp only [GameTree.evalDist_decision]
 
   -- Replace the behavioral choice at this node using the context lemma
   have hctx :
@@ -497,7 +505,6 @@ theorem eval_subtree_decision_step
       muMarginal (S := S) I0 (muCondPath (S := S) mu pi hgood) := by
     exact mixedToBehavioral_context_eq (S := S) (Outcome := Outcome)
       (mu := mu) (tRoot := tRoot) hpr hind pi hgood (pOwner := pOwner) (I0 := I0) hreach
-  rw [hctx]
 
   -- Now LHS is (muMarginal ...).bind (fun a => ...)
   -- Unfold muMarginal and reassociate binds: bind_bind + pure_bind

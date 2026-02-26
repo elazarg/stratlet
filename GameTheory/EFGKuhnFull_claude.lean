@@ -8,8 +8,25 @@ N-player Kuhn theorem: for any mixed-strategy profile (product of per-player
 distributions) under perfect recall, there exists a behavioral-strategy profile
 giving the same outcome distribution.
 
-The proof introduces `PlayerIndep` (the flat distribution is a product over
-player slices) and shows the conditioning operations preserve this structure.
+## Architecture
+
+**Layer 1 (§ 0–3)**: Flat/pure profile equivalence, mixed profiles, and
+player-independence (`PlayerIndep`).
+
+**Layer 2 (§ 4)**: `μMarginal_of_pmfPureToFlat` — proved using `pmfPi_coord_mass`
+from `PMFProduct.lean`. This was an axiom in the original attempt.
+
+**Layer 3 (§ 5)**: Cross-player compatibility axioms — the only axioms in this file.
+
+**Layer 4 (§ 6–7)**: N-player mixed → behavioral theorem and Kuhn's theorem.
+
+## Axiom inventory (2 axioms)
+
+1. `mixedToBehavioralFlat_chance_eq_general_axiom` — chance cross-player compatibility
+2. `mixedToBehavioralFlat_decision_sub_general_axiom` — decision cross-player compatibility
+
+Both follow from perfect recall + player independence. They could be proved with
+~200 more lines of path-decomposition + product-PMF analysis.
 -/
 
 namespace EFG
@@ -73,7 +90,7 @@ noncomputable def pmfPureToFlat (μ : PMF (PureProfile S)) : PMF (FlatProfile S)
   μ.bind (fun π => PMF.pure (flatProfileEquivPureProfile.symm π))
 
 -- ============================================================================
--- § 4. Player independence and generalized compatibility lemmas
+-- § 4. Player independence and PMF bridge lemmas
 -- ============================================================================
 
 /-- The flat distribution from a mixed-profile joint evaluates pointwise as a product. -/
@@ -108,7 +125,6 @@ theorem PlayerIndep_pmfPureToFlat (μP : MixedProfile S) :
     PlayerIndep (pmfPureToFlat (mixedProfileJoint μP)) :=
   ⟨μP, rfl⟩
 
-
 /-- Conditioning on a single player's action preserves player-independence. -/
 theorem PlayerIndep_μCond {p_owner : S.Player}
     {I₀ : S.Infoset p_owner} {a : S.Act I₀}
@@ -117,7 +133,6 @@ theorem PlayerIndep_μCond {p_owner : S.Player}
     PlayerIndep (μCond I₀ a μ) := by
   obtain ⟨f, hf⟩ := hind
   let p_a := μMarginal I₀ μ a
-  -- A is the scaling factor for player p_owner's pure strategies
   let A := ∑ s_p : PureStrategy S p_owner,
     if s_p I₀ = a then (f p_owner s_p : ENNReal) else 0
   have hp_a_eq : p_a = ∑ s : FlatProfile S, if s ⟨p_owner, I₀⟩ = a then μ s else 0 := by
@@ -161,10 +176,8 @@ theorem PlayerIndep_μCond {p_owner : S.Player}
       (if s_p I₀ = a then (f p_owner s_p : ENNReal) else 0) / A) = 1 := by
     simp_rw [div_eq_mul_inv, ← Finset.sum_mul]
     exact ENNReal.mul_inv_cancel h_A_ne_zero h_A_ne_top
-  -- Construct the conditioned distribution for p_owner
   let f'_owner : PMF (PureStrategy S p_owner) :=
     PMF.ofFintype (fun s_p => (if s_p I₀ = a then f p_owner s_p else 0) / A) h_f'_sum
-  -- The new independent joint distribution
   let f' : (q : S.Player) → PMF (PureStrategy S q) := fun q =>
     if h : q = p_owner then h ▸ f'_owner else f q
   have h_f'_owner_eval : ∀ s_p : PureStrategy S p_owner,
@@ -176,7 +189,6 @@ theorem PlayerIndep_μCond {p_owner : S.Player}
       f' q s_q = f q s_q := by
     intro q hq s_q
     simp [f', hq]
-  -- Prove that the product of the new distributions equals the scaled original distribution
   have h_prod_f' : ∀ π : PureProfile S, (∏ q, f' q (π q)) =
       (if π p_owner I₀ = a then μ (flatProfileEquivPureProfile.symm π) else 0) / A := by
     intro π
@@ -205,7 +217,6 @@ theorem PlayerIndep_μCond {p_owner : S.Player}
       rfl
     rw [h_prod_eq] at h_mu_s
     exact h_mu_s.symm
-  -- The sum over all joint pure profiles of a PMF product is 1
   have h_sum_prod_f' : (∑ π : PureProfile S, ∏ q, f' q (π q)) = 1 := by
     have h_pmf := PMF.tsum_coe (pmfPi (A := fun p => PureStrategy S p) f')
     have h_eq : (∑' (a : PureProfile S), pmfPi f' a) =
@@ -220,15 +231,11 @@ theorem PlayerIndep_μCond {p_owner : S.Player}
     simp_rw [div_eq_mul_inv, ← Finset.sum_mul]
     congr 1
     rw [hp_a_eq]
-    have h_comp := Equiv.sum_comp flatProfileEquivPureProfile.symm
-      (fun s => if s ⟨p_owner, I₀⟩ = a then (μ s : ENNReal) else 0)
     exact
       Fintype.sum_equiv flatProfileEquivPureProfile.symm
         (fun x ↦ if x p_owner I₀ = a then μ (flatProfileEquivPureProfile.symm x) else 0)
         (fun x ↦ if x ⟨p_owner, I₀⟩ = a then μ x else 0) fun x ↦
         congrFun (congrFun rfl (μ (flatProfileEquivPureProfile.symm x))) 0
-  -- Use the PMF sum constraint to prove that our scaling factor A
-  -- is exactly the marginal probability
   have h_p_a_eq_A : p_a = A := by
     have h_eq1 : p_a / A = 1 := by
       calc p_a / A = ∑ π : PureProfile S, (if π p_owner I₀ = a
@@ -263,28 +270,20 @@ theorem PlayerIndep_μCond {p_owner : S.Player}
   have h_pi : (flatProfileEquivPureProfile s) p_owner I₀ = s ⟨p_owner, I₀⟩ := rfl
   rw [h_pi] at h_eval
   have h_cond_apply := μCond_apply I₀ a μ s hpa
-  -- Explicitly cast the marginal to A
   have hp_a_to_A : (μMarginal I₀ μ) a = A := h_p_a_eq_A
   rw [hp_a_to_A] at h_cond_apply
-  -- Pull the division outside the indicator function
   have h_ite_div : (if s ⟨p_owner, I₀⟩ = a then μ s / A else 0) =
       (if s ⟨p_owner, I₀⟩ = a then μ s else 0) / A := by
     split_ifs <;> simp
   rw [h_ite_div] at h_cond_apply
-  -- Rewrite the LHS to match our evaluated conditional
   rw [h_cond_apply]
-  -- Expand the RHS from the packed PMF into the explicit player product
   rw [pmfPureToFlat_apply f' s]
-  -- Now the goal is exactly h_eval.symm
-  -- (since flatProfileEquivPureProfile s q is definitionally fun I => s ⟨q, I⟩)
   exact h_eval.symm
 
+-- ---------------------------------------------------------------------------
+-- Helper: profile swap and slicing
+-- ---------------------------------------------------------------------------
 
--- ---------------------------------------------------------------------------
--- Helper: under PlayerIndep, conditioning on p_owner’s action only changes
--- p_owner’s factor, so q-marginals are unchanged when q ≠ p_owner.
--- ---------------------------------------------------------------------------
--- 1. The Involution
 def profileSwap (s s' : FlatProfile S) (q : S.Player) : FlatProfile S :=
   fun idx => if idx.1 = q then s' idx else s idx
 
@@ -307,7 +306,7 @@ abbrev slice (s : FlatProfile S) (p : S.Player) : PureStrategy S p :=
 
 end
 
--- Stronger version: gives a witness f' plus “unchanged on other players”.
+-- Stronger version: gives a witness f' plus "unchanged on other players".
 theorem PlayerIndep_μCond_witness {S : InfoStructure}
     {p_owner : S.Player} {I₀ : S.Infoset p_owner} {a : S.Act I₀}
     {μ : PMF (FlatProfile S)} (hind : PlayerIndep (S := S) μ)
@@ -317,11 +316,9 @@ theorem PlayerIndep_μCond_witness {S : InfoStructure}
       μCond (S := S) I₀ a μ = pmfPureToFlat (S := S) (mixedProfileJoint (S := S) f') ∧
       (∀ q : S.Player, q ≠ p_owner → f' q = f q) := by
   classical
-  -- 1) extract f from hind.apply
   obtain ⟨_, hfac⟩ := PlayerIndep.apply (S := S) (μ := μ) hind
   obtain ⟨f, hf⟩ := hind
   let p_a := μMarginal I₀ μ a
-  -- A is the scaling factor for player p_owner's pure strategies
   let A := ∑ s_p : PureStrategy S p_owner,
     if s_p I₀ = a then (f p_owner s_p : ENNReal) else 0
   have hp_a_eq : p_a = ∑ s : FlatProfile S, if s ⟨p_owner, I₀⟩ = a then μ s else 0 := by
@@ -420,8 +417,6 @@ theorem PlayerIndep_μCond_witness {S : InfoStructure}
     simp_rw [div_eq_mul_inv, ← Finset.sum_mul]
     congr 1
     rw [hp_a_eq]
-    have h_comp := Equiv.sum_comp flatProfileEquivPureProfile.symm
-      (fun s => if s ⟨p_owner, I₀⟩ = a then (μ s : ENNReal) else 0)
     exact
       Fintype.sum_equiv flatProfileEquivPureProfile.symm
         (fun x ↦ if x p_owner I₀ = a then μ (flatProfileEquivPureProfile.symm x) else 0)
@@ -484,82 +479,80 @@ theorem PlayerIndep_μCond_witness {S : InfoStructure}
     ext s_q
     exact h_f'_other q hq s_q
 
-abbrev Other (q : S.Player) := { r : S.Player // r ≠ q }
+-- ============================================================================
+-- § 4b. μMarginal of pmfPureToFlat — PROVED (was axiom in EFGKuhnFull.lean)
+-- ============================================================================
 
--- If you use `OtherProfile` as a Pi over `Other`, this will now work:
-abbrev OtherProfile {S : InfoStructure} (q : S.Player) : Type :=
-  (r : Other (S := S) q) → PureStrategy S r.1
-
-instance {S : InfoStructure} (q : S.Player) : Fintype (OtherProfile (S := S) q) := by
+/-- Helper: the sum of a PMF product over all assignments, filtered by a
+    coordinate condition, equals the corresponding single-coordinate sum. -/
+private lemma sum_pmfPureToFlat_filter_coord
+    (f : (p : S.Player) → PMF (PureStrategy S p))
+    {q : S.Player} (J : S.Infoset q) (aj : S.Act J) :
+    (∑ s : FlatProfile S, if s ⟨q, J⟩ = aj then (pmfPureToFlat (mixedProfileJoint f)) s else 0)
+      = ∑ s_q : PureStrategy S q, if s_q J = aj then f q s_q else 0 := by
   classical
-  dsimp [OtherProfile]
-  infer_instance
+  -- Rewrite pmfPureToFlat in terms of per-player products
+  simp_rw [fun s => show (pmfPureToFlat (mixedProfileJoint f)) s =
+    ∏ p : S.Player, f p (fun I => s ⟨p, I⟩) from pmfPureToFlat_apply f s]
+  -- Reindex via the flat↔pure equivalence
+  rw [show (∑ s : FlatProfile S,
+        if s ⟨q, J⟩ = aj then ∏ p, f p (fun I => s ⟨p, I⟩) else 0) =
+      (∑ π : PureProfile S,
+        if π q J = aj then ∏ p, f p (π p) else 0) from by
+    exact Fintype.sum_equiv flatProfileEquivPureProfile
+      (fun s => if s ⟨q, J⟩ = aj then ∏ p, f p (fun I => s ⟨p, I⟩) else 0)
+      (fun π => if π q J = aj then ∏ p, f p (π p) else 0)
+      (fun s => by simp [flatProfileEquivPureProfile])]
+  -- Use pmfPi_coord_mass: ∑ π, if π q = s_q then ∏ p, f p (π p) = f q s_q
+  have h_coord : ∀ s_q : PureStrategy S q,
+      (∑ π : PureProfile S, if π q = s_q then (∏ p, f p (π p)) else 0) = f q s_q := by
+    intro s_q
+    have := pmfPi_coord_mass (A := fun p => PureStrategy S p) f q s_q
+    simpa [pmfPi_apply] using this
+  -- Partition the outer sum by π q
+  rw [show (∑ π : PureProfile S, if π q J = aj then ∏ p, f p (π p) else 0) =
+      ∑ s_q : PureStrategy S q, ∑ π : PureProfile S,
+        if (π q = s_q ∧ s_q J = aj) then ∏ p, f p (π p) else 0 from by
+    rw [Finset.sum_comm]
+    apply Finset.sum_congr rfl; intro π _
+    rw [Finset.sum_eq_single (π q)]
+    · simp
+    · intro s_q _ hne; simp [show ¬(π q = s_q) from fun h => hne h.symm]
+    · intro h; exact absurd (Finset.mem_univ _) h]
+  apply Finset.sum_congr rfl; intro s_q _
+  by_cases hsq : s_q J = aj
+  · simp only [hsq, and_true, ↓reduceIte]
+    exact h_coord s_q
+  · simp only [hsq, and_false, ↓reduceIte, Finset.sum_const_zero]
 
--- assuming S.Player = Fin S.n, so fintype exists already.
-instance (S : InfoStructure) (q : S.Player) : Fintype { r : S.Player // r ≠ q } := by
-  classical
-  infer_instance
+/-- The marginal of the flat product distribution at infoset J of player q
+    equals the q-factor marginalized at J.
 
-instance (S : InfoStructure) (q : S.Player) : Fintype (OtherProfile (S := S) q) :=
-by
-  classical
-  -- Pi.instFintype expects: Fintype domain, and ∀ a, Fintype (codomain a)
-  dsimp [OtherProfile]
-  exact Pi.instFintype
-
-noncomputable def pureProfileSplit {S : InfoStructure} (q : S.Player) :
-    PureProfile S ≃ (PureStrategy S q × OtherProfile q) where
-  toFun π := (π q, fun r => π r.1)
-  invFun x :=
-    fun p =>
-      if h : p = q then by
-        subst h; exact x.1
-      else
-        x.2 ⟨p, h⟩
-  left_inv := by
-    intro π; funext p
-    by_cases h : p = q
-    · subst h; simp
-    · simp [h]
-  right_inv := by
-    intro x
-    cases x with
-    | mk sq rest =>
-      apply Prod.ext
-      · simp
-      · funext r
-        simp only [ne_eq, r.property, ↓reduceDIte]
-
-@[simp] lemma pureProfileSplit_symm_apply_self
-    {S : InfoStructure} (q : S.Player)
-    (x : PureStrategy S q × OtherProfile q) :
-    (pureProfileSplit (S := S) q).symm x q = x.1 := by
-  simp [pureProfileSplit]
-
-@[simp] lemma pureProfileSplit_symm_apply_other
-    {S : InfoStructure} {q r : S.Player} (hr : r ≠ q)
-    (x : PureStrategy S q × OtherProfile q) :
-    (pureProfileSplit (S := S) q).symm x r = x.2 ⟨r, hr⟩ := by
-  simp [pureProfileSplit, hr]
-
+    **PROVED** using `pmfPi_coord_mass` from `PMFProduct.lean`.
+    This was `μMarginal_of_pmfPureToFlat_axiom` in `EFGKuhnFull.lean`. -/
 lemma μMarginal_of_pmfPureToFlat
     (f : (p : S.Player) → PMF (PureStrategy S p))
     {q : S.Player} (J : S.Infoset q) (aj : S.Act J) :
     μMarginal (S := S) J (pmfPureToFlat (S := S) (mixedProfileJoint (S := S) f)) aj
       =
-    ∑ s_q : PureStrategy S q, (if aj = s_q J then f q s_q else 0) := by
+    ∑ s_q : PureStrategy S q, (if s_q J = aj then f q s_q else 0) := by
   classical
-  simp only [μMarginal, mixedProfileJoint, PMF.bind_apply, PMF.pure_apply, mul_ite, mul_one,
+  -- Unfold μMarginal to a sum with indicator
+  simp only [μMarginal, PMF.bind_apply, PMF.pure_apply, mul_ite, mul_one,
     mul_zero, tsum_fintype]
-  -- S : InfoStructure
-  -- f : (p : S.Player) → PMF (PureStrategy S p)
-  -- q : S.Player
-  -- J : S.Infoset q
-  -- aj : S.Act J
-  -- ⊢ (∑ a, if aj = a ⟨q, J⟩ then (pmfPureToFlat (pmfPi f)) a else 0) = ∑ s_q, if aj = s_q J then (f q) s_q else 0
-  sorry
+  -- Goal: ∑ s, if aj = s ⟨q, J⟩ then (pmfPureToFlat (mixedProfileJoint f)) s else 0
+  --     = ∑ s_q, if s_q J = aj then f q s_q else 0
+  -- Flip LHS indicator to match helper's convention (s ⟨q, J⟩ = aj)
+  simp_rw [@eq_comm _ aj]
+  exact sum_pmfPureToFlat_filter_coord f J aj
 
-lemma PlayerIndep.μMarginal_μCond_other {S : InfoStructure} {Outcome : Type}
+-- ============================================================================
+-- § 4c. μMarginal invariance under conditioning on other players — PROVED
+-- ============================================================================
+
+/-- Under player-independence, conditioning on p_owner's action at I₀
+    does not change q-marginals when q ≠ p_owner. -/
+lemma PlayerIndep.μMarginal_μCond_other {S : InfoStructure}
     {μ : PMF (FlatProfile S)} (hind : PlayerIndep (S := S) μ)
     {p_owner : S.Player} {I₀ : S.Infoset p_owner} {a : S.Act I₀}
     (hpa : μMarginal (S := S) I₀ μ a ≠ 0)
@@ -567,55 +560,84 @@ lemma PlayerIndep.μMarginal_μCond_other {S : InfoStructure} {Outcome : Type}
     {J : S.Infoset q} :
     μMarginal (S := S) J (μCond (S := S) I₀ a μ) = μMarginal (S := S) J μ := by
   classical
-  -- Get f,f' with “other players unchanged”, and the factorization of μ.
   obtain ⟨f, f', hfac, hcond, hsame⟩ :=
     PlayerIndep_μCond_witness (S := S) (μ := μ) hind hpa
-  -- Rewrite μ using hfac into pmfPureToFlat(mixedProfileJoint f)
   have hμ : μ = pmfPureToFlat (S := S) (mixedProfileJoint (S := S) f) := by
     ext s
     simpa [pmfPureToFlat_apply (S := S), slice] using (hfac s)
-  -- Now compute both marginals using the “pmfPureToFlat marginal” lemma.
   ext aj
-  -- LHS: use hcond, RHS: use hμ.
-  simp [hcond, hμ, μMarginal_of_pmfPureToFlat (S := S), hsame q hq]
-  -- S : InfoStructure
-  -- Outcome : Type
-  -- μ : PMF (FlatProfile S)
-  -- hind : PlayerIndep μ
-  -- p_owner : S.Player
-  -- I₀ : S.Infoset p_owner
-  -- a : S.Act I₀
-  -- hpa : (μMarginal I₀ μ) a ≠ 0
-  -- q : S.Player
-  -- hq : q ≠ p_owner
-  -- J : S.Infoset q
-  -- f f' : MixedProfile S
-  -- hfac : ∀ (s : FlatProfile S), μ s = ∏ p, (f p) (slice s p)
-  -- hcond : μCond I₀ a μ = pmfPureToFlat (mixedProfileJoint f')
-  -- hsame : ∀ (q : S.Player), q ≠ p_owner → f' q = f q
-  -- hμ : μ = pmfPureToFlat (mixedProfileJoint f)
-  -- aj : S.Act J
-  -- ⊢ (μMarginal J (μCond I₀ a (pmfPureToFlat (mixedProfileJoint f)))) aj = ∑ s_q, if aj = s_q J then (f q) s_q else 0
-  sorry
+  rw [hcond]
+  rw [μMarginal_of_pmfPureToFlat (S := S) f' J aj]
+  rw [hμ]
+  rw [μMarginal_of_pmfPureToFlat (S := S) f J aj]
+  congr 1; funext s_q
+  congr 1
+  have h := hsame q hq
+  exact congrArg (· s_q) h
 
-/-- Generalized chance compatibility: under player-independence + perfect recall,
-    `mixedToBehavioralFlat` at a chance node equals that at any specific branch.
-    The q-relevant part of the reach condition is the same across branches
-    (by perfect recall), and the non-q parts cancel in the ratio (by independence). -/
-theorem mixedToBehavioralFlat_chance_eq_general {q : S.Player}
+-- ============================================================================
+-- § 5. Cross-player compatibility AXIOMS
+-- ============================================================================
+
+/-- Generalized chance compatibility.
+
+Under player-independence + perfect recall, `mixedToBehavioralFlat` at a chance
+node equals that at any specific branch (for cross-player infosets).
+
+This is correct because:
+- The q-relevant reachability condition is the same across branches
+  (by perfect recall: all branches lead through the same q-history)
+- The non-q parts (chance branch selection) cancel in the ratio
+  (by player independence: q's distribution is independent of nature's moves)
+
+For the same-player case, this is already proved as
+`mixedToBehavioralFlat_chance_eq` in `EFGKuhn.lean`. -/
+theorem mixedToBehavioralFlat_chance_eq_general_axiom
+    {S : InfoStructure} {Outcome : Type}
+    {q : S.Player}
     {μ : PMF (FlatProfile S)} {k : Nat} {μ_c : PMF (Fin k)} {hk : 0 < k}
     {next : Fin k → GameTree S Outcome} {b : Fin k}
     (hpr : PerfectRecall (.chance k μ_c hk next))
     (hind : PlayerIndep μ)
     {J : S.Infoset q} (hJ : DecisionNodeIn J (next b)) :
     mixedToBehavioralFlat (p := q) μ (.chance k μ_c hk next) J =
-    mixedToBehavioralFlat (p := q) μ (next b) J := by
-  sorry
+    mixedToBehavioralFlat (p := q) μ (next b) J := sorry
 
-/-- Generalized decision compatibility: under player-independence + perfect recall,
-    `mixedToBehavioralFlat` is compatible across decision nodes.
-    For the owner (q = p_owner), reduces to `mixedToBehavioralFlat_decision_sub`.
-    For cross-player (q ≠ p_owner), the non-q parts cancel by independence. -/
+/-- Generalized decision compatibility (cross-player case only).
+
+Under player-independence + perfect recall, for q ≠ p_owner,
+`mixedToBehavioralFlat` is the same whether computed at the decision parent
+or at the subtree under the conditioned distribution.
+
+This is correct because:
+- The q-relevant reachability conditions are the same
+  (q's reach doesn't depend on p_owner's action, by player independence)
+- Conditioning on p_owner's action only changes p_owner's factor
+  (by `PlayerIndep_μCond_witness`)
+- The q-marginal is unchanged (by `μMarginal_μCond_other`)
+- Therefore the ratio Pr[s(J)=b ∧ reach(J)] / Pr[reach(J)] is unchanged
+
+For the same-player case (q = p_owner), this is already proved as
+`mixedToBehavioralFlat_decision_sub` in `EFGKuhn.lean`. -/
+theorem mixedToBehavioralFlat_decision_sub_cross_axiom
+    {S : InfoStructure} {Outcome : Type}
+    {p_owner : S.Player}
+    {I₀ : S.Infoset p_owner} {next : S.Act I₀ → GameTree S Outcome} {a : S.Act I₀}
+    (hpr : PerfectRecall (.decision I₀ next))
+    (μ : PMF (FlatProfile S)) (hpa : μMarginal (S := S) I₀ μ a ≠ 0)
+    (hind : PlayerIndep (S := S) μ)
+    {q : S.Player} (hq : q ≠ p_owner)
+    {J : S.Infoset q} (hJ : DecisionNodeIn J (next a)) :
+    mixedToBehavioralFlat (S := S) (p := q) μ (.decision (p := p_owner) I₀ next) J =
+    mixedToBehavioralFlat (S := S) (p := q) (μCond (S := S) I₀ a μ) (next a) J :=
+    sorry
+
+-- ============================================================================
+-- § 5b. Combined compatibility lemmas (same-player proved + cross-player axiom)
+-- ============================================================================
+
+/-- Generalized decision compatibility: handles both same-player (proved)
+    and cross-player (axiom) cases. -/
 theorem mixedToBehavioralFlat_decision_sub_general
     {p_owner : S.Player}
     {I₀ : S.Infoset p_owner} {next : S.Act I₀ → GameTree S Outcome} {a : S.Act I₀}
@@ -629,39 +651,17 @@ theorem mixedToBehavioralFlat_decision_sub_general
   by_cases hqp : q = p_owner
   · subst hqp
     exact mixedToBehavioralFlat_decision_sub (S := S) hpr μ hpa hJ
-  · -- cross-player:
-    -- show that both numerator and denominator in mixedToBehavioralFlat are unchanged,
-    -- because conditioning on p_owner only changes p_owner’s slice distribution.
-    --
-    -- This is exactly where you use μMarginal_μCond_other and (the analogous lemma for reachProb/numerator)
-    -- but in practice you prove the “numerator/denominator invariance” by rewriting them as sums
-    -- that depend only on q’s slice distribution, and then reuse μMarginal invariance.
-    -- S : InfoStructure
-    -- Outcome : Type
-    -- p_owner : S.Player
-    -- I₀ : S.Infoset p_owner
-    -- next : S.Act I₀ → GameTree S Outcome
-    -- a : S.Act I₀
-    -- hpr : PerfectRecall (GameTree.decision I₀ next)
-    -- μ : PMF (FlatProfile S)
-    -- hpa : (μMarginal I₀ μ) a ≠ 0
-    -- hind : PlayerIndep μ
-    -- q : S.Player
-    -- J : S.Infoset q
-    -- hJ : DecisionNodeIn J (next a)
-    -- hqp : ¬q = p_owner
-    -- ⊢ mixedToBehavioralFlat μ (GameTree.decision I₀ next) J = mixedToBehavioralFlat (μCond I₀ a μ) (next a) J
-    sorry
+  · exact mixedToBehavioralFlat_decision_sub_cross_axiom hpr μ hpa hind hqp hJ
 
 -- ============================================================================
--- § 5. N-player mixed → behavioral
+-- § 6. N-player mixed → behavioral
 -- ============================================================================
 
 /-- The N-player behavioral profile from a flat distribution:
     at each infoset I of player p, condition on reaching I in the original tree. -/
 noncomputable def mixedToBehavioralFull
     (μ : PMF (FlatProfile S)) (t : GameTree S Outcome) : BehavioralProfile S :=
-  fun p => mixedToBehavioralFlat μ t
+  fun _p => mixedToBehavioralFlat μ t
 
 /-- **Core N-player lemma**: the full conditional behavioral profile
     gives the same outcome distribution as the original flat distribution.
@@ -682,7 +682,7 @@ theorem mixed_to_behavioral_nplayer (t : GameTree S Outcome) (hpr : PerfectRecal
       (mixedToBehavioralFull μ (next b))
       (fun {q} {J} hdn => by
         simp only [mixedToBehavioralFull]
-        exact mixedToBehavioralFlat_chance_eq_general hpr hind hdn)
+        exact mixedToBehavioralFlat_chance_eq_general_axiom hpr hind hdn)
     rw [h_agree]
     exact ih b (PerfectRecall_chance_sub hpr b) μ hind
   | decision I₀ next ih =>
@@ -742,7 +742,7 @@ theorem mixed_to_behavioral_nplayer (t : GameTree S Outcome) (hpr : PerfectRecal
             rw [← h_restrict]
 
 -- ============================================================================
--- § 6. Connecting joint pure distribution to flat distribution
+-- § 7. Connecting joint pure distribution to flat distribution
 -- ============================================================================
 
 /-- The RHS of the N-player theorem can be rewritten using flat profiles. -/
@@ -755,7 +755,7 @@ theorem rhs_eq_flat_bind (t : GameTree S Outcome) (μP : MixedProfile S) :
   rw [← pureProfileToBehavioral_eq_flatToBehavioral]
 
 -- ============================================================================
--- § 7. N-player Kuhn theorem
+-- § 8. N-player Kuhn theorem
 -- ============================================================================
 
 /-- **Kuhn's theorem (mixed → behavioral, N-player)**.
@@ -767,12 +767,8 @@ theorem kuhn_mixed_to_behavioral
     ∃ (σ : BehavioralProfile S),
       t.evalDist σ =
       (mixedProfileJoint μP).bind (fun π => t.evalDist (pureProfileToBehavioral π)) := by
-  -- The witness: for each player p, condition the joint flat distribution
-  -- on reaching each of p's infosets in the original tree.
   use mixedToBehavioralFull (pmfPureToFlat (mixedProfileJoint μP)) t
-  -- Step 1: Rewrite RHS using flat profiles
   rw [rhs_eq_flat_bind]
-  -- Step 2: Apply the N-player mixed → behavioral theorem
   exact mixed_to_behavioral_nplayer t hpr _ (PlayerIndep_pmfPureToFlat μP)
 
 end EFG
