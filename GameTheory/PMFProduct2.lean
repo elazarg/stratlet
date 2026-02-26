@@ -9,12 +9,10 @@ universe uι uA uα uβ uγ
 
 set_option autoImplicit false
 
-namespace GameTheory
-
 namespace PMFProduct
 
 -- ============================================================================
--- § Aux. Helpers (private, used by later proofs)
+-- § 1. Auxiliary Helpers
 -- ============================================================================
 
 private lemma pmf_sum_eq_one {α : Type*} [Fintype α] (μ : PMF α) :
@@ -72,13 +70,15 @@ lemma sum_univ_eq_sum_univ_of_involutive
 end Aux
 
 -- ============================================================================
--- § Core
+-- § 2. Product PMF & Coordinate Independence
 -- ============================================================================
 
 section Core
 
 variable {ι : Type uι} [Fintype ι] [DecidableEq ι]
 variable {A : ι → Type uA}
+
+-- ---- Product PMF --------------------------------------------------------
 
 /-- Product PMF over a finite index type: independently sample each coordinate. -/
 noncomputable def pmfPi [∀ i, Fintype (A i)] (σ : ∀ i, PMF (A i)) : PMF (∀ i, A i) :=
@@ -91,6 +91,8 @@ noncomputable def pmfPi [∀ i, Fintype (A i)] (σ : ∀ i, PMF (A i)) : PMF (�
     (σ : ∀ i, PMF (A i)) (s : ∀ i, A i) :
     pmfPi (A := A) σ s = ∏ i, σ i (s i) := by
   simp [pmfPi, PMF.ofFintype_apply]
+
+-- ---- Assignment operations -----------------------------------------------
 
 /-- Coordinate projection. -/
 @[simp] def coord (j : ι) (s : (∀ i, A i)) : A j := s j
@@ -109,24 +111,52 @@ omit [Fintype ι] in
     update (A := A) s j a i = s i := by
   simp [update, h]
 
+-- ---- Coordinate independence (Ignores) -----------------------------------
+
 /-- "`F` ignores coordinate `j`": updating `j` does not change `F`. -/
 def Ignores {α : Type uα} (j : ι) (F : (∀ i, A i) → α) : Prop :=
   ∀ s a, F (update (A := A) s j a) = F s
 
+/-- "`G a0 s` ignores coordinate `j` in `s`", uniformly in the external parameter `a0`. -/
+def Ignores₂ {α : Type uα} (j : ι) (G : A j → (∀ i, A i) → α) : Prop :=
+  ∀ a0 s a, G a0 (update (A := A) s j a) = G a0 s
 
--- ======================================================================
--- § Ignores algebra (closure properties you will use everywhere)
--- ======================================================================
+omit [Fintype ι] in
+/-- A pointwise (extensional) criterion implying `Ignores`. -/
+lemma Ignores_of_pointwise {α : Type uα} (j : ι) (F : (∀ i, A i) → α)
+    (h : ∀ s₁ s₂, (∀ i, i ≠ j → s₁ i = s₂ i) → F s₁ = F s₂) :
+    Ignores (A := A) j F := by
+  intro s a
+  apply h (update (A := A) s j a) s
+  intro i hi
+  simp [update, hi]
+
+omit [Fintype ι] in
+/-- A pointwise (extensional) criterion implying `Ignores₂`. -/
+lemma Ignores₂_of_pointwise {α : Type uα} (j : ι) (G : A j → (∀ i, A i) → α)
+    (h : ∀ a0 s₁ s₂, (∀ i, i ≠ j → s₁ i = s₂ i) → G a0 s₁ = G a0 s₂) :
+    Ignores₂ (A := A) j G := by
+  intro a0 s a
+  apply h a0 (update (A := A) s j a) s
+  intro i hi
+  simp [update, hi]
+
+omit [Fintype ι] in
+lemma Ignores_coord_eq (j q : ι) (hq : q ≠ j) (a : A q) :
+  Ignores (A := A) j (fun s => s q = a) := by
+    intro s b; simp [update, hq]
+
+omit [Fintype ι] in
+lemma Ignores_coord_pred (j q : ι) (hq : q ≠ j) (E : A q → Prop) :
+  Ignores (A := A) j (fun s => E (s q)) := by
+    intro s b; simp [update, hq]
+
+-- ---- Ignores algebra (closure properties) --------------------------------
 
 section IgnoresAlgebra
 
 variable {ι : Type uι} [DecidableEq ι]
 variable {A : ι → Type uA}
-
--- reuse your `update`, `Ignores`, `Ignores₂`
---   update   : (∀ i, A i) → ι → A j → (∀ i, A i)
---   Ignores  : ι → ((∀ i, A i) → α) → Prop
---   Ignores₂ : ι → (A j → (∀ i, A i) → α) → Prop
 
 /-- Prop-flavored version: ignoring a coordinate means iff, not Prop-equality. -/
 def IgnoresP (j : ι) (P : (∀ i, A i) → Prop) : Prop :=
@@ -136,7 +166,6 @@ def IgnoresP (j : ι) (P : (∀ i, A i) → Prop) : Prop :=
 lemma IgnoresP_of_Ignores (j : ι) (P : (∀ i, A i) → Prop)
     (h : Ignores (A := A) j P) : IgnoresP (A := A) j P := by
   intro s a
-  -- P (update s j a) = P s, so rewrite to iff
   simp only [update]
   exact Eq.to_iff (h s a)
 
@@ -146,9 +175,7 @@ lemma Ignores_of_IgnoresP (j : ι) (P : (∀ i, A i) → Prop)
   intro s a
   exact propext (h s a)
 
--- --------------------------
--- Generic (Type-valued) algebra
--- --------------------------
+-- Generic (Type-valued) closure
 
 lemma Ignores_const {α : Type uα} (j : ι) (c : α) :
     Ignores (A := A) j (fun _ => c) := by
@@ -201,9 +228,7 @@ lemma Ignores_ite {α : Type uα} (j : ι)
       intro h; exact hcs ((hc'.1) h)
     exact if_ctx_congr (hc s a) (fun a_1 ↦ ht s a) fun a_1 ↦ he s a
 
--- --------------------------
--- Prop algebra (recommended to use `IgnoresP`)
--- --------------------------
+-- Prop-valued closure
 
 lemma IgnoresP_not (j : ι) (P : (∀ i, A i) → Prop)
     (hP : IgnoresP (A := A) j P) :
@@ -247,41 +272,11 @@ lemma IgnoresP_iff (j : ι) (P Q : (∀ i, A i) → Prop)
 
 end IgnoresAlgebra
 
-omit [Fintype ι] in
-lemma Ignores_coord_eq (j q : ι) (hq : q ≠ j) (a : A q) :
-  Ignores (A := A) j (fun s => s q = a) := by
-    intro s b; simp [update, hq]
-
-omit [Fintype ι] in
-lemma Ignores_coord_pred (j q : ι) (hq : q ≠ j) (E : A q → Prop) :
-  Ignores (A := A) j (fun s => E (s q)) := by
-    intro s b; simp [update, hq]
-
-/-- "`G a0 s` ignores coordinate `j` in `s`", uniformly in the external parameter `a0`. -/
-def Ignores₂ {α : Type uα} (j : ι) (G : A j → (∀ i, A i) → α) : Prop :=
-  ∀ a0 s a, G a0 (update (A := A) s j a) = G a0 s
-
-omit [Fintype ι] in
-/-- A pointwise (extensional) criterion implying `Ignores`. -/
-lemma Ignores_of_pointwise {α : Type uα} (j : ι) (F : (∀ i, A i) → α)
-    (h : ∀ s₁ s₂, (∀ i, i ≠ j → s₁ i = s₂ i) → F s₁ = F s₂) :
-    Ignores (A := A) j F := by
-  intro s a
-  apply h (update (A := A) s j a) s
-  intro i hi
-  simp [update, hi]
-
-omit [Fintype ι] in
-/-- A pointwise (extensional) criterion implying `Ignores₂`. -/
-lemma Ignores₂_of_pointwise {α : Type uα} (j : ι) (G : A j → (∀ i, A i) → α)
-    (h : ∀ a0 s₁ s₂, (∀ i, i ≠ j → s₁ i = s₂ i) → G a0 s₁ = G a0 s₂) :
-    Ignores₂ (A := A) j G := by
-  intro a0 s a
-  apply h a0 (update (A := A) s j a) s
-  intro i hi
-  simp [update, hi]
-
 end Core
+
+-- ============================================================================
+-- § 3. Bind Factorization
+-- ============================================================================
 
 section BindFactor
 
@@ -366,6 +361,10 @@ theorem pmfPi_bind_factor
 
 end BindFactor
 
+-- ============================================================================
+-- § 4. Pushforward & Marginals
+-- ============================================================================
+
 section Pushforward
 
 variable {ι : Type uι} [Fintype ι] [DecidableEq ι]
@@ -421,6 +420,10 @@ theorem pmfPi_push_coord
   exact pmfPi_coord_mass σ j a
 
 end Pushforward
+
+-- ============================================================================
+-- § 5. Conditioning
+-- ============================================================================
 
 section Conditioning
 
@@ -520,7 +523,7 @@ theorem pmfPi_cond_coord
     simp only [div_eq_mul_inv, mul_comm, mul_left_comm]
   · simp [hE_s]
 
-/-- Corollary: conditioning on coordinate `j` does not change other coordinate marginals. -/
+/-- Conditioning on coordinate `j` does not change other coordinate marginals. -/
 theorem pmfPi_cond_coord_push_other
     (σ : ∀ i, PMF (A i)) {j q : ι} (hq : q ≠ j)
     (E : A j → Prop) [DecidablePred E]
@@ -537,6 +540,9 @@ theorem pmfPi_cond_coord_push_other
 
 end Conditioning
 
+-- ============================================================================
+-- § 6. Family Update Lemmas
+-- ============================================================================
 
 section UpdateLemmas
 
@@ -570,7 +576,6 @@ lemma pmfPi_update_family_mul (σ : ∀ i, PMF (A i)) (j : ι) (τ : PMF (A j))
   simp [mul_comm, mul_left_comm]
 
 omit [Fintype ι] [∀ i, Fintype (A i)] in
-/-- "Update then read": trivial simp lemma, but you want it globally available. -/
 @[simp] lemma update_family_same (σ : ∀ i, PMF (A i)) (j : ι) (τ : PMF (A j)) :
     (Function.update σ j τ) j = τ := by
   simp [Function.update]
@@ -583,35 +588,35 @@ omit [Fintype ι] [∀ i, Fintype (A i)] in
 
 end UpdateLemmas
 
+-- ============================================================================
+-- § 7. Conditioning on Coordinates & Mass Invariance
+-- ============================================================================
+
 section ConditioningCoord
 
 variable {ι : Type uι} [Fintype ι] [DecidableEq ι]
 variable {A : ι → Type uA} [∀ i, Fintype (A i)]
 
--- assume you already have:
--- pushforward, pmfMask, pmfMass, pmfCond, pmfCond_apply
--- pmfMass_pmfPi_coord : pmfMass (pmfPi σ) (fun s => E (s j)) = pmfMass (σ j) E
+-- ---- Convenience alias ---------------------------------------------------
 
-/-- The *definition* you want to use everywhere: update family at `j`. -/
+/-- Update family at `j` (thin wrapper around `Function.update`). -/
 noncomputable def updateAt (σ : ∀ i, PMF (A i)) (j : ι) (τ : PMF (A j)) : ∀ i, PMF (A i) :=
   Function.update σ j τ
 
-/-- Conditioning a product on a coordinate event = product of updated family.
-    This is the lemma Gemini is pointing to; note how clean the RHS becomes. -/
+/-- Conditioning a product on a coordinate event = product of updated family (`updateAt` form). -/
 theorem pmfPi_cond_coord_updateAt
     (σ : ∀ i, PMF (A i)) (j : ι)
     (E : A j → Prop) [DecidablePred E]
     (hE : pmfMass (μ := σ j) E ≠ 0) :
     pmfCond (μ := pmfPi (A := A) σ) (fun s => E (s j))
       (by
-        -- discharge "mass ≠ 0" for the lifted event using pmfMass_pmfPi_coord
         simpa [pmfMass_pmfPi_coord (A := A) (σ := σ) (j := j) (E := E)] using hE)
       =
     pmfPi (A := A) (updateAt (A := A) σ j (pmfCond (μ := σ j) E hE)) := by
   -- updateAt unfolds to Function.update, so this is exactly pmfPi_cond_coord.
   exact pmfPi_cond_coord σ j E hE
 
-/-- Corollary in the "no pain" style: other marginals are unchanged. -/
+/-- Other marginals are unchanged after conditioning on a coordinate. -/
 theorem pmfPi_cond_coord_other_marginal
     (σ : ∀ i, PMF (A i)) {j q : ι} (hq : q ≠ j)
     (E : A j → Prop) [DecidablePred E]
@@ -623,6 +628,47 @@ theorem pmfPi_cond_coord_other_marginal
       =
     σ q := by
   exact pmfPi_cond_coord_push_other σ hq E hE
+
+-- ---- Event mass under product PMFs --------------------------------------
+
+/-- The "event mass" of a predicate under a product PMF (sum form). -/
+noncomputable def pmfPiMass (σ : ∀ i, PMF (A i))
+    (P : (∀ i, A i) → Prop) [DecidablePred P] : ENNReal :=
+  ∑ s : (∀ i, A i), if P s then pmfPi (A := A) σ s else 0
+
+/-- Basic bound: event mass ≤ 1 (hence never `⊤`). -/
+lemma pmfPiMass_le_one (σ : ∀ i, PMF (A i)) (P : (∀ i, A i) → Prop) [DecidablePred P] :
+    pmfPiMass (A := A) σ P ≤ 1 := by
+  classical
+  -- pointwise: ite ≤ μ s
+  have hle : ∀ s : (∀ i, A i),
+      (if P s then pmfPi (A := A) σ s else 0) ≤ (pmfPi (A := A) σ s) := by
+    intro s; by_cases h : P s <;> simp [h]
+  have hsum :
+      (∑ s : (∀ i, A i), if P s then pmfPi (A := A) σ s else 0)
+        ≤
+      (∑ s : (∀ i, A i), pmfPi (A := A) σ s) := by
+    -- `Finset.sum_le_sum` on `univ`
+    simpa using
+      (Finset.sum_le_sum (s := (Finset.univ : Finset (∀ i, A i)))
+        (fun s _hs => hle s))
+  -- rewrite the RHS sum to `1`
+  have htot : (∑ s : (∀ i, A i), pmfPi (A := A) σ s) = 1 :=
+    pmf_sum_eq_one (pmfPi (A := A) σ)
+  -- finish
+  exact le_of_le_of_eq hsum htot
+
+lemma pmfPiMass_ne_top (σ : ∀ i, PMF (A i)) (P : (∀ i, A i) → Prop) [DecidablePred P] :
+    pmfPiMass (A := A) σ P ≠ (⊤ : ENNReal) := by
+  exact ne_of_lt (lt_of_le_of_lt (pmfPiMass_le_one (A := A) σ P) (by simp))
+
+/-- Mass of the always-true event is 1. -/
+lemma pmfPiMass_true (σ : ∀ i, PMF (A i)) :
+    pmfPiMass (A := A) σ (fun _ : (∀ i, A i) => True) = 1 := by
+  classical
+  simpa [pmfPiMass] using (pmf_sum_eq_one (pmfPi (A := A) σ))
+
+-- ---- Cross-multiplication & mass invariance ------------------------------
 
 /-- The ratio of an event's mass is invariant under updating coordinate `j`,
     provided the event ignores coordinate `j`. -/
@@ -660,7 +706,6 @@ theorem pmfPi_event_ratio_invariant_of_ignores
     dsimp only [W, W_CD, e]
     -- The events ignore j, so the conditions match.
     simp_rw [hNum_ign s1 (s2 j), hDenom_ign s2 (s1 j)]
-    -- (The rest of your proof remains exactly the same)
     have h1 : pmfPi (A := A) (Function.update σ j τ) (update (A := A) s1 j (s2 j))
               = τ (s2 j) * ∏ i ∈ Finset.univ.erase j, σ i (s1 i) := by
       rw [pmfPi_apply_update_family]
@@ -709,55 +754,6 @@ theorem pmfPi_event_ratio_invariant_of_ignores
         apply Finset.sum_congr rfl; intro s1 _
         rw [Finset.mul_sum]
 
-
--- ======================================================================
--- § Mass/ratio invariance under coordinate update, assuming Ignores
--- ======================================================================
-
-section MassRatioInvariance
-
-variable {ι : Type uι} [Fintype ι] [DecidableEq ι]
-variable {A : ι → Type uA} [∀ i, Fintype (A i)]
-
-/-- The “event mass” of a predicate under a product PMF (sum form). -/
-noncomputable def pmfPiMass (σ : ∀ i, PMF (A i))
-    (P : (∀ i, A i) → Prop) [DecidablePred P] : ENNReal :=
-  ∑ s : (∀ i, A i), if P s then pmfPi (A := A) σ s else 0
-
-/-- Basic bound: event mass is ≤ 1 (hence never `⊤`). -/
-lemma pmfPiMass_le_one (σ : ∀ i, PMF (A i)) (P : (∀ i, A i) → Prop) [DecidablePred P] :
-    pmfPiMass (A := A) σ P ≤ 1 := by
-  classical
-  -- pointwise: ite ≤ μ s
-  have hle : ∀ s : (∀ i, A i),
-      (if P s then pmfPi (A := A) σ s else 0) ≤ (pmfPi (A := A) σ s) := by
-    intro s; by_cases h : P s <;> simp [h]
-  have hsum :
-      (∑ s : (∀ i, A i), if P s then pmfPi (A := A) σ s else 0)
-        ≤
-      (∑ s : (∀ i, A i), pmfPi (A := A) σ s) := by
-    -- `Finset.sum_le_sum` on `univ`
-    simpa using
-      (Finset.sum_le_sum (s := (Finset.univ : Finset (∀ i, A i)))
-        (fun s _hs => hle s))
-  -- rewrite the RHS sum to `1`
-  have htot : (∑ s : (∀ i, A i), pmfPi (A := A) σ s) = 1 :=
-    pmf_sum_eq_one (pmfPi (A := A) σ)
-  -- finish
-  exact le_of_le_of_eq hsum htot
-
-lemma pmfPiMass_ne_top (σ : ∀ i, PMF (A i)) (P : (∀ i, A i) → Prop) [DecidablePred P] :
-    pmfPiMass (A := A) σ P ≠ (⊤ : ENNReal) := by
-  exact ne_of_lt (lt_of_le_of_lt (pmfPiMass_le_one (A := A) σ P) (by simp))
-
-/-- Mass of the always-true event is 1. -/
-lemma pmfPiMass_true (σ : ∀ i, PMF (A i)) :
-    pmfPiMass (A := A) σ (fun _ : (∀ i, A i) => True) = 1 := by
-  classical
-  -- pmfPiMass True = ∑ s, pmfPi σ s
-  -- and ∑ s, pmfPi σ s = 1
-  simpa [pmfPiMass] using (pmf_sum_eq_one (pmfPi (A := A) σ))
-
 /-- Mass is invariant under updating coordinate `j`, if the event ignores `j`. -/
 theorem pmfPi_mass_invariant_of_ignores
     (σ : ∀ i, PMF (A i)) (j : ι) (τ : PMF (A j))
@@ -780,7 +776,6 @@ theorem pmfPi_mass_invariant_of_ignores
         =
       pmfPiMass (A := A) σ P * 1 := by
     -- first rewrite the two True-masses in `h` to `1`
-    -- `h` is exactly the cross-multiplication statement
     have hT_old :
         (∑ s : (∀ i, A i), if (fun _ => True) s then (pmfPi (A := A) σ) s else 0) = 1 := by
       simpa using (pmf_sum_eq_one (pmfPi (A := A) σ))
@@ -838,10 +833,7 @@ theorem pmfPi_cond_prob_invariant_of_ignores
     have h2 : ((mNU * mDO) * mDU⁻¹) * mDO⁻¹ = mNO * mDO⁻¹ := by
       exact congrArg (fun x => x * mDO⁻¹) h1
     -- Reassociate/commute: ((mNU*mDO)*mDU⁻¹)*mDO⁻¹ = (mNU*mDU⁻¹)*(mDO*mDO⁻¹) = mNU*mDU⁻¹
-    -- using cancellation for mDO.
-    -- (This is the only nontrivial algebra step; we force the normal form.)
     have : mNU * mDU⁻¹ = mNO * mDO⁻¹ := by
-      -- simplify the LHS of h2 by commutative reassociation, then cancel mDO
       have h3 :
           ((mNU * mDO) * mDU⁻¹) * mDO⁻¹ = mNU * mDU⁻¹ := by
         calc
@@ -857,10 +849,6 @@ theorem pmfPi_cond_prob_invariant_of_ignores
   -- rewrite / as * inv
   simpa [div_eq_mul_inv, mNU, mDU, mNO, mDO] using this
 
-end MassRatioInvariance
-
 end ConditioningCoord
 
 end PMFProduct
-
-end GameTheory
