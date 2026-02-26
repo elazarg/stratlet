@@ -175,7 +175,7 @@ theorem behavioral_to_mixed (σ : BehavioralProfile S) (t : GameTree S Outcome)
   induction t with
   | terminal z =>
     simp only [GameTree.evalDist]
-    exact PMF.bind_const_pure _ z
+    exact (productProfile σ).bind_const (PMF.pure z)
   | chance _k μ _hk next ih =>
     simp only [evalDist_chance]
     rw [PMF.bind_comm (productProfile σ) μ]
@@ -212,7 +212,8 @@ theorem behavioral_to_mixed (σ : BehavioralProfile S) (t : GameTree S Outcome)
       (σ p I).bind (fun a => (next a).evalDist σ)
     rw [pmfPi_bind_factor (fun (idx : FlatIdx S) => σ idx.1 idx.2) ⟨p, I⟩
       (fun (a : S.Act I) (s : FlatProfile S) =>
-        (next a).evalDist (flatToBehavioral s)) hindep]
+        (next a).evalDist (flatToBehavioral s))
+      (Ignores₂_of_pointwise (⟨p, I⟩ : FlatIdx S) _ hindep)]
     congr 1; funext a
     exact ih a (hnr.2 a)
 
@@ -957,7 +958,7 @@ theorem mixed_to_behavioral_flat (t : GameTree S Outcome) (hpr : PerfectRecall t
   induction t generalizing μ with
   | terminal z =>
     simp only [GameTree.evalDist]
-    exact (PMF.bind_const_pure μ z).symm
+    exact (μ.bind_const (PMF.pure z)).symm
   | chance k μ_c hk next ih =>
     simp only [evalDist_chance]
     conv_rhs => rw [PMF.bind_comm μ μ_c]

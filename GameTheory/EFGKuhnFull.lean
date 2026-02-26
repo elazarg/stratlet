@@ -672,7 +672,7 @@ theorem mixed_to_behavioral_nplayer (t : GameTree S Outcome) (hpr : PerfectRecal
   induction t generalizing μ with
   | terminal z =>
     simp only [GameTree.evalDist, GameTree.evalFlat]
-    exact (PMF.bind_const_pure μ z).symm
+    exact (μ.bind_const (PMF.pure z)).symm
   | chance k μ_c hk next ih =>
     simp only [evalDist_chance, GameTree.evalFlat]
     conv_rhs => rw [PMF.bind_comm μ μ_c]
