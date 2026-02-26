@@ -113,6 +113,150 @@ omit [Fintype ι] in
 def Ignores {α : Type uα} (j : ι) (F : (∀ i, A i) → α) : Prop :=
   ∀ s a, F (update (A := A) s j a) = F s
 
+
+-- ======================================================================
+-- § Ignores algebra (closure properties you will use everywhere)
+-- ======================================================================
+
+section IgnoresAlgebra
+
+variable {ι : Type uι} [DecidableEq ι]
+variable {A : ι → Type uA}
+
+-- reuse your `update`, `Ignores`, `Ignores₂`
+--   update   : (∀ i, A i) → ι → A j → (∀ i, A i)
+--   Ignores  : ι → ((∀ i, A i) → α) → Prop
+--   Ignores₂ : ι → (A j → (∀ i, A i) → α) → Prop
+
+/-- Prop-flavored version: ignoring a coordinate means iff, not Prop-equality. -/
+def IgnoresP (j : ι) (P : (∀ i, A i) → Prop) : Prop :=
+  ∀ s a, P (update (A := A) s j a) ↔ P s
+
+/-- `Ignores` ⇒ `IgnoresP` (no classical axioms needed). -/
+lemma IgnoresP_of_Ignores (j : ι) (P : (∀ i, A i) → Prop)
+    (h : Ignores (A := A) j P) : IgnoresP (A := A) j P := by
+  intro s a
+  -- P (update s j a) = P s, so rewrite to iff
+  simp only [update]
+  exact Eq.to_iff (h s a)
+
+/-- `IgnoresP` ⇒ `Ignores` (needs propositional extensionality). -/
+lemma Ignores_of_IgnoresP (j : ι) (P : (∀ i, A i) → Prop)
+    (h : IgnoresP (A := A) j P) : Ignores (A := A) j P := by
+  intro s a
+  exact propext (h s a)
+
+-- --------------------------
+-- Generic (Type-valued) algebra
+-- --------------------------
+
+lemma Ignores_const {α : Type uα} (j : ι) (c : α) :
+    Ignores (A := A) j (fun _ => c) := by
+  intro s a; rfl
+
+lemma Ignores_comp {α : Type uα} {β : Type uβ} (j : ι)
+    (F : (∀ i, A i) → α) (G : α → β)
+    (hF : Ignores (A := A) j F) :
+    Ignores (A := A) j (fun s => G (F s)) := by
+  intro s a
+  exact (congrArg G ∘ fun a_1 ↦ hF s a) ι
+
+lemma Ignores_prod_mk {α : Type uα} {β : Type uβ} (j : ι)
+    (F : (∀ i, A i) → α) (G : (∀ i, A i) → β)
+    (hF : Ignores (A := A) j F) (hG : Ignores (A := A) j G) :
+    Ignores (A := A) j (fun s => (F s, G s)) := by
+  intro s a
+  exact Prod.ext (hF s a) (hG s a)
+
+lemma Ignores_fst {α : Type uα} {β : Type uβ} (j : ι)
+    (F : (∀ i, A i) → α × β) (hF : Ignores (A := A) j F) :
+    Ignores (A := A) j (fun s => (F s).1) :=
+  Ignores_comp (A := A) j F Prod.fst hF
+
+lemma Ignores_snd {α : Type uα} {β : Type uβ} (j : ι)
+    (F : (∀ i, A i) → α × β) (hF : Ignores (A := A) j F) :
+    Ignores (A := A) j (fun s => (F s).2) :=
+  Ignores_comp (A := A) j F Prod.snd hF
+
+lemma Ignores_app2 {α : Type uα} {β : Type uβ} {γ : Type uγ} (j : ι)
+    (F : (∀ i, A i) → α) (G : (∀ i, A i) → β) (H : α → β → γ)
+    (hF : Ignores (A := A) j F) (hG : Ignores (A := A) j G) :
+    Ignores (A := A) j (fun s => H (F s) (G s)) := by
+  intro s a
+  exact
+    Trans.simple (congrFun (congrArg H (hF s a)) (G (update s j a))) (congrArg (H (F s)) (hG s a))
+
+lemma Ignores_ite {α : Type uα} (j : ι)
+    (c : (∀ i, A i) → Prop) [DecidablePred c]
+    (t e : (∀ i, A i) → α)
+    (hc : IgnoresP (A := A) j c)
+    (ht : Ignores (A := A) j t) (he : Ignores (A := A) j e) :
+    Ignores (A := A) j (fun s => if c s then t s else e s) := by
+  intro s a
+  have hc' : c (update (A := A) s j a) ↔ c s := hc s a
+  by_cases hcs : c s
+  · have : c (update (A := A) s j a) := (hc'.2 hcs)
+    exact if_ctx_congr (hc s a) (fun a_1 ↦ ht s a) fun a_1 ↦ he s a
+  · have : ¬ c (update (A := A) s j a) := by
+      intro h; exact hcs ((hc'.1) h)
+    exact if_ctx_congr (hc s a) (fun a_1 ↦ ht s a) fun a_1 ↦ he s a
+
+-- --------------------------
+-- Prop algebra (recommended to use `IgnoresP`)
+-- --------------------------
+
+lemma IgnoresP_not (j : ι) (P : (∀ i, A i) → Prop)
+    (hP : IgnoresP (A := A) j P) :
+    IgnoresP (A := A) j (fun s => ¬ P s) := by
+  intro s a
+  exact not_congr (hP s a)
+
+lemma IgnoresP_and (j : ι) (P Q : (∀ i, A i) → Prop)
+    (hP : IgnoresP (A := A) j P) (hQ : IgnoresP (A := A) j Q) :
+    IgnoresP (A := A) j (fun s => P s ∧ Q s) := by
+  intro s a
+  simp only [update]
+  exact and_congr (hP s a) (hQ s a)
+
+lemma IgnoresP_or (j : ι) (P Q : (∀ i, A i) → Prop)
+    (hP : IgnoresP (A := A) j P) (hQ : IgnoresP (A := A) j Q) :
+    IgnoresP (A := A) j (fun s => P s ∨ Q s) := by
+  intro s a
+  simp only [update]
+  exact or_congr (hP s a) (hQ s a)
+
+lemma IgnoresP_imp (j : ι) (P Q : (∀ i, A i) → Prop)
+    (hP : IgnoresP (A := A) j P) (hQ : IgnoresP (A := A) j Q) :
+    IgnoresP (A := A) j (fun s => P s → Q s) := by
+  intro s a
+  constructor
+  · intro h hp
+    have hp' : P (update (A := A) s j a) := (hP s a).2 hp
+    have hq' : Q (update (A := A) s j a) := h hp'
+    exact (hQ s a).1 hq'
+  · intro h hp
+    have hp' : P s := (hP s a).1 hp
+    have hq : Q s := h hp'
+    exact (hQ s a).2 hq
+
+lemma IgnoresP_iff (j : ι) (P Q : (∀ i, A i) → Prop)
+    (hP : IgnoresP (A := A) j P) (hQ : IgnoresP (A := A) j Q) :
+    IgnoresP (A := A) j (fun s => P s ↔ Q s) := by
+  intro s a
+  exact iff_congr (hP s a) (hQ s a)
+
+end IgnoresAlgebra
+
+omit [Fintype ι] in
+lemma Ignores_coord_eq (j q : ι) (hq : q ≠ j) (a : A q) :
+  Ignores (A := A) j (fun s => s q = a) := by
+    intro s b; simp [update, hq]
+
+omit [Fintype ι] in
+lemma Ignores_coord_pred (j q : ι) (hq : q ≠ j) (E : A q → Prop) :
+  Ignores (A := A) j (fun s => E (s q)) := by
+    intro s b; simp [update, hq]
+
 /-- "`G a0 s` ignores coordinate `j` in `s`", uniformly in the external parameter `a0`. -/
 def Ignores₂ {α : Type uα} (j : ι) (G : A j → (∀ i, A i) → α) : Prop :=
   ∀ a0 s a, G a0 (update (A := A) s j a) = G a0 s
@@ -144,6 +288,25 @@ section BindFactor
 variable {ι : Type uι} [Fintype ι] [DecidableEq ι]
 variable {A : ι → Type uA} [∀ i, Fintype (A i)]
 variable {β : Type uβ}
+
+omit [Fintype ι] [∀ i, Fintype (A i)] in
+@[simp] lemma update_update_same (σ : ∀ i, PMF (A i)) (j : ι) (τ₁ τ₂ : PMF (A j)) :
+    Function.update (Function.update σ j τ₁) j τ₂ = Function.update σ j τ₂ := by
+  funext i; by_cases h : i = j <;> simp [Function.update, h]
+
+omit [Fintype ι] [∀ i, Fintype (A i)] in
+lemma update_update_comm (σ) {j k : ι} (hjk : j ≠ k) (τj : PMF (A j)) (τk : PMF (A k)) :
+    Function.update (Function.update σ j τj) k τk =
+    Function.update (Function.update σ k τk) j τj := by
+  funext i
+  by_cases hi : i = j <;> by_cases hk : i = k
+  · subst hi hk
+    simp_all only [ne_eq, not_true_eq_false]
+  · subst hi
+    simp_all only [not_false_eq_true, ne_eq, Function.update_of_ne, Function.update_self]
+  · subst hk
+    simp_all only [ne_eq, Function.update_self, not_false_eq_true, Function.update_of_ne]
+  · simp_all only [ne_eq, not_false_eq_true, Function.update_of_ne]
 
 /-- ENNReal-sum version: "Fubini" for product weights with an `Ignores₂` condition. -/
 theorem sum_pmfPi_factor
@@ -545,6 +708,156 @@ theorem pmfPi_event_ratio_invariant_of_ignores
         rw [Finset.sum_mul]
         apply Finset.sum_congr rfl; intro s1 _
         rw [Finset.mul_sum]
+
+
+-- ======================================================================
+-- § Mass/ratio invariance under coordinate update, assuming Ignores
+-- ======================================================================
+
+section MassRatioInvariance
+
+variable {ι : Type uι} [Fintype ι] [DecidableEq ι]
+variable {A : ι → Type uA} [∀ i, Fintype (A i)]
+
+/-- The “event mass” of a predicate under a product PMF (sum form). -/
+noncomputable def pmfPiMass (σ : ∀ i, PMF (A i))
+    (P : (∀ i, A i) → Prop) [DecidablePred P] : ENNReal :=
+  ∑ s : (∀ i, A i), if P s then pmfPi (A := A) σ s else 0
+
+/-- Basic bound: event mass is ≤ 1 (hence never `⊤`). -/
+lemma pmfPiMass_le_one (σ : ∀ i, PMF (A i)) (P : (∀ i, A i) → Prop) [DecidablePred P] :
+    pmfPiMass (A := A) σ P ≤ 1 := by
+  classical
+  -- pointwise: ite ≤ μ s
+  have hle : ∀ s : (∀ i, A i),
+      (if P s then pmfPi (A := A) σ s else 0) ≤ (pmfPi (A := A) σ s) := by
+    intro s; by_cases h : P s <;> simp [h]
+  have hsum :
+      (∑ s : (∀ i, A i), if P s then pmfPi (A := A) σ s else 0)
+        ≤
+      (∑ s : (∀ i, A i), pmfPi (A := A) σ s) := by
+    -- `Finset.sum_le_sum` on `univ`
+    simpa using
+      (Finset.sum_le_sum (s := (Finset.univ : Finset (∀ i, A i)))
+        (fun s _hs => hle s))
+  -- rewrite the RHS sum to `1`
+  have htot : (∑ s : (∀ i, A i), pmfPi (A := A) σ s) = 1 :=
+    pmf_sum_eq_one (pmfPi (A := A) σ)
+  -- finish
+  exact le_of_le_of_eq hsum htot
+
+lemma pmfPiMass_ne_top (σ : ∀ i, PMF (A i)) (P : (∀ i, A i) → Prop) [DecidablePred P] :
+    pmfPiMass (A := A) σ P ≠ (⊤ : ENNReal) := by
+  exact ne_of_lt (lt_of_le_of_lt (pmfPiMass_le_one (A := A) σ P) (by simp))
+
+/-- Mass of the always-true event is 1. -/
+lemma pmfPiMass_true (σ : ∀ i, PMF (A i)) :
+    pmfPiMass (A := A) σ (fun _ : (∀ i, A i) => True) = 1 := by
+  classical
+  -- pmfPiMass True = ∑ s, pmfPi σ s
+  -- and ∑ s, pmfPi σ s = 1
+  simpa [pmfPiMass] using (pmf_sum_eq_one (pmfPi (A := A) σ))
+
+/-- Mass is invariant under updating coordinate `j`, if the event ignores `j`. -/
+theorem pmfPi_mass_invariant_of_ignores
+    (σ : ∀ i, PMF (A i)) (j : ι) (τ : PMF (A j))
+    (P : (∀ i, A i) → Prop) [DecidablePred P]
+    (hP : Ignores (A := A) j P) :
+    pmfPiMass (A := A) (Function.update σ j τ) P
+      =
+    pmfPiMass (A := A) σ P := by
+  classical
+  have h :=
+    pmfPi_event_ratio_invariant_of_ignores
+      (A := A) (σ := σ) (j := j) (τ := τ)
+      (Num := P) (Denom := (fun _ : (∀ i, A i) => True))
+      (hNum_ign := hP)
+      (hDenom_ign := (by intro s a; rfl))
+  -- h : mU * mass(True under old) = mO * mass(True under updated)
+  -- rewrite both True-masses to 1, then simp
+  have h' :
+      pmfPiMass (A := A) (Function.update σ j τ) P * 1
+        =
+      pmfPiMass (A := A) σ P * 1 := by
+    -- first rewrite the two True-masses in `h` to `1`
+    -- `h` is exactly the cross-multiplication statement
+    have hT_old :
+        (∑ s : (∀ i, A i), if (fun _ => True) s then (pmfPi (A := A) σ) s else 0) = 1 := by
+      simpa using (pmf_sum_eq_one (pmfPi (A := A) σ))
+    have hT_upd :
+        (∑ s : (∀ i, A i),
+          if (fun _ => True) s
+          then (pmfPi (A := A) (Function.update σ j τ)) s else 0) = 1 := by
+      simpa using (pmf_sum_eq_one (pmfPi (A := A) (Function.update σ j τ)))
+    -- now `simp` actually has concrete rewrite rules for those factors
+    simp_all only [pmfPi_apply, ↓reduceIte, mul_one]
+    exact h
+  simpa [mul_one] using h'
+
+/-- Conditional probability (ratio of masses) is invariant under updating coordinate `j`,
+    provided both events ignore `j` and both denominators have nonzero mass. -/
+theorem pmfPi_cond_prob_invariant_of_ignores
+    (σ : ∀ i, PMF (A i)) (j : ι) (τ : PMF (A j))
+    (Num Denom : (∀ i, A i) → Prop) [DecidablePred Num] [DecidablePred Denom]
+    (hNum : Ignores (A := A) j Num)
+    (hDen : Ignores (A := A) j Denom)
+    (hDO : pmfPiMass (A := A) σ Denom ≠ 0)
+    (hDU : pmfPiMass (A := A) (Function.update σ j τ) Denom ≠ 0) :
+    (pmfPiMass (A := A) (Function.update σ j τ) Num)
+     / (pmfPiMass (A := A) (Function.update σ j τ) Denom)
+      =
+    (pmfPiMass (A := A) σ Num) / (pmfPiMass (A := A) σ Denom) := by
+  classical
+  -- abbreviate the four masses
+  set mNU : ENNReal := pmfPiMass (A := A) (Function.update σ j τ) Num
+  set mDU : ENNReal := pmfPiMass (A := A) (Function.update σ j τ) Denom
+  set mNO : ENNReal := pmfPiMass (A := A) σ Num
+  set mDO : ENNReal := pmfPiMass (A := A) σ Denom
+  have hcross :
+      mNU * mDO = mNO * mDU := by
+    -- your cross-multiplication lemma, just unfolded
+    simpa [mNU, mDU, mNO, mDO, pmfPiMass]
+      using
+        (pmfPi_event_ratio_invariant_of_ignores
+          (A := A) (σ := σ) (j := j) (τ := τ)
+          (Num := Num) (Denom := Denom) hNum hDen)
+  -- non-top facts (needed for ENNReal.mul_inv_cancel)
+  have hDO_top : mDO ≠ (⊤ : ENNReal) := by
+    simpa [mDO] using pmfPiMass_ne_top (A := A) (σ := σ) (P := Denom)
+  have hDU_top : mDU ≠ (⊤ : ENNReal) := by
+    simpa [mDU] using pmfPiMass_ne_top (A := A) (σ := Function.update σ j τ) (P := Denom)
+  have : mNU * mDU⁻¹ = mNO * mDO⁻¹ := by
+    -- Step 1: cancel mDU on the RHS of hcross
+    have h1 : (mNU * mDO) * mDU⁻¹ = mNO := by
+      have := congrArg (fun x => x * mDU⁻¹) hcross
+      -- RHS: (mNO * mDU) * mDU⁻¹ = mNO * (mDU * mDU⁻¹) = mNO
+      -- LHS stays as (mNU * mDO) * mDU⁻¹
+      simpa [mul_assoc, mul_left_comm, mul_comm,
+        ENNReal.mul_inv_cancel hDU hDU_top] using this
+    -- Step 2: multiply by mDO⁻¹ and cancel mDO on the LHS
+    have h2 : ((mNU * mDO) * mDU⁻¹) * mDO⁻¹ = mNO * mDO⁻¹ := by
+      exact congrArg (fun x => x * mDO⁻¹) h1
+    -- Reassociate/commute: ((mNU*mDO)*mDU⁻¹)*mDO⁻¹ = (mNU*mDU⁻¹)*(mDO*mDO⁻¹) = mNU*mDU⁻¹
+    -- using cancellation for mDO.
+    -- (This is the only nontrivial algebra step; we force the normal form.)
+    have : mNU * mDU⁻¹ = mNO * mDO⁻¹ := by
+      -- simplify the LHS of h2 by commutative reassociation, then cancel mDO
+      have h3 :
+          ((mNU * mDO) * mDU⁻¹) * mDO⁻¹ = mNU * mDU⁻¹ := by
+        calc
+          ((mNU * mDO) * mDU⁻¹) * mDO⁻¹
+              = (mNU * mDU⁻¹) * (mDO * mDO⁻¹) := by
+                  ac_rfl
+          _ = (mNU * mDU⁻¹) * 1 := by
+                  simp [ENNReal.mul_inv_cancel hDO hDO_top]
+          _ = mNU * mDU⁻¹ := by simp
+      -- now rewrite h2 using h3
+      simpa [h3] using h2
+    exact this
+  -- rewrite / as * inv
+  simpa [div_eq_mul_inv, mNU, mDU, mNO, mDO] using this
+
+end MassRatioInvariance
 
 end ConditioningCoord
 
