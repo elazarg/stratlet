@@ -23,7 +23,23 @@ via their `toKernelGame` conversions.
 
 namespace GameTheory
 
+/-- Build a KernelGame from a direct expected-utility function (no stochastic kernel).
+    This is the "strategic form" special case: outcome = utility vector, kernel = point mass.
+    Absorbs the former `StrategicForm.Game`. -/
+noncomputable def KernelGame.ofEU [DecidableEq ι]
+    (Strategy : ι → Type) (eu : (∀ i, Strategy i) → Payoff ι) : KernelGame ι where
+  Strategy := Strategy
+  Outcome := Payoff ι
+  utility := id
+  outcomeKernel := fun σ => PMF.pure (eu σ)
+
 variable {ι : Type} [DecidableEq ι]
+
+/-- EU of a game built from `ofEU` is just the direct EU function. -/
+@[simp] theorem KernelGame.eu_ofEU
+    (S : ι → Type) (u : (∀ i, S i) → Payoff ι) (σ : ∀ i, S i) (i : ι) :
+    (ofEU S u).eu σ i = u σ i := by
+  simp [KernelGame.eu, ofEU, expect_pure]
 
 /-- A strategy profile `σ` is a Nash equilibrium if no player can
     improve their payoff by unilateral deviation. -/
