@@ -17,7 +17,7 @@ import urllib.parse
 import urllib.request
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
-STATE_FILE = pathlib.Path.home() / ".claude" / "projects" / "D--workspace-games-stratlet" / "memory" / "lsp-state.json"
+STATE_FILE = pathlib.Path(".lsp-state.json").resolve()
 
 
 # ---------------------------------------------------------------------------

@@ -310,6 +310,13 @@ Prog Γ ::=
             (k : Prog Γ)
 ```
 
+> **Implementation status**: `observe` and `assert` are intentionally deferred
+> in the Lean implementation (`Vegas.lean`). The remaining five constructors
+> (`ret`, `letExpr`, `sample`, `commit`, `reveal`) are fully implemented with
+> denotational semantics, operational semantics, and adequacy. `observe` and
+> `assert` will be added when conditioning / griefing analysis is needed;
+> their semantics are zero-weighting (see §10).
+
 ### Reveal semantics (design principle)
 
 * `reveal y who x` is owner-restricted by typing.

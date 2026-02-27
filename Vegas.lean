@@ -3,4 +3,3 @@ import Vegas.LetCore
 import Vegas.LetProb
 import Vegas.LetProtocol
 import Vegas.LetGames
-import GameTheory

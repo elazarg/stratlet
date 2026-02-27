@@ -14,8 +14,14 @@ name = "mathlib"
 scope = "leanprover-community"
 rev = "v4.27.0"
 
+[[require]]
+name = "GameTheory"
+git = "https://github.com/elazarg/GameTheory"
+rev = "master"
+
 [[lean_lib]]
 name = "Vegas"
 
 [[lean_lib]]
-name = "GameTheory"
+name = "distilled"
+roots = ["distilled"]
