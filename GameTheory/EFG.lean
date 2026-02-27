@@ -67,6 +67,9 @@ def EFGGame.Payoff (G : EFGGame) : Type :=
 def PureStrategy (S : InfoStructure) (p : S.Player) : Type :=
   (I : S.Infoset p) → S.Act I
 
+abbrev MixedProfile (S : InfoStructure) : Type :=
+  (p : S.Player) → PMF (PureStrategy S p)
+
 def BehavioralStrategy (S : InfoStructure) (p : S.Player) :=
   (I : S.Infoset p) → PMF (S.Act I)
 
@@ -77,6 +80,7 @@ abbrev PureProfile (S : InfoStructure) :=
 /-- A behavioral strategy profile: each player has their own behavioral strategy. -/
 abbrev BehavioralProfile (S : InfoStructure) :=
   (p : Fin S.n) → BehavioralStrategy S p
+
 
 /-- A pure strategy specifically for player `p`. -/
 def InfoStructure.PureStrategyFor (S : InfoStructure) (p : S.Player) : Type :=

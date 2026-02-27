@@ -7,7 +7,6 @@ import GameTheory.PMFProduct
 namespace EFG
 
 open scoped BigOperators
-open Classical
 
 variable {S : InfoStructure} {Outcome : Type}
 
@@ -19,8 +18,11 @@ instance : Fintype (FlatIdx S) := Sigma.instFintype
 instance : DecidableEq (FlatIdx S) := Sigma.instDecidableEqSigma
 instance : Fintype (FlatProfile S) := Pi.instFintype
 instance (p : S.Player) : Fintype (PureStrategy S p) := Pi.instFintype
-
-abbrev MixedProfile (S : InfoStructure) := (p : S.Player) -> PMF (PureStrategy S p)
+instance (p : S.Player) : DecidableEq (PureStrategy S p) :=
+  show DecidableEq ((I : S.Infoset p) → S.Act I) from inferInstance
+instance : DecidableEq (PureProfile S) :=
+  show DecidableEq ((p : S.Player) → PureStrategy S p) from
+    Fintype.decidablePiFintype
 
 noncomputable def mixedProfileJoint (muP : MixedProfile S) : PMF (PureProfile S) :=
   pmfPi (A := fun p => PureStrategy S p) muP
@@ -52,8 +54,10 @@ noncomputable def muCond {p : S.Player} (I : S.Infoset p) (a : S.Act I)
   PMF.ofFintype
     (fun s => if s ⟨p, I⟩ = a then mu s / (muMarginal (S := S) I mu a) else 0)
     (by
-      rw [show (∑ s, if s ⟨p, I⟩ = a then mu s / muMarginal (S := S) I mu a else (0 : ENNReal)) =
-          (∑ s, (if s ⟨p, I⟩ = a then (mu s : ENNReal) else 0) * (muMarginal (S := S) I mu a)⁻¹) from
+      rw [show (∑ s, if s ⟨p, I⟩ = a then mu s / muMarginal (S := S) I mu a
+            else (0 : ENNReal)) =
+          (∑ s, (if s ⟨p, I⟩ = a
+          then (mu s : ENNReal) else 0) * (muMarginal (S := S) I mu a)⁻¹) from
         Finset.sum_congr rfl (fun s _ => by split_ifs <;> simp [div_eq_mul_inv]),
         ← Finset.sum_mul]
       have hsum : (∑ s : FlatProfile S, if s ⟨p, I⟩ = a then (mu s : ENNReal) else 0)
@@ -102,6 +106,14 @@ lemma pmfPureToFlat_eq (mu : PMF (PureProfile S)) (s : FlatProfile S) :
 def Ep {p : S.Player} (I : S.Infoset p) (a : S.Act I) : PureStrategy S p → Prop :=
   fun sp => sp I = a
 
+instance {p : S.Player} {I : S.Infoset p} {a : S.Act I} :
+    DecidablePred (Ep (S := S) I a) :=
+  fun sp => show Decidable (sp I = a) from inferInstance
+
+instance {p : S.Player} {I : S.Infoset p} {a : S.Act I} :
+    DecidablePred (fun (π : PureProfile S) => Ep (S := S) I a (π p)) :=
+  fun π => show Decidable (π p I = a) from inferInstance
+
 /-- The flat marginal at infoset I equals the pure-side pushforward. -/
 lemma muMarginal_pmfPureToFlat_eq (mu : PMF (PureProfile S))
     {p : S.Player} (I : S.Infoset p) (a : S.Act I) :
@@ -114,7 +126,8 @@ lemma muMarginal_pmfPureToFlat_eq (mu : PMF (PureProfile S))
   exact Fintype.sum_equiv (flatProfileEquivPureProfile (S := S)) _ _
     (fun s => by simp [flatProfileEquivPureProfile, eq_comm])
 
-/-- Condition the product PMF on the coordinate event `π p I = a` (depends only on coordinate `p`). -/
+/-- Condition the product PMF on the coordinate event `π p I = a`
+ (depends only on coordinate `p`). -/
 noncomputable def pureCond (muP : MixedProfile S) {p : S.Player} (I : S.Infoset p) (a : S.Act I)
     (hE : pmfMass (μ := muP p) (Ep (S := S) I a) ≠ 0) : PMF (PureProfile S) :=
   pmfCond (μ := mixedProfileJoint (S := S) muP)
@@ -154,21 +167,21 @@ theorem muCond_eq_pmfPureToFlat_pureCond
       pmfMass (μ := mu) (fun π => Ep (S := S) I a (π p)) :=
     muMarginal_pmfPureToFlat_eq mu I a
   ext s
-  -- Expand LHS: muCond at flat profile s
-  simp only [muCond, PMF.ofFintype_apply, pmfPureToFlat_eq]
-  -- Expand RHS: pmfPureToFlat of pureCond at s = pureCond at e s
-  rw [pmfPureToFlat_eq]
-  -- Unfold pureCond
-  unfold pureCond
-  rw [pmfCond_apply]
-  simp only [pmfMask]
-  -- Key: Ep I a ((e s) p) ↔ s ⟨p, I⟩ = a
+  -- Key facts
   have hep : Ep (S := S) I a ((e s) p) ↔ s ⟨p, I⟩ = a := by
     simp [Ep, e, flatProfileEquivPureProfile]
+  -- Expand everything at once
+  simp only [muCond, PMF.ofFintype_apply, pmfPureToFlat_eq,
+    pureCond, pmfCond_apply, pmfMask]
+  -- After simp: LHS has if s⟨p,I⟩=a then mu(es)/muMarginal else 0
+  --             RHS has (if Ep .. then mu(es) else 0) / pmfMass
+  -- Both conditionals equivalent, both denominators equal
+  rw [hd_eq]
   by_cases hs : s ⟨p, I⟩ = a
-  · simp only [hs, ↓reduceIte, hep.mpr hs, hd_eq]
-  · simp only [hs, ↓reduceIte, show ¬ Ep (S := S) I a ((e s) p)
-      from (not_congr hep).mpr hs, zero_div]
+  · rw [if_pos hs, if_pos (hep.mpr hs)]
+  · rw [if_neg hs, if_neg (show ¬ Ep (S := S) I a ((e s) p)
+      from (not_congr hep).mpr hs)]
+    simp
 
 -- ----------------------------------------------------------------------------
 -- 4) Now the two “headline” theorems become short.
@@ -189,10 +202,9 @@ theorem PlayerIndep_muCond
   -- for now, just define it using classical choice + the fact it must be nonzero
   -- because pushforward to flat has nonzero mass).
   have hE : pmfMass (μ := muP p) (Ep (S := S) I a) ≠ 0 := by
-    -- clean way: use `pmfMass_pmfPi_coord` on the product and the fact
-    -- `muMarginal` is exactly pushforward along `π ↦ π p I` after `pmfPureToFlat`.
-    -- If you don’t want to do that now, you can keep this as `sorry`.
-    sorry
+    rwa [← pmfMass_pmfPi_coord (A := fun q => PureStrategy S q)
+      (σ := muP) (j := p) (E := Ep (S := S) I a),
+      ← muMarginal_pmfPureToFlat_eq]
   refine ⟨Function.update muP p (pmfCond (μ := muP p) (Ep (S := S) I a) hE), ?_⟩
   -- Use the bridge lemma + the PMFProduct “conditioning a product updates only that coordinate”
   -- on the pure side:
@@ -203,11 +215,9 @@ theorem PlayerIndep_muCond
         (Function.update muP p (pmfCond (μ := muP p) (Ep (S := S) I a) hE)) := by
     -- This is exactly `pmfPi_cond_coord` specialized to index = players, event on coordinate p.
     -- (your PMFProduct lemma)
-    ext π
-    -- unfold pureCond/mixedProfileJoint and apply the lemma
-    -- (this simp is usually enough once the lemma is in scope)
-    -- If it doesn’t close, expand `pmfCond_apply` + `pmfPi_apply`.
-    sorry
+    exact pmfPi_cond_coord
+      (A := fun q => PureStrategy S q) muP p
+      (Ep (S := S) I a) hE
   -- finish
   calc
     muCond (S := S) I a (pmfPureToFlat (S := S) (mixedProfileJoint (S := S) muP)) hpa
@@ -217,7 +227,7 @@ theorem PlayerIndep_muCond
     _ = pmfPureToFlat (S := S)
           (mixedProfileJoint (S := S)
             (Function.update muP p (pmfCond (μ := muP p) (Ep (S := S) I a) hE))) := by
-          simpa [hpure]
+          simp [hpure]
     _ = pmfPureToFlat (S := S) (mixedProfileJoint (S := S)
             (Function.update muP p (pmfCond (μ := muP p) (Ep (S := S) I a) hE))) := rfl
 
@@ -235,7 +245,9 @@ theorem muMarginal_muCond_other
   rcases hind with ⟨muP, rfl⟩
   -- same pure-side nonzero mass as above
   have hE : pmfMass (μ := muP p) (Ep (S := S) I a) ≠ 0 := by
-    sorry
+    rwa [← pmfMass_pmfPi_coord (A := fun q => PureStrategy S q)
+      (σ := muP) (j := p) (E := Ep (S := S) I a),
+      ← muMarginal_pmfPureToFlat_eq]
   -- rewrite `muCond` as pushforward of pure-side conditioning
   have hrew :
       muCond (S := S) I a (pmfPureToFlat (S := S) (mixedProfileJoint (S := S) muP)) hpa
@@ -250,8 +262,85 @@ theorem muMarginal_muCond_other
   -- This is one more “pushforward-compose” lemma + `pmfPi_cond_coord_push_other`.
   --
   -- If you don’t yet have the pushforward-compose lemma, keep this as `sorry` and fill later.
-  simp [muMarginal, hrew]
-  sorry
+  -- Unfold muMarginal and rewrite muCond via hrew
+  simp only [muMarginal, hrew]
+  -- Goal: pmfPureToFlat(pureCond).bind(s↦pure(s⟨q,J⟩)) =
+  --       pmfPureToFlat(joint).bind(s↦pure(s⟨q,J⟩))
+  -- Unfold pmfPureToFlat and simplify to get pure-side binds
+  simp only [pmfPureToFlat, PMF.bind_bind, PMF.pure_bind]
+  -- Goal: (pureCond muP I a hE).bind (· q J |> PMF.pure) =
+  --       (mixedProfileJoint muP).bind (· q J |> PMF.pure)
+  -- Factor through pushforward at coordinate q
+  calc (pureCond (S := S) muP I a hE).bind
+        (fun pi => PMF.pure (pi q J))
+      = ((pureCond (S := S) muP I a hE).bind
+          (fun pi => PMF.pure (pi q))).bind
+          (fun sq => PMF.pure (sq J)) := by
+        simp only [PMF.bind_bind, PMF.pure_bind]
+    _ = ((mixedProfileJoint (S := S) muP).bind
+          (fun pi => PMF.pure (pi q))).bind
+          (fun sq => PMF.pure (sq J)) := by
+        congr 1
+        exact (pmfPi_cond_coord_push_other
+          (A := fun q => PureStrategy S q) muP hpq
+          (Ep (S := S) I a) hE).trans
+          (pmfPi_push_coord
+            (A := fun q => PureStrategy S q) muP q).symm
+    _ = (mixedProfileJoint (S := S) muP).bind
+          (fun pi => PMF.pure (pi q J)) := by
+        simp only [PMF.bind_bind, PMF.pure_bind]
+
+theorem muCond_comm_of_PlayerIndep
+    (mu : PMF (FlatProfile S))
+    (hind : PlayerIndep (S := S) mu)
+    {p q : S.Player} (hpq : p ≠ q)
+    {I : S.Infoset p} {a : S.Act I}
+    {J : S.Infoset q} {b : S.Act J}
+    (hpa : muMarginal (S := S) I mu a ≠ 0)
+    (hpb : muMarginal (S := S) J mu b ≠ 0) :
+    muCond (S := S) J b (muCond (S := S) I a mu hpa)
+      (by
+        have : muMarginal (S := S) J (muCond (S := S) I a mu hpa) b =
+            muMarginal (S := S) J mu b :=
+          congrArg (fun ν => ν b)
+            (muMarginal_muCond_other (S := S) mu hind
+              (Ne.symm hpq) hpa)
+        simpa [this] using hpb)
+      =
+    muCond (S := S) I a (muCond (S := S) J b mu hpb)
+      (by
+        have : muMarginal (S := S) I (muCond (S := S) J b mu hpb) a =
+            muMarginal (S := S) I mu a :=
+          congrArg (fun ν => ν a)
+            (muMarginal_muCond_other (S := S) mu hind hpq hpb)
+        simpa [this] using hpa) := by
+  have muCond_app : ∀ {p'} {I' : S.Infoset p'} {a' : S.Act I'}
+      {mu' : PMF (FlatProfile S)} {h' : muMarginal (S := S) I' mu' a' ≠ 0}
+      (s : FlatProfile S),
+      (muCond (S := S) I' a' mu' h') s =
+        if s ⟨p', I'⟩ = a' then mu' s / muMarginal (S := S) I' mu' a' else 0 := by
+    intros; simp [muCond, PMF.ofFintype_apply]
+  ext s
+  simp only [muCond_app]
+  have hJsame :
+      muMarginal (S := S) J (muCond (S := S) I a mu hpa) b =
+      muMarginal (S := S) J mu b :=
+    congrArg (fun ν => ν b)
+      (muMarginal_muCond_other (S := S) mu hind (Ne.symm hpq) hpa)
+  have hIsame :
+      muMarginal (S := S) I (muCond (S := S) J b mu hpb) a =
+      muMarginal (S := S) I mu a :=
+    congrArg (fun ν => ν a)
+      (muMarginal_muCond_other (S := S) mu hind hpq hpb)
+  by_cases hsi : s ⟨p, I⟩ = a
+  · by_cases hsj : s ⟨q, J⟩ = b
+    · simp only [hsj, ite_true, hsi]
+      rw [hJsame, hIsame]
+      exact mul_right_comm _ _ _
+    · simp [hsi, hsj]
+  · by_cases hsj : s ⟨q, J⟩ = b
+    · simp [hsi, hsj]
+    · simp [hsi, hsj]
 
 structure DecConstraint (S : InfoStructure) where
   p : S.Player
@@ -275,7 +364,8 @@ def GoodPath {S} (mu : PMF (FlatProfile S)) : DecPath S → Type
         GoodPath (S := S) (muCond (S := S) c.I c.a mu h) cs
 
 noncomputable def muCondPath {S} :
-    (mu : PMF (FlatProfile S)) → (path : DecPath S) → GoodPath (S := S) mu path → PMF (FlatProfile S)
+    (mu : PMF (FlatProfile S)) → (path : DecPath S)
+     → GoodPath (S := S) mu path → PMF (FlatProfile S)
   | mu, [], _ => mu
   | mu, c :: cs, ⟨h, hgood⟩ =>
       muCondPath (S := S) (mu := muCond (S := S) c.I c.a mu h) (path := cs) hgood
@@ -290,10 +380,94 @@ noncomputable def muCondPath {S} :
         (mu := muCond (S := S) c.I c.a mu h.1)
         (path := cs) h.2 := rfl
 
+/-- `muCond` doesn't depend on which proof of nonzero mass is used. -/
+theorem muCond_irrel {p : S.Player} (I : S.Infoset p) (a : S.Act I)
+    (mu : PMF (FlatProfile S))
+    (h1 h2 : muMarginal (S := S) I mu a ≠ 0) :
+    muCond (S := S) I a mu h1 = muCond (S := S) I a mu h2 := rfl
+
+/-- `muCondPath` doesn't depend on which `GoodPath` witness is used. -/
+theorem muCondPath_irrel (mu : PMF (FlatProfile S)) (path : DecPath S)
+    (hg₁ hg₂ : GoodPath (S := S) mu path) :
+    muCondPath (S := S) mu path hg₁ = muCondPath (S := S) mu path hg₂ := by
+  induction path generalizing mu with
+  | nil => rfl
+  | cons c cs ih => exact ih (muCond (S := S) c.I c.a mu hg₁.1) hg₁.2 hg₂.2
+
+/-- `muCondPath` is invariant under equal distributions. -/
+theorem muCondPath_eq_of_eq
+    {mu1 mu2 : PMF (FlatProfile S)} (h : mu1 = mu2)
+    {path : DecPath S}
+    (hg1 : GoodPath (S := S) mu1 path)
+    (hg2 : GoodPath (S := S) mu2 path) :
+    muCondPath (S := S) mu1 path hg1 =
+    muCondPath (S := S) mu2 path hg2 := by
+  subst h; exact muCondPath_irrel (S := S) mu1 path hg1 hg2
+
 def RelevantTo (p : S.Player) (c : DecConstraint S) : Prop := c.p = p
 
 noncomputable def FilterPlayer (p : S.Player) (path : DecPath S) : DecPath S :=
   path.filter (fun c => decide (c.p = p))
+
+lemma mem_FilterPlayer_iff (p : S.Player) (c : DecConstraint S) (path : DecPath S) :
+    c ∈ FilterPlayer (S := S) p path ↔ c ∈ path ∧ c.p = p := by
+  classical
+  simp [FilterPlayer, List.mem_filter]
+
+def decPathToHistory : DecPath S → List (HistoryStep S)
+  | [] => []
+  | c :: cs => HistoryStep.action c.p c.I c.a :: decPathToHistory cs
+
+def playerViewOfConstraint (q : S.Player) (c : DecConstraint S) (h : c.p = q) :
+    Σ I : S.Infoset q, S.Act I := by
+  subst h
+  exact ⟨c.I, c.a⟩
+
+def viewToConstraint (q : S.Player) (v : Σ I : S.Infoset q, S.Act I) : DecConstraint S :=
+  { p := q, I := v.1, a := v.2 }
+
+lemma viewToConstraint_playerView
+    (q : S.Player) (c : DecConstraint S) (h : c.p = q) :
+    viewToConstraint (S := S) q (playerViewOfConstraint (S := S) q c h) = c := by
+  cases c with
+  | mk p I a =>
+      dsimp [playerViewOfConstraint, viewToConstraint] at *
+      cases h
+      rfl
+
+def decPathPlayerView (q : S.Player) : DecPath S → List (Σ I : S.Infoset q, S.Act I)
+  | [] => []
+  | c :: cs =>
+      if h : c.p = q then
+        playerViewOfConstraint (S := S) q c h :: decPathPlayerView q cs
+      else
+        decPathPlayerView q cs
+
+lemma decPathPlayerView_eq_playerHistory (q : S.Player) (path : DecPath S) :
+    decPathPlayerView (S := S) q path =
+      playerHistory S q (decPathToHistory (S := S) path) := by
+  induction path with
+  | nil =>
+      rfl
+  | cons c cs ih =>
+      simp [decPathToHistory, decPathPlayerView, playerHistory, ih]
+      by_cases h : c.p = q
+      · simp [h, playerViewOfConstraint]
+      · simp [h]
+
+lemma map_viewToConstraint_decPathPlayerView
+    (q : S.Player) (path : DecPath S) :
+    List.map (viewToConstraint (S := S) q) (decPathPlayerView (S := S) q path)
+      =
+    FilterPlayer (S := S) q path := by
+  induction path with
+  | nil =>
+      rfl
+  | cons c cs ih =>
+      by_cases h : c.p = q
+      · simp [decPathPlayerView, FilterPlayer, h, ih]
+        simp [viewToConstraint_playerView (S := S) q c h]
+      · simp [decPathPlayerView, FilterPlayer, h, ih]
 
 inductive SubtreeAt : GameTree S Outcome -> DecPath S -> GameTree S Outcome -> Prop where
   | refl (t : GameTree S Outcome) : SubtreeAt t [] t
@@ -303,16 +477,64 @@ inductive SubtreeAt : GameTree S Outcome -> DecPath S -> GameTree S Outcome -> P
   | decision {pOwner : S.Player} {I0 : S.Infoset pOwner}
       {next : S.Act I0 -> GameTree S Outcome}
       {path : DecPath S} {u : GameTree S Outcome} {a : S.Act I0} :
-      SubtreeAt (next a) (path ++ [{ p := pOwner, I := I0, a := a }]) u ->
-      SubtreeAt (.decision I0 next) path u
+      SubtreeAt (next a) path u ->
+      SubtreeAt (.decision I0 next)
+        ({ p := pOwner, I := I0, a := a } :: path) u
+
+/-- Transitivity of SubtreeAt. -/
+theorem SubtreeAt.trans {t₁ t₂ t₃ : GameTree S Outcome}
+    {p₁ p₂ : DecPath S}
+    (h₁ : SubtreeAt (S := S) (Outcome := Outcome) t₁ p₁ t₂)
+    (h₂ : SubtreeAt (S := S) (Outcome := Outcome) t₂ p₂ t₃) :
+    SubtreeAt (S := S) (Outcome := Outcome) t₁ (p₁ ++ p₂) t₃ := by
+  induction h₁ with
+  | refl => simpa
+  | chance _ ih => exact .chance (ih h₂)
+  | decision _ ih => exact .decision (ih h₂)
+
+/-- Go from a decision node to one of its children via transitivity.
+    The child's path extends the parent's by appending the decision. -/
+theorem SubtreeAt.decision_child
+    {t : GameTree S Outcome}
+    {pi : DecPath S}
+    {pOwner : S.Player} {I0 : S.Infoset pOwner}
+    {next : S.Act I0 → GameTree S Outcome}
+    (hsub : SubtreeAt (S := S) (Outcome := Outcome) t pi
+      (.decision I0 next))
+    (a : S.Act I0) :
+    SubtreeAt (S := S) (Outcome := Outcome) t
+      (pi ++ [{ p := pOwner, I := I0, a := a }]) (next a) :=
+  hsub.trans (.decision (.refl _))
+
+/-- Bridge from SubtreeAt to ReachBy, preserving player history. -/
+theorem SubtreeAt_to_ReachBy_with_playerHistory
+    {tRoot u : GameTree S Outcome} {pi : DecPath S}
+    (hsub : SubtreeAt (S := S) (Outcome := Outcome) tRoot pi u) :
+    ∃ h, ReachBy (S := S) (Outcome := Outcome) h tRoot u ∧
+      ∀ q, playerHistory S q h = decPathPlayerView (S := S) q pi := by
+  induction hsub with
+  | refl t => exact ⟨[], ReachBy.here t, fun _ => rfl⟩
+  | @chance k muC hk next path u b _ ih =>
+    rcases ih with ⟨h, hreach, hview⟩
+    exact ⟨HistoryStep.chance k b :: h, ReachBy.chance b hreach, fun q => by
+      simp [playerHistory, hview q]⟩
+  | @decision pOwner I0 next path u a _ ih =>
+    rcases ih with ⟨h, hreach, hview⟩
+    refine ⟨HistoryStep.action pOwner I0 a :: h, ReachBy.action a hreach, fun q => ?_⟩
+    simp only [playerHistory, decPathPlayerView]
+    by_cases hp : pOwner = q
+    · subst hp
+      simp [playerViewOfConstraint, hview _]
+    · simp [hp, hview q]
 
 def PathReachesInfoset
     (tRoot : GameTree S Outcome)
     (pi : DecPath S)
     {q : S.Player}
     (J : S.Infoset q) : Prop :=
-  ∃ u, SubtreeAt (S := S) (Outcome := Outcome) tRoot pi u ∧ DecisionNodeIn J u
+  ∃ next, SubtreeAt (S := S) (Outcome := Outcome) tRoot pi (.decision J next)
 
+open Classical in
 noncomputable def qHistoryList (tRoot : GameTree S Outcome) (q : S.Player)
     (J : S.Infoset q) : DecPath S :=
   if h : ∃ pi, PathReachesInfoset (S := S) (Outcome := Outcome) tRoot pi J then
@@ -368,7 +590,187 @@ theorem PlayerIndep_muCondPath
     (hind : PlayerIndep (S := S) mu)
     (hgood : GoodPath (S := S) mu path) :
     PlayerIndep (S := S) (muCondPath (S := S) mu path hgood) := by
-  sorry
+  induction path generalizing mu with
+  | nil => exact hind
+  | cons c cs ih =>
+    exact ih (muCond (S := S) c.I c.a mu hgood.1)
+      (PlayerIndep_muCond (S := S) mu hind hgood.1)
+      hgood.2
+
+/-- Canonical witness that filtered constraints remain conditionable when we drop
+    a non-q conditioning step. -/
+noncomputable def goodPath_transport_other
+    (mu : PMF (FlatProfile S))
+    (c : DecConstraint S)
+    (cs : DecPath S)
+    (q : S.Player)
+    (hc : muMarginal (S := S) c.I mu c.a ≠ 0)
+    (hneq : c.p ≠ q)
+    (hind : PlayerIndep (S := S) mu)
+    (hcs :
+      GoodPath (S := S)
+        (muCond (S := S) c.I c.a mu hc)
+        (FilterPlayer (S := S) q cs)) :
+    GoodPath (S := S) mu (FilterPlayer (S := S) q cs) := by
+  induction cs generalizing mu with
+  | nil =>
+      simpa [FilterPlayer] using (PUnit.unit : GoodPath (S := S) mu [])
+  | cons d ds ih =>
+      by_cases hdq : d.p = q
+      · have hshape :
+            GoodPath (S := S) (muCond (S := S) c.I c.a mu hc)
+              (d :: FilterPlayer (S := S) q ds) := by
+          simpa [FilterPlayer, hdq] using hcs
+        rcases hshape with ⟨hd_cond, htail_cond⟩
+        have hdp_ne_cp : d.p ≠ c.p := by
+          intro hdc; exact hneq (hdc ▸ hdq)
+        have hd_nonzero : muMarginal (S := S) d.I mu d.a ≠ 0 := by
+          have hmarg :
+              muMarginal (S := S) d.I (muCond (S := S) c.I c.a mu hc) d.a
+                = muMarginal (S := S) d.I mu d.a :=
+            congrArg (fun ν => ν d.a)
+              (muMarginal_muCond_other (S := S) (mu := mu) hind
+                hdp_ne_cp (I := c.I) (J := d.I) (a := c.a) hc)
+          simpa [hmarg] using hd_cond
+        have hc_after : muMarginal (S := S) c.I
+            (muCond (S := S) d.I d.a mu hd_nonzero) c.a ≠ 0 := by
+          have hmarg :
+              muMarginal (S := S) c.I (muCond (S := S) d.I d.a mu hd_nonzero) c.a
+                = muMarginal (S := S) c.I mu c.a :=
+            congrArg (fun ν => ν c.a)
+              (muMarginal_muCond_other (S := S) (mu := mu) hind
+                (by simpa using hdp_ne_cp.symm)
+                (I := d.I) (J := c.I) (a := d.a) hd_nonzero)
+          simpa [hmarg] using hc
+        have hind_d :
+            PlayerIndep (S := S) (muCond (S := S) d.I d.a mu hd_nonzero) :=
+          PlayerIndep_muCond (S := S) (mu := mu) hind hd_nonzero
+        have hcomm :
+            muCond (S := S) d.I d.a (muCond (S := S) c.I c.a mu hc) hd_cond
+              =
+            muCond (S := S) c.I c.a (muCond (S := S) d.I d.a mu hd_nonzero) hc_after := by
+          simpa using
+            muCond_comm_of_PlayerIndep (S := S) (mu := mu) hind
+              (Ne.symm hdp_ne_cp) (I := c.I) (a := c.a)
+              (J := d.I) (b := d.a) hc hd_nonzero
+        have htail' :
+            GoodPath (S := S)
+              (muCond (S := S) c.I c.a (muCond (S := S) d.I d.a mu hd_nonzero) hc_after)
+              (FilterPlayer (S := S) q ds) :=
+          cast (by rw [hcomm]) htail_cond
+        have htail :
+            GoodPath (S := S) (muCond (S := S) d.I d.a mu hd_nonzero)
+              (FilterPlayer (S := S) q ds) :=
+          ih (mu := muCond (S := S) d.I d.a mu hd_nonzero)
+            (hc := hc_after) (hind := hind_d) (hcs := htail')
+        simpa [FilterPlayer, hdq] using (⟨hd_nonzero, htail⟩ :
+          GoodPath (S := S) mu (d :: FilterPlayer (S := S) q ds))
+      · have hshape :
+            GoodPath (S := S) (muCond (S := S) c.I c.a mu hc)
+              (FilterPlayer (S := S) q ds) := by
+          simpa [FilterPlayer, hdq] using hcs
+        have htail :
+            GoodPath (S := S) mu (FilterPlayer (S := S) q ds) :=
+          ih (mu := mu) (hc := hc) (hind := hind) (hcs := hshape)
+        simpa [FilterPlayer, hdq] using htail
+
+noncomputable def goodPathFilter
+    (mu : PMF (FlatProfile S)) (path : DecPath S)
+    (hgood : GoodPath (S := S) mu path) (q : S.Player)
+    (hind : PlayerIndep (S := S) mu) :
+    GoodPath (S := S) mu (FilterPlayer (S := S) q path) := by
+  induction path generalizing mu with
+  | nil =>
+      simpa [FilterPlayer] using (PUnit.unit : GoodPath (S := S) mu [])
+  | cons c cs ih =>
+      rcases hgood with ⟨hc, hcs⟩
+      by_cases hq : c.p = q
+      · simp only [FilterPlayer, hq, decide_true, List.filter_cons_of_pos]
+        refine ⟨?_, ?_⟩
+        · simpa [hq] using hc
+        · exact ih (muCond (S := S) c.I c.a mu hc) hcs
+            (PlayerIndep_muCond (S := S) mu hind hc)
+      · simp only [FilterPlayer, hq, decide_false, Bool.false_eq_true, not_false_eq_true,
+          List.filter_cons_of_neg]
+        exact goodPath_transport_other (S := S) mu c cs q hc hq hind
+          (ih (muCond (S := S) c.I c.a mu hc) hcs
+            (PlayerIndep_muCond (S := S) mu hind hc))
+
+/-- Conditioning on a constraint for a different player, then conditioning along a path,
+    gives the same marginal at player q's infoset as just conditioning along the path.
+    This follows from the product structure: non-q conditioning only modifies non-q coordinates. -/
+theorem muMarginal_skip_nonq_cond
+    (mu : PMF (FlatProfile S)) (hind : PlayerIndep (S := S) mu)
+    (c : DecConstraint S) (q : S.Player) (hcq : c.p ≠ q)
+    (J : S.Infoset q)
+    (hc : muMarginal (S := S) c.I mu c.a ≠ 0)
+    (path : DecPath S)
+    (hall : ∀ d, d ∈ path → d.p = q)
+    (hgood1 : GoodPath (S := S) (muCond (S := S) c.I c.a mu hc) path)
+    (hgood2 : GoodPath (S := S) mu path) :
+    muMarginal (S := S) J
+      (muCondPath (S := S) (muCond (S := S) c.I c.a mu hc) path hgood1) =
+    muMarginal (S := S) J (muCondPath (S := S) mu path hgood2) := by
+  induction path generalizing mu with
+  | nil =>
+      simp only [muCondPath]
+      exact muMarginal_muCond_other (S := S) mu hind (Ne.symm hcq) hc
+  | cons d ds ih =>
+      have hdq : d.p = q := hall d (List.mem_cons.mpr (Or.inl rfl))
+      have hdp_ne_cp : d.p ≠ c.p := by
+        intro hdc; exact hcq (hdc ▸ hdq)
+      rcases hgood1 with ⟨hd_cond, htail_cond⟩
+      rcases hgood2 with ⟨hd_base, htail_base⟩
+      have hc_after :
+          muMarginal (S := S) c.I
+            (muCond (S := S) d.I d.a mu hd_base) c.a ≠ 0 := by
+        have hmarg :
+            muMarginal (S := S) c.I (muCond (S := S) d.I d.a mu hd_base) c.a
+              = muMarginal (S := S) c.I mu c.a :=
+          congrArg (fun ν => ν c.a)
+            (muMarginal_muCond_other (S := S) (mu := mu) hind
+              (Ne.symm hdp_ne_cp) hd_base)
+        simpa [hmarg] using hc
+      have hcomm :
+          muCond (S := S) d.I d.a (muCond (S := S) c.I c.a mu hc) hd_cond
+            =
+          muCond (S := S) c.I c.a
+            (muCond (S := S) d.I d.a mu hd_base) hc_after := by
+        simpa using
+          muCond_comm_of_PlayerIndep (S := S) (mu := mu) hind
+            (Ne.symm hdp_ne_cp) (I := c.I) (a := c.a)
+            (J := d.I) (b := d.a) hc hd_base
+      have htail_cond' :
+          GoodPath (S := S)
+            (muCond (S := S) c.I c.a
+              (muCond (S := S) d.I d.a mu hd_base) hc_after)
+            ds :=
+        cast (by rw [hcomm]) htail_cond
+      have hind_d :
+          PlayerIndep (S := S) (muCond (S := S) d.I d.a mu hd_base) :=
+        PlayerIndep_muCond (S := S) mu hind hd_base
+      have hall_tail : ∀ d', d' ∈ ds → d'.p = q :=
+        fun d' hd'mem => hall d' (List.mem_cons.mpr (Or.inr hd'mem))
+      calc
+        muMarginal (S := S) J
+            (muCondPath (S := S) (muCond (S := S) c.I c.a mu hc)
+              (d :: ds) ⟨hd_cond, htail_cond⟩)
+          = muMarginal (S := S) J
+            (muCondPath (S := S)
+              (muCond (S := S) c.I c.a
+                (muCond (S := S) d.I d.a mu hd_base) hc_after)
+              ds htail_cond') := by
+                simp only [muCondPath]
+                congr 1
+                exact muCondPath_eq_of_eq (S := S)
+                  hcomm htail_cond htail_cond'
+        _ = muMarginal (S := S) J
+            (muCondPath (S := S) (muCond (S := S) d.I d.a mu hd_base) ds htail_base) :=
+          ih (muCond (S := S) d.I d.a mu hd_base)
+            hind_d hc_after hall_tail htail_cond' htail_base
+        _ = muMarginal (S := S) J
+            (muCondPath (S := S) mu (d :: ds) ⟨hd_base, htail_base⟩) := by
+              simp [muCondPath]
 
 theorem muMarginal_condPath_invariant_filter
     (mu : PMF (FlatProfile S)) (path : DecPath S)
@@ -379,7 +781,52 @@ theorem muMarginal_condPath_invariant_filter
     muMarginal (S := S) J (muCondPath (S := S) mu path hgood) =
     muMarginal (S := S) J
       (muCondPath (S := S) mu (FilterPlayer (S := S) q path) hgoodF) := by
-  sorry
+  induction path generalizing mu with
+  | nil => rfl
+  | cons c cs ih =>
+    -- muCondPath (c :: cs) = muCondPath cs ∘ muCond c
+    -- FilterPlayer q (c :: cs) = if c.p = q then c :: FilterPlayer q cs
+    --                                       else FilterPlayer q cs
+    by_cases hcq : c.p = q
+    · -- c.p = q: FilterPlayer keeps c, both sides peel off c
+      subst hcq
+      -- FilterPlayer c.p (c :: cs) = c :: FilterPlayer c.p cs propositionally
+      have hfilt : FilterPlayer (S := S) c.p (c :: cs) =
+          c :: FilterPlayer (S := S) c.p cs := by
+        simp [FilterPlayer]
+      -- Transport hgoodF to the simplified type
+      revert hgoodF; rw [hfilt]; intro hgoodF
+      -- Now hgoodF : GoodPath mu (c :: FilterPlayer c.p cs)
+      exact ih (muCond (S := S) c.I c.a mu hgood.1)
+        (PlayerIndep_muCond (S := S) mu hind hgood.1)
+        hgood.2 hgoodF.2
+    · -- c.p ≠ q: FilterPlayer drops c, so FilterPlayer q (c::cs) = FilterPlayer q cs
+      have hfilt : FilterPlayer (S := S) q (c :: cs) =
+          FilterPlayer (S := S) q cs := by
+        simp [FilterPlayer, hcq]
+      -- Transport hgoodF
+      revert hgoodF; rw [hfilt]; intro hgoodF
+      -- LHS: muMarginal J (muCondPath (muCond c mu) cs)
+      -- By IH on cs with mu' = muCond c mu:
+      --   = muMarginal J (muCondPath (muCond c mu) (FilterPlayer q cs))
+      -- Then by skip lemma: = muMarginal J (muCondPath mu (FilterPlayer q cs))
+      let mu' := muCond (S := S) c.I c.a mu hgood.1
+      -- We need a GoodPath for FilterPlayer q cs under mu'
+      have hind' := PlayerIndep_muCond (S := S) mu hind hgood.1
+      -- Use muMarginal_condPath_invariant_filter (IH) to reduce to filtered path under mu'
+      have hgoodF' : GoodPath (S := S) mu' (FilterPlayer (S := S) q cs) :=
+        goodPathFilter (S := S) mu' cs hgood.2 q hind'
+      have hallF : ∀ d, d ∈ FilterPlayer (S := S) q cs → d.p = q :=
+        fun d hd => ((mem_FilterPlayer_iff (S := S) q d cs).mp hd).2
+      calc muMarginal (S := S) J (muCondPath (S := S) mu (c :: cs) hgood)
+          = muMarginal (S := S) J (muCondPath (S := S) mu' cs hgood.2) := rfl
+        _ = muMarginal (S := S) J
+              (muCondPath (S := S) mu' (FilterPlayer (S := S) q cs) hgoodF') :=
+            ih mu' hind' hgood.2 hgoodF'
+        _ = muMarginal (S := S) J
+              (muCondPath (S := S) mu (FilterPlayer (S := S) q cs) hgoodF) :=
+            muMarginal_skip_nonq_cond (S := S) mu hind c q hcq J hgood.1
+              (FilterPlayer (S := S) q cs) hallF hgoodF' hgoodF
 
 theorem FilterPlayer_path_eq_history
     (tRoot : GameTree S Outcome)
@@ -389,36 +836,343 @@ theorem FilterPlayer_path_eq_history
     {pi : DecPath S}
     (hreach : PathReachesInfoset (S := S) (Outcome := Outcome) tRoot pi J) :
     FilterPlayer (S := S) q pi = qHistoryList (S := S) (Outcome := Outcome) tRoot q J := by
-  sorry
+  classical
+  unfold qHistoryList
+  have hEx : ∃ pi', PathReachesInfoset (S := S) (Outcome := Outcome) tRoot pi' J :=
+    ⟨pi, hreach⟩
+  simp only [hEx, ↓reduceDIte]
+  -- Let pi0 be the canonical chosen path
+  let pi0 : DecPath S := Classical.choose hEx
+  have hpi0 : PathReachesInfoset (S := S) (Outcome := Outcome) tRoot pi0 J :=
+    Classical.choose_spec hEx
+  -- Extract SubtreeAt witnesses
+  rcases hreach with ⟨next, hsub⟩
+  rcases hpi0 with ⟨next0, hsub0⟩
+  -- Convert to ReachBy with playerHistory
+  rcases SubtreeAt_to_ReachBy_with_playerHistory (S := S) (Outcome := Outcome) hsub with
+    ⟨h, hreach_h, hview⟩
+  rcases SubtreeAt_to_ReachBy_with_playerHistory (S := S) (Outcome := Outcome) hsub0 with
+    ⟨h0, hreach_h0, hview0⟩
+  -- Apply PerfectRecall
+  have hPR : playerHistory S q h = playerHistory S q h0 :=
+    hpr h h0 J next next0 hreach_h hreach_h0
+  -- Convert playerHistory to decPathPlayerView
+  have hpv : decPathPlayerView (S := S) q pi = decPathPlayerView (S := S) q pi0 := by
+    rw [← hview q, ← hview0 q, hPR]
+  -- Convert decPathPlayerView to FilterPlayer via map_viewToConstraint_decPathPlayerView
+  have := map_viewToConstraint_decPathPlayerView (S := S) q pi
+  have := map_viewToConstraint_decPathPlayerView (S := S) q pi0
+  -- FilterPlayer = map viewToConstraint (decPathPlayerView q ·)
+  calc FilterPlayer (S := S) q pi
+      = List.map (viewToConstraint (S := S) q) (decPathPlayerView (S := S) q pi) := by
+        rw [map_viewToConstraint_decPathPlayerView]
+    _ = List.map (viewToConstraint (S := S) q) (decPathPlayerView (S := S) q pi0) := by
+        rw [hpv]
+    _ = FilterPlayer (S := S) q pi0 := by
+        rw [map_viewToConstraint_decPathPlayerView]
 
 noncomputable def mixedToBehavioralRoot
-    (mu : PMF (FlatProfile S)) (tRoot : GameTree S Outcome)
-    (hgoodHist : ∀ (q : S.Player) (J : S.Infoset q),
-      GoodPath (S := S) mu
-        (qHistoryList (S := S) (Outcome := Outcome) tRoot q J)) :
+    (mu : PMF (FlatProfile S)) (tRoot : GameTree S Outcome) :
     BehavioralProfile S :=
-  fun q J =>
-    muMarginal (S := S) J
-      (muCondPath (S := S) mu
-        (qHistoryList (S := S) (Outcome := Outcome) tRoot q J)
-        (hgoodHist q J))
+  fun q J => by
+    classical
+    let hlist := qHistoryList (S := S) (Outcome := Outcome) tRoot q J
+    by_cases hgood : Nonempty (GoodPath (S := S) mu hlist)
+    · exact muMarginal (S := S) J
+        (muCondPath (S := S) mu hlist (Classical.choice hgood))
+    · exact muMarginal (S := S) J mu
+
+/-- Disintegration / law of total probability for muCond:
+    Splitting a bind by the value at an infoset. -/
+theorem muCond_disintegration
+    {p : S.Player} (I : S.Infoset p)
+    (mu : PMF (FlatProfile S))
+    (f : FlatProfile S → PMF Outcome) (x : Outcome) :
+    (mu.bind f) x =
+    ∑ a : S.Act I,
+      ∑ s : FlatProfile S,
+        (if s ⟨p, I⟩ = a then mu s else 0) * (f s x) := by
+  simp only [PMF.bind_apply, tsum_fintype]
+  rw [show ∑ s, mu s * f s x =
+    ∑ s, ∑ a : S.Act I, if s ⟨p, I⟩ = a then mu s * f s x else 0 from by
+    congr 1; funext s
+    exact Eq.symm (Fintype.sum_ite_eq (s ⟨p, I⟩) fun j ↦ mu s * (f s) x)]
+  rw [Finset.sum_comm]
+  congr 1; funext a; congr 1; funext s
+  split_ifs <;> ring
+
+---
+-- § 2. Inductive Step: Decision Nodes
+---
+
+theorem mixedToBehavioral_context_eq
+    (mu : PMF (FlatProfile S)) (tRoot : GameTree S Outcome)
+    (hpr : PerfectRecall tRoot) (hind : PlayerIndep (S := S) mu)
+    (pi : DecPath S) (hgood : GoodPath (S := S) mu pi)
+    {pOwner : S.Player} {I0 : S.Infoset pOwner}
+    (hreach : PathReachesInfoset (S := S) (Outcome := Outcome)
+      tRoot pi I0) :
+    mixedToBehavioralRoot (S := S) (Outcome := Outcome)
+      mu tRoot pOwner I0 =
+      muMarginal (S := S) I0
+        (muCondPath (S := S) mu pi hgood) := by
+  classical
+  have h_hist :
+      FilterPlayer (S := S) pOwner pi =
+      qHistoryList (S := S) (Outcome := Outcome)
+        tRoot pOwner I0 := by
+    simpa using
+      (FilterPlayer_path_eq_history (S := S) (Outcome := Outcome)
+        (tRoot := tRoot) hpr (q := pOwner)
+        (J := I0) (pi := pi) hreach)
+  -- Derive GoodPath for the history list
+  have hgoodF : GoodPath (S := S) mu (FilterPlayer (S := S) pOwner pi) :=
+    goodPathFilter (S := S) mu pi hgood pOwner hind
+  have hgoodHist : GoodPath (S := S) mu
+      (qHistoryList (S := S) (Outcome := Outcome) tRoot pOwner I0) :=
+    h_hist ▸ hgoodF
+  -- Show mixedToBehavioralRoot takes the good branch
+  have hne : Nonempty (GoodPath (S := S) mu
+      (qHistoryList (S := S) (Outcome := Outcome) tRoot pOwner I0)) :=
+    ⟨hgoodHist⟩
+  -- Unfold and simplify
+  unfold mixedToBehavioralRoot
+  simp only [hne, ↓reduceDIte]
+  -- The chosen GoodPath may differ from ours, but muCondPath is proof-irrelevant
+  have hrw :
+      muCondPath (S := S) mu
+        (qHistoryList (S := S) (Outcome := Outcome) tRoot pOwner I0)
+        (Classical.choice hne) =
+      muCondPath (S := S) mu
+        (FilterPlayer (S := S) pOwner pi) hgoodF := by
+    revert hgoodF; rw [h_hist]; intro hgoodF
+    exact muCondPath_irrel (S := S) mu _ _ _
+  rw [hrw]
+  exact (muMarginal_condPath_invariant_filter (S := S)
+    mu pi hind hgood pOwner I0 hgoodF).symm
+
+/-- If muMarginal I mu a = 0 then mu s = 0 for any s with s⟨p,I⟩=a. -/
+theorem muMarginal_zero_of_coord
+    {p : S.Player} (I : S.Infoset p) (a : S.Act I)
+    (mu : PMF (FlatProfile S))
+    (ha : muMarginal (S := S) I mu a = 0)
+    (s : FlatProfile S) (hs : s ⟨p, I⟩ = a) :
+    mu s = 0 := by
+  simp only [muMarginal, PMF.bind_apply,
+    tsum_fintype] at ha
+  have h0 := Finset.sum_eq_zero_iff.mp ha s
+    (Finset.mem_univ s)
+  simp only [hs, PMF.pure_apply, ↓reduceIte, mul_one] at h0
+  exact h0
+
+/-- Mass times conditional = indicator times original. -/
+theorem muMarginal_mul_muCond_apply
+    {p : S.Player} (I : S.Infoset p) (a : S.Act I)
+    (mu : PMF (FlatProfile S))
+    (ha : muMarginal (S := S) I mu a ≠ 0)
+    (s : FlatProfile S) :
+    muMarginal (S := S) I mu a *
+      muCond (S := S) I a mu ha s =
+    if s ⟨p, I⟩ = a then mu s else 0 := by
+  have hne_top : (muMarginal (S := S) I mu) a ≠ ⊤ :=
+    ENNReal.ne_top_of_tsum_ne_top
+      (PMF.tsum_coe (muMarginal (S := S) I mu) ▸
+        ENNReal.one_ne_top) a
+  simp only [muCond, PMF.ofFintype_apply]
+  split_ifs with hs
+  · rw [mul_comm,
+      ENNReal.div_mul_cancel ha hne_top]
+  · simp
+
+/-- The inductive step for decision nodes. -/
+theorem eval_subtree_decision_step
+    (tRoot : GameTree S Outcome)
+    (hpr : PerfectRecall tRoot)
+    (mu : PMF (FlatProfile S))
+    (hind : PlayerIndep (S := S) mu)
+    {pOwner : S.Player} {I0 : S.Infoset pOwner}
+    {next : S.Act I0 → GameTree S Outcome}
+    {pi : DecPath S} (hgood : GoodPath (S := S) mu pi)
+    (h_sub : SubtreeAt (S := S) (Outcome := Outcome)
+      tRoot pi (.decision I0 next))
+    (hreach : PathReachesInfoset (S := S) (Outcome := Outcome)
+      tRoot pi I0)
+    (ih : ∀ (a : S.Act I0)
+        (hga : GoodPath (S := S) mu
+          (pi ++ [{ p := pOwner, I := I0, a := a }])),
+        SubtreeAt (S := S) (Outcome := Outcome)
+          tRoot
+          (pi ++ [{ p := pOwner, I := I0, a := a }])
+          (next a) →
+        (next a).evalDist
+          (mixedToBehavioralRoot (S := S)
+            (Outcome := Outcome) mu tRoot) =
+        (muCondPath (S := S) mu
+          (pi ++ [{ p := pOwner, I := I0, a := a }])
+          hga).bind
+          (fun s => (next a).evalFlat (S := S)
+            (Outcome := Outcome) s)) :
+    (GameTree.decision (S := S) (Outcome := Outcome)
+      I0 next).evalDist
+        (mixedToBehavioralRoot (S := S) (Outcome := Outcome)
+          mu tRoot)
+      =
+    (muCondPath (S := S) mu pi hgood).bind
+      (fun s =>
+        (GameTree.decision (S := S) (Outcome := Outcome)
+          I0 next).evalFlat (S := S)
+            (Outcome := Outcome) s) := by
+  simp only [evalDist_decision]
+  have hctx :
+      mixedToBehavioralRoot (S := S) (Outcome := Outcome)
+        mu tRoot pOwner I0 =
+      muMarginal (S := S) I0
+        (muCondPath (S := S) mu pi hgood) :=
+    mixedToBehavioral_context_eq (S := S) (Outcome := Outcome)
+      mu tRoot hpr hind pi hgood hreach
+  rw [hctx]
+  conv_rhs =>
+    rw [show
+      (fun s =>
+        (GameTree.decision (S := S) (Outcome := Outcome)
+          I0 next).evalFlat (S := S)
+            (Outcome := Outcome) s) =
+      (fun s =>
+        (next (s ⟨pOwner, I0⟩)).evalFlat (S := S)
+          (Outcome := Outcome) s) from by
+        funext s; simp [GameTree.evalFlat,
+          evalDist_decision, flatToBehavioral,
+          PMF.pure_bind]]
+  -- Goal: (muMarginal I0 μ_pi).bind (fun a => evalDist σ (next a))
+  --     = μ_pi.bind (fun s => (next (s⟨p,I0⟩)).evalFlat s)
+  -- Prove pointwise
+  set μ_pi := muCondPath (S := S) mu pi hgood with hμ_def
+  ext x
+  simp only [PMF.bind_apply, tsum_fintype]
+  -- Split RHS sum by action at I0
+  rw [show (∑ s : FlatProfile S, μ_pi s *
+      ((next (s ⟨pOwner, I0⟩)).evalFlat (S := S)
+        (Outcome := Outcome) s) x) =
+    ∑ a : S.Act I0, ∑ s : FlatProfile S,
+      if s ⟨pOwner, I0⟩ = a
+      then μ_pi s *
+        ((next a).evalFlat (S := S)
+          (Outcome := Outcome) s) x
+      else 0 from by
+    rw [Finset.sum_comm]; congr 1; funext s; symm
+    rw [Finset.sum_ite_eq]; simp [Finset.mem_univ]]
+  -- Now both sides: ∑ a, f(a)
+  congr 1; funext a
+  -- Per-action identity
+  by_cases ha :
+      muMarginal (S := S) I0 μ_pi a = 0
+  · -- Zero mass: both sides = 0
+    simp only [ha, zero_mul]
+    symm; apply Finset.sum_eq_zero
+    intro s _
+    split_ifs with hs
+    · have : μ_pi s = 0 :=
+        muMarginal_zero_of_coord (S := S) I0 a
+          μ_pi ha s hs
+      simp [this]
+    · rfl
+  · -- Nonzero mass: use IH
+    have hga : GoodPath (S := S) mu
+        (pi ++ [{ p := pOwner, I := I0, a := a }]) :=
+      GoodPath.snoc (S := S) mu pi hgood
+        { p := pOwner, I := I0, a := a } ha
+    have hsub_a : SubtreeAt (S := S) (Outcome := Outcome)
+        tRoot
+        (pi ++ [{ p := pOwner, I := I0, a := a }])
+        (next a) := h_sub.decision_child a
+    have hih := ih a hga hsub_a
+    -- Replace evalDist with bind of evalFlat via IH
+    rw [show (GameTree.evalDist
+        (mixedToBehavioralRoot (S := S) (Outcome := Outcome)
+          mu tRoot) (next a)) x =
+      ((muCondPath (S := S) mu
+        (pi ++ [{ p := pOwner, I := I0, a := a }])
+        hga).bind
+        (fun s => (next a).evalFlat (S := S)
+          (Outcome := Outcome) s)) x from by
+      rw [← hih]]
+    -- Rewrite muCondPath(pi++[c]) to muCond I0 a μ_pi
+    rw [show muCondPath (S := S) mu
+        (pi ++ [{ p := pOwner, I := I0, a := a }])
+        hga =
+      muCond (S := S) I0 a μ_pi ha from
+      (muCondPath_irrel (S := S) mu _ hga
+        (GoodPath.snoc (S := S) mu pi hgood
+          { p := pOwner, I := I0, a := a } ha)).trans
+      (muCondPath_step_eq_append (S := S) mu pi
+        hgood
+        { p := pOwner, I := I0, a := a } ha).symm]
+    simp only [PMF.bind_apply, tsum_fintype]
+    -- LHS: marginal(a) * ∑ s, muCond(s) * evalFlat(s)
+    -- RHS: ∑ s, [s⟨p,I0⟩=a] * μ_pi(s) * evalFlat(s)
+    rw [Finset.mul_sum]
+    congr 1; funext s
+    rw [← mul_assoc,
+      muMarginal_mul_muCond_apply (S := S)
+        I0 a μ_pi ha s]
+    split_ifs <;> simp
 
 theorem eval_subtree_correct
     (tRoot : GameTree S Outcome)
     (hpr : PerfectRecall tRoot)
     (mu : PMF (FlatProfile S))
-    (hind : PlayerIndep (S := S) mu)
-    (hgoodHist : ∀ (q : S.Player) (J : S.Infoset q),
-      GoodPath (S := S) mu
-        (qHistoryList (S := S) (Outcome := Outcome) tRoot q J)) :
+    (hind : PlayerIndep (S := S) mu) :
     ∀ (u : GameTree S Outcome) (pi : DecPath S)
       (hgood : GoodPath (S := S) mu pi),
       SubtreeAt (S := S) (Outcome := Outcome) tRoot pi u ->
       u.evalDist (mixedToBehavioralRoot (S := S) (Outcome := Outcome)
-        mu tRoot hgoodHist) =
+        mu tRoot) =
       (muCondPath (S := S) mu pi hgood).bind
         (fun s => u.evalFlat s) := by
-  sorry
+  intro u
+  induction u with
+  | terminal z =>
+    -- terminal: both sides = PMF.pure z
+    intro pi hgood _
+    simp only [evalDist_terminal]
+    -- RHS: mu_pi.bind (fun _ => PMF.pure z) = PMF.pure z
+    symm
+    ext x
+    simp only [GameTree.evalFlat, evalDist_terminal,
+      PMF.bind_apply, PMF.pure_apply, tsum_fintype]
+    have hsum : ∑ s : FlatProfile S,
+        (muCondPath (S := S) mu pi hgood) s = 1 := by
+      have := PMF.tsum_coe (muCondPath (S := S) mu pi hgood)
+      rwa [tsum_fintype] at this
+    split_ifs <;> simp [hsum]
+  | chance k muC hk next ih_chance =>
+    -- chance: swap bind order using Fubini, then apply IH per branch
+    intro pi hgood hsub
+    simp only [evalDist_chance]
+    -- Unfold evalFlat on RHS to expose the inner structure
+    change _ = (muCondPath (S := S) mu pi hgood).bind
+      (fun s => muC.bind (fun b =>
+        (next b).evalDist (flatToBehavioral (S := S) s)))
+    -- Swap the bind order (Fubini)
+    rw [PMF.bind_comm]
+    -- Now both sides: muC.bind (fun b => ...)
+    congr 1; funext b
+    -- Get SubtreeAt tRoot pi (next b) via transitivity
+    have hsub_b : SubtreeAt (S := S) (Outcome := Outcome)
+        tRoot pi (next b) := by
+      have := hsub.trans (SubtreeAt.chance (b := b)
+        (SubtreeAt.refl (next b)))
+      simpa using this
+    exact ih_chance b pi hgood hsub_b
+  | decision I0 next ih_dec =>
+    -- decision: the core case, delegated to eval_subtree_decision_step
+    intro pi hgood hsub
+    have hreach : PathReachesInfoset (S := S) (Outcome := Outcome)
+        tRoot pi I0 :=
+      ⟨next, hsub⟩
+    exact eval_subtree_decision_step (S := S) (Outcome := Outcome)
+      tRoot hpr mu hind hgood hsub hreach
+      (fun a hga hsub_a => ih_dec a _ hga hsub_a)
 
 theorem rhs_eq_flat_bind (t : GameTree S Outcome) (muP : MixedProfile S) :
     (mixedProfileJoint (S := S) muP).bind
@@ -443,15 +1197,12 @@ theorem mixed_to_behavioral_nplayer
     (t : GameTree S Outcome)
     (hpr : PerfectRecall t)
     (mu : PMF (FlatProfile S))
-    (hind : PlayerIndep (S := S) mu)
-    (hgoodHist : ∀ (q : S.Player) (J : S.Infoset q),
-      GoodPath (S := S) mu
-        (qHistoryList (S := S) (Outcome := Outcome) t q J)) :
+    (hind : PlayerIndep (S := S) mu) :
     t.evalDist (mixedToBehavioralRoot (S := S) (Outcome := Outcome)
-      mu t hgoodHist) =
+      mu t) =
     mu.bind (fun s => t.evalFlat s) := by
   simpa using eval_subtree_correct (S := S) (Outcome := Outcome)
-    t hpr mu hind hgoodHist t [] ⟨⟩ (SubtreeAt.refl t)
+    t hpr mu hind t [] ⟨⟩ (SubtreeAt.refl t)
 
 theorem kuhn_mixed_to_behavioral
     (t : GameTree S Outcome)
@@ -464,113 +1215,19 @@ theorem kuhn_mixed_to_behavioral
           (pureProfileToBehavioral (S := S) pi)) := by
   let mu0 : PMF (FlatProfile S) :=
     pmfPureToFlat (S := S) (mixedProfileJoint (S := S) muP)
-  -- We need a GoodPath witness for all histories
-  -- (this is provable from PlayerIndep + nonzero mass, but
-  -- for now we sorry it and thread it through)
-  have hgoodHist : ∀ (q : S.Player) (J : S.Infoset q),
-      GoodPath (S := S) mu0
-        (qHistoryList (S := S) (Outcome := Outcome) t q J) := by
-    sorry
   refine ⟨mixedToBehavioralRoot (S := S) (Outcome := Outcome)
-    mu0 t hgoodHist, ?_⟩
+    mu0 t, ?_⟩
   calc
     t.evalDist (mixedToBehavioralRoot (S := S) (Outcome := Outcome)
-      mu0 t hgoodHist)
+      mu0 t)
       = mu0.bind (fun s => t.evalFlat s) := by
           exact mixed_to_behavioral_nplayer (S := S)
             (Outcome := Outcome) t hpr mu0
-            (PlayerIndep_pmfPureToFlat (S := S) muP) hgoodHist
+            (PlayerIndep_pmfPureToFlat (S := S) muP)
     _ = (mixedProfileJoint (S := S) muP).bind
           (fun pi => t.evalDist
             (pureProfileToBehavioral (S := S) pi)) := by
         exact (rhs_eq_flat_bind (S := S)
           (Outcome := Outcome) t muP).symm
-
----
--- § 2. Inductive Step: Decision Nodes
----
-
-theorem mixedToBehavioral_context_eq
-    (mu : PMF (FlatProfile S)) (tRoot : GameTree S Outcome)
-    (hpr : PerfectRecall tRoot) (hind : PlayerIndep (S := S) mu)
-    (hgoodHist : ∀ (q : S.Player) (J : S.Infoset q),
-      GoodPath (S := S) mu
-        (qHistoryList (S := S) (Outcome := Outcome) tRoot q J))
-    (pi : DecPath S) (hgood : GoodPath (S := S) mu pi)
-    {pOwner : S.Player} {I0 : S.Infoset pOwner}
-    (hreach : PathReachesInfoset (S := S) (Outcome := Outcome)
-      tRoot pi I0) :
-    mixedToBehavioralRoot (S := S) (Outcome := Outcome)
-      mu tRoot hgoodHist pOwner I0 =
-      muMarginal (S := S) I0
-        (muCondPath (S := S) mu pi hgood) := by
-  classical
-  -- unfold the definition of σroot at (pOwner,I0)
-  unfold mixedToBehavioralRoot
-  -- PR: the “chosen reaching path” history equals FilterPlayer pOwner pi
-  have h_hist :
-      FilterPlayer (S := S) pOwner pi =
-      qHistoryList (S := S) (Outcome := Outcome) tRoot pOwner I0 := by
-    -- this is exactly your PR lemma
-    simpa using
-      (FilterPlayer_path_eq_history (S := S) (Outcome := Outcome)
-        (tRoot := tRoot) hpr (q := pOwner) (J := I0) (pi := pi) hreach)
-
-  -- rewrite qHistoryList into FilterPlayer pOwner pi
-  -- and then use “conditioning on others doesn't affect pOwner marginal”
-  -- (i.e. marginal depends only on filtered path)
-  -- Goal now is: muMarginal I0 (muCondPath mu (qHistoryList ...) ...) =
-  --              muMarginal I0 (muCondPath mu pi hgood)
-  --
-  -- We do it by comparing both to conditioning on FilterPlayer pOwner pi:
-  --   muCondPath mu pi      ≈ muCondPath mu (FilterPlayer pOwner pi)
-  --   muCondPath mu history ≈ muCondPath mu (FilterPlayer pOwner history)=same
-  --
-  -- First rewrite left:
-  rw [← h_hist]
-  -- Now LHS is muMarginal I0 (muCondPath mu (FilterPlayer pOwner pi) _)
-  -- RHS is muMarginal I0 (muCondPath mu pi hgood)
-  -- Apply invariant lemma (with q = pOwner):
-  sorry
-
-/--
-The inductive step for decision nodes in the evaluation equivalence.
-Uses the context lemma to swap the LHS behavioral choice for the RHS marginal.
--/
-theorem eval_subtree_decision_step
-    (tRoot : GameTree S Outcome) (hpr : PerfectRecall tRoot)
-    (mu : PMF (FlatProfile S)) (hind : PlayerIndep (S := S) mu)
-    (hgoodHist : ∀ (q : S.Player) (J : S.Infoset q),
-      GoodPath (S := S) mu
-        (qHistoryList (S := S) (Outcome := Outcome) tRoot q J))
-    {pOwner : S.Player} {I0 : S.Infoset pOwner}
-    {next : S.Act I0 → GameTree S Outcome}
-    {pi : DecPath S} (hgood : GoodPath (S := S) mu pi)
-    (h_sub : SubtreeAt (S := S) (Outcome := Outcome)
-      tRoot pi (.decision I0 next))
-    (hreach : PathReachesInfoset (S := S) (Outcome := Outcome)
-      tRoot pi I0)
-    (ih : ∀ (a : S.Act I0)
-        (hga : GoodPath (S := S) mu
-          (pi ++ [{ p := pOwner, I := I0, a := a }])),
-        SubtreeAt (S := S) (Outcome := Outcome)
-          tRoot (pi ++ [{ p := pOwner, I := I0, a := a }])
-          (next a) →
-        (next a).evalDist (mixedToBehavioralRoot (S := S)
-          (Outcome := Outcome) mu tRoot hgoodHist) =
-        (muCondPath (S := S) mu
-          (pi ++ [{ p := pOwner, I := I0, a := a }]) hga).bind
-          (fun s => (next a).evalFlat (S := S)
-            (Outcome := Outcome) s)) :
-    (GameTree.decision (S := S) (Outcome := Outcome)
-      I0 next).evalDist
-        (mixedToBehavioralRoot (S := S) (Outcome := Outcome)
-          mu tRoot hgoodHist)
-      =
-    (muCondPath (S := S) mu pi hgood).bind
-      (fun s => (GameTree.decision (S := S) (Outcome := Outcome)
-        I0 next).evalFlat (S := S) (Outcome := Outcome) s) := by
-  sorry
-
 
 end EFG
