@@ -4,6 +4,93 @@ import Mathlib.Probability.ProbabilityMassFunction.Constructions
 import GameTheory.EFG
 import GameTheory.PMFProduct
 
+/-!
+# Kuhn's Theorem: Mixed-to-Behavioral Strategy Equivalence
+
+For any extensive-form game with **perfect recall**, every mixed strategy profile
+induces the same outcome distribution as some behavioral strategy profile.
+This is Kuhn's (1953) foundational result in game theory.
+
+## Theorem statement
+
+`kuhn_mixed_to_behavioral`: Given a game tree `t` with perfect recall and a
+mixed strategy profile `muP`, there exists a behavioral profile `σ` such that
+`t.evalDist σ = (mixedProfileJoint muP).bind
+  (fun π => t.evalDist (pureProfileToBehavioral π))`.
+
+## Proof architecture
+
+The proof works on **flat profiles**
+(`FlatProfile S = (idx : FlatIdx S) → S.Act idx.2`),
+which are equivalent to pure strategy profiles but index by `(player, infoset)`
+pairs rather than nested dependent functions. A mixed strategy profile `muP`
+induces a product PMF on flat profiles via
+`pmfPureToFlat (mixedProfileJoint muP)`.
+
+### Key idea: sequential conditioning preserves product structure
+
+The behavioral strategy at infoset `I` of player `p` is defined as the
+conditional distribution of action at `I`, given the history of decisions
+leading to `I`. Because `muP` is a product over players, conditioning on one
+player's past decisions does not affect other players' marginals
+(`muMarginal_muCond_other`). This **player-independence** property
+(`PlayerIndep`) is preserved through arbitrary conditioning sequences
+(`PlayerIndep_muCondPath`).
+
+### The three pillars
+
+1. **Product conditioning algebra** (§ 1): `muCond` on the flat product
+   decomposes via `pureCond` on the pure-strategy product. Conditioning
+   commutes across players (`muCond_comm_of_PlayerIndep`) and preserves
+   cross-player marginals.
+
+2. **Path filtering and perfect recall** (§ 2): A decision path `pi` to
+   infoset `I` can be filtered to player `q`'s decisions
+   (`FilterPlayer q pi`). Perfect recall guarantees this filtered history is
+   the same regardless of which path reaches `I`
+   (`FilterPlayer_path_eq_history`). The marginal after conditioning on the
+   full path equals the marginal after conditioning on just `q`'s filtered
+   path (`muMarginal_condPath_invariant_filter`).
+
+3. **Inductive evaluation** (§ 3): By structural induction on the game tree,
+   `evalDist σ u = (muCondPath mu pi).bind (evalFlat · u)` for every subtree
+   `u` reached by path `pi`. At decision nodes, the behavioral strategy
+   matches the conditional marginal by construction. At chance nodes, Fubini
+   swaps the bind order.
+
+### Notable proof techniques
+
+- **ENNReal arithmetic**: Division `a / b` is definitionally `a * b⁻¹`, so
+  `mul_right_comm` replaces `ring` (ENNReal is not a ring) and
+  `div_right_comm` (no `DivisionCommMonoid` instance).
+
+- **Dependent type transport for `GoodPath`**: When two PMFs are
+  propositionally equal (`mu1 = mu2`), `GoodPath mu1 path` and
+  `GoodPath mu2 path` are not definitionally equal (they're `PSigma` chains).
+  We use `cast` + a helper `muCondPath_eq_of_eq` rather than `subst` (which
+  requires variables) or `cases` (which can't decompose non-variable
+  equalities).
+
+- **`muCond_app` local unfolding**: To prove `muCond` commutativity, we
+  unfold `muCond` only at top-level application
+  (`(muCond ..) s = if .. then .. else ..`) via a local lemma, preserving
+  `muMarginal J (muCond ..)` as an opaque subterm so that cross-player
+  marginal invariance (`hJsame`, `hIsame`) can rewrite it.
+
+## References
+
+- Kuhn, H.W. (1953). "Extensive Games and the Problem of Information."
+  Contributions to the Theory of Games, Vol. II. Annals of Mathematics
+  Studies 28.
+
+## Dependencies
+
+- `GameTheory.EFG`: `InfoStructure`, `GameTree`, `PerfectRecall`, `ReachBy`,
+  `playerHistory`, `MixedProfile`, `BehavioralProfile`
+- `GameTheory.PMFProduct`: `pmfPi`, `pmfMass`, `pmfMask`, `pmfCond`,
+  `pmfPi_cond_coord`, `pmfPi_cond_coord_push_other`
+-/
+
 namespace EFG
 
 open scoped BigOperators
@@ -70,13 +157,15 @@ noncomputable def muCond {p : S.Player} (I : S.Infoset p) (a : S.Act I)
         (ENNReal.ne_top_of_tsum_ne_top
           (PMF.tsum_coe (muMarginal (S := S) I mu) ▸ ENNReal.one_ne_top) a))
 
-/-- Player-independence: your definition. -/
+/-- A flat PMF is **player-independent** if it arises as the pushforward of a product
+of per-player mixed strategies. This is the key structural property preserved
+through conditioning. -/
 abbrev PlayerIndep (mu : PMF (FlatProfile S)) : Prop :=
   ∃ muP : MixedProfile S, mu = pmfPureToFlat (S := S) (mixedProfileJoint (S := S) muP)
 
--- ----------------------------------------------------------------------------
--- 1) A small simp lemma: expand pmfPureToFlat pointwise
--- ----------------------------------------------------------------------------
+---
+-- § 1. Product Conditioning Algebra
+---
 
 lemma pmfPureToFlat_apply (mu : PMF (PureProfile S)) (s : FlatProfile S) :
     pmfPureToFlat (S := S) mu s = ∑ pi : PureProfile S,
@@ -97,10 +186,6 @@ lemma pmfPureToFlat_eq (mu : PMF (PureProfile S)) (s : FlatProfile S) :
     split_ifs with h <;> simp [h]
   simp_rw [this]
   simp [Finset.sum_ite_eq']
-
--- ----------------------------------------------------------------------------
--- 2) Conditioning on the *PureProfile* side (product over players)
--- ----------------------------------------------------------------------------
 
 /-- Predicate on player `p`’s pure strategy at infoset `I`. -/
 def Ep {p : S.Player} (I : S.Infoset p) (a : S.Act I) : PureStrategy S p → Prop :=
@@ -138,17 +223,9 @@ noncomputable def pureCond (muP : MixedProfile S) {p : S.Player} (I : S.Infoset 
       rwa [pmfMass_pmfPi_coord (A := fun q => PureStrategy S q)
         (σ := muP) (j := p) (E := Ep (S := S) I a)])
 
--- ----------------------------------------------------------------------------
--- 3) The key bridge: conditioning commutes with your Pure→Flat pushforward
--- ----------------------------------------------------------------------------
-
-/-
-This lemma is the only “real plumbing” you need.
-It says: if `mu = pmfPureToFlat (mixedProfileJoint muP)`, then your flat `muCond`
-is exactly `pmfPureToFlat` of the *pure-side* conditioning.
-
-Once you have it, `PlayerIndep_muCond` and `muMarginal_muCond_other` are 3 lines each.
--/
+/-- The key bridge: flat-side conditioning (`muCond`) on a product measure equals the
+pushforward of pure-side conditioning (`pureCond`). This reduces all flat conditioning
+questions to the product PMF machinery in `PMFProduct`. -/
 theorem muCond_eq_pmfPureToFlat_pureCond
     (muP : MixedProfile S)
     {p : S.Player} (I : S.Infoset p) (a : S.Act I)
@@ -183,10 +260,8 @@ theorem muCond_eq_pmfPureToFlat_pureCond
       from (not_congr hep).mpr hs)]
     simp
 
--- ----------------------------------------------------------------------------
--- 4) Now the two “headline” theorems become short.
--- ----------------------------------------------------------------------------
-
+/-- Conditioning preserves player-independence, and cross-player marginals
+are invariant. These two facts are the engine of the entire proof. -/
 theorem PlayerIndep_pmfPureToFlat (muP : MixedProfile S) :
     PlayerIndep (S := S) (pmfPureToFlat (S := S) (mixedProfileJoint (S := S) muP)) := by
   exact ⟨muP, rfl⟩
@@ -341,6 +416,20 @@ theorem muCond_comm_of_PlayerIndep
   · by_cases hsj : s ⟨q, J⟩ = b
     · simp [hsi, hsj]
     · simp [hsi, hsj]
+
+---
+-- § 2. Path Conditioning, Filtering, and Perfect Recall
+--
+-- A `DecPath` records the sequence of player decisions along a path from the root.
+-- `GoodPath mu path` witnesses that each step has nonzero marginal mass,
+-- allowing sequential conditioning. `FilterPlayer q path` extracts only player
+-- `q`'s decisions. The main result of this section is
+-- `muMarginal_condPath_invariant_filter`: the marginal at `q`'s infoset after
+-- conditioning on the full path equals the marginal after conditioning on just
+-- `q`'s filtered path. Combined with perfect recall (`FilterPlayer_path_eq_history`),
+-- this means the behavioral strategy at each infoset depends only on the
+-- canonical history, not on the particular path to the infoset.
+---
 
 structure DecConstraint (S : InfoStructure) where
   p : S.Player
@@ -871,6 +960,20 @@ theorem FilterPlayer_path_eq_history
     _ = FilterPlayer (S := S) q pi0 := by
         rw [map_viewToConstraint_decPathPlayerView]
 
+---
+-- § 3. Behavioral Strategy Construction and Inductive Evaluation
+--
+-- `mixedToBehavioralRoot` defines the behavioral strategy: at each infoset,
+-- condition the flat product measure on the canonical history, then take the
+-- marginal. The main induction (`eval_subtree_correct`) shows that evaluating
+-- any subtree under this behavioral strategy equals the conditional expectation
+-- under the product measure.
+---
+
+/-- The behavioral strategy induced by a flat product measure. At infoset `I`,
+condition on the canonical history of decisions leading to `I`, then take the
+marginal at `I`. Falls back to the unconditional marginal when the history has
+zero mass (unreachable infoset). -/
 noncomputable def mixedToBehavioralRoot
     (mu : PMF (FlatProfile S)) (tRoot : GameTree S Outcome) :
     BehavioralProfile S :=
@@ -900,10 +1003,6 @@ theorem muCond_disintegration
   rw [Finset.sum_comm]
   congr 1; funext a; congr 1; funext s
   split_ifs <;> ring
-
----
--- § 2. Inductive Step: Decision Nodes
----
 
 theorem mixedToBehavioral_context_eq
     (mu : PMF (FlatProfile S)) (tRoot : GameTree S Outcome)
@@ -1193,6 +1292,13 @@ theorem rhs_eq_flat_bind (t : GameTree S Outcome) (muP : MixedProfile S) :
     rfl
   simp [hflat, hprof]
 
+---
+-- § 4. Main Theorem
+---
+
+/-- The behavioral strategy induced by a player-independent flat measure reproduces
+the expected outcome: evaluating the whole tree under the behavioral strategy
+equals the expectation under the flat product measure. -/
 theorem mixed_to_behavioral_nplayer
     (t : GameTree S Outcome)
     (hpr : PerfectRecall t)
@@ -1204,6 +1310,9 @@ theorem mixed_to_behavioral_nplayer
   simpa using eval_subtree_correct (S := S) (Outcome := Outcome)
     t hpr mu hind t [] ⟨⟩ (SubtreeAt.refl t)
 
+/-- **Kuhn's theorem.** For any game tree with perfect recall and any mixed strategy
+profile, there exists a behavioral strategy profile that induces the same outcome
+distribution. -/
 theorem kuhn_mixed_to_behavioral
     (t : GameTree S Outcome)
     (hpr : PerfectRecall t)
