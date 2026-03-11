@@ -356,13 +356,19 @@ theorem adequacy_pointwise {Γ : Ctx} (σ : Profile)
     (outcomeDist σ p env) oc = traceWeightSum σ p env oc := by
   induction p with
   | ret u =>
-    simp only [outcomeDist, traceWeightSum, FDist.pure, Finsupp.single_apply, eq_comm]
+    simpa [outcomeDist, traceWeightSum, payoffKit, evalPayoffMap,
+      FDist.pure, Finsupp.single_apply, eq_comm]
   | letExpr x _ k ih =>
     simp only [outcomeDist, traceWeightSum]
     exact ih _
   | sample x τ m D k ih =>
-    simp only [outcomeDist, traceWeightSum, FDist.bind_apply]
-    exact Finset.sum_congr rfl fun v _ => by rw [ih]
+    simp only [outcomeDist, traceWeightSum, FDist.bind_apply, distKit, evalDistExpr]
+    exact Finset.sum_congr rfl fun v _ => by
+      change (evalDistExpr D (env.projectDist τ m)) v *
+          (outcomeDist σ k (Env.cons v env)) oc =
+        (evalDistExpr D (env.projectDist τ m)) v *
+          traceWeightSum σ k (Env.cons v env) oc
+      rw [ih]
   | commit x who acts R k ih =>
     simp only [outcomeDist, traceWeightSum, FDist.bind_apply]
     exact Finset.sum_congr rfl fun v _ => by rw [ih]
@@ -381,7 +387,7 @@ noncomputable def traceDist (σ : Profile) :
       (evalDistExpr D (env.projectDist τ m)).bind fun v =>
         (traceDist σ k (Env.cons v env)).map (.sample v ·)
   | _, .commit x who acts R k, env =>
-      (σ.commit who x acts R (env.toView who)).bind fun v =>
+      FDist.bind (σ.commit who x acts R (env.toView who)) fun v =>
         (traceDist σ k (Env.cons v env)).map (.commit v ·)
   | _, .reveal y _who _x (b := b) hx k, env =>
       let val : Val b := env.get hx
@@ -450,7 +456,9 @@ theorem traceDist_apply (σ : Profile) {Γ : Ctx} (p : Prog Γ) (env : Env Γ)
         rw [FDist.map_apply_of_forall_ne _ _ _
           (fun t' _ h => hne ((Trace.commit.inj h).1)), mul_zero]
       · intro hv
-        rw [Finsupp.mem_support_iff, not_not] at hv; simp [hv]
+        rw [Finsupp.mem_support_iff, not_not] at hv
+        rw [mul_eq_zero]
+        exact Or.inl hv
   | reveal y who x hx k ih =>
     cases t with
     | reveal t =>
@@ -550,7 +558,7 @@ through the appropriate HasVar embeddings.
 theorem viewCtx_skip_invisible {p : Player} {x : VarId} {τ : BindTy} {Γ : Ctx}
     (h : canSee p τ = false) :
     viewCtx p ((x, τ) :: Γ) = viewCtx p Γ := by
-  have h' : Distilled.canSee (Player := Player) (L := language) p τ = false := by
+  have h' : Distilled.canSee (Player := Player) (L := exprLanguage) p τ = false := by
     simpa [canSee] using h
   simp [viewCtx, Distilled.viewCtx, h']
 
@@ -660,3 +668,4 @@ theorem outcomeDist_comm_reveal
 -- Refute commutativity for dependent events:
 -- - commit/reveal (committer will see the revealed variable)
 -- - sample/commit (committer will see the sampled variable)
+

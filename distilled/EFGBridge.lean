@@ -48,10 +48,10 @@ def defaultEnv : (Γ : Ctx) → Env Γ
 /-- Commit-site metadata: variable id, acting player, and arity. -/
 def Prog.infoEntries : Prog Γ → List (VarId × Player × Nat)
   | .ret _ => []
-  | .letExpr _ _ k => k.infoEntries
-  | .sample _ _ _ _ k => k.infoEntries
-  | .commit x who acts _ k => (x, who, acts.length) :: k.infoEntries
-  | .reveal _ _ _ _ k => k.infoEntries
+  | .letExpr _ _ k => Prog.infoEntries k
+  | .sample _ _ _ _ k => Prog.infoEntries k
+  | .commit x who acts _ k => (x, who, acts.length) :: Prog.infoEntries k
+  | .reveal _ _ _ _ k => Prog.infoEntries k
 
 /-- Maximum player index mentioned by any commit site, plus one. -/
 def Prog.playerCount (p : Prog Γ) : Nat :=
@@ -74,10 +74,10 @@ theorem Prog.infoEntries_arity_pos (p : Prog Γ) (hl : Legal p) :
       simp [Prog.infoEntries] at he
   | letExpr x e k ih =>
       intro e he
-      simpa [Prog.infoEntries] using ih hl e he
+      exact ih hl e (by simpa [Prog.infoEntries] using he)
   | sample x τ m D k ih =>
       intro e he
-      simpa [Prog.infoEntries] using ih hl e he
+      exact ih hl e (by simpa [Prog.infoEntries] using he)
   | commit x who acts R k ih =>
       rcases hl with ⟨hlegal, hk⟩
       intro e he
@@ -88,7 +88,7 @@ theorem Prog.infoEntries_arity_pos (p : Prog Γ) (hl : Legal p) :
       · exact ih hk e he
   | reveal y who x hx k ih =>
       intro e he
-      simpa [Prog.infoEntries] using ih hl e he
+      exact ih hl e (by simpa [Prog.infoEntries] using he)
 
 /-- Every player mentioned by a commit site lies below `playerCount`. -/
 theorem Prog.entryPlayer_lt_playerCount (p : Prog Γ) (i : Fin p.infoEntries.length) :
@@ -146,7 +146,8 @@ noncomputable def Prog.toEFGTreeAux (root : Prog Δ) (hlRoot : Legal root) :
       .terminal (evalPayoffMap u env)
   | .letExpr x e k, hl, env, base, hentries =>
       Prog.toEFGTreeAux root hlRoot k hl
-        (Env.cons (x := x) (evalExpr e env) env) base hentries
+        (Env.cons (x := x) (evalExpr e env) env) base
+        (by simpa [Prog.infoEntries] using hentries)
   | .sample x τ m D k, hl, env, base, hentries =>
       let entries := D.resolveEntries (env.projectDist τ m)
       match entries with
@@ -162,7 +163,8 @@ noncomputable def Prog.toEFGTreeAux (root : Prog Δ) (hlRoot : Legal root) :
             (fun i =>
               let v := ((e :: es).get i).1
               Prog.toEFGTreeAux root hlRoot k hl
-                (Env.cons (x := x) (τ := τ) v env) base hentries)
+                (Env.cons (x := x) (τ := τ) v env) base
+                (by simpa [Prog.infoEntries] using hentries))
   | .commit x who acts R k, hl, env, base, hentries =>
       have hbase : base < root.infoEntries.length := by
         have hlen : 0 < (root.infoEntries.drop base).length := by
@@ -170,11 +172,11 @@ noncomputable def Prog.toEFGTreeAux (root : Prog Δ) (hlRoot : Legal root) :
         simpa [List.length_drop] using hlen
       have hdrop :
           root.infoEntries.get ⟨base, hbase⟩ :: root.infoEntries.drop (base + 1) =
-            (x, who, acts.length) :: k.infoEntries := by
+            (x, who, acts.length) :: Prog.infoEntries k := by
         simpa [hentries, Prog.infoEntries] using (List.drop_eq_getElem_cons hbase)
       have hget : root.infoEntries.get ⟨base, hbase⟩ = (x, who, acts.length) :=
         (List.cons.inj hdrop).1
-      have htail : root.infoEntries.drop (base + 1) = k.infoEntries :=
+      have htail : root.infoEntries.drop (base + 1) = Prog.infoEntries k :=
         (List.cons.inj hdrop).2
       have hplayer : root.entryPlayer ⟨base, hbase⟩ = who := by
         simpa [Prog.entryPlayer] using congrArg (fun e => e.2.1) hget
@@ -197,7 +199,8 @@ noncomputable def Prog.toEFGTreeAux (root : Prog Δ) (hlRoot : Legal root) :
   | .reveal y who x hx k, hl, env, base, hentries =>
       let v := env.get hx
       Prog.toEFGTreeAux root hlRoot k hl
-        (Env.cons (x := y) (τ := .pub _) v env) base hentries
+        (Env.cons (x := y) (τ := .pub _) v env) base
+        (by simpa [Prog.infoEntries] using hentries)
 
 /-- Compile a Vegas program into an `EFGGame` using the current `GameTheory` API. -/
 noncomputable def Prog.toEFGGame (p : Prog Γ) (hl : Legal p) (env : Env Γ) :
@@ -206,3 +209,4 @@ noncomputable def Prog.toEFGGame (p : Prog Γ) (hl : Legal p) (env : Env Γ) :
   Outcome := Outcome
   tree := Prog.toEFGTreeAux p hl p hl env 0 rfl
   utility := fun o who => (o who.val : ℝ)
+

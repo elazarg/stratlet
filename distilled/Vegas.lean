@@ -5,7 +5,7 @@ import Mathlib.Data.NNRat.Defs
 import Mathlib.Data.NNRat.Order
 import Mathlib.Data.Finsupp.Defs
 import Mathlib.Data.Finsupp.Basic
-import distilled.Language
+import distilled.ExprLanguage
 
 /-!
 # Vegas: A Typed Game Calculus
@@ -43,8 +43,8 @@ instance : DecidableEq (Val b) := match b with
   | .bool => inferInstanceAs (DecidableEq Bool)
 
 /-- The current concrete value layer, viewed as an instance of the generic
-backend `Language` interface. -/
-def language : Distilled.Language where
+expression-language interface. -/
+def exprLanguage : Distilled.ExprLanguage where
   Ty := BaseTy
   decEqTy := inferInstance
   Val := Val
@@ -54,11 +54,11 @@ def language : Distilled.Language where
   bool := .bool
   toBool := id
 
-abbrev BindTy : Type := Distilled.VisBindTy Player language
-abbrev Ctx : Type := Distilled.VisCtx Player language
+abbrev BindTy : Type := Distilled.VisBindTy Player exprLanguage
+abbrev Ctx : Type := Distilled.VisCtx Player exprLanguage
 abbrev HasVar : Ctx → VarId → BindTy → Type :=
-  Distilled.VisHasVar (Player := Player) (L := language)
-abbrev Env (Γ : Ctx) : Type := Distilled.VisEnv (Player := Player) language Γ
+  Distilled.VisHasVar (Player := Player) (L := exprLanguage)
+abbrev Env (Γ : Ctx) : Type := Distilled.VisEnv (Player := Player) exprLanguage Γ
 
 namespace BindTy
 
@@ -79,45 +79,45 @@ end HasVar
 
 namespace Env
 
-abbrev empty : Env [] := Distilled.VisEnv.empty (Player := Player) language
+abbrev empty : Env [] := Distilled.VisEnv.empty (Player := Player) exprLanguage
 
 abbrev cons {Γ : Ctx} {x : VarId} {τ : BindTy}
     (v : Val τ.base) (env : Env Γ) : Env ((x, τ) :: Γ) :=
-  Distilled.VisEnv.cons (Player := Player) (L := language) v env
+  Distilled.VisEnv.cons (Player := Player) (L := exprLanguage) v env
 
 abbrev get {Γ : Ctx} {x : VarId} {τ : BindTy}
     (env : Env Γ) (h : HasVar Γ x τ) : Val τ.base :=
-  Distilled.VisEnv.get (Player := Player) (L := language) env h
+  Distilled.VisEnv.get (Player := Player) (L := exprLanguage) env h
 
 @[simp] theorem cons_get_here {Γ : Ctx} {x : VarId} {τ : BindTy}
     {v : Val τ.base} {env : Env Γ} :
     (Env.cons v env).get (HasVar.here (Γ := Γ) (x := x) (τ := τ)) = v := by
   simpa using (Distilled.VisEnv.cons_get_here
-    (Player := Player) (L := language) (Γ := Γ) (x := x) (τ := τ) (v := v) (env := env))
+    (Player := Player) (L := exprLanguage) (Γ := Γ) (x := x) (τ := τ) (v := v) (env := env))
 
 @[simp] theorem cons_get_there {Γ : Ctx} {x y : VarId} {τ σ : BindTy}
     {v : Val τ.base} {env : Env Γ} {h : HasVar Γ y σ} :
     (Env.cons (x := x) v env).get (HasVar.there h) = env.get h := by
   simpa using (Distilled.VisEnv.cons_get_there
-    (Player := Player) (L := language) (Γ := Γ) (x := x) (y := y)
+    (Player := Player) (L := exprLanguage) (Γ := Γ) (x := x) (y := y)
     (τ := τ) (σ := σ) (v := v) (env := env) (h := h))
 
 abbrev toView (p : Player) (env : Env Γ) :
-    Env (Distilled.viewCtx (Player := Player) (L := language) p Γ) :=
-  Distilled.VisEnv.toView (Player := Player) (L := language) p env
+    Env (Distilled.viewCtx (Player := Player) (L := exprLanguage) p Γ) :=
+  Distilled.VisEnv.toView (Player := Player) (L := exprLanguage) p env
 
 abbrev toPub (env : Env Γ) :
-    Env (Distilled.pubCtx (Player := Player) (L := language) Γ) :=
-  Distilled.VisEnv.toPub (Player := Player) (L := language) env
+    Env (Distilled.pubCtx (Player := Player) (L := exprLanguage) Γ) :=
+  Distilled.VisEnv.toPub (Player := Player) (L := exprLanguage) env
 
 abbrev toFlat {Γ : Ctx} (env : Env Γ) :
-    Env (Distilled.flattenCtx (Player := Player) (L := language) Γ) :=
-  Distilled.VisEnv.toFlat (Player := Player) (L := language) env
+    Env (Distilled.flattenCtx (Player := Player) (L := exprLanguage) Γ) :=
+  Distilled.VisEnv.toFlat (Player := Player) (L := exprLanguage) env
 
 abbrev toFlatView (p : Player) {Γ : Ctx} (env : Env Γ) :
-    Env (Distilled.flattenCtx (Player := Player) (L := language)
-      (Distilled.viewCtx (Player := Player) (L := language) p Γ)) :=
-  Distilled.VisEnv.toFlatView (Player := Player) (L := language) p env
+    Env (Distilled.flattenCtx (Player := Player) (L := exprLanguage)
+      (Distilled.viewCtx (Player := Player) (L := exprLanguage) p Γ)) :=
+  Distilled.VisEnv.toFlatView (Player := Player) (L := exprLanguage) p env
 
 end Env
 
@@ -126,37 +126,37 @@ end Env
 -- ============================================================================
 
 abbrev canSee (p : Player) : BindTy → Bool :=
-  Distilled.canSee (Player := Player) (L := language) p
+  Distilled.canSee (Player := Player) (L := exprLanguage) p
 
 abbrev viewCtx (p : Player) : Ctx → Ctx :=
-  Distilled.viewCtx (Player := Player) (L := language) p
+  Distilled.viewCtx (Player := Player) (L := exprLanguage) p
 
 abbrev pubCtx : Ctx → Ctx :=
-  Distilled.pubCtx (Player := Player) (L := language)
+  Distilled.pubCtx (Player := Player) (L := exprLanguage)
 
 abbrev flattenCtx : Ctx → Ctx :=
-  Distilled.flattenCtx (Player := Player) (L := language)
+  Distilled.flattenCtx (Player := Player) (L := exprLanguage)
 
 namespace HasVar
 
 abbrev ofViewCtx {p : Player} :
     HasVar (viewCtx p Γ) x τ → HasVar Γ x τ :=
-  Distilled.VisHasVar.ofViewCtx (Player := Player) (L := language) (p := p)
+  Distilled.VisHasVar.ofViewCtx (Player := Player) (L := exprLanguage) (p := p)
 
 abbrev ofPubCtx : HasVar (pubCtx Γ) x τ → HasVar Γ x τ :=
-  Distilled.VisHasVar.ofPubCtx (Player := Player) (L := language)
+  Distilled.VisHasVar.ofPubCtx (Player := Player) (L := exprLanguage)
 
 abbrev ofPubToView {p : Player} :
     HasVar (pubCtx Γ) x τ → HasVar (viewCtx p Γ) x τ :=
-  Distilled.VisHasVar.ofPubToView (Player := Player) (L := language) (p := p)
+  Distilled.VisHasVar.ofPubToView (Player := Player) (L := exprLanguage) (p := p)
 
 abbrev toFlatten : HasVar Γ x τ → HasVar (flattenCtx Γ) x (.pub τ.base) :=
-  Distilled.VisHasVar.toFlatten (Player := Player) (L := language)
+  Distilled.VisHasVar.toFlatten (Player := Player) (L := exprLanguage)
 
 abbrev unflatten {Γ : Ctx} {x : VarId} {b : BaseTy} :
     HasVar (flattenCtx Γ) x (.pub b) →
     (τ : BindTy) × HasVar Γ x τ × PLift (τ.base = b) :=
-  Distilled.VisHasVar.unflatten (Player := Player) (L := language)
+  Distilled.VisHasVar.unflatten (Player := Player) (L := exprLanguage)
 
 end HasVar
 
@@ -167,17 +167,17 @@ end HasVar
 theorem flattenCtx_map_fst :
     (flattenCtx Γ).map Prod.fst = Γ.map Prod.fst := by
   simpa [flattenCtx] using
-    (Distilled.flattenCtx_map_fst (Player := Player) (L := language) (Γ := Γ))
+    (Distilled.flattenCtx_map_fst (Player := Player) (L := exprLanguage) (Γ := Γ))
 
 theorem flattenCtx_length :
     (flattenCtx Γ).length = Γ.length := by
   simpa [flattenCtx] using
-    (Distilled.flattenCtx_length (Player := Player) (L := language) (Γ := Γ))
+    (Distilled.flattenCtx_length (Player := Player) (L := exprLanguage) (Γ := Γ))
 
 theorem flattenCtx_idempotent :
     flattenCtx (flattenCtx Γ) = flattenCtx Γ := by
   simpa [flattenCtx] using
-    (Distilled.flattenCtx_idempotent (Player := Player) (L := language) (Γ := Γ))
+    (Distilled.flattenCtx_idempotent (Player := Player) (L := exprLanguage) (Γ := Γ))
 
 -- ============================================================================
 -- § 4. Expressions
@@ -244,9 +244,9 @@ def exprVars : Expr Γ b → List VarId
   | .notBool e   => exprVars e
   | .ite c t f   => exprVars c ++ exprVars t ++ exprVars f
 
-/-- The current Vegas expression language, exposed through the generic
-visibility-aware language boundary. -/
-def exprKit : Distilled.VisExprKit Player language where
+/-- The current Vegas expression syntax as an instance of the generic
+visibility-aware expression interface. -/
+instance exprKit : Distilled.VisExprKit Player exprLanguage where
   Expr := Expr
   eval := @evalExpr
   deps := @exprVars
@@ -520,8 +520,8 @@ def distExprVars : DistExpr Γ b → List VarId
   | .ite c t f => exprVars c ++ distExprVars t ++ distExprVars f
 
 /-- The current Vegas sampling layer, exposed through the generic
-visibility-aware language boundary. -/
-noncomputable def distKit : Distilled.VisDistKit Player language where
+visibility-aware expression interface. -/
+noncomputable instance distKit : Distilled.VisDistKit Player exprLanguage where
   DistExpr := DistExpr
   eval := @evalDistExpr
   deps := @distExprVars
@@ -530,14 +530,14 @@ noncomputable def distKit : Distilled.VisDistKit Player language where
 -- § 7. Sampling modes and contexts
 -- ============================================================================
 
-abbrev SampleMode : BindTy → Type := Distilled.SampleMode (Player := Player) (L := language)
+abbrev SampleMode : BindTy → Type := Distilled.SampleMode (Player := Player) (L := exprLanguage)
 
 abbrev distCtx (τ : BindTy) (m : SampleMode τ) (Γ : Ctx) : Ctx :=
-  Distilled.distCtx (Player := Player) (L := language) τ m Γ
+  Distilled.distCtx (Player := Player) (L := exprLanguage) τ m Γ
 
 def Env.projectDist {Γ : Ctx} (τ : BindTy) (m : SampleMode τ)
     (env : Env Γ) : Env (distCtx τ m Γ) :=
-  Distilled.VisEnv.projectDist (Player := Player) (L := language) τ m env
+  Distilled.VisEnv.projectDist (Player := Player) (L := exprLanguage) τ m env
 
 -- ============================================================================
 -- § 8. PayoffMap, Prog, Profile
@@ -551,8 +551,8 @@ noncomputable def evalPayoffMap (u : PayoffMap Γ) (env : Env Γ) : Outcome :=
   u.entries.foldl (fun acc (p, e) => acc + Finsupp.single p (evalExpr e env)) 0
 
 /-- The current Vegas payoff layer, exposed through the generic
-visibility-aware language boundary. -/
-noncomputable def payoffKit : Distilled.VisPayoffKit Player language where
+visibility-aware expression interface. -/
+noncomputable instance payoffKit : Distilled.VisPayoffKit Player exprLanguage where
   PayoffExpr := PayoffMap
   Outcome := Outcome
   decEqOutcome := inferInstance
@@ -563,22 +563,9 @@ noncomputable def payoffKit : Distilled.VisPayoffKit Player language where
 abbrev evalR {Γ : Ctx} {b : BaseTy} {who : Player} {x : VarId}
     (R : Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) .bool)
     (a : Val b) (view : Env (viewCtx who Γ)) : Bool :=
-  Distilled.evalGuard (Player := Player) (L := language) exprKit R a view
+  Distilled.evalGuard (Player := Player) (L := exprLanguage) inferInstance R a view
 
-inductive Prog : Ctx → Type where
-  | ret (u : PayoffMap Γ) : Prog Γ
-  | letExpr (x : VarId) {b : BaseTy} (e : Expr Γ b)
-      (k : Prog ((x, .pub b) :: Γ)) : Prog Γ
-  | sample (x : VarId) (τ : BindTy) (m : SampleMode τ)
-      (D : DistExpr (distCtx τ m Γ) τ.base)
-      (k : Prog ((x, τ) :: Γ)) : Prog Γ
-  | commit (x : VarId) (who : Player) {b : BaseTy}
-      (acts : List (Val b))
-      (R : Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) .bool)
-      (k : Prog ((x, .hidden who b) :: Γ)) : Prog Γ
-  | reveal (y : VarId) (who : Player) (x : VarId) {b : BaseTy}
-      (hx : HasVar Γ x (.hidden who b))
-      (k : Prog ((y, .pub b) :: Γ)) : Prog Γ
+abbrev Prog : Ctx → Type := Distilled.Prog Player exprLanguage
 
 /- **Deferred constructs**: `observe` and `assert` are intentionally omitted from
    the current implementation. The planned syntax and semantics:
@@ -596,32 +583,37 @@ inductive Prog : Ctx → Type where
    DESIGN.md §10 and §12 for the specification. -/
 
 abbrev CommitKernel (who : Player) (Γ : Ctx) (b : BaseTy) : Type :=
-  Env (viewCtx who Γ) → FDist (Val b)
+  Distilled.CommitKernel Player exprLanguage who Γ b
 
-structure Profile where
-  commit : {Γ : Ctx} → {b : BaseTy} → (who : Player) →
-    (x : VarId) → (acts : List (Val b)) →
-    (R : Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) .bool) →
-    CommitKernel who Γ b
+abbrev Profile : Type := Distilled.Profile Player exprLanguage
 
 -- ============================================================================
 -- § 9. Denotational semantics
 -- ============================================================================
 
-noncomputable def outcomeDist (σ : Profile) : Prog Γ → Env Γ → FDist Outcome
-  | .ret u, env =>
-    FDist.pure (evalPayoffMap u env)
-  | .letExpr x e k, env =>
-    outcomeDist σ k (Env.cons (x := x) (evalExpr e env) env)
-  | .sample x τ m D k, env =>
-    FDist.bind (evalDistExpr D (env.projectDist τ m)) (fun v =>
-      outcomeDist σ k (Env.cons (x := x) v env))
-  | .commit x who acts R k, env =>
-    FDist.bind (σ.commit who x acts R (env.toView who)) (fun v =>
-      outcomeDist σ k (Env.cons (x := x) v env))
-  | .reveal y _who _x (b := b) hx k, env =>
-    let v : Val b := env.get hx
-    outcomeDist σ k (Env.cons (x := y) (τ := .pub b) v env)
+noncomputable def outcomeDist {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L]
+    (σ : Distilled.Profile P L) :
+    {Γ : Distilled.VisCtx P L} →
+      Distilled.Prog P L Γ →
+      Distilled.VisEnv (Player := P) L Γ →
+      FDist U.Outcome
+  | _, .ret u, env =>
+      FDist.pure (U.eval u env)
+  | _, .letExpr x e k, env =>
+      outcomeDist σ k (Distilled.VisEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _) (E.eval e env) env)
+  | _, .sample x τ m D' k, env =>
+      FDist.bind (D.eval D' (Distilled.VisEnv.projectDist (Player := P) (L := L) τ m env)) (fun v =>
+        outcomeDist σ k (Distilled.VisEnv.cons (Player := P) (L := L) (x := x) (τ := τ) v env))
+  | _, .commit x who acts R k, env =>
+      FDist.bind (σ.commit who x acts R (Distilled.VisEnv.toView (Player := P) (L := L) who env)) (fun v =>
+        outcomeDist σ k (Distilled.VisEnv.cons (Player := P) (L := L) (x := x) (τ := .hidden who _) v env))
+  | _, .reveal y who x (b := b) hx k, env =>
+      let v : L.Val b := Distilled.VisEnv.get (Player := P) (L := L) env hx
+      outcomeDist σ k (Distilled.VisEnv.cons (Player := P) (L := L) (x := y) (τ := .pub b) v env)
 
 -- § 9a. outcomeDist simp lemmas
 
@@ -632,74 +624,109 @@ noncomputable def outcomeDist (σ : Profile) : Prog Γ → Env Γ → FDist Outc
 -- § 10. Partial profiles
 -- ============================================================================
 
-structure PProfile where
-  commit? : {Γ : Ctx} → {b : BaseTy} → (who : Player) →
-    (x : VarId) → (acts : List (Val b)) →
-    (R : Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) .bool) →
-    Option (CommitKernel who Γ b)
-
-def PProfile.toProfile (π : PProfile) (fallback : Profile) : Profile where
-  commit := fun {Γ} {b} who x acts R view =>
-    match π.commit? (Γ := Γ) (b := b) who x acts R with
-    | some k => k view
-    | none => fallback.commit who x acts R view
+abbrev PProfile : Type := Distilled.PProfile Player exprLanguage
 
 -- ============================================================================
 -- § 11. SSA enforcement
 -- ============================================================================
 
-def Fresh (x : VarId) (Γ : Ctx) : Prop := x ∉ Γ.map Prod.fst
-def WFCtx (Γ : Ctx) : Prop := (Γ.map Prod.fst).Nodup
+def Fresh {P : Type} {L : Distilled.ExprLanguage}
+    (x : VarId) (Γ : Distilled.VisCtx P L) : Prop :=
+  x ∉ Γ.map Prod.fst
 
-instance {x : VarId} {Γ : Ctx} : Decidable (Fresh x Γ) :=
+def WFCtx {P : Type} {L : Distilled.ExprLanguage}
+    (Γ : Distilled.VisCtx P L) : Prop :=
+  (Γ.map Prod.fst).Nodup
+
+instance {P : Type} {L : Distilled.ExprLanguage} {x : VarId}
+    {Γ : Distilled.VisCtx P L} : Decidable (Fresh (P := P) (L := L) x Γ) :=
   inferInstanceAs (Decidable (x ∉ _))
 
-def WF : Prog Γ → Prop
-  | .ret _ => True
-  | .letExpr x _ k => Fresh x Γ ∧ WF k
-  | .sample x _ _ _ k => Fresh x Γ ∧ WF k
-  | .commit x _ _ _ k => Fresh x Γ ∧ WF k
-  | .reveal y _ _ _ k => Fresh y Γ ∧ WF k
+def WF {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L] :
+    {Γ : Distilled.VisCtx P L} → Distilled.Prog P L Γ → Prop
+  | _, .ret _ => True
+  | Γ, .letExpr x _ k => Fresh x Γ ∧ WF k
+  | Γ, .sample x _ _ _ k => Fresh x Γ ∧ WF k
+  | Γ, .commit x _ _ _ k => Fresh x Γ ∧ WF k
+  | Γ, .reveal y _ _ _ k => Fresh y Γ ∧ WF k
 
-def decidableWF : (p : Prog Γ) → Decidable (WF p)
-  | .ret _ => .isTrue trivial
-  | .letExpr _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
-  | .sample _ _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
-  | .commit _ _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
-  | .reveal _ _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
+def decidableWF {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L] :
+    {Γ : Distilled.VisCtx P L} → (p : Distilled.Prog P L Γ) → Decidable (WF p)
+  | _, .ret _ => .isTrue trivial
+  | Γ, .letExpr x _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
+  | Γ, .sample x _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
+  | Γ, .commit x _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
+  | Γ, .reveal y _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
 
-instance {Γ : Ctx} {p : Prog Γ} : Decidable (WF p) := decidableWF p
+instance {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L]
+    {Γ : Distilled.VisCtx P L} {p : Distilled.Prog P L Γ} :
+    Decidable (WF p) := decidableWF p
 
 /-- Every committed secret is revealed exactly once. `pending` tracks
     commit variables awaiting revelation. -/
-def RevealComplete : List VarId → Prog Γ → Prop
-  | pending, .ret _ => pending = []
-  | pending, .letExpr _ _ k => RevealComplete pending k
-  | pending, .sample _ _ _ _ k => RevealComplete pending k
-  | pending, .commit x _ _ _ k => RevealComplete (x :: pending) k
-  | pending, .reveal _ _ x _ k =>
+def RevealComplete {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L] :
+    {Γ : Distilled.VisCtx P L} → List VarId → Distilled.Prog P L Γ → Prop
+  | _, pending, .ret _ => pending = []
+  | _, pending, .letExpr _ _ k => RevealComplete pending k
+  | _, pending, .sample _ _ _ _ k => RevealComplete pending k
+  | _, pending, .commit x _ _ _ k => RevealComplete (x :: pending) k
+  | _, pending, .reveal _ _ x _ k =>
     x ∈ pending ∧ RevealComplete (pending.filter (· ≠ x)) k
 
 instance : DecidableEq VarId := inferInstanceAs (DecidableEq Nat)
 
-def decidableRevealComplete : (pending : List VarId) → (p : Prog Γ) →
+def decidableRevealComplete {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L] :
+    {Γ : Distilled.VisCtx P L} →
+    (pending : List VarId) → (p : Distilled.Prog P L Γ) →
     Decidable (RevealComplete pending p)
-  | _, .ret _ => inferInstanceAs (Decidable (_ = []))
-  | pending, .letExpr _ _ k => decidableRevealComplete pending k
-  | pending, .sample _ _ _ _ k => decidableRevealComplete pending k
-  | pending, .commit x _ _ _ k => decidableRevealComplete (x :: pending) k
-  | pending, .reveal _ _ x _ k =>
+  | _, _, .ret _ => inferInstanceAs (Decidable (_ = []))
+  | _, pending, .letExpr _ _ k => decidableRevealComplete pending k
+  | _, pending, .sample _ _ _ _ k => decidableRevealComplete pending k
+  | _, pending, .commit x _ _ _ k => decidableRevealComplete (x :: pending) k
+  | _, pending, .reveal _ _ x _ k =>
     @instDecidableAnd _ _ (inferInstance) (decidableRevealComplete (pending.filter (· ≠ x)) k)
 
-instance {pending : List VarId} {Γ : Ctx} {p : Prog Γ} :
+instance {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L]
+    {pending : List VarId} {Γ : Distilled.VisCtx P L} {p : Distilled.Prog P L Γ} :
     Decidable (RevealComplete pending p) := decidableRevealComplete pending p
 
 /-- Full well-formedness: SSA freshness AND every committed secret is revealed. -/
-def WFProg (p : Prog Γ) : Prop := WF p ∧ RevealComplete [] p
+def WFProg {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L]
+    {Γ : Distilled.VisCtx P L}
+    (p : Distilled.Prog P L Γ) : Prop :=
+  WF p ∧ RevealComplete [] p
 
 -- § 11a. Context lemmas
 
-@[simp] theorem WFCtx_nil : WFCtx [] := List.nodup_nil
+@[simp] theorem WFCtx_nil : WFCtx (P := Player) (L := exprLanguage) [] := List.nodup_nil
 
 theorem WFCtx.cons {x : VarId} {τ : BindTy} {Γ : Ctx}
     (hfresh : Fresh x Γ) (hwf : WFCtx Γ) :
@@ -746,7 +773,7 @@ theorem viewCtx_map_fst_sub {x : VarId} {p : Player} {Γ : Ctx} :
     exact False.elim this
   | cons hd tl ih =>
     obtain ⟨y, τ⟩ := hd
-    cases hsee : Distilled.canSee (Player := Player) (L := language) p τ with
+    cases hsee : Distilled.canSee (Player := Player) (L := exprLanguage) p τ with
     | false =>
       intro h
       have hview : viewCtx p ((y, τ) :: tl) = viewCtx p tl := by
@@ -779,23 +806,35 @@ theorem WFCtx_flattenCtx {Γ : Ctx}
 -- § 12. Legality and admissibility
 -- ============================================================================
 
-def Legal : Prog Γ → Prop
-  | .ret _ => True
-  | .letExpr _ _ k => Legal k
-  | .sample _ _ _ _ k => Legal k
-  | .commit _ who acts R k =>
-    (∀ view : Env (viewCtx who Γ), ∃ a ∈ acts, evalR R a view = true) ∧ Legal k
-  | .reveal _ _ _ _ k => Legal k
+def Legal {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L] :
+    {Γ : Distilled.VisCtx P L} → Distilled.Prog P L Γ → Prop
+  | _, .ret _ => True
+  | _, .letExpr _ _ k => Legal k
+  | _, .sample _ _ _ _ k => Legal k
+  | Γ, .commit _ who acts R k =>
+    (∀ view : Distilled.VisEnv (Player := P) L (Distilled.viewCtx who Γ),
+        ∃ a ∈ acts, Distilled.evalGuard (Player := P) (L := L) E R a view = true) ∧ Legal k
+  | _, .reveal _ _ _ _ k => Legal k
 
-def AdmissibleProfile (σ : Profile) : Prog Γ → Prop
-  | .ret _ => True
-  | .letExpr _ _ k => AdmissibleProfile σ k
-  | .sample _ _ _ _ k => AdmissibleProfile σ k
-  | .commit x who acts R k =>
-    (∀ view, (σ.commit who x acts R view).Supported
-      (fun a => a ∈ acts ∧ evalR R a view = true)) ∧
+def AdmissibleProfile {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L]
+    (σ : Distilled.Profile P L) :
+    {Γ : Distilled.VisCtx P L} → Distilled.Prog P L Γ → Prop
+  | _, .ret _ => True
+  | _, .letExpr _ _ k => AdmissibleProfile σ k
+  | _, .sample _ _ _ _ k => AdmissibleProfile σ k
+  | _, .commit x who acts R k =>
+    (∀ view, FDist.Supported (σ.commit who x acts R view)
+      (fun a => a ∈ acts ∧ Distilled.evalGuard (Player := P) (L := L) E R a view = true)) ∧
     AdmissibleProfile σ k
-  | .reveal _ _ _ _ k => AdmissibleProfile σ k
+  | _, .reveal _ _ _ _ k => AdmissibleProfile σ k
 
 theorem List.filter_ne_nil_of_exists {l : List α} {p : α → Bool}
     (h : ∃ a ∈ l, p a = true) : l.filter p ≠ [] := by
@@ -806,46 +845,82 @@ theorem List.filter_ne_nil_of_exists {l : List α} {p : α → Bool}
 -- § 13. Normalization predicates
 -- ============================================================================
 
-def DistExpr.Normalized (D : DistExpr Γ b) : Prop :=
-  ∀ env : Env Γ, (evalDistExpr D env).totalWeight = 1
+def DistExprNormalized {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L]
+    {Γ : Distilled.VisCtx P L} {b : L.Ty}
+    (D' : D.DistExpr Γ b) : Prop :=
+  ∀ env : Distilled.VisEnv (Player := P) L Γ, FDist.totalWeight (D.eval D' env) = 1
 
-def NormalizedDists : Prog Γ → Prop
-  | .ret _ => True
-  | .letExpr _ _ k => NormalizedDists k
-  | .sample _ _ _ D k => DistExpr.Normalized D ∧ NormalizedDists k
-  | .commit _ _ _ _ k => NormalizedDists k
-  | .reveal _ _ _ _ k => NormalizedDists k
+namespace DistExpr
 
-def Profile.NormalizedOn (σ : Profile) : Prog Γ → Prop
-  | .ret _ => True
-  | .letExpr _ _ k => σ.NormalizedOn k
-  | .sample _ _ _ _ k => σ.NormalizedOn k
-  | .commit x who acts R k =>
-    (∀ view, (σ.commit who x acts R view).totalWeight = 1) ∧ σ.NormalizedOn k
-  | .reveal _ _ _ _ k => σ.NormalizedOn k
+abbrev Normalized (D : DistExpr Γ b) : Prop :=
+  DistExprNormalized (P := Player) (L := exprLanguage) D
+
+end DistExpr
+
+def NormalizedDists {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L] :
+    {Γ : Distilled.VisCtx P L} → Distilled.Prog P L Γ → Prop
+  | _, .ret _ => True
+  | _, .letExpr _ _ k => NormalizedDists k
+  | _, .sample _ _ _ D' k => DistExprNormalized (P := P) (L := L) D' ∧ NormalizedDists k
+  | _, .commit _ _ _ _ k => NormalizedDists k
+  | _, .reveal _ _ _ _ k => NormalizedDists k
+
+def Distilled.Profile.NormalizedOn {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L]
+    (σ : Distilled.Profile P L) :
+    {Γ : Distilled.VisCtx P L} → Distilled.Prog P L Γ → Prop
+  | _, .ret _ => True
+  | _, .letExpr _ _ k => σ.NormalizedOn k
+  | _, .sample _ _ _ _ k => σ.NormalizedOn k
+  | _, .commit x who acts R k =>
+    (∀ view, FDist.totalWeight (σ.commit who x acts R view) = 1) ∧ σ.NormalizedOn k
+  | _, .reveal _ _ _ _ k => σ.NormalizedOn k
 
 theorem DistExpr.Normalized_ite {Γ : Ctx} {b : BaseTy}
     {c : Expr Γ .bool} {t f : DistExpr Γ b}
     (ht : t.Normalized) (hf : f.Normalized) :
     (DistExpr.ite c t f).Normalized := by
   intro env
-  simp only [evalDistExpr]
-  split <;> first | exact ht env | exact hf env
+  change FDist.totalWeight (evalDistExpr (DistExpr.ite c t f) env) = 1
+  by_cases hc : evalExpr c env
+  · simp [evalDistExpr, hc]
+    exact ht env
+  · simp [evalDistExpr, hc]
+    exact hf env
 
-theorem outcomeDist_totalWeight_eq_one {Γ : Ctx} {σ : Profile}
-    {p : Prog Γ} {env : Env Γ}
+theorem outcomeDist_totalWeight_eq_one {P : Type} [DecidableEq P]
+    {L : Distilled.ExprLanguage}
+    [E : Distilled.VisExprKit P L]
+    [D : Distilled.VisDistKit P L]
+    [U : Distilled.VisPayoffKit P L]
+    {Γ : Distilled.VisCtx P L} {σ : Distilled.Profile P L}
+    {p : Distilled.Prog P L Γ} {env : Distilled.VisEnv (Player := P) L Γ}
     (hd : NormalizedDists p) (hσ : σ.NormalizedOn p) :
     (outcomeDist σ p env).totalWeight = 1 := by
   induction p with
-  | ret u => simp [outcomeDist, FDist.totalWeight_pure]
-  | letExpr x e k ih => exact ih hd hσ
-  | sample x τ m D k ih =>
-    simp only [outcomeDist]
-    exact FDist.totalWeight_bind_of_normalized (hd.1 _) (fun _ _ => ih hd.2 hσ)
+  | ret u =>
+      simp [outcomeDist, FDist.totalWeight_pure]
+  | letExpr x e k ih =>
+      exact ih hd hσ
+  | sample x τ m D' k ih =>
+      simp only [outcomeDist]
+      exact FDist.totalWeight_bind_of_normalized (hd.1 _) (fun _ _ => ih hd.2 hσ)
   | commit x who acts R k ih =>
-    simp only [outcomeDist]
-    exact FDist.totalWeight_bind_of_normalized (hσ.1 _) (fun _ _ => ih hd hσ.2)
-  | reveal y who x hx k ih => exact ih hd hσ
+      simp only [outcomeDist]
+      exact FDist.totalWeight_bind_of_normalized (hσ.1 _) (fun _ _ => ih hd hσ.2)
+  | reveal y who x hx k ih =>
+      exact ih hd hσ
 
 -- ============================================================================
 -- § 14. Examples
@@ -909,9 +984,9 @@ def conditionedGame : Prog Γ0 :=
           (.ret ⟨[(0, .constInt 1), (1, .constInt 0)], by decide⟩))))
 
 -- Verify well-formedness predicates on examples
-#eval decide (WF matchingPennies)          -- true
-#eval decide (RevealComplete [] matchingPennies)  -- true
-#eval decide (WF conditionedGame)          -- true
-#eval decide (RevealComplete [] conditionedGame)  -- true
+#eval! decide (WF matchingPennies)          -- true
+#eval! decide (RevealComplete [] matchingPennies)  -- true
+#eval! decide (WF conditionedGame)          -- true
+#eval! decide (RevealComplete [] conditionedGame)  -- true
 
 end Examples

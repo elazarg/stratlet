@@ -141,17 +141,17 @@ def Prog.extractEvents : Prog Γ → List EventNode
   | .ret _ => []
   | .letExpr x e k =>
     { id := x, kind := .letExpr, deps := exprVars e } ::
-    k.extractEvents
+    Prog.extractEvents k
   | .sample x _τ _m D k =>
     { id := x, kind := .sample, deps := distExprVars D } ::
-    k.extractEvents
+    Prog.extractEvents k
   | .commit x who _acts _R k =>
     { id := x, kind := .commit,
       deps := (viewCtx who Γ).map Prod.fst } ::
-    k.extractEvents
+    Prog.extractEvents k
   | .reveal y _who x _hx k =>
     { id := y, kind := .reveal, deps := [x] } ::
-    k.extractEvents
+    Prog.extractEvents k
 
 /-- Build a PartialEnv from a typed Env by looking up each variable in Γ. -/
 noncomputable def initPartialEnv : (Γ : Ctx) → Env Γ → PartialEnv
@@ -164,7 +164,7 @@ noncomputable def initPartialEnv : (Γ : Ctx) → Env Γ → PartialEnv
     The initial partial env is populated from the given Env Γ
     (the "already bound" variables). -/
 noncomputable def Prog.initConfig (p : Prog Γ) (env : Env Γ) : Config where
-  pending := p.extractEvents
+  pending := Prog.extractEvents p
   env := initPartialEnv Γ env
 
 -- ============================================================================
@@ -276,7 +276,7 @@ noncomputable def Prog.nodeWeight (σ : Profile) (pe : PartialEnv) :
     Prog Γ → VarId → TaggedVal → ℚ≥0
   | .ret _, _, _ => 0
   | .letExpr x _ k, id, tv =>
-      if x = id then 1 else k.nodeWeight σ pe id tv
+      if x = id then 1 else Prog.nodeWeight σ pe k id tv
   | .sample x τ m D k, id, tv =>
       if x = id then
         match decEq tv.base τ.base with
@@ -285,7 +285,7 @@ noncomputable def Prog.nodeWeight (σ : Profile) (pe : PartialEnv) :
           | some env => (evalDistExpr D env) (h ▸ tv.val)
           | none => 0
         | .isFalse _ => 0
-      else k.nodeWeight σ pe id tv
+      else Prog.nodeWeight σ pe k id tv
   | .commit x who (b := b) acts R k, id, tv =>
       if x = id then
         match decEq tv.base b with
@@ -294,15 +294,15 @@ noncomputable def Prog.nodeWeight (σ : Profile) (pe : PartialEnv) :
           | some view => (σ.commit who x acts R view) (h ▸ tv.val)
           | none => 0
         | .isFalse _ => 0
-      else k.nodeWeight σ pe id tv
+      else Prog.nodeWeight σ pe k id tv
   | .reveal y _ _ _ k, id, tv =>
-      if y = id then 1 else k.nodeWeight σ pe id tv
+      if y = id then 1 else Prog.nodeWeight σ pe k id tv
 
 /-- Weight of a step under a profile σ: looks up the node in the Prog
     and computes the weight from the pre-step partial env. -/
 noncomputable def Step.weight (σ : Profile) (p : Prog Γ)
     (s : Step c₁ c₂) : ℚ≥0 :=
-  p.nodeWeight σ c₁.env s.node.id s.value
+  Prog.nodeWeight σ c₁.env p s.node.id s.value
 
 /-- Weight of a complete execution (product of step weights). -/
 noncomputable def Execution.weight (σ : Profile) (p : Prog Γ) :
@@ -402,24 +402,25 @@ namespace DAGExamples
 
 open Examples in
 /-- Extract event graph from matching pennies. -/
-def mpEvents : List EventNode := matchingPennies.extractEvents
+def mpEvents : List EventNode := Prog.extractEvents matchingPennies
 
 -- Expected:
 --   commit 0, deps=[] (player 0, no visible vars)
 --   commit 1, deps=[] (player 1, no visible vars)
 --   reveal 2, deps=[0]
 --   reveal 3, deps=[1]
-#eval mpEvents.map (fun n => (n.id, n.kind, n.deps))
+#eval! mpEvents.map (fun n => (n.id, n.kind, n.deps))
 
 open Examples in
 /-- Extract event graph from conditioned game. -/
-def cgEvents : List EventNode := conditionedGame.extractEvents
+def cgEvents : List EventNode := Prog.extractEvents conditionedGame
 
 -- Expected:
 --   commit 0, deps=[] (player 0, no visible vars)
 --   reveal 2, deps=[0]
 --   commit 1, deps=[2] (player 1, sees va' which is public)
 --   reveal 3, deps=[1]
-#eval cgEvents.map (fun n => (n.id, n.kind, n.deps))
+#eval! cgEvents.map (fun n => (n.id, n.kind, n.deps))
 
 end DAGExamples
+

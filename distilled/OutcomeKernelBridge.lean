@@ -93,7 +93,7 @@ structure PlayerStrategy (who : Player) where
     (acts : List (Val b)) →
     (R : Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) .bool) →
     (view : Env (viewCtx who Γ)) →
-    (commit x acts R view).totalWeight = 1
+    FDist.totalWeight (commit x acts R view) = 1
 
 /-- Assemble per-player strategy components into a Vegas `Profile`. -/
 def toProfile (σ : ∀ who, PlayerStrategy who) : Profile where
@@ -136,7 +136,7 @@ noncomputable def toKernelGame (p : Prog Γ) (env : Env Γ)
     (hd : NormalizedDists p) : GameTheory.KernelGame Player where
   Strategy := PlayerStrategy
   Outcome := Outcome
-  utility := fun o i => (o i : ℝ)
+  utility := fun o i => (payoffKit.payoff o i : ℝ)
   outcomeKernel := fun σ =>
     let prof := toProfile σ
     (outcomeDist prof p env).toPMF (outcomeDist_totalWeight_eq_one hd (toProfile_normalizedOn σ p))
@@ -145,13 +145,15 @@ noncomputable def toKernelGame (p : Prog Γ) (env : Env Γ)
 theorem toKernelGame_eu (p : Prog Γ) (env : Env Γ) (hd : NormalizedDists p)
     (σ : ∀ who, PlayerStrategy who) (who : Player) :
     (toKernelGame p env hd).eu σ who =
-      (outcomeDist (toProfile σ) p env).sum (fun o w => (w : ℝ) * (o who : ℝ)) := by
+      (outcomeDist (toProfile σ) p env).sum
+        (fun o w => (w : ℝ) * (payoffKit.payoff o who : ℝ)) := by
   let hnorm :=
     outcomeDist_totalWeight_eq_one (env := env) hd (toProfile_normalizedOn σ p)
   simpa [GameTheory.KernelGame.eu, toKernelGame, hnorm, NNRat.toNNReal_coe_real] using
     (FDist.expect_toPMF_eq_sum
       (d := outcomeDist (toProfile σ) p env)
       (h := hnorm)
-      (f := fun o => (o who : ℝ)))
+      (f := fun o => (payoffKit.payoff o who : ℝ)))
 
 end Vegas
+

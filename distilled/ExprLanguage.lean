@@ -10,7 +10,7 @@ development should depend on.
 
 Design:
 
-- `Language` is the core PL interface.
+- `ExprLanguage` is the core expression-language interface.
 - finiteness is not part of the language identity.
 - backend compilation to finite game models can add `FiniteValuation`
   assumptions only where needed.
@@ -47,7 +47,7 @@ def get {Ty : Type} {Val : Ty → Type} :
 end Env
 
 /-- Core PL interface for the Vegas layer. -/
-structure Language where
+structure ExprLanguage where
   Ty : Type
   decEqTy : DecidableEq Ty
   Val : Ty → Type
@@ -55,25 +55,25 @@ structure Language where
   bool : Ty
   toBool : Val bool → Bool
 
-attribute [instance] Language.decEqTy Language.decEqVal
+attribute [instance] ExprLanguage.decEqTy ExprLanguage.decEqVal
 
-namespace Language
+namespace ExprLanguage
 
-abbrev Ctx (L : Language) : Type := Distilled.Ctx L.Ty
-abbrev Var (L : Language) (Γ : L.Ctx) (τ : L.Ty) : Type := @Distilled.Var L.Ty Γ τ
-abbrev Env (L : Language) (Γ : L.Ctx) : Type := Distilled.Env L.Val Γ
+abbrev Ctx (L : ExprLanguage) : Type := Distilled.Ctx L.Ty
+abbrev Var (L : ExprLanguage) (Γ : L.Ctx) (τ : L.Ty) : Type := @Distilled.Var L.Ty Γ τ
+abbrev Env (L : ExprLanguage) (Γ : L.Ctx) : Type := Distilled.Env L.Val Γ
 
-end Language
+end ExprLanguage
 
 /-- Variable identifiers for visibility-tagged Vegas contexts. -/
 abbrev VarId : Type := Nat
 
 /-- Visibility-aware binding types over an abstract language. -/
-inductive VisBindTy (Player : Type) (L : Language) where
+inductive VisBindTy (Player : Type) (L : ExprLanguage) where
   | pub (τ : L.Ty)
   | hidden (owner : Player) (τ : L.Ty)
 
-instance {Player : Type} [DecidableEq Player] {L : Language} :
+instance {Player : Type} [DecidableEq Player] {L : ExprLanguage} :
     DecidableEq (VisBindTy Player L)
   | .pub τ₁, .pub τ₂ =>
       match decEq τ₁ τ₂ with
@@ -89,31 +89,31 @@ instance {Player : Type} [DecidableEq Player] {L : Language} :
 
 namespace VisBindTy
 
-def base {Player : Type} {L : Language} : VisBindTy Player L → L.Ty
+def base {Player : Type} {L : ExprLanguage} : VisBindTy Player L → L.Ty
   | .pub τ => τ
   | .hidden _ τ => τ
 
 end VisBindTy
 
 /-- Visibility-tagged contexts indexed by variable identifiers. -/
-abbrev VisCtx (Player : Type) (L : Language) : Type :=
+abbrev VisCtx (Player : Type) (L : ExprLanguage) : Type :=
   List (VarId × VisBindTy Player L)
 
 /-- Typed membership in a visibility-tagged context. -/
-inductive VisHasVar {Player : Type} {L : Language} :
+inductive VisHasVar {Player : Type} {L : ExprLanguage} :
     VisCtx Player L → VarId → VisBindTy Player L → Type where
   | here {Γ x τ} : VisHasVar ((x, τ) :: Γ) x τ
   | there {Γ x y τ τ'} : VisHasVar Γ x τ → VisHasVar ((y, τ') :: Γ) x τ
 
 /-- Runtime environments for visibility-tagged contexts. -/
-def VisEnv {Player : Type} (L : Language) : VisCtx Player L → Type :=
+def VisEnv {Player : Type} (L : ExprLanguage) : VisCtx Player L → Type :=
   fun Γ => ∀ x τ, VisHasVar (L := L) Γ x τ → L.Val τ.base
 
 namespace VisEnv
 
-def empty {Player : Type} (L : Language) : VisEnv (Player := Player) L [] := fun _ _ h => nomatch h
+def empty {Player : Type} (L : ExprLanguage) : VisEnv (Player := Player) L [] := fun _ _ h => nomatch h
 
-def cons {Player : Type} {L : Language} {Γ : VisCtx Player L} {x : VarId}
+def cons {Player : Type} {L : ExprLanguage} {Γ : VisCtx Player L} {x : VarId}
     {τ : VisBindTy Player L}
     (v : L.Val τ.base) (env : VisEnv (Player := Player) L Γ) :
     VisEnv (Player := Player) L ((x, τ) :: Γ) :=
@@ -122,18 +122,18 @@ def cons {Player : Type} {L : Language} {Γ : VisCtx Player L} {x : VarId}
     | .here => v
     | .there h' => env _ _ h'
 
-def get {Player : Type} {L : Language} {Γ : VisCtx Player L} {x : VarId}
+def get {Player : Type} {L : ExprLanguage} {Γ : VisCtx Player L} {x : VarId}
     {τ : VisBindTy Player L}
     (env : VisEnv (Player := Player) L Γ) (h : VisHasVar (L := L) Γ x τ) :
     L.Val τ.base :=
   env x τ h
 
-@[simp] theorem cons_get_here {Player : Type} {L : Language} {Γ : VisCtx Player L}
+@[simp] theorem cons_get_here {Player : Type} {L : ExprLanguage} {Γ : VisCtx Player L}
     {x : VarId} {τ : VisBindTy Player L} {v : L.Val τ.base}
     {env : VisEnv (Player := Player) L Γ} :
     (VisEnv.cons v env).get (VisHasVar.here (Γ := Γ) (x := x) (τ := τ)) = v := rfl
 
-@[simp] theorem cons_get_there {Player : Type} {L : Language} {Γ : VisCtx Player L}
+@[simp] theorem cons_get_there {Player : Type} {L : ExprLanguage} {Γ : VisCtx Player L}
     {x y : VarId} {τ σ : VisBindTy Player L}
     {v : L.Val τ.base} {env : VisEnv (Player := Player) L Γ}
     {h : VisHasVar (L := L) Γ y σ} :
@@ -142,13 +142,13 @@ def get {Player : Type} {L : Language} {Γ : VisCtx Player L} {x : VarId}
 end VisEnv
 
 /-- Public observability predicate. -/
-def canSee {Player : Type} [DecidableEq Player] {L : Language}
+def canSee {Player : Type} [DecidableEq Player] {L : ExprLanguage}
     (p : Player) : VisBindTy Player L → Bool
   | .pub _ => true
   | .hidden q _ => decide (p = q)
 
 /-- Player-local visible subcontext. -/
-def viewCtx {Player : Type} [DecidableEq Player] {L : Language}
+def viewCtx {Player : Type} [DecidableEq Player] {L : ExprLanguage}
     (p : Player) : VisCtx Player L → VisCtx Player L
   | [] => []
   | (x, τ) :: Γ =>
@@ -156,7 +156,7 @@ def viewCtx {Player : Type} [DecidableEq Player] {L : Language}
 
 namespace VisHasVar
 
-def ofViewCtx {Player : Type} [DecidableEq Player] {L : Language} {p : Player}
+def ofViewCtx {Player : Type} [DecidableEq Player] {L : ExprLanguage} {p : Player}
     {Γ : VisCtx Player L} {x : VarId} {τ : VisBindTy Player L} :
     VisHasVar (L := L) (viewCtx p Γ) x τ → VisHasVar (L := L) Γ x τ := by
   induction Γ with
@@ -175,14 +175,14 @@ def ofViewCtx {Player : Type} [DecidableEq Player] {L : Language} {p : Player}
 end VisHasVar
 
 /-- Public-only fragment of a visibility context. -/
-def pubCtx {Player : Type} {L : Language} : VisCtx Player L → VisCtx Player L
+def pubCtx {Player : Type} {L : ExprLanguage} : VisCtx Player L → VisCtx Player L
   | [] => []
   | (x, .pub τ) :: Γ => (x, .pub τ) :: pubCtx Γ
   | (_, .hidden _ _) :: Γ => pubCtx Γ
 
 namespace VisHasVar
 
-def ofPubCtx {Player : Type} {L : Language}
+def ofPubCtx {Player : Type} {L : ExprLanguage}
     {Γ : VisCtx Player L} {x : VarId} {τ : VisBindTy Player L} :
     VisHasVar (L := L) (pubCtx Γ) x τ → VisHasVar (L := L) Γ x τ := by
   induction Γ with
@@ -201,7 +201,7 @@ def ofPubCtx {Player : Type} {L : Language}
       intro h
       exact .there (ih h)
 
-def ofPubToView {Player : Type} [DecidableEq Player] {L : Language} {p : Player}
+def ofPubToView {Player : Type} [DecidableEq Player] {L : ExprLanguage} {p : Player}
     {Γ : VisCtx Player L} {x : VarId} {τ : VisBindTy Player L} :
     VisHasVar (L := L) (pubCtx Γ) x τ → VisHasVar (L := L) (viewCtx p Γ) x τ := by
   induction Γ with
@@ -226,30 +226,30 @@ def ofPubToView {Player : Type} [DecidableEq Player] {L : Language} {p : Player}
 end VisHasVar
 
 /-- Flatten a visibility context to a public context with the same variables. -/
-def flattenCtx {Player : Type} {L : Language} : VisCtx Player L → VisCtx Player L
+def flattenCtx {Player : Type} {L : ExprLanguage} : VisCtx Player L → VisCtx Player L
   | [] => []
   | (x, τ) :: Γ => (x, .pub τ.base) :: flattenCtx Γ
 
-@[simp] theorem flattenCtx_nil {Player : Type} {L : Language} :
+@[simp] theorem flattenCtx_nil {Player : Type} {L : ExprLanguage} :
     flattenCtx (Player := Player) (L := L) [] = [] := rfl
 
-@[simp] theorem flattenCtx_cons {Player : Type} {L : Language}
+@[simp] theorem flattenCtx_cons {Player : Type} {L : ExprLanguage}
     {x : VarId} {τ : VisBindTy Player L} {Γ : VisCtx Player L} :
     flattenCtx ((x, τ) :: Γ) = (x, .pub τ.base) :: flattenCtx Γ := rfl
 
-theorem flattenCtx_map_fst {Player : Type} {L : Language} {Γ : VisCtx Player L} :
+theorem flattenCtx_map_fst {Player : Type} {L : ExprLanguage} {Γ : VisCtx Player L} :
     (flattenCtx Γ).map Prod.fst = Γ.map Prod.fst := by
   induction Γ with
   | nil => rfl
   | cons hd tl ih => simp [flattenCtx, ih]
 
-theorem flattenCtx_length {Player : Type} {L : Language} {Γ : VisCtx Player L} :
+theorem flattenCtx_length {Player : Type} {L : ExprLanguage} {Γ : VisCtx Player L} :
     (flattenCtx Γ).length = Γ.length := by
   have h := congrArg List.length (flattenCtx_map_fst (Γ := Γ))
   simp only [List.length_map] at h
   exact h
 
-theorem flattenCtx_idempotent {Player : Type} {L : Language} {Γ : VisCtx Player L} :
+theorem flattenCtx_idempotent {Player : Type} {L : ExprLanguage} {Γ : VisCtx Player L} :
     flattenCtx (flattenCtx Γ) = flattenCtx Γ := by
   induction Γ with
   | nil => rfl
@@ -258,19 +258,19 @@ theorem flattenCtx_idempotent {Player : Type} {L : Language} {Γ : VisCtx Player
     simp [flattenCtx, VisBindTy.base, ih]
 
 /-- Erase variable ids and visibility, keeping only backend value types. -/
-def eraseCtx {Player : Type} {L : Language} : VisCtx Player L → L.Ctx
+def eraseCtx {Player : Type} {L : ExprLanguage} : VisCtx Player L → L.Ctx
   | [] => []
   | (_, τ) :: Γ => τ.base :: eraseCtx Γ
 
 namespace VisHasVar
 
-def toFlatten {Player : Type} {L : Language}
+def toFlatten {Player : Type} {L : ExprLanguage}
     {Γ : VisCtx Player L} {x : VarId} {τ : VisBindTy Player L} :
     VisHasVar (L := L) Γ x τ → VisHasVar (L := L) (flattenCtx Γ) x (.pub τ.base)
   | .here => .here
   | .there h => .there h.toFlatten
 
-def unflatten {Player : Type} {L : Language} {Γ : VisCtx Player L} {x : VarId} {τ : L.Ty} :
+def unflatten {Player : Type} {L : ExprLanguage} {Γ : VisCtx Player L} {x : VarId} {τ : L.Ty} :
     VisHasVar (L := L) (flattenCtx Γ) x (.pub τ) →
     (σ : VisBindTy Player L) × VisHasVar (L := L) Γ x σ × PLift (σ.base = τ) :=
   match Γ with
@@ -286,17 +286,17 @@ end VisHasVar
 
 namespace VisEnv
 
-def toView {Player : Type} [DecidableEq Player] {L : Language} (p : Player)
+def toView {Player : Type} [DecidableEq Player] {L : ExprLanguage} (p : Player)
     {Γ : VisCtx Player L} (env : VisEnv (Player := Player) L Γ) :
     VisEnv (Player := Player) L (viewCtx p Γ) :=
   fun x τ h => env x τ h.ofViewCtx
 
-def toPub {Player : Type} {L : Language} {Γ : VisCtx Player L}
+def toPub {Player : Type} {L : ExprLanguage} {Γ : VisCtx Player L}
     (env : VisEnv (Player := Player) L Γ) :
     VisEnv (Player := Player) L (pubCtx Γ) :=
   fun x τ h => env x τ h.ofPubCtx
 
-def toFlat {Player : Type} {L : Language} {Γ : VisCtx Player L}
+def toFlat {Player : Type} {L : ExprLanguage} {Γ : VisCtx Player L}
     (env : VisEnv (Player := Player) L Γ) :
     VisEnv (Player := Player) L (flattenCtx Γ) := by
   induction Γ with
@@ -307,7 +307,7 @@ def toFlat {Player : Type} {L : Language} {Γ : VisCtx Player L}
     exact VisEnv.cons (L := L) (τ := .pub σ.base) v
       (ih (fun a b c => env a b (.there c)))
 
-def toFlatView {Player : Type} [DecidableEq Player] {L : Language} (p : Player)
+def toFlatView {Player : Type} [DecidableEq Player] {L : ExprLanguage} (p : Player)
     {Γ : VisCtx Player L} (env : VisEnv (Player := Player) L Γ) :
     VisEnv (Player := Player) L (flattenCtx (viewCtx p Γ)) :=
   VisEnv.toFlat (VisEnv.toView p env)
@@ -315,21 +315,21 @@ def toFlatView {Player : Type} [DecidableEq Player] {L : Language} (p : Player)
 end VisEnv
 
 /-- Visibility-aware expression interface for Vegas-style syntax layers. -/
-structure VisExprKit (Player : Type) (L : Language) where
+class VisExprKit (Player : Type) (L : ExprLanguage) where
   Expr : VisCtx Player L → L.Ty → Type
   eval : {Γ : VisCtx Player L} → {τ : L.Ty} →
     Expr Γ τ → VisEnv (Player := Player) L Γ → L.Val τ
   deps : {Γ : VisCtx Player L} → {τ : L.Ty} → Expr Γ τ → List VarId
 
 /-- Visibility-aware finite-support distribution interface. -/
-structure VisDistKit (Player : Type) (L : Language) where
+class VisDistKit (Player : Type) (L : ExprLanguage) where
   DistExpr : VisCtx Player L → L.Ty → Type
   eval : {Γ : VisCtx Player L} → {τ : L.Ty} →
     DistExpr Γ τ → VisEnv (Player := Player) L Γ → FDist (L.Val τ)
   deps : {Γ : VisCtx Player L} → {τ : L.Ty} → DistExpr Γ τ → List VarId
 
 /-- Visibility-aware payoff interface. Utility outputs need not be finite. -/
-structure VisPayoffKit (Player : Type) (L : Language) where
+class VisPayoffKit (Player : Type) (L : ExprLanguage) where
   PayoffExpr : VisCtx Player L → Type
   Outcome : Type
   decEqOutcome : DecidableEq Outcome
@@ -342,13 +342,13 @@ attribute [instance] VisPayoffKit.decEqOutcome
 
 /-- Whether a value is sampled publicly by nature, privately by nature, or by
 the owning player. -/
-inductive SampleMode {Player : Type} {L : Language} : VisBindTy Player L → Type where
+inductive SampleMode {Player : Type} {L : ExprLanguage} : VisBindTy Player L → Type where
   | NaturePub {τ} : SampleMode (.pub τ)
   | NaturePriv {owner τ} : SampleMode (.hidden owner τ)
   | PlayerPriv {owner τ} : SampleMode (.hidden owner τ)
 
 /-- The context exposed to a distribution expression for a given sampling mode. -/
-abbrev distCtx {Player : Type} [DecidableEq Player] {L : Language}
+abbrev distCtx {Player : Type} [DecidableEq Player] {L : ExprLanguage}
     (τ : VisBindTy Player L) (m : SampleMode τ) (Γ : VisCtx Player L) : VisCtx Player L :=
   match τ, m with
   | .pub _, .NaturePub => pubCtx Γ
@@ -358,7 +358,7 @@ abbrev distCtx {Player : Type} [DecidableEq Player] {L : Language}
 namespace VisEnv
 
 /-- Project an environment to the visibility required for sampling in mode `m`. -/
-def projectDist {Player : Type} [DecidableEq Player] {L : Language} {Γ : VisCtx Player L}
+def projectDist {Player : Type} [DecidableEq Player] {L : ExprLanguage} {Γ : VisCtx Player L}
     (τ : VisBindTy Player L) (m : SampleMode τ)
     (env : VisEnv (Player := Player) L Γ) :
     VisEnv (Player := Player) L (distCtx τ m Γ) :=
@@ -371,83 +371,83 @@ end VisEnv
 
 /-- Evaluate a commit guard against a proposed action and the committing
 player's current view. -/
-def evalGuard {Player : Type} [DecidableEq Player] {L : Language}
-    (E : VisExprKit Player L) {Γ : VisCtx Player L} {τ : L.Ty}
+def evalGuard {Player : Type} [DecidableEq Player] {L : ExprLanguage}
+    (E : VisExprKit Player L) {Γ : VisCtx Player L} {b : L.Ty}
     {who : Player} {x : VarId}
-    (R : E.Expr ((x, .pub τ) :: flattenCtx (viewCtx who Γ)) L.bool)
-    (a : L.Val τ) (view : VisEnv (Player := Player) L (viewCtx who Γ)) : Bool :=
-  L.toBool (E.eval R (VisEnv.cons (Player := Player) (L := L) (x := x) (τ := .pub τ) a view.toFlat))
+    (R : E.Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) L.bool)
+    (a : L.Val b) (view : VisEnv (Player := Player) L (viewCtx who Γ)) : Bool :=
+  L.toBool (E.eval R (VisEnv.cons (Player := Player) (L := L) (x := x) (τ := .pub b) a view.toFlat))
 
-/-- Generic Vegas-style protocol syntax over a visibility-aware language
-interface. -/
-inductive VisProg (Player : Type) [DecidableEq Player] (L : Language)
-    (E : VisExprKit Player L) (D : VisDistKit Player L) (U : VisPayoffKit Player L) :
+/- Generic Vegas-style protocol syntax over a visibility-aware expression
+language. -/
+inductive Prog (Player : Type) [DecidableEq Player] (L : ExprLanguage)
+    [E : VisExprKit Player L] [D : VisDistKit Player L] [U : VisPayoffKit Player L] :
     VisCtx Player L → Type where
-  | ret (u : U.PayoffExpr Γ) : VisProg Player L E D U Γ
-  | letExpr (x : VarId) {τ : L.Ty} (e : E.Expr Γ τ)
-      (k : VisProg Player L E D U ((x, .pub τ) :: Γ)) :
-      VisProg Player L E D U Γ
+  | ret (u : U.PayoffExpr Γ) : Prog Player L Γ
+  | letExpr (x : VarId) {b : L.Ty} (e : E.Expr Γ b)
+      (k : Prog Player L ((x, .pub b) :: Γ)) :
+      Prog Player L Γ
   | sample (x : VarId) (τ : VisBindTy Player L) (m : SampleMode τ)
       (D' : D.DistExpr (distCtx τ m Γ) τ.base)
-      (k : VisProg Player L E D U ((x, τ) :: Γ)) :
-      VisProg Player L E D U Γ
-  | commit (x : VarId) (who : Player) {τ : L.Ty}
-      (acts : List (L.Val τ))
-      (R : E.Expr ((x, .pub τ) :: flattenCtx (viewCtx who Γ)) L.bool)
-      (k : VisProg Player L E D U ((x, .hidden who τ) :: Γ)) :
-      VisProg Player L E D U Γ
-  | reveal (y : VarId) (who : Player) (x : VarId) {τ : L.Ty}
-      (hx : VisHasVar (L := L) Γ x (.hidden who τ))
-      (k : VisProg Player L E D U ((y, .pub τ) :: Γ)) :
-      VisProg Player L E D U Γ
+      (k : Prog Player L ((x, τ) :: Γ)) :
+      Prog Player L Γ
+  | commit (x : VarId) (who : Player) {b : L.Ty}
+      (acts : List (L.Val b))
+      (R : E.Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) L.bool)
+      (k : Prog Player L ((x, .hidden who b) :: Γ)) :
+      Prog Player L Γ
+  | reveal (y : VarId) (who : Player) (x : VarId) {b : L.Ty}
+      (hx : VisHasVar (L := L) Γ x (.hidden who b))
+      (k : Prog Player L ((y, .pub b) :: Γ)) :
+      Prog Player L Γ
 
 /-- Generic commit kernels indexed by a player view. -/
-abbrev VisCommitKernel (Player : Type) [DecidableEq Player] (L : Language)
-    (who : Player) (Γ : VisCtx Player L) (τ : L.Ty) : Type :=
-  VisEnv (Player := Player) L (viewCtx who Γ) → FDist (L.Val τ)
+abbrev CommitKernel (Player : Type) [DecidableEq Player] (L : ExprLanguage)
+    (who : Player) (Γ : VisCtx Player L) (b : L.Ty) : Type :=
+  VisEnv (Player := Player) L (viewCtx who Γ) → FDist (L.Val b)
 
 /-- Generic profiles for Vegas-style commit nodes. -/
-structure VisProfile (Player : Type) [DecidableEq Player] (L : Language)
-    (E : VisExprKit Player L) (D : VisDistKit Player L) (U : VisPayoffKit Player L) where
-  commit : {Γ : VisCtx Player L} → {τ : L.Ty} → (who : Player) →
-    (x : VarId) → (acts : List (L.Val τ)) →
-    (R : E.Expr ((x, .pub τ) :: flattenCtx (viewCtx who Γ)) L.bool) →
-    VisCommitKernel Player L who Γ τ
+structure Profile (Player : Type) [DecidableEq Player] (L : ExprLanguage)
+    [E : VisExprKit Player L] [D : VisDistKit Player L] [U : VisPayoffKit Player L] where
+  commit : {Γ : VisCtx Player L} → {b : L.Ty} → (who : Player) →
+    (x : VarId) → (acts : List (L.Val b)) →
+    (R : E.Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) L.bool) →
+    CommitKernel Player L who Γ b
 
 /-- Partial generic profiles with optional commit kernels. -/
-structure VisPProfile (Player : Type) [DecidableEq Player] (L : Language)
-    (E : VisExprKit Player L) (D : VisDistKit Player L) (U : VisPayoffKit Player L) where
-  commit? : {Γ : VisCtx Player L} → {τ : L.Ty} → (who : Player) →
-    (x : VarId) → (acts : List (L.Val τ)) →
-    (R : E.Expr ((x, .pub τ) :: flattenCtx (viewCtx who Γ)) L.bool) →
-    Option (VisCommitKernel Player L who Γ τ)
+structure PProfile (Player : Type) [DecidableEq Player] (L : ExprLanguage)
+    [E : VisExprKit Player L] [D : VisDistKit Player L] [U : VisPayoffKit Player L] where
+  commit? : {Γ : VisCtx Player L} → {b : L.Ty} → (who : Player) →
+    (x : VarId) → (acts : List (L.Val b)) →
+    (R : E.Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) L.bool) →
+    Option (CommitKernel Player L who Γ b)
 
-def VisPProfile.toProfile {Player : Type} [DecidableEq Player] {L : Language}
-    {E : VisExprKit Player L} {D : VisDistKit Player L} {U : VisPayoffKit Player L}
-    (π : VisPProfile Player L E D U) (fallback : VisProfile Player L E D U) :
-    VisProfile Player L E D U where
-  commit := fun {Γ} {τ} who x acts R view =>
-    match π.commit? (Γ := Γ) (τ := τ) who x acts R with
+def PProfile.toProfile {Player : Type} [DecidableEq Player] {L : ExprLanguage}
+    [E : VisExprKit Player L] [D : VisDistKit Player L] [U : VisPayoffKit Player L]
+    (π : PProfile Player L) (fallback : Profile Player L) :
+    Profile Player L where
+  commit := fun {Γ} {b} who x acts R view =>
+    match π.commit? (Γ := Γ) (b := b) who x acts R with
     | some k => k view
     | none => fallback.commit who x acts R view
 
 /-- Extra assumptions needed only for finite-backend compilation. -/
-structure FiniteValuation (L : Language) where
+structure FiniteValuation (L : ExprLanguage) where
   fintypeVal : ∀ τ : L.Ty, Fintype (L.Val τ)
 
 namespace FiniteValuation
 
-instance instFintypeVal (L : Language) (LF : FiniteValuation L) (τ : L.Ty) :
+instance instFintypeVal (L : ExprLanguage) (LF : FiniteValuation L) (τ : L.Ty) :
     Fintype (L.Val τ) :=
   LF.fintypeVal τ
 
 /-- The finite branching factor of values of type `τ`. -/
-noncomputable def domainSize (L : Language) (LF : FiniteValuation L) (τ : L.Ty) : Nat :=
+noncomputable def domainSize (L : ExprLanguage) (LF : FiniteValuation L) (τ : L.Ty) : Nat :=
   let _ := instFintypeVal L LF τ
   Fintype.card (L.Val τ)
 
 /-- A canonical encoding of values as `Fin domainSize`. -/
-noncomputable def encodeFin (L : Language) (LF : FiniteValuation L) (τ : L.Ty) :
+noncomputable def encodeFin (L : ExprLanguage) (LF : FiniteValuation L) (τ : L.Ty) :
     L.Val τ ≃ Fin (LF.domainSize L τ) :=
   let _ := instFintypeVal L LF τ
   Fintype.equivFin (L.Val τ)
@@ -455,20 +455,20 @@ noncomputable def encodeFin (L : Language) (LF : FiniteValuation L) (τ : L.Ty) 
 end FiniteValuation
 
 /-- Backend-facing expression interface: evaluation and dependency extraction. -/
-structure ExprKit (L : Language) where
+structure ExprKit (L : ExprLanguage) where
   Expr : L.Ctx → L.Ty → Type
   eval : {Γ : L.Ctx} → {τ : L.Ty} → Expr Γ τ → L.Env Γ → L.Val τ
   deps : {Γ : L.Ctx} → {τ : L.Ty} → Expr Γ τ → List (Sigma fun τ => L.Var Γ τ)
 
 /-- Backend-facing sampling interface: finite-support distributions and deps. -/
-structure DistKit (L : Language) where
+structure DistKit (L : ExprLanguage) where
   DistExpr : L.Ctx → L.Ty → Type
   eval : {Γ : L.Ctx} → {τ : L.Ty} → DistExpr Γ τ → L.Env Γ → PMF (L.Val τ)
   deps : {Γ : L.Ctx} → {τ : L.Ty} → DistExpr Γ τ → List (Sigma fun τ => L.Var Γ τ)
 
 /-- Backend-facing payoff interface. Utility outputs need not lie in a finite
 value domain. -/
-structure PayoffKit (L : Language) where
+structure PayoffKit (L : ExprLanguage) where
   Player : Type
   decEqPlayer : DecidableEq Player
   PayoffExpr : L.Ctx → Type
@@ -478,3 +478,6 @@ structure PayoffKit (L : Language) where
 attribute [instance] PayoffKit.decEqPlayer
 
 end Distilled
+
+
+

@@ -1,9 +1,9 @@
-import distilled.Language
+import distilled.ExprLanguage
 
 /-!
 # A small concrete backend language
 
-This file provides a simple reusable instantiation of `Language`:
+This file provides a simple reusable instantiation of `ExprLanguage`:
 
 - truth values via `bool`
 - finite scalar values via `range n`
@@ -37,7 +37,7 @@ instance instFintypeVal : (τ : Ty) → Fintype (Val τ)
   | .range _ => inferInstance
 
 /-- The backend language instance. -/
-def lang : Language where
+def lang : ExprLanguage where
   Ty := Ty
   decEqTy := inferInstance
   Val := Val
@@ -127,3 +127,6 @@ def distKit : DistKit lang where
   deps := distDeps
 
 end Distilled.BasicLanguage
+
+
+
