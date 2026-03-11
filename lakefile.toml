@@ -1,7 +1,7 @@
 name = "formal"
 version = "0.1.0"
 keywords = ["math"]
-defaultTargets = ["Vegas"]
+defaultTargets = ["distilled"]
 
 [leanOptions]
 pp.unicode.fun = true # pretty-prints `fun a ↦ b`
@@ -16,8 +16,7 @@ rev = "v4.27.0"
 
 [[require]]
 name = "GameTheory"
-git = "https://github.com/elazarg/GameTheory"
-rev = "master"
+path = "../GameTheory"
 
 [[lean_lib]]
 name = "Vegas"

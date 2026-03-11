@@ -2,8 +2,8 @@ import Mathlib.Probability.ProbabilityMassFunction.Constructions
 import Mathlib.Algebra.BigOperators.Fin
 
 import distilled.Vegas
-import GameTheory.EFG
-import GameTheory.MAID
+import GameTheory.Languages.EFG
+import GameTheory.Languages.MAID
 /-!
 # Game Semantics for Vegas Programs
 

@@ -1,6 +1,5 @@
 import distilled.Vegas
-import distilled.GameSemantics
-import GameTheory.Probability
+import Math.Probability
 
 /-!
 # Monadic bridge: FDist → PMF
