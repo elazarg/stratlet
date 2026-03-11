@@ -1,3 +1,5 @@
+import Mathlib.Data.Finsupp.Basic
+import Mathlib.Data.NNRat.Defs
 import Mathlib.Probability.ProbabilityMassFunction.Constructions
 
 /-!
@@ -31,6 +33,9 @@ inductive Var {Ty : Type} : Ctx Ty → Ty → Type where
 def Env {Ty : Type} (Val : Ty → Type) : Ctx Ty → Type
   | [] => PUnit
   | τ :: Γ => Val τ × Env Val Γ
+
+/-- Shared finite-support weighted distributions for the Vegas layer. -/
+abbrev FDist (α : Type) [DecidableEq α] := α →₀ ℚ≥0
 
 namespace Env
 
@@ -305,6 +310,56 @@ def toFlatView {Player : Type} [DecidableEq Player] {L : Language} (p : Player)
     {Γ : VisCtx Player L} (env : VisEnv (Player := Player) L Γ) :
     VisEnv (Player := Player) L (flattenCtx (viewCtx p Γ)) :=
   VisEnv.toFlat (VisEnv.toView p env)
+
+end VisEnv
+
+/-- Visibility-aware expression interface for Vegas-style syntax layers. -/
+structure VisExprKit (Player : Type) (L : Language) where
+  Expr : VisCtx Player L → L.Ty → Type
+  eval : {Γ : VisCtx Player L} → {τ : L.Ty} →
+    Expr Γ τ → VisEnv (Player := Player) L Γ → L.Val τ
+  deps : {Γ : VisCtx Player L} → {τ : L.Ty} → Expr Γ τ → List VarId
+
+/-- Visibility-aware finite-support distribution interface. -/
+structure VisDistKit (Player : Type) (L : Language) where
+  DistExpr : VisCtx Player L → L.Ty → Type
+  eval : {Γ : VisCtx Player L} → {τ : L.Ty} →
+    DistExpr Γ τ → VisEnv (Player := Player) L Γ → FDist (L.Val τ)
+  deps : {Γ : VisCtx Player L} → {τ : L.Ty} → DistExpr Γ τ → List VarId
+
+/-- Visibility-aware payoff interface. Utility outputs need not be finite. -/
+structure VisPayoffKit (Player : Type) (L : Language) where
+  PayoffExpr : VisCtx Player L → Type
+  eval : {Γ : VisCtx Player L} →
+    PayoffExpr Γ → VisEnv (Player := Player) L Γ → Player → Int
+  deps : {Γ : VisCtx Player L} → PayoffExpr Γ → List VarId
+
+/-- Whether a value is sampled publicly by nature, privately by nature, or by
+the owning player. -/
+inductive SampleMode {Player : Type} {L : Language} : VisBindTy Player L → Type where
+  | NaturePub {τ} : SampleMode (.pub τ)
+  | NaturePriv {owner τ} : SampleMode (.hidden owner τ)
+  | PlayerPriv {owner τ} : SampleMode (.hidden owner τ)
+
+/-- The context exposed to a distribution expression for a given sampling mode. -/
+abbrev distCtx {Player : Type} [DecidableEq Player] {L : Language}
+    (τ : VisBindTy Player L) (m : SampleMode τ) (Γ : VisCtx Player L) : VisCtx Player L :=
+  match τ, m with
+  | .pub _, .NaturePub => pubCtx Γ
+  | .hidden _ _, .NaturePriv => pubCtx Γ
+  | .hidden p _, .PlayerPriv => flattenCtx (viewCtx p Γ)
+
+namespace VisEnv
+
+/-- Project an environment to the visibility required for sampling in mode `m`. -/
+def projectDist {Player : Type} [DecidableEq Player] {L : Language} {Γ : VisCtx Player L}
+    (τ : VisBindTy Player L) (m : SampleMode τ)
+    (env : VisEnv (Player := Player) L Γ) :
+    VisEnv (Player := Player) L (distCtx τ m Γ) :=
+  match τ, m with
+  | .pub _, .NaturePub => env.toPub
+  | .hidden _ _, .NaturePriv => env.toPub
+  | .hidden p _, .PlayerPriv => env.toFlatView p
 
 end VisEnv
 

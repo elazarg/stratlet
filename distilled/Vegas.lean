@@ -243,6 +243,13 @@ def exprVars : Expr Γ b → List VarId
   | .notBool e   => exprVars e
   | .ite c t f   => exprVars c ++ exprVars t ++ exprVars f
 
+/-- The current Vegas expression language, exposed through the generic
+visibility-aware language boundary. -/
+def exprKit : Distilled.VisExprKit Player language where
+  Expr := Expr
+  eval := @evalExpr
+  deps := @exprVars
+
 -- ============================================================================
 -- § 5. FDist — Finsupp-based weighted distributions
 -- ============================================================================
@@ -511,27 +518,25 @@ def distExprVars : DistExpr Γ b → List VarId
   | .weighted _ => []
   | .ite c t f => exprVars c ++ distExprVars t ++ distExprVars f
 
+/-- The current Vegas sampling layer, exposed through the generic
+visibility-aware language boundary. -/
+noncomputable def distKit : Distilled.VisDistKit Player language where
+  DistExpr := DistExpr
+  eval := @evalDistExpr
+  deps := @distExprVars
+
 -- ============================================================================
 -- § 7. Sampling modes and contexts
 -- ============================================================================
 
-inductive SampleMode : BindTy → Type where
-  | NaturePub {b} : SampleMode (.pub b)
-  | NaturePriv {p b} : SampleMode (.hidden p b)
-  | PlayerPriv {p b} : SampleMode (.hidden p b)
+abbrev SampleMode : BindTy → Type := Distilled.SampleMode (Player := Player) (L := language)
 
 abbrev distCtx (τ : BindTy) (m : SampleMode τ) (Γ : Ctx) : Ctx :=
-  match τ, m with
-  | .pub _, .NaturePub => pubCtx Γ
-  | .hidden _ _, .NaturePriv => pubCtx Γ
-  | .hidden p _, .PlayerPriv => flattenCtx (viewCtx p Γ)
+  Distilled.distCtx (Player := Player) (L := language) τ m Γ
 
 def Env.projectDist {Γ : Ctx} (τ : BindTy) (m : SampleMode τ)
     (env : Env Γ) : Env (distCtx τ m Γ) :=
-  match τ, m with
-  | .pub _, .NaturePub => env.toPub
-  | .hidden _ _, .NaturePriv => env.toPub
-  | .hidden p _, .PlayerPriv => env.toFlatView p
+  Distilled.VisEnv.projectDist (Player := Player) (L := language) τ m env
 
 -- ============================================================================
 -- § 8. PayoffMap, Prog, Profile
@@ -543,6 +548,13 @@ structure PayoffMap (Γ : Ctx) where
 
 noncomputable def evalPayoffMap (u : PayoffMap Γ) (env : Env Γ) : Outcome :=
   u.entries.foldl (fun acc (p, e) => acc + Finsupp.single p (evalExpr e env)) 0
+
+/-- The current Vegas payoff layer, exposed through the generic
+visibility-aware language boundary. -/
+noncomputable def payoffKit : Distilled.VisPayoffKit Player language where
+  PayoffExpr := PayoffMap
+  eval := fun u env who => evalPayoffMap u env who
+  deps := fun u => u.entries.foldr (fun pe acc => exprVars pe.2 ++ acc) []
 
 def evalR {Γ : Ctx} {b : BaseTy} {who : Player} {x : VarId}
     (R : Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) .bool)
