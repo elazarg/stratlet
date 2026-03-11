@@ -315,7 +315,10 @@ Prog Γ ::=
 > (`ret`, `letExpr`, `sample`, `commit`, `reveal`) are fully implemented with
 > denotational semantics, operational semantics, and adequacy. `observe` and
 > `assert` will be added when conditioning / griefing analysis is needed;
-> their semantics are zero-weighting (see §10).
+> their semantics are zero-weighting (see §10). In a finite language this is
+> semantically well-defined even on impossible events; the real issue is that
+> impossible observations break normalization, so the current PMF-based bridge
+> needs an additional nonzero-mass assumption if `observe` is reinstated.
 
 ### Reveal semantics (design principle)
 

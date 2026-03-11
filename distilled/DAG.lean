@@ -189,7 +189,11 @@ noncomputable def PartialEnv.toEnv? (pe : PartialEnv) :
       | .isTrue h =>
         match pe.toEnv? Γ' with
         | none => none
-        | some env' => some (Env.cons (h ▸ v) env')
+        | some env' =>
+          let v' : Val τ.base := by
+            cases h
+            exact v
+          some (Env.cons v' env')
       | .isFalse _ => none
 
 -- Commutativity: sets with distinct keys commute

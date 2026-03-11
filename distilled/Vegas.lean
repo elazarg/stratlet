@@ -5,6 +5,7 @@ import Mathlib.Data.NNRat.Defs
 import Mathlib.Data.NNRat.Order
 import Mathlib.Data.Finsupp.Defs
 import Mathlib.Data.Finsupp.Basic
+import distilled.Language
 
 /-!
 # Vegas: A Typed Game Calculus
@@ -41,49 +42,81 @@ instance : DecidableEq (Val b) := match b with
   | .int => inferInstanceAs (DecidableEq Int)
   | .bool => inferInstanceAs (DecidableEq Bool)
 
-inductive BindTy where
-  | pub (b : BaseTy)
-  | hidden (owner : Player) (b : BaseTy)
-deriving DecidableEq
+/-- The current concrete value layer, viewed as an instance of the generic
+backend `Language` interface. -/
+def language : Distilled.Language where
+  Ty := BaseTy
+  decEqTy := inferInstance
+  Val := Val
+  decEqVal := by
+    intro τ
+    cases τ <;> infer_instance
+  bool := .bool
 
-def BindTy.base : BindTy → BaseTy
-  | .pub b => b
-  | .hidden _ b => b
+abbrev BindTy : Type := Distilled.VisBindTy Player language
+abbrev Ctx : Type := Distilled.VisCtx Player language
+abbrev HasVar : Ctx → VarId → BindTy → Type :=
+  Distilled.VisHasVar (Player := Player) (L := language)
+abbrev Env (Γ : Ctx) : Type := Distilled.VisEnv (Player := Player) language Γ
 
-abbrev Ctx : Type := List (VarId × BindTy)
+namespace BindTy
 
--- ============================================================================
--- § 2. HasVar and Env
--- ============================================================================
+abbrev base : BindTy → BaseTy := Distilled.VisBindTy.base
 
-inductive HasVar : Ctx → VarId → BindTy → Type where
-  | here {Γ x τ} : HasVar ((x, τ) :: Γ) x τ
-  | there {Γ x y τ τ'} (h : HasVar Γ x τ) : HasVar ((y, τ') :: Γ) x τ
+end BindTy
 
-def Env (Γ : Ctx) := ∀ x τ, HasVar Γ x τ → Val τ.base
+namespace HasVar
+
+abbrev here {Γ : Ctx} {x : VarId} {τ : BindTy} : HasVar ((x, τ) :: Γ) x τ :=
+  Distilled.VisHasVar.here
+
+abbrev there {Γ : Ctx} {x y : VarId} {τ τ' : BindTy}
+    (h : HasVar Γ x τ) : HasVar ((y, τ') :: Γ) x τ :=
+  Distilled.VisHasVar.there h
+
+end HasVar
 
 namespace Env
 
-def empty : Env [] := fun _ _ h => nomatch h
+abbrev empty : Env [] := Distilled.VisEnv.empty (Player := Player) language
 
-def cons {Γ : Ctx} {x : VarId} {τ : BindTy}
+abbrev cons {Γ : Ctx} {x : VarId} {τ : BindTy}
     (v : Val τ.base) (env : Env Γ) : Env ((x, τ) :: Γ) :=
-  fun _ _ h =>
-    match h with
-    | .here => v
-    | .there h' => env _ _ h'
+  Distilled.VisEnv.cons (Player := Player) (L := language) v env
 
-def get {Γ : Ctx} {x : VarId} {τ : BindTy}
+abbrev get {Γ : Ctx} {x : VarId} {τ : BindTy}
     (env : Env Γ) (h : HasVar Γ x τ) : Val τ.base :=
-  env x τ h
+  Distilled.VisEnv.get (Player := Player) (L := language) env h
 
 @[simp] theorem cons_get_here {Γ : Ctx} {x : VarId} {τ : BindTy}
     {v : Val τ.base} {env : Env Γ} :
-    (Env.cons v env).get (HasVar.here (Γ := Γ) (x := x) (τ := τ)) = v := rfl
+    (Env.cons v env).get (HasVar.here (Γ := Γ) (x := x) (τ := τ)) = v := by
+  simpa using (Distilled.VisEnv.cons_get_here
+    (Player := Player) (L := language) (Γ := Γ) (x := x) (τ := τ) (v := v) (env := env))
 
 @[simp] theorem cons_get_there {Γ : Ctx} {x y : VarId} {τ σ : BindTy}
     {v : Val τ.base} {env : Env Γ} {h : HasVar Γ y σ} :
-    (Env.cons (x := x) v env).get (HasVar.there h) = env.get h := rfl
+    (Env.cons (x := x) v env).get (HasVar.there h) = env.get h := by
+  simpa using (Distilled.VisEnv.cons_get_there
+    (Player := Player) (L := language) (Γ := Γ) (x := x) (y := y)
+    (τ := τ) (σ := σ) (v := v) (env := env) (h := h))
+
+abbrev toView (p : Player) (env : Env Γ) :
+    Env (Distilled.viewCtx (Player := Player) (L := language) p Γ) :=
+  Distilled.VisEnv.toView (Player := Player) (L := language) p env
+
+abbrev toPub (env : Env Γ) :
+    Env (Distilled.pubCtx (Player := Player) (L := language) Γ) :=
+  Distilled.VisEnv.toPub (Player := Player) (L := language) env
+
+abbrev toFlat {Γ : Ctx} (env : Env Γ) :
+    Env (Distilled.flattenCtx (Player := Player) (L := language) Γ) :=
+  Distilled.VisEnv.toFlat (Player := Player) (L := language) env
+
+abbrev toFlatView (p : Player) {Γ : Ctx} (env : Env Γ) :
+    Env (Distilled.flattenCtx (Player := Player) (L := language)
+      (Distilled.viewCtx (Player := Player) (L := language) p Γ)) :=
+  Distilled.VisEnv.toFlatView (Player := Player) (L := language) p env
 
 end Env
 
@@ -91,82 +124,40 @@ end Env
 -- § 3. Views and projections
 -- ============================================================================
 
-def canSee (p : Player) : BindTy → Bool
-  | .pub _ => true
-  | .hidden q _ => p == q
+abbrev canSee (p : Player) : BindTy → Bool :=
+  Distilled.canSee (Player := Player) (L := language) p
 
-def viewCtx (p : Player) : Ctx → Ctx
-  | [] => []
-  | (x, τ) :: Γ =>
-    if canSee p τ then (x, τ) :: viewCtx p Γ
-    else viewCtx p Γ
+abbrev viewCtx (p : Player) : Ctx → Ctx :=
+  Distilled.viewCtx (Player := Player) (L := language) p
 
-def HasVar.ofViewCtx {p : Player} :
-    HasVar (viewCtx p Γ) x τ → HasVar Γ x τ := by
-  induction Γ with
-  | nil => intro h; exact nomatch h
-  | cons hd tl ih =>
-    obtain ⟨y, σ⟩ := hd
-    simp only [viewCtx]
-    split
-    · intro h
-      match h with
-      | .here => exact .here
-      | .there h' => exact .there (ih h')
-    · intro h; exact .there (ih h)
+abbrev pubCtx : Ctx → Ctx :=
+  Distilled.pubCtx (Player := Player) (L := language)
 
-def pubCtx : Ctx → Ctx
-  | [] => []
-  | (x, τ) :: Γ =>
-    match τ with
-    | .pub _ => (x, τ) :: pubCtx Γ
-    | .hidden _ _ => pubCtx Γ
+abbrev flattenCtx : Ctx → Ctx :=
+  Distilled.flattenCtx (Player := Player) (L := language)
 
-def HasVar.ofPubCtx : HasVar (pubCtx Γ) x τ → HasVar Γ x τ := by
-  induction Γ with
-  | nil => intro h; exact nomatch h
-  | cons hd tl ih =>
-    obtain ⟨y, σ⟩ := hd
-    simp only [pubCtx]
-    split
-    · intro h
-      match h with
-      | .here => exact .here
-      | .there h' => exact .there (ih h')
-    · intro h; exact .there (ih h)
+namespace HasVar
 
-def HasVar.ofPubToView {p : Player} :
-    HasVar (pubCtx Γ) x τ → HasVar (viewCtx p Γ) x τ := by
-  induction Γ with
-  | nil => intro h; exact nomatch h
-  | cons hd tl ih =>
-    obtain ⟨y, σ⟩ := hd
-    intro h
-    match σ with
-    | .pub b =>
-      simp only [pubCtx] at h
-      simp only [viewCtx, canSee]
-      match h with
-      | .here => exact .here
-      | .there h' => exact .there (ih h')
-    | .hidden q b =>
-      simp only [pubCtx] at h
-      simp only [viewCtx]
-      split
-      · exact .there (ih h)
-      · exact ih h
+abbrev ofViewCtx {p : Player} :
+    HasVar (viewCtx p Γ) x τ → HasVar Γ x τ :=
+  Distilled.VisHasVar.ofViewCtx (Player := Player) (L := language) (p := p)
 
-def Env.toView (p : Player) (env : Env Γ) : Env (viewCtx p Γ) :=
-  fun x τ h => env x τ h.ofViewCtx
+abbrev ofPubCtx : HasVar (pubCtx Γ) x τ → HasVar Γ x τ :=
+  Distilled.VisHasVar.ofPubCtx (Player := Player) (L := language)
 
-def Env.toPub (env : Env Γ) : Env (pubCtx Γ) :=
-  fun x τ h => env x τ h.ofPubCtx
+abbrev ofPubToView {p : Player} :
+    HasVar (pubCtx Γ) x τ → HasVar (viewCtx p Γ) x τ :=
+  Distilled.VisHasVar.ofPubToView (Player := Player) (L := language) (p := p)
 
--- § 3a. flattenCtx
+abbrev toFlatten : HasVar Γ x τ → HasVar (flattenCtx Γ) x (.pub τ.base) :=
+  Distilled.VisHasVar.toFlatten (Player := Player) (L := language)
 
-def flattenCtx : Ctx → Ctx
-  | [] => []
-  | (x, τ) :: Γ => (x, .pub τ.base) :: flattenCtx Γ
+abbrev unflatten {Γ : Ctx} {x : VarId} {b : BaseTy} :
+    HasVar (flattenCtx Γ) x (.pub b) →
+    (τ : BindTy) × HasVar Γ x τ × PLift (τ.base = b) :=
+  Distilled.VisHasVar.unflatten (Player := Player) (L := language)
+
+end HasVar
 
 @[simp] theorem flattenCtx_nil : flattenCtx [] = [] := rfl
 @[simp] theorem flattenCtx_cons {x : VarId} {τ : BindTy} {Γ : Ctx} :
@@ -174,56 +165,18 @@ def flattenCtx : Ctx → Ctx
 
 theorem flattenCtx_map_fst :
     (flattenCtx Γ).map Prod.fst = Γ.map Prod.fst := by
-  induction Γ with
-  | nil => rfl
-  | cons hd tl ih => simp [flattenCtx, ih]
+  simpa [flattenCtx] using
+    (Distilled.flattenCtx_map_fst (Player := Player) (L := language) (Γ := Γ))
 
 theorem flattenCtx_length :
     (flattenCtx Γ).length = Γ.length := by
-  have h := congrArg List.length (flattenCtx_map_fst (Γ := Γ))
-  simp only [List.length_map] at h
-  exact h
+  simpa [flattenCtx] using
+    (Distilled.flattenCtx_length (Player := Player) (L := language) (Γ := Γ))
 
 theorem flattenCtx_idempotent :
     flattenCtx (flattenCtx Γ) = flattenCtx Γ := by
-  induction Γ with
-  | nil => rfl
-  | cons hd tl ih =>
-    obtain ⟨x, τ⟩ := hd
-    simp [flattenCtx, BindTy.base, ih]
-
--- § 3b. HasVar embeddings for flattenCtx
-
-def HasVar.toFlatten : HasVar Γ x τ → HasVar (flattenCtx Γ) x (.pub τ.base)
-  | .here => .here
-  | .there h => .there h.toFlatten
-
-def HasVar.unflatten {Γ : Ctx} {x : VarId} {b : BaseTy} :
-    HasVar (flattenCtx Γ) x (.pub b) →
-    (τ : BindTy) × HasVar Γ x τ × PLift (τ.base = b) :=
-  match Γ with
-  | [] => fun h => nomatch h
-  | (_, σ) :: _ => fun h =>
-    match h with
-    | .here => ⟨σ, .here, ⟨rfl⟩⟩
-    | .there h' =>
-      let ⟨τ, hv, ⟨hb⟩⟩ := unflatten h'
-      ⟨τ, .there hv, ⟨hb⟩⟩
-
--- § 3c. Env projections for flattenCtx
-
-def Env.toFlat {Γ : Ctx} (env : Env Γ) : Env (flattenCtx Γ) := by
-  induction Γ with
-  | nil => exact Env.empty
-  | cons hd tl ih =>
-    obtain ⟨_, σ⟩ := hd
-    let v : Val σ.base := env.get .here
-    exact Env.cons (τ := .pub σ.base) v
-      (ih (fun a b c => env a b (.there c)))
-
-def Env.toFlatView (p : Player) {Γ : Ctx} (env : Env Γ) :
-    Env (flattenCtx (viewCtx p Γ)) :=
-  (env.toView p).toFlat
+  simpa [flattenCtx] using
+    (Distilled.flattenCtx_idempotent (Player := Player) (L := language) (Γ := Γ))
 
 -- ============================================================================
 -- § 4. Expressions
@@ -759,10 +712,10 @@ theorem HasVar.unique {Γ : Ctx} {x : VarId} {τ₁ τ₂ : BindTy}
   | here =>
     match h2 with
     | .here => rfl
-    | .there h2' => exact absurd h2'.mem_map_fst hwf.fresh_head
+    | .there h2' => exact absurd (HasVar.mem_map_fst h2') hwf.fresh_head
   | there h1' ih =>
     match h2 with
-    | .here => exact absurd h1'.mem_map_fst hwf.fresh_head
+    | .here => exact absurd (HasVar.mem_map_fst h1') hwf.fresh_head
     | .there h2' => exact ih hwf.tail h2'
 
 -- § 11b. Fresh lemmas for subcontexts
@@ -770,16 +723,29 @@ theorem HasVar.unique {Γ : Ctx} {x : VarId} {τ₁ τ₂ : BindTy}
 theorem viewCtx_map_fst_sub {x : VarId} {p : Player} {Γ : Ctx} :
     x ∈ (viewCtx p Γ).map Prod.fst → x ∈ Γ.map Prod.fst := by
   induction Γ with
-  | nil => simp [viewCtx]
+  | nil =>
+    intro h
+    have : False := by
+      simpa [Distilled.viewCtx] using h
+    exact False.elim this
   | cons hd tl ih =>
     obtain ⟨y, τ⟩ := hd
-    simp only [viewCtx]
-    split
-    · simp only [List.map, List.mem_cons]
-      intro h; rcases h with rfl | h
+    cases hsee : Distilled.canSee (Player := Player) (L := language) p τ with
+    | false =>
+      intro h
+      have hview : viewCtx p ((y, τ) :: tl) = viewCtx p tl := by
+        simp [viewCtx, Distilled.viewCtx, hsee]
+      rw [hview] at h
+      exact List.mem_cons_of_mem _ (ih h)
+    | true =>
+      intro h
+      have hview : viewCtx p ((y, τ) :: tl) = (y, τ) :: viewCtx p tl := by
+        simp [viewCtx, Distilled.viewCtx, hsee]
+      rw [hview] at h
+      simp only [List.map, List.mem_cons] at h ⊢
+      rcases h with rfl | htl
       · exact Or.inl rfl
-      · exact Or.inr (ih h)
-    · intro h; exact List.mem_cons_of_mem _ (ih h)
+      · exact Or.inr (ih htl)
 
 theorem Fresh_viewCtx {x : VarId} {p : Player} {Γ : Ctx}
     (hfresh : Fresh x Γ) : Fresh x (viewCtx p Γ) :=

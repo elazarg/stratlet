@@ -550,7 +550,9 @@ through the appropriate HasVar embeddings.
 theorem viewCtx_skip_invisible {p : Player} {x : VarId} {τ : BindTy} {Γ : Ctx}
     (h : canSee p τ = false) :
     viewCtx p ((x, τ) :: Γ) = viewCtx p Γ := by
-  simp [viewCtx, h]
+  have h' : Distilled.canSee (Player := Player) (L := language) p τ = false := by
+    simpa [canSee] using h
+  simp [viewCtx, Distilled.viewCtx, h']
 
 /-- The algebraic core of commit–commit commutativity: two independent
     `FDist.bind`s commute. Immediate from `FDist.bind_comm`. -/
