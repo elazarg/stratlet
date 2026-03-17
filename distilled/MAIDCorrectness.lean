@@ -33,6 +33,21 @@ theorem readVal_extend_ne (raw : RawNodeEnv L) (nid nid' : Nat)
 def InsensitiveTo (f : RawNodeEnv L → α) (nid : Nat) : Prop :=
   ∀ raw (tv : TaggedVal L), f (raw.extend nid tv) = f raw
 
+/-- If `f` is insensitive at position `k`, then any two raw environments that
+agree on all positions except `k` give the same result under `f`. -/
+theorem InsensitiveTo.eq_of_eq_off [Nonempty (TaggedVal L)]
+    {f : RawNodeEnv L → α} {k : Nat}
+    (hins : InsensitiveTo f k)
+    {raw₁ raw₂ : RawNodeEnv L}
+    (hoff : ∀ i, i ≠ k → raw₁ i = raw₂ i) :
+    f raw₁ = f raw₂ := by
+  obtain ⟨tv⟩ := ‹Nonempty (TaggedVal L)›
+  calc f raw₁ = f (raw₁.extend k tv) := (hins raw₁ tv).symm
+    _ = f (raw₂.extend k tv) := by
+        congr 1; funext i; simp only [RawNodeEnv.extend]
+        split <;> [rfl; exact hoff i (by assumption)]
+    _ = f raw₂ := hins raw₂ tv
+
 -- ============================================================================
 -- § 2. nativeOutcomeDist: direct FDist U.Outcome by induction on Prog
 -- ============================================================================
