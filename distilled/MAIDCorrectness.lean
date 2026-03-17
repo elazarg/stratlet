@@ -639,23 +639,14 @@ theorem evalFoldPrefix_go_extract_eq
     -- This requires induction on the players list in addUtilityNodes.
     sorry
   | sample x τ m D' k ih =>
-    -- Step 1: Unfold ofProg, extractOutcome, nativeOutcomeDist one level
     simp only [MAIDCompileState.ofProg, extractOutcome, nativeOutcomeDist]
-    -- Step 2: The fold starts at st₀.nextId which is a chance node.
-    -- Unfold evalFoldPrefix.go one step to get evalStepPrefix + go from st₀.nextId+1.
-    -- Step 3: evalStepPrefix draws from nodeDistPrefix at the chance node.
-    -- By nodeDistPrefix_chance_eq, this equals toPMF of the CPD on rawOfTAssign.
-    -- Step 4: After snoc v, use rawOfTAssign_snoc_rho_stable to show ρ stable,
-    -- and readVal_extend_self to read back v. This gives the new ρ'.
-    -- Step 5: Apply IH with the new st₀' = (addNode ...).2.addVar ...,
-    -- new ρ' = cons (readVal ...) ρ, and the stepped accumulator.
-    -- The IH hypotheses (kernel normalized, InsensitiveTo) follow from
-    -- addNode/addVar preservation lemmas + readVal_extend_ne + hρ.
+    -- Cannot directly apply IH: sample adds a node (nextId+1), so we must
+    -- first unfold evalFoldPrefix.go one step at st₀.nextId (the chance node),
+    -- then apply IH to the stepped accumulator at nextId+1.
     sorry
   | @commit _ x who b acts R k ih =>
-    -- Analogous to sample: unfold, step fold, match decision node distribution,
-    -- apply IH. The kernel normalization comes from hσ_norm.
     simp only [MAIDCompileState.ofProg, extractOutcome, nativeOutcomeDist]
+    -- Same as sample: must unfold evalFoldPrefix.go one step first.
     sorry
 
 open MAID in
