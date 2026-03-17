@@ -219,3 +219,27 @@
 | Claude solo success | 18/18 (attempts 5+6+7) |
 | Avg response time | ~5s (ChatGPT) |
 | Models used | gpt-4o, gpt-5.2, claude opus 4.6 |
+
+### Attempt 8 — `vegas_maid_dist_eq` bridge infrastructure (Claude solo)
+
+- **Date:** 2026-03-17
+- **Model:** claude opus 4.6 (1M context)
+- **File:** `distilled/MAIDCorrectness.lean`
+- **Theorems proved (no sorry):**
+  - `MAIDCompileState.addVar_kernelNormalized` — addVar preserves KernelNormalized
+  - `MAIDCompileState.addNode_descAt_new` — descAt at the freshly added node
+  - `MAIDCompileState.addNode_descAt_old` — descAt at pre-existing nodes unchanged
+  - `MAIDCompileState.addNode_chance_kernelNormalized` — chance node preserves KernelNormalized
+  - `MAIDCompileState.addNode_decision_kernelNormalized` — decision node preserves when kernel normalized
+  - `MAIDCompileState.addUtilityNodes_kernelNormalized` — utility nodes preserve KernelNormalized
+  - `ofProg_kernelNormalized` — full ofProg compilation preserves KernelNormalized (by induction on Prog)
+  - `vegas_maid_dist_eq` — proved from bridge lemma (existential witness construction)
+- **Definitions added:**
+  - `MAIDCompileState.KernelNormalized` — kernel normalization predicate
+  - `compiledPolicy` — compile Vegas Profile into MAID Policy
+- **Still sorry:** `maid_map_extract_eq_outcomeDist` (the bridge lemma connecting MAID fold to Vegas outcomeDist)
+- **Previous state:** 2 sorries (one wrong: `nativeOutcomeDist_eq_bind_extractOutcome`), `vegas_maid_dist_eq` itself sorry'd
+- **Current state:** 1 sorry (`maid_map_extract_eq_outcomeDist`), `vegas_maid_dist_eq` proved
+- **Verdict:** Significant structural progress. The remaining sorry is the core mathematical bridge (PMF.map extract over MAID evalAssignDist = outcomeDist.toPMF), requiring inductive decomposition of `evalFoldPrefix` matching Prog structure.
+- **No ChatGPT used** — all proofs by Claude directly.
+- **Update (same session):** Assembly proof `maid_map_extract_eq_outcomeDist` closed via `hbridge.trans` + `PMF.pure_bind` + `nativeOutcomeDist_eq_outcomeDist_init`. `ofProg_nextId_le` closed by user using `refine`/`exact?` automation. Now only 1 sorry-containing declaration remains (`evalFoldPrefix_go_extract_eq`) with 3 of 5 cases sorry'd: `ret`, `sample`, `commit`. The `letExpr`/`reveal` cases are proved. The 3 remaining cases each require unfolding `evalFoldPrefix.go` at a compiled MAID node and connecting to the Prog's distribution, which hits Lean elaborator timeouts from the large `ofProg` terms.
