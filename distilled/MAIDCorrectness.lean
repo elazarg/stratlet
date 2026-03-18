@@ -1157,6 +1157,44 @@ theorem foldl_evalStepFDist_bind [Fintype Player]
           FDist.bind (data.dist nd a) (fun v =>
             FDist.pure (updateAssign a nd v))))
 
+theorem foldl_evalStepFDist_cons [Fintype Player]
+    {S : MAID.Struct Player n}
+    (data : FDistNodeData S) (nd : Fin n) (rest : List (Fin n))
+    (acc : FDist (TAssign S)) :
+    (nd :: rest).foldl (evalStepFDist data) acc =
+      rest.foldl (evalStepFDist data) (evalStepFDist data acc nd) := by
+  rfl
+
+theorem evalStepFDist_utility_pure
+    (st : MAIDCompileState Player L B)
+    (σ : Profile (Player := Player) (L := L))
+    (hkn : st.KernelNormalized σ)
+    (data : @FDistNodeData Player _ B.fintypePlayer _ st.toStruct)
+    (hdata : data = compiledFDistData st σ hkn)
+    (nd : Fin st.nextId)
+    (hutility : ∃ who, (st.descAt nd).kind = .utility who)
+    (a : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct) :
+    letI := B.fintypePlayer
+    evalStepFDist data (FDist.pure a) nd =
+      FDist.pure (updateAssign a nd default) := by
+  sorry
+
+theorem evalStepFDist_utility_map_eq
+    (st : MAIDCompileState Player L B)
+    (σ : Profile (Player := Player) (L := L))
+    (hkn : st.KernelNormalized σ)
+    (data : @FDistNodeData Player _ B.fintypePlayer _ st.toStruct)
+    (hdata : data = compiledFDistData st σ hkn)
+    (nd : Fin st.nextId)
+    (hutility : ∃ who, (st.descAt nd).kind = .utility who)
+    (f : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct → α)
+    [DecidableEq α]
+    (hf : ∀ a v, f (@updateAssign Player _ B.fintypePlayer st.nextId st.toStruct a nd v) = f a)
+    (acc : FDist (@TAssign Player _ B.fintypePlayer st.nextId st.toStruct)) :
+    letI := B.fintypePlayer
+    FDist.map f (evalStepFDist data acc nd) = FDist.map f acc := by
+  sorry
+
 /-- Folding `evalStepFDist` over utility-only nodes, then mapping through
 `f`, equals mapping `f` over the initial accumulator — because utility
 nodes draw `default` and `rawOfTAssign` is invariant at utility positions. -/
@@ -1209,6 +1247,80 @@ theorem MAIDCompileState.VarsSubCtx_addVar
   rcases hy' with hy' | rfl
   · exact Or.inr (by simpa [List.mem_map] using hvars y hy')
   · exact Or.inl rfl
+
+theorem MAIDCompileState.VarsSubCtx_letExpr_step
+    (st : MAIDCompileState Player L B)
+    {Γ : VisCtx Player L}
+    (hvars : st.VarsSubCtx Γ)
+    (x : VarId) {b : L.Ty}
+    (hfreshΓ : Fresh (P := Player) (L := L) x Γ) :
+    (st.addVar x (.pub b) (st.ctxDeps Γ) (st.depsOfVars_lt _)).VarsSubCtx
+      ((x, .pub b) :: Γ) := by
+  exact st.VarsSubCtx_addVar hvars x (.pub b) (st.ctxDeps Γ)
+    (st.depsOfVars_lt _) hfreshΓ
+
+theorem MAIDCompileState.VarsSubCtx_addNode_addVar_singleton_step
+    (st : MAIDCompileState Player L B)
+    {Γ : VisCtx Player L}
+    (hvars : st.VarsSubCtx Γ)
+    (nd : CompiledNode Player L B)
+    (hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
+    (x : VarId) (τ : VisBindTy Player L)
+    (hfreshΓ : Fresh (P := Player) (L := L) x Γ) :
+    (((st.addNode nd hndeps).2).addVar x τ {st.nextId}
+      (by
+        intro d hd
+        simp_all only [Finset.mem_singleton]
+        exact Nat.lt_add_one st.nextId)).VarsSubCtx ((x, τ) :: Γ) := by
+  exact ((st.addNode nd hndeps).2).VarsSubCtx_addVar
+    (st.VarsSubCtx_addNode hvars nd hndeps) x τ {st.nextId}
+    (by
+      intro d hd
+      simp_all only [Finset.mem_singleton]
+      exact Nat.lt_add_one st.nextId)
+    hfreshΓ
+
+theorem MAIDCompileState.VarsSubCtx_sample_step
+    (st : MAIDCompileState Player L B)
+    {Γ : VisCtx Player L}
+    (hvars : st.VarsSubCtx Γ)
+    (nd : CompiledNode Player L B)
+    (hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
+    (x : VarId) (τ : VisBindTy Player L)
+    (hfreshΓ : Fresh (P := Player) (L := L) x Γ) :
+    (((st.addNode nd hndeps).2).addVar x τ {st.nextId}
+      (by
+        intro d hd
+        simp_all only [Finset.mem_singleton]
+        exact Nat.lt_add_one st.nextId)).VarsSubCtx ((x, τ) :: Γ) := by
+  exact st.VarsSubCtx_addNode_addVar_singleton_step hvars nd hndeps x τ hfreshΓ
+
+theorem MAIDCompileState.VarsSubCtx_commit_step
+    (st : MAIDCompileState Player L B)
+    {Γ : VisCtx Player L}
+    (hvars : st.VarsSubCtx Γ)
+    (nd : CompiledNode Player L B)
+    (hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
+    (x : VarId) (τ : VisBindTy Player L)
+    (hfreshΓ : Fresh (P := Player) (L := L) x Γ) :
+    (((st.addNode nd hndeps).2).addVar x τ {st.nextId}
+      (by
+        intro d hd
+        simp_all only [Finset.mem_singleton]
+        exact Nat.lt_add_one st.nextId)).VarsSubCtx ((x, τ) :: Γ) := by
+  exact st.VarsSubCtx_addNode_addVar_singleton_step hvars nd hndeps x τ hfreshΓ
+
+theorem MAIDCompileState.VarsSubCtx_reveal_step
+    (st : MAIDCompileState Player L B)
+    {Γ : VisCtx Player L}
+    (hvars : st.VarsSubCtx Γ)
+    (y : VarId) (who : Player) (x : VarId) {b : L.Ty}
+    (hx : VisHasVar (L := L) Γ x (.hidden who b))
+    (hfreshΓ : Fresh (P := Player) (L := L) y Γ) :
+    (st.addVar y (.pub b) (st.lookupDeps x) (st.lookupDeps_lt x)).VarsSubCtx
+      ((y, .pub b) :: Γ) := by
+  exact st.VarsSubCtx_addVar hvars y (.pub b) (st.lookupDeps x)
+    (st.lookupDeps_lt x) hfreshΓ
 
 open MAID in
 /-- **Core FDist bridge.** The partial FDist fold from `st₀.nextId`, mapped
