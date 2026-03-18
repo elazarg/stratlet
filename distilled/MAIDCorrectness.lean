@@ -11,9 +11,8 @@ variable {Player : Type} [DecidableEq Player] {L : ExprLanguage}
 variable [E : VisExprKit Player L] [D : VisDistKit Player L] [U : VisPayoffKit Player L]
 variable {B : MAIDBackend Player L}
 
--- ============================================================================
--- § 1. RawNodeEnv helpers (proved)
--- ============================================================================
+-- RawNodeEnv helpers
+
 
 def RawNodeEnv.extend (raw : RawNodeEnv L) (nid : Nat) (tv : TaggedVal L) :
     RawNodeEnv L :=
@@ -50,9 +49,8 @@ theorem InsensitiveTo.eq_of_eq_off [Nonempty (TaggedVal L)]
         split <;> [rfl; exact hoff i (by assumption)]
     _ = f raw₂ := hins raw₂ tv
 
--- ============================================================================
--- § 2. nativeOutcomeDist: direct FDist U.Outcome by induction on Prog
--- ============================================================================
+-- nativeOutcomeDist: direct FDist U.Outcome by induction on Prog
+
 
 /-- Direct computation of `FDist U.Outcome` by recursion on `Prog`,
 threading a plain `RawNodeEnv L` argument. No `FDist (RawNodeEnv L)` appears.
@@ -98,9 +96,8 @@ noncomputable def nativeOutcomeDist
           VisEnv.cons (Player := Player) (L := L) (x := y) (τ := .pub b) v (ρ raw))
         nextId raw
 
--- ============================================================================
--- § 3. Core theorem: nativeOutcomeDist = outcomeDist
--- ============================================================================
+-- nativeOutcomeDist = outcomeDist
+
 
 /-- **Core theorem.** `nativeOutcomeDist` equals `outcomeDist` when ρ is
 insensitive to all node ids ≥ nextId.
@@ -176,9 +173,8 @@ theorem nativeOutcomeDist_eq_outcomeDist_init
   exact nativeOutcomeDist_eq_outcomeDist B p σ (fun _ => env) 0
     (fun _ _ _ _ => rfl) raw₀
 
--- ============================================================================
--- § 4. Main theorem
--- ============================================================================
+-- Compiled state has natural order
+
 
 theorem compiled_naturalOrder (st : MAIDCompileState Player L B) :
     @Struct.NaturalOrder Player _ B.fintypePlayer st.nextId st.toStruct := by
@@ -187,9 +183,8 @@ theorem compiled_naturalOrder (st : MAIDCompileState Player L B) :
   rcases Finset.mem_image.mp hp with ⟨d, hd, rfl⟩
   exact st.descAt_parent_lt nd d.2
 
--- ============================================================================
--- § 4a. Bridge constructions
--- ============================================================================
+-- Bridge constructions
+
 
 /-- Deterministic outcome extraction: given a `RawNodeEnv`, replay the Prog
 to reconstruct the final environment and evaluate the utility. -/
@@ -232,9 +227,8 @@ noncomputable def rawOfTAssign (st : MAIDCompileState Player L B)
   else
     none
 
--- ============================================================================
--- § 4b. Compiled policy
--- ============================================================================
+-- Compiled policy
+
 
 /-- Kernel normalization: every decision node in `st`, when its kernel is
 applied to `σ`, produces a normalized FDist. -/
@@ -265,141 +259,9 @@ noncomputable def compiledPolicy (st : MAIDCompileState Player L B)
   | .utility who ps ufn =>
       absurd d.2 (by simp [MAIDCompileState.toStruct, CompiledNode.kind, hdesc])
 
-noncomputable instance (nd : CompiledNode Player L B) :
-    DecidableEq (CompiledNode.valType (B := B) nd) := by
-  cases nd with
-  | chance τ _ _ _ => exact L.decEqVal
-  | decision τ _ _ _ _ _ _ => exact L.decEqVal
-  | utility _ _ _ => exact instDecidableEqPUnit
 
-/-- Per-node FDist dispatch: given a `CompiledNode`, produce the FDist over
-its value type. This is a plain `match` on the node descriptor, making it
-easy for `simp` to unfold. -/
-noncomputable def compiledNodeFDist
-    (_st : MAIDCompileState Player L B)
-    (σ : Profile (Player := Player) (L := L))
-    (rawP : RawNodeEnv L) (rawO : RawNodeEnv L) :
-    (c : CompiledNode Player L B) → FDist (CompiledNode.valType c)
-  | .chance _τ _ cpd _ => cpd rawP
-  | .decision _τ _ _ _ _ _ kernel => kernel σ rawO
-  | .utility _ _ _ => FDist.pure ()
+-- Kernel normalization preservation
 
-/-- FDist node data produced by the compiler. -/
-noncomputable def compiledFDistData
-    (st : MAIDCompileState Player L B)
-    (σ : Profile (Player := Player) (L := L))
-    (hkn : st.KernelNormalized σ) :
-    @FDistNodeData Player _ B.fintypePlayer _ st.toStruct :=
-  letI := B.fintypePlayer
-  { dist := fun nd a =>
-      compiledNodeFDist st σ
-        (st.rawEnvOfCfg (projCfg a (st.toStruct.parents nd)))
-        (st.rawEnvOfCfg (projCfg a (st.toStruct.obsParents nd)))
-        (st.descAt nd)
-    normalized := by
-      intro nd a
-      change FDist.totalWeight (compiledNodeFDist st σ _ _ (st.descAt nd)) = 1
-      match hdesc : st.descAt nd with
-      | .chance _ _ _ hn => simp only [compiledNodeFDist]; exact hn _
-      | .decision _ _ _ _ _ _ _ => simp only [compiledNodeFDist]; exact hkn nd _ _ _ _ _ _ _ _ hdesc
-      | .utility _ _ _ => simp [compiledNodeFDist, FDist.totalWeight_pure] }
-
-/-- The dist field of `compiledFDistData` equals `compiledNodeFDist` applied to `st.descAt nd`.
-The `letI` in the type is required to match the instance scope inside the definition. -/
-@[congr] theorem FDist.toPMF_congr [DecidableEq α]
-    {d₁ d₂ : FDist α} {h₁ h₂} (heq : d₁ = d₂) :
-    FDist.toPMF d₁ h₁ = FDist.toPMF d₂ h₂ := by subst heq; rfl
-
-/-- Transporting `PMF.pure default` along any index equality gives `PMF.pure default`. -/
-theorem eq_rec_pmf_pure_default
-    {ι : Type} {F : ι → Type} [∀ i, Inhabited (F i)]
-    {i j : ι} (h : i = j) :
-    (h ▸ (PMF.pure (α := F i) default : PMF (F i)) : PMF (F j)) =
-    PMF.pure default := by
-  subst h; rfl
-
-/-- `toPMF` commutes past a `CompiledNode` match: proof irrelevance lets us
-case-split the node descriptor without disturbing the normalization proof. -/
-theorem FDist.toPMF_compiledNode_comm
-    (f : (c : CompiledNode Player L B) → FDist (CompiledNode.valType c))
-    (c : CompiledNode Player L B)
-    (h : FDist.totalWeight (f c) = 1) :
-    FDist.toPMF (f c) h =
-    match c with
-    | .chance τ ps cpd hn => FDist.toPMF (f (.chance τ ps cpd hn)) h
-    | .decision τ who acts ha hnd obs k =>
-        FDist.toPMF (f (.decision τ who acts ha hnd obs k)) h
-    | .utility who ps ufn => FDist.toPMF (f (.utility who ps ufn)) h := by
-  cases c <;> rfl
-
-@[simp] theorem toStruct_kind (st : MAIDCompileState Player L B) (nd : Fin st.nextId) :
-    letI := B.fintypePlayer; st.toStruct.kind nd = (st.descAt nd).kind := rfl
-
-@[simp] theorem toStruct_Val (st : MAIDCompileState Player L B) (nd : Fin st.nextId) :
-    letI := B.fintypePlayer; st.toStruct.Val nd = CompiledNode.valType (st.descAt nd) := rfl
-
-theorem compiledFDistData_dist_eq
-    (st : MAIDCompileState Player L B)
-    (σ : Profile (Player := Player) (L := L))
-    (hkn : st.KernelNormalized σ)
-    (nd : Fin st.nextId)
-    (a : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct) :
-    letI := B.fintypePlayer
-    (compiledFDistData st σ hkn).dist nd a =
-    compiledNodeFDist st σ
-      (st.rawEnvOfCfg (projCfg a (st.toStruct.parents nd)))
-      (st.rawEnvOfCfg (projCfg a (st.toStruct.obsParents nd)))
-      (st.descAt nd) := rfl
-
-theorem compiledFDistData_compatible
-    (st : MAIDCompileState Player L B)
-    (σ : Profile (Player := Player) (L := L))
-    (hkn : st.KernelNormalized σ) :
-    @FDistNodeDataCompatible _ _ B.fintypePlayer _ _ (compiledFDistData st σ hkn)
-      (MAIDCompileState.toSem st) (compiledPolicy st σ hkn) := by
-  letI := B.fintypePlayer
-  intro nd a
-  -- Show the goal with compiledNodeFDist explicitly, so st.descAt nd appears
-  -- syntactically in both the FDist type and the toPMF application.
-  let rawP := st.rawEnvOfCfg (projCfg a (st.toStruct.parents nd))
-  let rawO := st.rawEnvOfCfg (projCfg a (st.toStruct.obsParents nd))
-  have hnorm : FDist.totalWeight (compiledNodeFDist st σ rawP rawO (st.descAt nd)) = 1 :=
-    (compiledFDistData st σ hkn).normalized nd a
-  -- Suffices: prove equality for each CompiledNode case.
-  -- Use suffices to introduce the RHS with the right dependent type,
-  -- then close the suffices by rfl.
-  suffices ∀ (c : CompiledNode Player L B)
-      (hn : FDist.totalWeight (compiledNodeFDist st σ rawP rawO c) = 1)
-      (hc : st.descAt nd = c),
-      FDist.toPMF (compiledNodeFDist st σ rawP rawO c) hn =
-        (hc ▸ nodeDist st.toStruct st.toSem (compiledPolicy st σ hkn) nd a) by
-    exact this (st.descAt nd) hnorm rfl
-  intro c hn hc
-  cases c with
-  | chance τ ps cpd hcn =>
-      simp_all only [compiledNodeFDist, nodeDist, toStruct_kind, CompiledNode.kind,
-         MAIDCompileState.toSem, eq_mpr_eq_cast, id_eq]
-      grind only
-  | decision τ who acts ha hnd obs k =>
-      simp_all only [compiledNodeFDist, nodeDist, toStruct_kind, CompiledNode.kind,
-        id_eq, compiledPolicy]
-      grind only
-  | utility who ps ufn =>
-      -- Both sides are in PMF Unit (defeq to PMF (CompiledNode.valType (utility ...))).
-      -- PMF Unit is a subsingleton, so they are equal.
-      have hsub : Subsingleton (PMF Unit) := ⟨fun a b => PMF.ext fun ⟨⟩ => by
-        have ha := a.2.tsum_eq
-        rw [tsum_eq_single ()
-          (fun x hx => absurd (Subsingleton.elim x ()) hx)] at ha
-        have hb := b.2.tsum_eq
-        rw [tsum_eq_single ()
-          (fun x hx => absurd (Subsingleton.elim x ()) hx)] at hb
-        exact ha.trans hb.symm⟩
-      exact hsub.elim _ _
-
--- ============================================================================
--- § 4c. Kernel normalization from σ.NormalizedOn
--- ============================================================================
 
 /-- The empty compile state trivially satisfies kernel normalization
 (it has no nodes). -/
@@ -569,13 +431,8 @@ theorem ofProg_kernelNormalized
   | reveal y who x hx k ih =>
     exact ih hl ha hd hσ_norm _ _ (st₀.addVar_kernelNormalized σ _ _ _ _ hst₀)
 
--- ============================================================================
--- § 4d. Bridge lemma
--- ============================================================================
+-- Compile-state monotonicity
 
--- ============================================================================
--- § 4d-i. Infrastructure for the bridge
--- ============================================================================
 
 /-- `addUtilityNodes` increases `nextId` by the number of players. -/
 theorem MAIDCompileState.addUtilityNodes_nextId
@@ -676,117 +533,8 @@ theorem nativeOutcomeDist_totalWeight
   rw [nativeOutcomeDist_eq_outcomeDist B p σ ρ nextId hρ raw]
   exact outcomeDist_totalWeight_eq_one hd hσ_norm
 
--- ============================================================================
--- § 4d-ii. Layer 1 — Compiler shape lemmas
--- ============================================================================
+-- Compile-state structural lemmas
 
--- Equation lemmas for `ofProg`. Used via explicit `rw` only, NOT @[simp].
-
-theorem ofProg_ret (B : MAIDBackend Player L) {Γ : VisCtx Player L}
-    (u : U.PayoffExpr Γ) (hl ha hd ρ st₀) :
-    MAIDCompileState.ofProg B (Prog.ret u) hl ha hd ρ st₀ =
-    st₀.addUtilityNodes (st₀.ctxDeps Γ) (st₀.depsOfVars_lt _)
-      (fun who raw => (U.payoff (U.eval u (ρ raw)) who : ℝ))
-      (@Finset.univ Player B.fintypePlayer).toList := by
-  rfl
-
--- ============================================================================
--- § 4d-iii. Layer 2 & 3 — Raw stability + Distribution matching
--- ============================================================================
-
-section BridgeLemmas
-
-open MAID
-
-/-- Updating a total assignment at a node with the current value is a no-op. -/
-theorem updateAssign_self' [Fintype Player] {n : Nat} {S : @Struct Player _ ‹_› n}
-    (a : TAssign S) (nd : Fin n) :
-    updateAssign a nd (a nd) = a := by
-  funext nd'
-  by_cases h : nd' = nd
-  · subst h
-    exact updateAssign_get_self a nd' (a nd')
-  · exact updateAssign_get_ne a nd nd' (a nd) h
-
-/-- Snocing `default` doesn't change `extend`. -/
-theorem PrefixAssign_snoc_default_extend' [Fintype Player] {n : Nat}
-    {S : @Struct Player _ ‹_› n} {k : Nat} {hk : k < n}
-    (a : PrefixAssign S k (le_of_lt hk)) :
-    (a.snoc (default : S.Val ⟨k, hk⟩)).extend = a.extend := by
-  rw [PrefixAssign.snoc_extend]
-  have hdef : a.extend ⟨k, hk⟩ = default :=
-    PrefixAssign.extend_default a ⟨k, hk⟩ (lt_irrefl k)
-  rw [← hdef]; exact updateAssign_self' a.extend ⟨k, hk⟩
-
-end BridgeLemmas
-
--- ============================================================================
--- § 4d-iii-a. Utility fold transparency
--- ============================================================================
-
-open MAID in
-omit E D U B in
-/-- `evalStepPrefix` at a utility node just snocs `default` (pure, no randomness). -/
-private theorem evalStepPrefix_utility
-    [Fintype Player] {n : Nat} {S : Struct Player n}
-    {sem : Sem S} {pol : Policy S}
-    {k : Nat} {hk : k < n}
-    {μ : PMF (PrefixAssign S k (le_of_lt hk))}
-    {hparents : ∀ p ∈ S.parents ⟨k, hk⟩, p.val < k}
-    {hobs : ∀ p ∈ S.obsParents ⟨k, hk⟩, p.val < k}
-    {who : Player}
-    (hkind : S.kind ⟨k, hk⟩ = .utility who) :
-    evalStepPrefix S sem pol μ hparents hobs =
-    μ.map (fun a => a.snoc default) := by
-  simp only [evalStepPrefix]
-  have hndp : ∀ (a : PrefixAssign S k (le_of_lt hk)),
-      nodeDistPrefix S sem pol ⟨k, hk⟩ a hparents hobs = PMF.pure default := by
-    intro a
-    unfold nodeDistPrefix
-    split <;> [skip; skip; rfl]
-    all_goals (rename_i hk'; rw [hk'] at hkind; cases hkind)
-  have mp : ∀ (a : PrefixAssign S k (le_of_lt hk)),
-      PMF.map (a.snoc ·) (PMF.pure (default : S.Val ⟨k, hk⟩)) =
-      PMF.pure (a.snoc default) := by
-    intro a; ext b; simp only [PMF.map_apply, PMF.pure_apply]
-    rw [tsum_eq_single default (fun x hx => by simp [hx])]; simp
-  simp_rw [hndp, mp]
-  rw [show (fun a : PrefixAssign S k (le_of_lt hk) =>
-    (PMF.pure (a.snoc default))) = PMF.pure ∘ (fun a => a.snoc default) from rfl,
-    PMF.bind_pure_comp]
-
-open MAID in
-omit E D U B in
-/-- **Utility fold transparency.** If all nodes from `k` onwards are utility,
-the fold is deterministic (only snocs `default`) and `toTAssign` of the
-result agrees with `extend` of the input prefix. -/
-private theorem go_utility_transparent
-    [Fintype Player] {n : Nat} {S : Struct Player n}
-    (sem : Sem S) (pol : Policy S) (hnat : S.NaturalOrder)
-    {α : Type} (f : TAssign S → α)
-    (k : Nat) (hk : k ≤ n)
-    (hutility : ∀ (i : Fin n), k ≤ i.val → ∃ who, S.kind i = .utility who)
-    (μ : PMF (PrefixAssign S k hk)) :
-    (evalFoldPrefix.go S sem pol hnat k hk μ).map (f ∘ PrefixAssign.toTAssign) =
-    μ.map (f ∘ PrefixAssign.extend) := by
-  induction h : n - k using Nat.strongRecOn generalizing k μ with
-  | _ d ih =>
-    by_cases hlt : k < n
-    · -- Step: unfold go, one utility node
-      conv_lhs => rw [evalFoldPrefix.go]; simp only [hlt, ↓reduceDIte]
-      obtain ⟨who, hkind⟩ := hutility ⟨k, hlt⟩ (le_refl k)
-      rw [ih (n - (k + 1)) (by omega) (k + 1) hlt
-        (fun i hi => hutility i (by omega)) _ rfl]
-      -- Goal: (evalStepPrefix ...).map (f ∘ extend) = μ.map (f ∘ extend)
-      rw [evalStepPrefix_utility hkind, PMF.map_comp]
-      congr 1; funext a
-      exact congrArg f (PrefixAssign_snoc_default_extend' a)
-    · -- Base: k = n
-      have hkn : k = n := by omega
-      subst hkn
-      conv_lhs => rw [evalFoldPrefix.go]; simp only [lt_irrefl, ↓reduceDIte]
-      congr 1; funext a
-      exact congrArg f a.toTAssign_eq_extend
 
 /-- `addUtilityNodes` preserves `descAt` for old nodes. -/
 theorem MAIDCompileState.addUtilityNodes_descAt_old
@@ -815,144 +563,686 @@ theorem MAIDCompileState.addUtilityNodes_all_utility
     ∃ who, (st.addUtilityNodes deps hdeps ufn players).toStruct.kind i =
       NodeKind.utility who := by
   letI := B.fintypePlayer
-  -- By induction on `players`: each step adds a utility node at `st.nextId`,
-  -- and `addUtilityNodes_descAt_old` preserves old nodes.
+  -- Suffices to show the descAt is a utility node (since toStruct.kind = descAt.kind)
+  suffices h : ∃ who, ((st.addUtilityNodes deps hdeps ufn players).descAt i).kind =
+      NodeKind.utility who by exact h
+  induction players generalizing st with
+  | nil =>
+    simp only [MAIDCompileState.addUtilityNodes] at i ⊢
+    exact absurd i.isLt (by omega)
+  | cons who rest ih =>
+    simp only [MAIDCompileState.addUtilityNodes] at i ⊢
+    by_cases heq : i.val = st.nextId
+    · -- i is the node just added by this step
+      have hutdeps : ∀ d ∈ (CompiledNode.utility (B := B) who deps (ufn who)).parents ∪
+          (CompiledNode.utility (B := B) who deps (ufn who)).obsParents, d < st.nextId := by
+        intro d hd'; rcases Finset.mem_union.mp hd' with h | h <;>
+          simpa [CompiledNode.parents, CompiledNode.obsParents] using hdeps d h
+      have hj_lt : i.val < (st.addNode (.utility who deps (ufn who)) hutdeps).2.nextId := by
+        simp [MAIDCompileState.addNode]; omega
+      have hdesc : ((st.addNode (.utility who deps (ufn who)) hutdeps).2.addUtilityNodes deps
+          _ ufn rest).descAt ⟨i.val, i.isLt⟩ = .utility who deps (ufn who) := by
+        rw [MAIDCompileState.addUtilityNodes_descAt_old _ _ _ _ rest i.val hj_lt]
+        rw [show (⟨i.val, hj_lt⟩ : Fin _) = ⟨st.nextId, Nat.lt_succ_self _⟩ from Fin.ext heq]
+        exact st.addNode_descAt_new _ _
+      exact ⟨who, by
+        rw [show i = ⟨i.val, i.isLt⟩ from Fin.ext rfl]; simp only [hdesc]; rfl⟩
+    · -- i is beyond st.nextId, use IH
+      have hutdeps : ∀ d ∈ (CompiledNode.utility (B := B) who deps (ufn who)).parents ∪
+          (CompiledNode.utility (B := B) who deps (ufn who)).obsParents, d < st.nextId := by
+        intro d hd'; rcases Finset.mem_union.mp hd' with h | h <;>
+          simpa [CompiledNode.parents, CompiledNode.obsParents] using hdeps d h
+      exact ih (st.addNode (.utility who deps (ufn who)) hutdeps).2 _
+        ⟨i.val, i.isLt⟩ (by simp [MAIDCompileState.addNode]; omega)
+
+-- ofProg preserves descAt for old nodes
+
+
+/-- `ofProg` preserves `descAt` for nodes below the initial `nextId`. -/
+theorem MAIDCompileState.ofProg_descAt_old
+    (B : MAIDBackend Player L) {Γ : VisCtx Player L}
+    (p : Prog Player L Γ) (hl ha hd)
+    (ρ : RawNodeEnv L → VisEnv (Player := Player) L Γ)
+    (st₀ : MAIDCompileState Player L B) (j : Nat) (hj : j < st₀.nextId) :
+    let st := MAIDCompileState.ofProg B p hl ha hd ρ st₀
+    (st.descAt ⟨j, Nat.lt_of_lt_of_le hj (ofProg_nextId_le B p hl ha hd ρ st₀)⟩) =
+    st₀.descAt ⟨j, hj⟩ := by
+  induction p generalizing st₀ with
+  | ret u =>
+    simp only [MAIDCompileState.ofProg]
+    exact MAIDCompileState.addUtilityNodes_descAt_old st₀ _ _ _ _ j hj
+  | letExpr x e k ih =>
+    simp only [MAIDCompileState.ofProg]
+    exact ih hl ha hd _ (st₀.addVar _ _ _ _) hj
+  | sample x τ m D' k ih =>
+    change (MAIDCompileState.ofProg B k hl ha hd.2 _ _).descAt ⟨j, _⟩ = _
+    rw [ih hl ha hd.2 _ _ (Nat.lt_succ_of_lt hj)]
+    -- addVar preserves descAt; use addNode_descAt_old
+    simp only [MAIDCompileState.descAt, MAIDCompileState.addVar, MAIDCompileState.addNode]
+    congr 1
+    rw [List.getElem_append_left (by rw [st₀.nodes_length_eq_nextId]; exact hj)]
+  | commit x who acts R k ih =>
+    change (MAIDCompileState.ofProg B k hl.2 ha.2 hd _ _).descAt ⟨j, _⟩ = _
+    rw [ih hl.2 ha.2 hd _ _ (Nat.lt_succ_of_lt hj)]
+    simp only [MAIDCompileState.descAt, MAIDCompileState.addVar, MAIDCompileState.addNode]
+    congr 1
+    rw [List.getElem_append_left (by rw [st₀.nodes_length_eq_nextId]; exact hj)]
+  | reveal y who x hx k ih =>
+    simp only [MAIDCompileState.ofProg]
+    exact ih hl ha hd _ (st₀.addVar _ _ _ _) hj
+
+-- ctxDeps tracking lemmas
+
+section
+omit [DecidableEq Player] E D U
+
+theorem VisHasVar.mem_map_fst
+    {Γ : VisCtx Player L} {x : VarId} {τ : VisBindTy Player L}
+    (h : VisHasVar (L := L) Γ x τ) :
+    x ∈ Γ.map Prod.fst := by
+  induction h with
+  | here => simp
+  | there h ih => exact List.mem_cons_of_mem _ ih
+
+theorem lookupDepsAux_append_singleton_eq_of_ne
+    (vars : List (MAIDVarEntry Player L))
+    (x y : VarId) (τ : VisBindTy Player L) (deps : Finset Nat)
+    (hxy : y ≠ x) :
+    MAIDCompileState.lookupDepsAux (vars ++ [(x, τ, deps)]) y =
+      MAIDCompileState.lookupDepsAux vars y := by
+  induction vars with
+  | nil =>
+    simp [MAIDCompileState.lookupDepsAux, hxy]
+  | cons e rest ih =>
+    rcases e with ⟨z, σ, deps'⟩
+    by_cases hyz : y = z
+    · subst hyz
+      simp [MAIDCompileState.lookupDepsAux]
+    · simp [MAIDCompileState.lookupDepsAux, hyz, ih]
+
+theorem lookupDepsAux_append_singleton_eq_self_of_fresh
+    (vars : List (MAIDVarEntry Player L))
+    (x : VarId) (τ : VisBindTy Player L) (deps : Finset Nat)
+    (hfresh : x ∉ vars.map Prod.fst) :
+    MAIDCompileState.lookupDepsAux (vars ++ [(x, τ, deps)]) x = deps := by
+  induction vars with
+  | nil =>
+    simp [MAIDCompileState.lookupDepsAux]
+  | cons e rest ih =>
+    rcases e with ⟨y, σ, deps'⟩
+    have hxy : x ≠ y := by
+      intro h
+      apply hfresh
+      simp [h]
+    have hfresh' : x ∉ rest.map Prod.fst := by
+      intro h
+      apply hfresh
+      simp [h]
+    simp [MAIDCompileState.lookupDepsAux, hxy, ih, hfresh']
+
+end
+
+theorem MAIDCompileState.lookupDeps_addVar_eq_of_ne
+    (st : MAIDCompileState Player L B)
+    (x : VarId) (τ : VisBindTy Player L) (deps : Finset Nat)
+    (hdeps : ∀ d ∈ deps, d < st.nextId)
+    {y : VarId} (hxy : y ≠ x) :
+    (st.addVar x τ deps hdeps).lookupDeps y = st.lookupDeps y := by
+  unfold MAIDCompileState.lookupDeps
+  simpa [MAIDCompileState.addVar] using
+    lookupDepsAux_append_singleton_eq_of_ne st.vars x y τ deps hxy
+
+theorem MAIDCompileState.lookupDeps_addVar_eq_self_of_fresh
+    (st : MAIDCompileState Player L B)
+    (x : VarId) (τ : VisBindTy Player L) (deps : Finset Nat)
+    (hdeps : ∀ d ∈ deps, d < st.nextId)
+    (hfresh : x ∉ st.vars.map Prod.fst) :
+    (st.addVar x τ deps hdeps).lookupDeps x = deps := by
+  unfold MAIDCompileState.lookupDeps
+  simpa [MAIDCompileState.addVar] using
+    lookupDepsAux_append_singleton_eq_self_of_fresh st.vars x τ deps hfresh
+
+theorem MAIDCompileState.lookupDeps_addNode
+    (st : MAIDCompileState Player L B)
+    (nd : CompiledNode Player L B)
+    (hdeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
+    (x : VarId) :
+    (st.addNode nd hdeps).2.lookupDeps x = st.lookupDeps x := by
+  simp [MAIDCompileState.lookupDeps, MAIDCompileState.addNode]
+
+theorem MAIDCompileState.depsOfVars_addVar_eq_of_fresh
+    (st : MAIDCompileState Player L B)
+    (x : VarId) (τ : VisBindTy Player L) (deps : Finset Nat)
+    (hdeps : ∀ d ∈ deps, d < st.nextId)
+    (xs : List VarId) (hfresh : x ∉ xs) :
+    (st.addVar x τ deps hdeps).depsOfVars xs = st.depsOfVars xs := by
+  induction xs with
+  | nil => rfl
+  | cons y ys ih =>
+    have hyx : y ≠ x := by
+      intro h
+      apply hfresh
+      simp [h]
+    have hfresh' : x ∉ ys := by
+      intro h
+      apply hfresh
+      simp [h]
+    simp [MAIDCompileState.depsOfVars,
+      st.lookupDeps_addVar_eq_of_ne x τ deps hdeps hyx, ih hfresh']
+
+theorem MAIDCompileState.ctxDeps_addVar_eq_of_fresh
+    (st : MAIDCompileState Player L B)
+    (x : VarId) (τ : VisBindTy Player L) (deps : Finset Nat)
+    (hdeps : ∀ d ∈ deps, d < st.nextId)
+    {Γ : VisCtx Player L}
+    (hfresh : Fresh (P := Player) (L := L) x Γ) :
+    (st.addVar x τ deps hdeps).ctxDeps Γ = st.ctxDeps Γ := by
+  simpa [MAIDCompileState.ctxDeps] using
+    st.depsOfVars_addVar_eq_of_fresh x τ deps hdeps (Γ.map Prod.fst) hfresh
+
+theorem MAIDCompileState.ctxDeps_addVar_cons_eq_of_fresh
+    (st : MAIDCompileState Player L B)
+    (x : VarId) (τ : VisBindTy Player L) (deps : Finset Nat)
+    (hdeps : ∀ d ∈ deps, d < st.nextId)
+    {Γ : VisCtx Player L}
+    (hfreshΓ : Fresh (P := Player) (L := L) x Γ)
+    (hfreshVars : x ∉ st.vars.map Prod.fst) :
+    (st.addVar x τ deps hdeps).ctxDeps ((x, τ) :: Γ) = deps ∪ st.ctxDeps Γ := by
+  unfold MAIDCompileState.ctxDeps
+  rw [List.map_cons, MAIDCompileState.depsOfVars,
+    st.lookupDeps_addVar_eq_self_of_fresh x τ deps hdeps hfreshVars,
+    st.depsOfVars_addVar_eq_of_fresh x τ deps hdeps (Γ.map Prod.fst) hfreshΓ]
+
+theorem MAIDCompileState.lookupDeps_subset_depsOfVars_of_mem
+    (st : MAIDCompileState Player L B)
+    {xs : List VarId} {x : VarId}
+    (hx : x ∈ xs) :
+    st.lookupDeps x ⊆ st.depsOfVars xs := by
+  induction xs with
+  | nil =>
+    cases hx
+  | cons y ys ih =>
+    intro d hd
+    simp only [List.mem_cons] at hx
+    rcases hx with rfl | hx
+    · simp [MAIDCompileState.depsOfVars, hd]
+    · have hd' : d ∈ st.depsOfVars ys := ih hx hd
+      simp [MAIDCompileState.depsOfVars, hd']
+
+theorem MAIDCompileState.lookupDeps_subset_ctxDeps_of_mem
+    (st : MAIDCompileState Player L B)
+    {Γ : VisCtx Player L} {x : VarId}
+    (hx : x ∈ Γ.map Prod.fst) :
+    st.lookupDeps x ⊆ st.ctxDeps Γ := by
+  simpa [MAIDCompileState.ctxDeps] using
+    st.lookupDeps_subset_depsOfVars_of_mem hx
+
+theorem MAIDCompileState.lookupDeps_subset_ctxDeps_of_hasVar
+    (st : MAIDCompileState Player L B)
+    {Γ : VisCtx Player L} {x : VarId} {τ : VisBindTy Player L}
+    (hx : VisHasVar (L := L) Γ x τ) :
+    st.lookupDeps x ⊆ st.ctxDeps Γ :=
+  st.lookupDeps_subset_ctxDeps_of_mem hx.mem_map_fst
+
+theorem MAIDCompileState.ctxDeps_addNode_eq
+    (st : MAIDCompileState Player L B)
+    (nd : CompiledNode Player L B)
+    (hdeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
+    (Γ : VisCtx Player L) :
+    (st.addNode nd hdeps).2.ctxDeps Γ = st.ctxDeps Γ := by
+  unfold MAIDCompileState.ctxDeps
+  have haux : ∀ xs : List VarId,
+      (st.addNode nd hdeps).2.depsOfVars xs = st.depsOfVars xs := by
+    intro xs
+    induction xs with
+    | nil => rfl
+    | cons x xs ih =>
+        simp [MAIDCompileState.depsOfVars, MAIDCompileState.lookupDeps_addNode, ih]
+  exact haux (Γ.map Prod.fst)
+
+theorem MAIDCompileState.ctxDeps_letExpr_step
+    (st : MAIDCompileState Player L B)
+    {Γ : VisCtx Player L} (x : VarId) {b : L.Ty}
+    (hfreshΓ : Fresh (P := Player) (L := L) x Γ)
+    (hfreshVars : x ∉ st.vars.map Prod.fst) :
+    (st.addVar x (.pub b) (st.ctxDeps Γ) (st.depsOfVars_lt _)).ctxDeps
+      ((x, .pub b) :: Γ) = st.ctxDeps Γ := by
+  rw [st.ctxDeps_addVar_cons_eq_of_fresh x (.pub b) (st.ctxDeps Γ)
+    (st.depsOfVars_lt _) hfreshΓ hfreshVars]
+  simp
+
+theorem MAIDCompileState.ctxDeps_addNode_addVar_singleton_cons_eq_of_fresh
+    (st : MAIDCompileState Player L B)
+    (nd : CompiledNode Player L B)
+    (hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
+    {Γ : VisCtx Player L}
+    (x : VarId) (τ : VisBindTy Player L)
+    (hfreshΓ : Fresh (P := Player) (L := L) x Γ)
+    (hfreshVars : x ∉ st.vars.map Prod.fst) :
+    (((st.addNode nd hndeps).2).addVar x τ {st.nextId}
+      (by
+        intro d hd
+        simp_all only [List.mem_map, Prod.exists, exists_and_right, exists_eq_right, not_exists,
+          Finset.mem_singleton]
+        exact Nat.lt_add_one st.nextId)).ctxDeps ((x, τ) :: Γ) =
+      {st.nextId} ∪ st.ctxDeps Γ := by
+  have hfreshVars' : x ∉ ((st.addNode nd hndeps).2).vars.map Prod.fst := by
+    simpa [MAIDCompileState.addNode] using hfreshVars
+  rw [((st.addNode nd hndeps).2).ctxDeps_addVar_cons_eq_of_fresh x τ {st.nextId}
+    (by
+      intro d hd
+      simp_all only [List.mem_map, Prod.exists, exists_and_right, exists_eq_right, not_exists,
+        Finset.mem_singleton]
+      exact Nat.lt_add_one st.nextId) hfreshΓ hfreshVars']
+  rw [MAIDCompileState.ctxDeps_addNode_eq]
+
+theorem MAIDCompileState.ctxDeps_reveal_step
+    (st : MAIDCompileState Player L B)
+    {Γ : VisCtx Player L}
+    (y : VarId) (who : Player) (x : VarId) {b : L.Ty}
+    (hx : VisHasVar (L := L) Γ x (.hidden who b))
+    (hfreshΓ : Fresh (P := Player) (L := L) y Γ)
+    (hfreshVars : y ∉ st.vars.map Prod.fst) :
+    (st.addVar y (.pub b) (st.lookupDeps x) (st.lookupDeps_lt x)).ctxDeps
+      ((y, .pub b) :: Γ) = st.ctxDeps Γ := by
+  rw [st.ctxDeps_addVar_cons_eq_of_fresh y (.pub b) (st.lookupDeps x)
+    (st.lookupDeps_lt x) hfreshΓ hfreshVars]
+  apply Finset.union_eq_right.mpr
+  exact st.lookupDeps_subset_ctxDeps_of_hasVar hx
+
+-- FDist compiled data
+-- The compiler naturally produces FDist-valued node distributions. These are
+-- assembled into `FDistNodeData` (from MAIDFDistFold) and shown compatible with
+-- the PMF-based MAID semantics. `compiledFDistData_compatible` is used by the
+-- bridge proof via `evalFoldFDist_toPMF_eq_evalFold`.
+
+noncomputable instance (nd : CompiledNode Player L B) :
+    DecidableEq (CompiledNode.valType (B := B) nd) := by
+  cases nd with
+  | chance τ _ _ _ => exact L.decEqVal
+  | decision τ _ _ _ _ _ _ => exact L.decEqVal
+  | utility _ _ _ => exact instDecidableEqPUnit
+
+/-- Per-node FDist dispatch: given a `CompiledNode`, produce the FDist over
+its value type. -/
+noncomputable def compiledNodeFDist
+    (_st : MAIDCompileState Player L B)
+    (σ : Profile (Player := Player) (L := L))
+    (rawP : RawNodeEnv L) (rawO : RawNodeEnv L) :
+    (c : CompiledNode Player L B) → FDist (CompiledNode.valType c)
+  | .chance _τ _ cpd _ => cpd rawP
+  | .decision _τ _ _ _ _ _ kernel => kernel σ rawO
+  | .utility _ _ _ => FDist.pure ()
+
+/-- FDist node data produced by the compiler. -/
+noncomputable def compiledFDistData
+    (st : MAIDCompileState Player L B)
+    (σ : Profile (Player := Player) (L := L))
+    (hkn : st.KernelNormalized σ) :
+    @FDistNodeData Player _ B.fintypePlayer _ st.toStruct :=
+  letI := B.fintypePlayer
+  { dist := fun nd a =>
+      compiledNodeFDist st σ
+        (st.rawEnvOfCfg (projCfg a (st.toStruct.parents nd)))
+        (st.rawEnvOfCfg (projCfg a (st.toStruct.obsParents nd)))
+        (st.descAt nd)
+    normalized := by
+      intro nd a
+      change FDist.totalWeight (compiledNodeFDist st σ _ _ (st.descAt nd)) = 1
+      match hdesc : st.descAt nd with
+      | .chance _ _ _ hn => simp only [compiledNodeFDist]; exact hn _
+      | .decision _ _ _ _ _ _ _ =>
+          simp only [compiledNodeFDist]; exact hkn nd _ _ _ _ _ _ _ _ hdesc
+      | .utility _ _ _ => simp [compiledNodeFDist, FDist.totalWeight_pure] }
+
+@[congr] theorem FDist.toPMF_congr [DecidableEq α]
+    {d₁ d₂ : FDist α} {h₁ h₂} (heq : d₁ = d₂) :
+    FDist.toPMF d₁ h₁ = FDist.toPMF d₂ h₂ := by subst heq; rfl
+
+@[simp] theorem toStruct_kind (st : MAIDCompileState Player L B) (nd : Fin st.nextId) :
+    letI := B.fintypePlayer; st.toStruct.kind nd = (st.descAt nd).kind := rfl
+
+@[simp] theorem toStruct_Val (st : MAIDCompileState Player L B) (nd : Fin st.nextId) :
+    letI := B.fintypePlayer; st.toStruct.Val nd = CompiledNode.valType (st.descAt nd) := rfl
+
+theorem compiledFDistData_dist_eq
+    (st : MAIDCompileState Player L B)
+    (σ : Profile (Player := Player) (L := L))
+    (hkn : st.KernelNormalized σ)
+    (nd : Fin st.nextId)
+    (a : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct) :
+    letI := B.fintypePlayer
+    (compiledFDistData st σ hkn).dist nd a =
+    compiledNodeFDist st σ
+      (st.rawEnvOfCfg (projCfg a (st.toStruct.parents nd)))
+      (st.rawEnvOfCfg (projCfg a (st.toStruct.obsParents nd)))
+      (st.descAt nd) := rfl
+
+theorem compiledFDistData_compatible
+    (st : MAIDCompileState Player L B)
+    (σ : Profile (Player := Player) (L := L))
+    (hkn : st.KernelNormalized σ) :
+    @FDistNodeDataCompatible _ _ B.fintypePlayer _ _ (compiledFDistData st σ hkn)
+      (MAIDCompileState.toSem st) (compiledPolicy st σ hkn) := by
+  letI := B.fintypePlayer
+  intro nd a
+  let rawP := st.rawEnvOfCfg (projCfg a (st.toStruct.parents nd))
+  let rawO := st.rawEnvOfCfg (projCfg a (st.toStruct.obsParents nd))
+  have hnorm : FDist.totalWeight (compiledNodeFDist st σ rawP rawO (st.descAt nd)) = 1 :=
+    (compiledFDistData st σ hkn).normalized nd a
+  suffices ∀ (c : CompiledNode Player L B)
+      (hn : FDist.totalWeight (compiledNodeFDist st σ rawP rawO c) = 1)
+      (hc : st.descAt nd = c),
+      FDist.toPMF (compiledNodeFDist st σ rawP rawO c) hn =
+        (hc ▸ nodeDist st.toStruct st.toSem (compiledPolicy st σ hkn) nd a) by
+    exact this (st.descAt nd) hnorm rfl
+  intro c hn hc
+  cases c with
+  | chance τ ps cpd hcn =>
+      simp_all only [compiledNodeFDist, nodeDist, toStruct_kind, CompiledNode.kind,
+         MAIDCompileState.toSem, eq_mpr_eq_cast, id_eq]
+      grind only
+  | decision τ who acts ha hnd obs k =>
+      simp_all only [compiledNodeFDist, nodeDist, toStruct_kind, CompiledNode.kind,
+        id_eq, compiledPolicy]
+      grind only
+  | utility who ps ufn =>
+      have hsub : Subsingleton (PMF Unit) := ⟨fun a b => PMF.ext fun ⟨⟩ => by
+        have ha := a.2.tsum_eq
+        rw [tsum_eq_single ()
+          (fun x hx => absurd (Subsingleton.elim x ()) hx)] at ha
+        have hb := b.2.tsum_eq
+        rw [tsum_eq_single ()
+          (fun x hx => absurd (Subsingleton.elim x ()) hx)] at hb
+        exact ha.trans hb.symm⟩
+      exact hsub.elim _ _
+
+-- Extensional bridge: FDist-level lemmas
+
+open MAID in
+/-- `rawOfTAssign` is invariant under `updateAssign` at utility nodes,
+because `taggedOfVal (.utility ..) _ = none` regardless of the value. -/
+theorem rawOfTAssign_updateAssign_utility
+    (st : MAIDCompileState Player L B)
+    (a : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct)
+    (nd : Fin st.nextId) (v : @Struct.Val Player _ B.fintypePlayer st.nextId st.toStruct nd)
+    (hwho : ∃ who, (st.descAt nd).kind = .utility who) :
+    let _ := B.fintypePlayer
+    rawOfTAssign st (updateAssign a nd v) = rawOfTAssign st a := by
+  intro _inst
+  have taggedOfVal_utility : ∀ (c : CompiledNode Player L B)
+      (_ : ∃ who, c.kind = .utility who) (v₁ v₂ : CompiledNode.valType c),
+      MAIDCompileState.taggedOfVal c v₁ = MAIDCompileState.taggedOfVal c v₂ := by
+    intro c ⟨who, hw⟩ v₁ v₂
+    cases c <;> simp_all [MAIDCompileState.taggedOfVal, CompiledNode.kind]
+  funext i
+  simp only [rawOfTAssign]
+  split
+  · next hi =>
+    by_cases heq : i = nd.val
+    · subst heq
+      have hnd : (⟨↑nd, hi⟩ : Fin st.nextId) = nd := Fin.ext rfl
+      rw [hnd]
+      exact taggedOfVal_utility _ hwho _ _
+    · have hne : (⟨i, ‹_›⟩ : Fin st.nextId) ≠ nd := Fin.ne_of_val_ne heq
+      simp [updateAssign, hne]
+  · rfl
+
+/-- Multi-position insensitivity: if `f` is insensitive at every position
+in a list, and two raw environments agree off that list, then `f` agrees. -/
+theorem InsensitiveTo.eq_of_agree_off_list [Nonempty (TaggedVal L)]
+    {f : RawNodeEnv L → α}
+    (ks : List Nat)
+    (hins : ∀ k ∈ ks, InsensitiveTo f k)
+    {raw₁ raw₂ : RawNodeEnv L}
+    (hagree : ∀ i, i ∉ ks → raw₁ i = raw₂ i) :
+    f raw₁ = f raw₂ := by
+  induction ks generalizing raw₁ with
+  | nil =>
+    exact congrArg f (funext fun i => hagree i List.not_mem_nil)
+  | cons k ks ih =>
+    let raw_mid : RawNodeEnv L :=
+      fun i => if i = k then raw₂ i else raw₁ i
+    have h1 : f raw₁ = f raw_mid :=
+      InsensitiveTo.eq_of_eq_off (hins k (.head ks))
+        (fun i hne => right_eq_ite_iff.mpr fun a ↦ hagree i fun a_1 ↦ hne a)
+    have h2 : f raw_mid = f raw₂ :=
+      @ih (fun k' hk' => hins k' (.tail k hk')) raw_mid
+        (fun i hi => by
+          change (if i = k then raw₂ i else raw₁ i) = raw₂ i
+          split
+          · rfl
+          · next hne => exact hagree i (fun hmem =>
+              hi (List.mem_of_ne_of_mem hne hmem)))
+    exact h1.trans h2
+
+theorem MAIDCompileState.mem_toStruct_parents_iff
+    (st : MAIDCompileState Player L B)
+    (nd : Fin st.nextId)
+    {i : Nat} (hi : i < st.nextId) :
+    let _ : Fintype Player := B.fintypePlayer
+    (⟨i, hi⟩ : Fin st.nextId) ∈ st.toStruct.parents nd ↔ i ∈ (st.descAt nd).parents := by
+  letI := B.fintypePlayer
+  constructor
+  · intro h
+    rcases Finset.mem_image.mp h with ⟨d, hd, hEq⟩
+    have hval : d.1 = i := by
+      simpa using congrArg Fin.val hEq
+    simpa [hval] using d.2
+  · intro h
+    refine Finset.mem_image.mpr ?_
+    refine ⟨⟨i, h⟩, by simp, ?_⟩
+    exact Fin.ext rfl
+
+theorem MAIDCompileState.mem_toStruct_obsParents_iff
+    (st : MAIDCompileState Player L B)
+    (nd : Fin st.nextId)
+    {i : Nat} (hi : i < st.nextId) :
+    let _ : Fintype Player := B.fintypePlayer
+    (⟨i, hi⟩ : Fin st.nextId) ∈ st.toStruct.obsParents nd ↔ i ∈ (st.descAt nd).obsParents := by
+  letI := B.fintypePlayer
+  constructor
+  · intro h
+    rcases Finset.mem_image.mp h with ⟨d, hd, hEq⟩
+    have hval : d.1 = i := by
+      simpa using congrArg Fin.val hEq
+    simpa [hval] using d.2
+  · intro h
+    refine Finset.mem_image.mpr ?_
+    refine ⟨⟨i, h⟩, by simp, ?_⟩
+    exact Fin.ext rfl
+
+theorem MAIDCompileState.rawEnvOfCfg_proj_eq_select
+    (st : MAIDCompileState Player L B)
+    (a : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct)
+    (ps : Finset (Fin st.nextId))
+    (deps : Finset Nat)
+    (hps : ∀ i (hi : i < st.nextId), ((⟨i, hi⟩ : Fin st.nextId) ∈ ps ↔ i ∈ deps)) :
+    let _ : Fintype Player := B.fintypePlayer
+    st.rawEnvOfCfg (projCfg a ps) =
+      fun i =>
+        if i < st.nextId then
+          if i ∈ deps then rawOfTAssign st a i else none
+        else
+          none := by
+  funext i
+  by_cases hi : i < st.nextId
+  · have hps' := hps i hi
+    by_cases hmem : (⟨i, hi⟩ : Fin st.nextId) ∈ ps
+    · have hdep : i ∈ deps := (hps').mp hmem
+      simp [MAIDCompileState.rawEnvOfCfg, projCfg, rawOfTAssign, hi, hmem, hdep]
+    · have hdep : i ∉ deps := by
+        intro hdep
+        exact hmem ((hps').mpr hdep)
+      simp [MAIDCompileState.rawEnvOfCfg, projCfg, hi, hmem, hdep]
+  · simp [MAIDCompileState.rawEnvOfCfg, hi]
+
+theorem eq_on_ctxDeps_rawOfTAssign
+    (st : MAIDCompileState Player L B)
+    {deps : Finset Nat}
+    {f : RawNodeEnv L → α}
+    (hf : ∀ j, j ∉ deps → InsensitiveTo f j)
+    (a : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct) :
+    let rawSel : RawNodeEnv L := fun i =>
+      if i < st.nextId then
+        if i ∈ deps then rawOfTAssign st a i else none
+      else
+        none
+    f rawSel = f (rawOfTAssign st a) := by
+  intro rawSel
+  let ks : List Nat := (List.range st.nextId).filter (· ∉ deps)
+  have hclear :
+      rawSel = fun i => if i ∈ ks then none else rawOfTAssign st a i := by
+    funext i
+    by_cases hi : i < st.nextId
+    · have hmem : i ∈ ks ↔ i ∉ deps := by
+        unfold ks
+        simp [hi]
+      by_cases hdep : i ∈ deps
+      · simp [rawSel, hi, hdep, hmem]
+      · simp [rawSel, hi, hdep, hmem]
+    · simp [rawSel, hi, ks, rawOfTAssign]
+  rw [hclear]
+  haveI : Nonempty (TaggedVal L) := ⟨⟨L.bool, default⟩⟩
+  apply InsensitiveTo.eq_of_agree_off_list ks
+  · intro k hk
+    apply hf k
+    have hk' : k ∈ (List.range st.nextId).filter (fun j => j ∉ deps) := by
+      simpa [ks] using hk
+    simpa using (List.mem_filter.mp hk').2
+  · intro i hi
+    simp [hi]
+
+theorem MAIDCompileState.rawOfTAssign_updateAssign_of_tagged
+    (st : MAIDCompileState Player L B)
+    (a : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct)
+    (nd : Fin st.nextId)
+    (v : @Struct.Val Player _ B.fintypePlayer st.nextId st.toStruct nd)
+    (tv : TaggedVal L)
+    (htag : MAIDCompileState.taggedOfVal (st.descAt nd) v = some tv) :
+    let _ : Fintype Player := B.fintypePlayer
+    rawOfTAssign st (updateAssign a nd v) =
+      (rawOfTAssign st a).extend nd.val tv := by
+  letI := B.fintypePlayer
+  funext i
+  by_cases hi : i < st.nextId
+  · by_cases hEq : (⟨i, hi⟩ : Fin st.nextId) = nd
+    · have hival : i = nd.val := by simpa using congrArg Fin.val hEq
+      subst hival
+      simp [rawOfTAssign, RawNodeEnv.extend, hi, updateAssign, htag]
+    · have hne : i ≠ nd.val := by
+        intro hival
+        apply hEq
+        exact Fin.ext hival
+      simp [rawOfTAssign, RawNodeEnv.extend, hi, updateAssign, hEq, hne]
+  · have hne : i ≠ nd.val := by
+      intro hEq
+      exact hi (hEq.symm ▸ nd.isLt)
+    simp [rawOfTAssign, RawNodeEnv.extend, hi, hne]
+
+theorem foldl_evalStepFDist_bind [Fintype Player]
+    {S : MAID.Struct Player n}
+    (data : FDistNodeData S) (L : List (Fin n))
+    (acc : FDist (TAssign S)) (g : TAssign S → FDist (TAssign S)) :
+    L.foldl (evalStepFDist data) (FDist.bind acc g) =
+      FDist.bind acc (fun a => L.foldl (evalStepFDist data) (g a)) := by
+  induction L generalizing acc g with
+  | nil => rfl
+  | cons nd rest ih =>
+      simp only [List.foldl_cons, evalStepFDist]
+      rw [FDist.bind_assoc]
+      simpa using ih acc (fun a =>
+        FDist.bind (g a) (fun a =>
+          FDist.bind (data.dist nd a) (fun v =>
+            FDist.pure (updateAssign a nd v))))
+
+/-- Folding `evalStepFDist` over utility-only nodes, then mapping through
+`f`, equals mapping `f` over the initial accumulator — because utility
+nodes draw `default` and `rawOfTAssign` is invariant at utility positions. -/
+theorem foldl_utility_map_eq
+    (st : MAIDCompileState Player L B)
+    (σ : Profile (Player := Player) (L := L))
+    (hkn : st.KernelNormalized σ)
+    (data : @FDistNodeData Player _ B.fintypePlayer _ st.toStruct)
+    (hdata : data = compiledFDistData st σ hkn)
+    (nodes : List (Fin st.nextId))
+    (hutility : ∀ nd ∈ nodes,
+      ∃ who, (st.descAt nd).kind = .utility who)
+    (f : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct → α)
+    [DecidableEq α]
+    (hf : ∀ a nd v (hw : ∃ who, (st.descAt nd).kind = .utility who),
+      f (@updateAssign Player _ B.fintypePlayer st.nextId st.toStruct a nd v) = f a)
+    (acc : FDist (@TAssign Player _ B.fintypePlayer st.nextId st.toStruct)) :
+    letI := B.fintypePlayer
+    FDist.map f (nodes.foldl (evalStepFDist data) acc) =
+      FDist.map f acc := by
   sorry
 
--- ============================================================================
--- § 4d-iii-b. Raw-agreement and rho-stability for snoc
--- ============================================================================
+def MAIDCompileState.VarsSubCtx
+    (st : MAIDCompileState Player L B) (Γ : VisCtx Player L) : Prop :=
+  ∀ x, x ∈ st.vars.map Prod.fst → x ∈ Γ.map Prod.fst
 
-open MAID in
-/-- `rawOfTAssign` at a snoced prefix agrees with the un-snoced version
-at every node except the snoc position `k`. -/
-theorem rawOfTAssign_agree_off_snoc
-    (B : MAIDBackend Player L)
+theorem MAIDCompileState.VarsSubCtx_addNode
     (st : MAIDCompileState Player L B)
-    (k : Nat) (hk : k < st.nextId) (hle : k ≤ st.nextId)
-    (a : @PrefixAssign Player _ B.fintypePlayer st.nextId st.toStruct k hle)
-    (v : @Struct.Val Player _ B.fintypePlayer st.nextId st.toStruct ⟨k, hk⟩) :
-    let _ := B.fintypePlayer
-    ∀ j, j ≠ k →
-      rawOfTAssign st (a.snoc v).extend j = rawOfTAssign st a.extend j := by
-  letI := B.fintypePlayer
-  -- snoc_extend converts snoc to updateAssign; updateAssign at j ≠ k is identity
-  sorry
+    {Γ : VisCtx Player L}
+    (hvars : st.VarsSubCtx Γ)
+    (nd : CompiledNode Player L B)
+    (hdeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId) :
+    (st.addNode nd hdeps).2.VarsSubCtx Γ := by
+  intro x
+  simpa [MAIDCompileState.VarsSubCtx, MAIDCompileState.addNode] using hvars x
 
-open MAID in
-/-- Corollary: if `ρ` is insensitive at the snoc position `k`,
-then `ρ` gives the same result on the snoced and un-snoced raw envs. -/
-theorem rho_stable_off_snoc
-    [Nonempty (TaggedVal L)]
-    (B : MAIDBackend Player L)
+theorem MAIDCompileState.VarsSubCtx_addVar
     (st : MAIDCompileState Player L B)
-    (k : Nat) (hk : k < st.nextId) (hle : k ≤ st.nextId)
-    {ρ : RawNodeEnv L → α}
-    (hins : InsensitiveTo ρ k)
-    (a : @MAID.PrefixAssign Player _ B.fintypePlayer st.nextId st.toStruct k hle)
-    (v : @MAID.Struct.Val Player _ B.fintypePlayer st.nextId st.toStruct ⟨k, hk⟩) :
-    let _ := B.fintypePlayer
-    ρ (rawOfTAssign st (a.snoc v).extend) = ρ (rawOfTAssign st a.extend) := by
-  letI := B.fintypePlayer
-  exact InsensitiveTo.eq_of_eq_off hins (rawOfTAssign_agree_off_snoc B st k hk hle a v)
-
--- ============================================================================
--- § 4d-iii-c. Head-node shape + distribution matching
--- ============================================================================
-
--- Head-node shape: after compiling `sample`/`commit`, the node at
--- st₀.nextId is the expected chance/decision node. Proved via
--- `addNode_descAt_new` + `ofProg_nextId_le` to show later compilation
--- preserves the node descriptor.
---
--- Distribution matching: `nodeDistPrefix` at the compiled node matches
--- the stored CPD/kernel applied to `rawOfTAssign st a.extend`.
--- Uses `nodeDistPrefix_eq_nodeDist` + `toSem` unfolding + an
--- `hρ_agree` hypothesis that the CPD/kernel gives the same result
--- on the projected parent config vs the full raw env.
---
--- These lemmas are sorry'd for now; their proofs are mechanical
--- (unfold toStruct/toSem definitions, use descAt preservation)
--- but require careful Fin arithmetic.
-
--- ============================================================================
--- § 4d-iv. Bridge lemma
--- ============================================================================
+    {Γ : VisCtx Player L}
+    (hvars : st.VarsSubCtx Γ)
+    (x : VarId) (τ : VisBindTy Player L) (deps : Finset Nat)
+    (hdeps : ∀ d ∈ deps, d < st.nextId)
+    (hfresh : Fresh (P := Player) (L := L) x Γ) :
+    (st.addVar x τ deps hdeps).VarsSubCtx ((x, τ) :: Γ) := by
+  intro y hy
+  have hy' : y ∈ st.vars.map Prod.fst ∨ y = x := by
+    simpa [MAIDCompileState.addVar, List.map_append] using hy
+  simp only [List.map_cons, List.mem_cons, List.mem_map, Prod.exists, exists_and_right,
+    exists_eq_right]
+  rcases hy' with hy' | rfl
+  · exact Or.inr (by simpa [List.mem_map] using hvars y hy')
+  · exact Or.inl rfl
 
 open MAID in
-/-- **General bridge**: the prefix fold from `st₀.nextId`, mapped through
-`extractOutcome`, equals `nativeOutcomeDist` bound over the accumulator.
+/-- **Core FDist bridge.** The partial FDist fold from `st₀.nextId`, mapped
+through `extractOutcome ∘ rawOfTAssign`, equals `nativeOutcomeDist`.
 
-Parametrized over the abstract compile state `st` with proof `hst` that it
-equals `ofProg ...`, to keep terms small during elaboration. -/
-theorem evalFoldPrefix_go_extract_eq
+The hypothesis `hρ_deps` captures that `ρ` only reads from positions in
+`ctxDeps Γ` — trivially true for constant `ρ`, and maintained through the
+Prog recursion since each sample/commit adds exactly its node ID to `ctxDeps`. -/
+theorem foldFDist_map_extract_eq_nativeOutcomeDist
     (B : MAIDBackend Player L)
     {Γ : VisCtx Player L}
     (p : Prog Player L Γ)
     (σ : Profile (Player := Player) (L := L))
     (hl : Legal p) (ha : DistinctActs p)
     (hd : _root_.NormalizedDists (P := Player) (L := L) p)
+    (hwf : WF p)
     (hσ_norm : σ.NormalizedOn p)
     (ρ : RawNodeEnv L → VisEnv (Player := Player) L Γ)
     (st₀ : MAIDCompileState Player L B)
     (hst₀ : st₀.KernelNormalized σ)
-    (hρ : ∀ nid, st₀.nextId ≤ nid → InsensitiveTo ρ nid) :
+    (hvars : st₀.VarsSubCtx Γ)
+    (hρ_deps : ∀ j, j ∉ (st₀.ctxDeps Γ : Finset Nat) → InsensitiveTo ρ j) :
     let _ := B.fintypePlayer
     let st := MAIDCompileState.ofProg B p hl ha hd ρ st₀
-    let S := st.toStruct
-    let sem := MAIDCompileState.toSem st
-    let hkn := ofProg_kernelNormalized B p σ hl ha hd hσ_norm ρ st₀ hst₀
-    let pol := compiledPolicy st σ hkn
-    let hnat := compiled_naturalOrder st
-    let hle := MAIDCompileState.ofProg_nextId_le B p hl ha hd ρ st₀
-    ∀ (acc : PMF (@PrefixAssign Player _ B.fintypePlayer st.nextId S st₀.nextId hle)),
-    (evalFoldPrefix.go S sem pol hnat st₀.nextId hle acc).map
-      (fun a => extractOutcome B p ρ st₀.nextId
-        (rawOfTAssign st a.toTAssign))
-    = acc.bind (fun a₀ =>
-        FDist.toPMF (nativeOutcomeDist B σ p ρ st₀.nextId
-          (rawOfTAssign st a₀.extend))
-          (nativeOutcomeDist_totalWeight B p σ hd hσ_norm ρ st₀.nextId hρ _)) := by
-  simp only; intro μ
-  induction p generalizing st₀ with
-  | letExpr x e k ih =>
-    simp only [MAIDCompileState.ofProg, extractOutcome, nativeOutcomeDist]
-    exact ih hl ha hd hσ_norm _ _ (st₀.addVar_kernelNormalized σ _ _ _ _ hst₀)
-      (fun nid hn raw tv =>
-        VisEnv.cons_ext (by rw [hρ nid hn raw tv]) (hρ nid hn raw tv)) μ
-  | reveal y who x hx k ih =>
-    simp only [MAIDCompileState.ofProg, extractOutcome, nativeOutcomeDist]
-    exact ih hl ha hd hσ_norm _ _ (st₀.addVar_kernelNormalized σ _ _ _ _ hst₀)
-      (fun nid hn raw tv =>
-        VisEnv.cons_ext (by rw [hρ nid hn raw tv]) (hρ nid hn raw tv)) μ
-  | ret u =>
-    simp only [extractOutcome, nativeOutcomeDist, FDist.toPMF_pure]
-    -- Layer 3: all nodes ≥ st₀.nextId are utility → fold is transparent
-    letI := B.fintypePlayer
-    exact go_utility_transparent
-      (MAIDCompileState.toSem _) (compiledPolicy _ σ _) (compiled_naturalOrder _)
-      (fun a => U.eval u (ρ (rawOfTAssign _ a)))
-      st₀.nextId _
-      (fun i hi => MAIDCompileState.addUtilityNodes_all_utility st₀ _ _ _ _ i hi)
-      μ
-  | sample x τ m D' k ih =>
-    -- The fold starts at st₀.nextId. The first node is a chance node.
-    -- We need to unfold go one step, then apply IH at st₀.nextId + 1.
-    -- But the IH is generalized over st₀, so we apply it with
-    -- st₀' = (st₀.addNode ...).2.addVar ... (which has nextId = st₀.nextId + 1).
-    --
-    -- Step 1: Simplify extractOutcome and nativeOutcomeDist for sample
-    simp only [extractOutcome, nativeOutcomeDist]
-    -- Now both sides have ofProg B k ... inside, matching the IH.
-    -- Step 2: Apply IH. The ofProg for sample definitionally equals
-    -- ofProg B k ... ρ' st₁, so the IH should unify.
-    -- But the fold starts at st₀.nextId, not st₁.nextId = st₀.nextId + 1.
-    -- We need to decompose the fold: go st₀.nextId = go (st₀.nextId+1) ∘ step.
-    -- This decomposition + matching the step distribution is the core difficulty.
-    sorry
-  | @commit _ x who b acts R k ih =>
-    simp only [extractOutcome, nativeOutcomeDist]
-    sorry
+    let data := compiledFDistData st σ
+      (ofProg_kernelNormalized B p σ hl ha hd hσ_norm ρ st₀ hst₀)
+    ∀ (a₀ : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct),
+    FDist.map (fun a => extractOutcome B p ρ st₀.nextId (rawOfTAssign st a))
+      ((List.finRange st.nextId).drop st₀.nextId |>.foldl
+        (evalStepFDist data) (FDist.pure a₀))
+    = nativeOutcomeDist B σ p ρ st₀.nextId (rawOfTAssign st a₀) := by
+  sorry
+
+-- Bridge lemma
+
 
 open MAID in
 /-- **Bridge lemma.** Mapping `extractOutcome` over the MAID assignment
@@ -965,6 +1255,7 @@ theorem maid_map_extract_eq_outcomeDist
     (σ : Profile (Player := Player) (L := L))
     (hl : Legal p) (ha : DistinctActs p)
     (hd : _root_.NormalizedDists (P := Player) (L := L) p)
+    (hwf : WF p)
     (hσ_norm : σ.NormalizedOn p) :
     let _ : Fintype Player := B.fintypePlayer
     let st := MAIDCompileState.ofProg B p hl ha hd (fun _ => env) .empty
@@ -977,28 +1268,48 @@ theorem maid_map_extract_eq_outcomeDist
       fun a => extractOutcome B p (fun _ => env) 0 (rawOfTAssign st a)
     PMF.map extract (evalAssignDist S sem pol) =
       (outcomeDist σ p env).toPMF (outcomeDist_totalWeight_eq_one hd hσ_norm) := by
-  simp only
-  letI : Fintype Player := B.fintypePlayer
-  have hnat := compiled_naturalOrder
-    (MAIDCompileState.ofProg B p hl ha hd (fun _ => env) .empty)
-  -- Rewrite evalAssignDist via prefix fold
-  rw [← evalFoldPrefix_eq_evalAssignDist _ _ _ hnat, PMF.map_comp]
-  -- Apply general bridge
-  have hbridge := evalFoldPrefix_go_extract_eq B p σ hl ha hd hσ_norm
+  intro _inst st S sem hkn pol extract
+  -- Step 1: evalAssignDist = evalFold along the natural order
+  let hnat := compiled_naturalOrder st
+  let σ_topo := hnat.toTopologicalOrder
+  rw [evalAssignDist_eq_evalFold S sem pol σ_topo]
+  -- Step 2: evalFold = toPMF (evalFoldFDist)
+  let data := compiledFDistData st σ hkn
+  let hcompat := compiledFDistData_compatible st σ hkn
+  rw [← evalFoldFDist_toPMF_eq_evalFold data sem pol hcompat σ_topo]
+  -- Step 3: PMF.map extract (toPMF d) → toPMF (FDist.map extract d)
+  have hfold_norm := evalFoldFDist_normalized data σ_topo
+  have hmap_norm : (FDist.map extract (evalFoldFDist data σ_topo)).totalWeight = 1 := by
+    rw [FDist.totalWeight_map]; exact hfold_norm
+  rw [← FDist.toPMF_map (evalFoldFDist data σ_topo) extract hfold_norm hmap_norm]
+  -- Step 4+5: FDist.map extract (evalFoldFDist) = nativeOutcomeDist = outcomeDist
+  apply FDist.toPMF_congr
+  -- evalFoldFDist data σ_topo = σ_topo.order.foldl ... = (List.finRange st.nextId).foldl ...
+  -- Since st₀ = .empty, st₀.nextId = 0, drop 0 is trivial
+  -- Apply foldFDist_map_extract_eq_nativeOutcomeDist then nativeOutcomeDist_eq_outcomeDist_init
+  have key := foldFDist_map_extract_eq_nativeOutcomeDist B p σ hl ha hd
+    hwf hσ_norm
     (fun _ => env) .empty (MAIDCompileState.empty_kernelNormalized σ)
-    (fun _ _ _ _ => rfl) (PMF.pure (PrefixAssign.empty _))
-  simp only [Function.comp_def]
-  exact hbridge.trans (by
-    rw [PMF.pure_bind]
-    congr 1
-    exact nativeOutcomeDist_eq_outcomeDist_init B p σ env _)
+    (by
+      intro x hx
+      simp [MAIDCompileState.empty] at hx)
+    (fun _ _ _ _ => rfl) (defaultAssign st.toStruct)
+  have : (MAIDCompileState.empty (B := B) (Player := Player)
+    (L := L)).nextId = 0 := rfl
+  rw [this, List.drop_zero] at key
+  change FDist.map extract (σ_topo.order.foldl (evalStepFDist data)
+    (FDist.pure (defaultAssign st.toStruct))) = _
+  change FDist.map extract ((List.finRange st.nextId).foldl
+    (evalStepFDist data) (FDist.pure (defaultAssign st.toStruct))) = _
+  exact key.trans (nativeOutcomeDist_eq_outcomeDist_init B p σ env _)
 
--- ============================================================================
--- § 4e. Main theorem
--- ============================================================================
+-- Main theorem
+
 
 open MAID in
-/-- **B2: Vegas to MAID distribution equality.** -/
+/-- **B2: Vegas to MAID distribution equality.**
+There exist a MAID policy and extraction function such that the MAID's
+outcome marginal equals the Vegas semantics. Uses order-free `evalAssignDist`. -/
 theorem vegas_maid_dist_eq
     (B : MAIDBackend Player L)
     {Γ : VisCtx Player L}
@@ -1007,19 +1318,24 @@ theorem vegas_maid_dist_eq
     (σ : Profile (Player := Player) (L := L))
     (hl : Legal p) (ha : DistinctActs p)
     (hd : _root_.NormalizedDists (P := Player) (L := L) p)
+    (hwf : WF p)
     (hσ_norm : σ.NormalizedOn p) :
     let _ : Fintype Player := B.fintypePlayer
     let st := MAIDCompileState.ofProg B p hl ha hd (fun _ => env) .empty
-    let data := compiledFDistData st σ
-               (ofProg_kernelNormalized B p σ hl ha hd hσ_norm _ _ _)
+    let S := st.toStruct
     let sem := MAIDCompileState.toSem st
-    let pol := compiledPolicy st σ (ofProg_kernelNormalized B p σ hl ha hd hσ_norm _ _ _)
-    let extract : TAssign st.toStruct → U.Outcome :=
-      fun a => extractOutcome B p (fun _ => env) 0 (rawOfTAssign st a)
-    PMF.map extract (evalFoldFDist data (compiled_naturalOrder st)).toPMF _ =
-      (outcomeDist σ p env).toPMF (outcomeDist_totalWeight_eq_one hd hσ_norm) := by
-  rw [evalFoldFDist_toPMF_eq_evalFold data sem pol
-        (compiledFDistData_compatible st σ _)]
-  exact maid_map_extract_eq_outcomeDist B p env σ hl ha hd hσ_norm
+    ∃ (pol : @Policy Player _ B.fintypePlayer st.nextId S)
+      (extract : @TAssign Player _ B.fintypePlayer st.nextId S → U.Outcome),
+      PMF.map extract (evalAssignDist S sem pol) =
+        (outcomeDist σ p env).toPMF (outcomeDist_totalWeight_eq_one hd hσ_norm) := by
+  let _ := B.fintypePlayer
+  let st := MAIDCompileState.ofProg B p hl ha hd (fun _ => env) .empty
+  let hkn := ofProg_kernelNormalized B p σ hl ha hd hσ_norm
+      (fun _ => env) .empty (MAIDCompileState.empty_kernelNormalized σ)
+  let pol := compiledPolicy st σ hkn
+  let extract : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct → U.Outcome :=
+    fun a => extractOutcome B p (fun _ => env) 0 (rawOfTAssign st a)
+  exact ⟨pol, extract,
+    maid_map_extract_eq_outcomeDist B p env σ hl ha hd hwf hσ_norm⟩
 
 end Distilled
