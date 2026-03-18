@@ -408,7 +408,7 @@ theorem ofProg_kernelNormalized
     (p : Prog Player L Γ)
     (σ : Profile (Player := Player) (L := L))
     (hl : Legal p) (ha : DistinctActs p)
-    (hd : _root_.NormalizedDists (P := Player) (L := L) p)
+    (hd : _root_.NormalizedDists p)
     (hσ_norm : σ.NormalizedOn p)
     (ρ : RawNodeEnv L → VisEnv (Player := Player) L Γ)
     (st₀ : MAIDCompileState Player L B)
@@ -735,7 +735,7 @@ theorem MAIDCompileState.ctxDeps_addVar_eq_of_fresh
     (x : VarId) (τ : VisBindTy Player L) (deps : Finset Nat)
     (hdeps : ∀ d ∈ deps, d < st.nextId)
     {Γ : VisCtx Player L}
-    (hfresh : Fresh (P := Player) (L := L) x Γ) :
+    (hfresh : Fresh x Γ) :
     (st.addVar x τ deps hdeps).ctxDeps Γ = st.ctxDeps Γ := by
   simpa [MAIDCompileState.ctxDeps] using
     st.depsOfVars_addVar_eq_of_fresh x τ deps hdeps (Γ.map Prod.fst) hfresh
@@ -745,7 +745,7 @@ theorem MAIDCompileState.ctxDeps_addVar_cons_eq_of_fresh
     (x : VarId) (τ : VisBindTy Player L) (deps : Finset Nat)
     (hdeps : ∀ d ∈ deps, d < st.nextId)
     {Γ : VisCtx Player L}
-    (hfreshΓ : Fresh (P := Player) (L := L) x Γ)
+    (hfreshΓ : Fresh x Γ)
     (hfreshVars : x ∉ st.vars.map Prod.fst) :
     (st.addVar x τ deps hdeps).ctxDeps ((x, τ) :: Γ) = deps ∪ st.ctxDeps Γ := by
   unfold MAIDCompileState.ctxDeps
@@ -803,7 +803,7 @@ theorem MAIDCompileState.ctxDeps_addNode_eq
 theorem MAIDCompileState.ctxDeps_letExpr_step
     (st : MAIDCompileState Player L B)
     {Γ : VisCtx Player L} (x : VarId) {b : L.Ty}
-    (hfreshΓ : Fresh (P := Player) (L := L) x Γ)
+    (hfreshΓ : Fresh x Γ)
     (hfreshVars : x ∉ st.vars.map Prod.fst) :
     (st.addVar x (.pub b) (st.ctxDeps Γ) (st.depsOfVars_lt _)).ctxDeps
       ((x, .pub b) :: Γ) = st.ctxDeps Γ := by
@@ -817,7 +817,7 @@ theorem MAIDCompileState.ctxDeps_addNode_addVar_singleton_cons_eq_of_fresh
     (hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
     {Γ : VisCtx Player L}
     (x : VarId) (τ : VisBindTy Player L)
-    (hfreshΓ : Fresh (P := Player) (L := L) x Γ)
+    (hfreshΓ : Fresh x Γ)
     (hfreshVars : x ∉ st.vars.map Prod.fst) :
     (((st.addNode nd hndeps).2).addVar x τ {st.nextId}
       (by
@@ -841,7 +841,7 @@ theorem MAIDCompileState.ctxDeps_reveal_step
     {Γ : VisCtx Player L}
     (y : VarId) (who : Player) (x : VarId) {b : L.Ty}
     (hx : VisHasVar (L := L) Γ x (.hidden who b))
-    (hfreshΓ : Fresh (P := Player) (L := L) y Γ)
+    (hfreshΓ : Fresh y Γ)
     (hfreshVars : y ∉ st.vars.map Prod.fst) :
     (st.addVar y (.pub b) (st.lookupDeps x) (st.lookupDeps_lt x)).ctxDeps
       ((y, .pub b) :: Γ) = st.ctxDeps Γ := by
@@ -1193,7 +1193,28 @@ theorem evalStepFDist_utility_map_eq
     (acc : FDist (@TAssign Player _ B.fintypePlayer st.nextId st.toStruct)) :
     letI := B.fintypePlayer
     FDist.map f (evalStepFDist data acc nd) = FDist.map f acc := by
-  sorry
+  letI := B.fintypePlayer
+  have hinner : ∀ a,
+      FDist.bind (data.dist nd a) (fun v => FDist.pure (updateAssign a nd v)) =
+        FDist.pure (updateAssign a nd default) := by
+    intro a
+    simpa [evalStepFDist, FDist.pure_bind] using
+      (evalStepFDist_utility_pure st σ hkn data hdata nd hutility a)
+  have hstep :
+      evalStepFDist data acc nd =
+        FDist.bind acc (fun a => FDist.pure (updateAssign a nd default)) := by
+    unfold evalStepFDist
+    congr 1
+    funext a
+    exact hinner a
+  rw [hstep, FDist.bind_map]
+  rw [show
+    (fun a => FDist.map f (FDist.pure (updateAssign a nd default))) =
+      (fun a => FDist.pure (f a)) by
+        funext a
+        rw [← FDist.bind_pure_comp (FDist.pure (updateAssign a nd default)) f, FDist.pure_bind]
+        simp [hf a default]]
+  rw [FDist.bind_pure_comp]
 
 /-- Folding `evalStepFDist` over utility-only nodes, then mapping through
 `f`, equals mapping `f` over the initial accumulator — because utility
@@ -1237,7 +1258,7 @@ theorem MAIDCompileState.VarsSubCtx_addVar
     (hvars : st.VarsSubCtx Γ)
     (x : VarId) (τ : VisBindTy Player L) (deps : Finset Nat)
     (hdeps : ∀ d ∈ deps, d < st.nextId)
-    (hfresh : Fresh (P := Player) (L := L) x Γ) :
+    (hfresh : Fresh x Γ) :
     (st.addVar x τ deps hdeps).VarsSubCtx ((x, τ) :: Γ) := by
   intro y hy
   have hy' : y ∈ st.vars.map Prod.fst ∨ y = x := by
@@ -1253,7 +1274,7 @@ theorem MAIDCompileState.VarsSubCtx_letExpr_step
     {Γ : VisCtx Player L}
     (hvars : st.VarsSubCtx Γ)
     (x : VarId) {b : L.Ty}
-    (hfreshΓ : Fresh (P := Player) (L := L) x Γ) :
+    (hfreshΓ : Fresh x Γ) :
     (st.addVar x (.pub b) (st.ctxDeps Γ) (st.depsOfVars_lt _)).VarsSubCtx
       ((x, .pub b) :: Γ) := by
   exact st.VarsSubCtx_addVar hvars x (.pub b) (st.ctxDeps Γ)
@@ -1266,7 +1287,7 @@ theorem MAIDCompileState.VarsSubCtx_addNode_addVar_singleton_step
     (nd : CompiledNode Player L B)
     (hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
     (x : VarId) (τ : VisBindTy Player L)
-    (hfreshΓ : Fresh (P := Player) (L := L) x Γ) :
+    (hfreshΓ : Fresh x Γ) :
     (((st.addNode nd hndeps).2).addVar x τ {st.nextId}
       (by
         intro d hd
@@ -1287,7 +1308,7 @@ theorem MAIDCompileState.VarsSubCtx_sample_step
     (nd : CompiledNode Player L B)
     (hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
     (x : VarId) (τ : VisBindTy Player L)
-    (hfreshΓ : Fresh (P := Player) (L := L) x Γ) :
+    (hfreshΓ : Fresh x Γ) :
     (((st.addNode nd hndeps).2).addVar x τ {st.nextId}
       (by
         intro d hd
@@ -1302,7 +1323,7 @@ theorem MAIDCompileState.VarsSubCtx_commit_step
     (nd : CompiledNode Player L B)
     (hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
     (x : VarId) (τ : VisBindTy Player L)
-    (hfreshΓ : Fresh (P := Player) (L := L) x Γ) :
+    (hfreshΓ : Fresh x Γ) :
     (((st.addNode nd hndeps).2).addVar x τ {st.nextId}
       (by
         intro d hd
@@ -1314,9 +1335,8 @@ theorem MAIDCompileState.VarsSubCtx_reveal_step
     (st : MAIDCompileState Player L B)
     {Γ : VisCtx Player L}
     (hvars : st.VarsSubCtx Γ)
-    (y : VarId) (who : Player) (x : VarId) {b : L.Ty}
-    (hx : VisHasVar (L := L) Γ x (.hidden who b))
-    (hfreshΓ : Fresh (P := Player) (L := L) y Γ) :
+    (y : VarId) (x : VarId) {b : L.Ty}
+    (hfreshΓ : Fresh y Γ) :
     (st.addVar y (.pub b) (st.lookupDeps x) (st.lookupDeps_lt x)).VarsSubCtx
       ((y, .pub b) :: Γ) := by
   exact st.VarsSubCtx_addVar hvars y (.pub b) (st.lookupDeps x)
@@ -1335,7 +1355,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
     (p : Prog Player L Γ)
     (σ : Profile (Player := Player) (L := L))
     (hl : Legal p) (ha : DistinctActs p)
-    (hd : _root_.NormalizedDists (P := Player) (L := L) p)
+    (hd : _root_.NormalizedDists p)
     (hwf : WF p)
     (hσ_norm : σ.NormalizedOn p)
     (ρ : RawNodeEnv L → VisEnv (Player := Player) L Γ)
@@ -1367,7 +1387,7 @@ theorem maid_map_extract_eq_outcomeDist
     (env : VisEnv (Player := Player) L Γ)
     (σ : Profile (Player := Player) (L := L))
     (hl : Legal p) (ha : DistinctActs p)
-    (hd : _root_.NormalizedDists (P := Player) (L := L) p)
+    (hd : _root_.NormalizedDists p)
     (hwf : WF p)
     (hσ_norm : σ.NormalizedOn p) :
     let _ : Fintype Player := B.fintypePlayer
@@ -1430,7 +1450,7 @@ theorem vegas_maid_dist_eq
     (env : VisEnv (Player := Player) L Γ)
     (σ : Profile (Player := Player) (L := L))
     (hl : Legal p) (ha : DistinctActs p)
-    (hd : _root_.NormalizedDists (P := Player) (L := L) p)
+    (hd : _root_.NormalizedDists p)
     (hwf : WF p)
     (hσ_norm : σ.NormalizedOn p) :
     let _ : Fintype Player := B.fintypePlayer
