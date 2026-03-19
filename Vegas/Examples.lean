@@ -20,6 +20,9 @@ def Γ4 : VCtxSimple :=
 
 def hva_in_Γ2 : VHasVarSimple Γ2 va (.hidden 0 .bool) := .there .here
 def hvb_in_Γ3 : VHasVarSimple Γ3 vb (.hidden 1 .bool) := .there .here
+def hva'_in_p1_view : VHasVarSimple (viewVCtx 1 ((va', .pub .bool) :: Γ1)) va' (.pub .bool) := by
+  change VHasVarSimple [(va', .pub .bool)] va' (.pub .bool)
+  exact .here
 
 -- HasVar proofs in erasePubVCtx Γ4 = [(vb', .bool), (va', .bool)]
 def hva'_in_eΓ4 : HasVar (erasePubVCtx Γ4) va' .bool := .there .here
@@ -75,11 +78,75 @@ example : WF matchingPennies := by
 example : RevealComplete [] matchingPennies := by
   decide
 
+example : WFProg matchingPennies := by
+  exact ⟨by decide, by decide⟩
+
+example : Legal matchingPennies := by
+  constructor
+  · intro _view
+    exact ⟨true, by simp, by rfl⟩
+  · constructor
+    · intro _view
+      exact ⟨true, by simp, by rfl⟩
+    · trivial
+
+example : DistinctActs matchingPennies := by
+  simp [matchingPennies, DistinctActs]
+
+example : NormalizedDists matchingPennies := by
+  simp [matchingPennies, NormalizedDists]
+
+example : mpProfile.NormalizedOn matchingPennies := by
+  constructor
+  · intro _view
+    simp [mpProfile, va, FDist.totalWeight_pure]
+  · constructor
+    · intro _view
+      simp [mpProfile, vb, FDist.totalWeight_pure]
+    · trivial
+
 example : WF conditionedGame := by
   decide
 
 example : RevealComplete [] conditionedGame := by
   decide
+
+example : WFProg conditionedGame := by
+  exact ⟨by decide, by decide⟩
+
+example : ¬ Legal conditionedGame := by
+  intro hlegal
+  let viewFalse :
+      VEnvSimple (viewVCtx 1 ((va', .pub .bool) :: (va, .hidden 0 .bool) :: Γ0)) := by
+    simpa [Γ0, Vegas.viewVCtx, Vegas.canSee] using
+      (VEnvSimple.cons false VEnvSimple.empty : VEnvSimple [(va', .pub .bool)])
+  obtain ⟨a, ha, hg⟩ := hlegal.2.1 viewFalse
+  cases a with
+  | false =>
+      have : False := by
+        simp [viewFalse, Vegas.evalGuard, Vegas.simpleExpr,
+          Vegas.evalExpr, Vegas.VEnv.eraseEnv] at hg
+      exact this
+  | true =>
+      have : False := by
+        simp [viewFalse, Vegas.evalGuard, Vegas.simpleExpr,
+          Vegas.evalExpr, Vegas.VEnv.eraseEnv] at hg
+      exact this
+
+example : DistinctActs conditionedGame := by
+  simp [conditionedGame, DistinctActs]
+
+example : NormalizedDists conditionedGame := by
+  simp [conditionedGame, NormalizedDists]
+
+example : mpProfile.NormalizedOn conditionedGame := by
+  constructor
+  · intro _view
+    simp [mpProfile, va, FDist.totalWeight_pure]
+  · constructor
+    · intro _view
+      simp [mpProfile, vb, FDist.totalWeight_pure]
+    · trivial
 
 end Examples
 
