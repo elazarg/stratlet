@@ -507,6 +507,72 @@ theorem viewVCtx_skip_invisible {p : P} {x : VarId} {τ : BindTy P L}
     viewVCtx p ((x, τ) :: Γ) = viewVCtx p Γ := by
   simp [viewVCtx, Vegas.viewVCtx, h]
 
+/-- Two adjacent commits have the same profile-free reachable outcomes when
+    their guards and continuations commute pointwise under the swapped
+    environments. This is the operational form of commit-commit commutativity:
+    anything legally reachable in one order is legally reachable in the other. -/
+theorem canReach_comm_commit
+    {Γ : VCtx P L} {env : VEnv (Player := P) L Γ} {oc : Outcome P}
+    {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
+    {acts₁ : List (L.Val b₁)}
+    {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who₁ Γ)) L.bool}
+    {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
+    {acts₂ : List (L.Val b₂)}
+    {R₂ : L.Expr ((x₂, b₂) :: eraseVCtx
+      (viewVCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) L.bool}
+    {k : VegasCore P L
+      ((x₂, .hidden who₂ b₂) :: (x₁, .hidden who₁ b₁) :: Γ)}
+    {R₂' : L.Expr ((x₂, b₂) :: eraseVCtx (viewVCtx who₂ Γ)) L.bool}
+    {R₁' : L.Expr ((x₁, b₁) :: eraseVCtx
+      (viewVCtx who₁ ((x₂, .hidden who₂ b₂) :: Γ))) L.bool}
+    {k' : VegasCore P L
+      ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
+    (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
+        (e : VEnv (Player := P) L Γ) (oc' : Outcome P),
+      CanReach k (VEnv.cons v₂ (VEnv.cons v₁ e)) oc' ↔
+      CanReach k' (VEnv.cons v₁ (VEnv.cons v₂ e)) oc')
+    (hR₁ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
+        (e : VEnv (Player := P) L Γ),
+      evalGuard R₁ v₁ (VEnv.toView who₁ e) =
+      evalGuard R₁' v₁
+        (VEnv.toView who₁ (VEnv.cons (τ := .hidden who₂ b₂) v₂ e)))
+    (hR₂ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
+        (e : VEnv (Player := P) L Γ),
+      evalGuard R₂ v₂
+        (VEnv.toView who₂ (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
+      evalGuard R₂' v₂ (VEnv.toView who₂ e)) :
+    CanReach
+      (.commit x₁ who₁ acts₁ R₁
+        (.commit x₂ who₂ acts₂ R₂ k)) env oc ↔
+    CanReach
+      (.commit x₂ who₂ acts₂ R₂'
+        (.commit x₁ who₁ acts₁ R₁' k')) env oc := by
+  constructor
+  · intro h
+    cases h with
+    | commit v₁ hacts₁ hguard₁ h =>
+      cases h with
+      | commit v₂ hacts₂ hguard₂ h =>
+        apply CanReach.commit v₂ hacts₂
+        · rw [← hR₂ v₁ v₂ env]
+          exact hguard₂
+        · apply CanReach.commit v₁ hacts₁
+          · rw [← hR₁ v₁ v₂ env]
+            exact hguard₁
+          · exact (hk_eq v₁ v₂ env oc).1 h
+  · intro h
+    cases h with
+    | commit v₂ hacts₂ hguard₂ h =>
+      cases h with
+      | commit v₁ hacts₁ hguard₁ h =>
+        apply CanReach.commit v₁ hacts₁
+        · rw [hR₁ v₁ v₂ env]
+          exact hguard₁
+        · apply CanReach.commit v₂ hacts₂
+          · rw [hR₂ v₁ v₂ env]
+            exact hguard₂
+          · exact (hk_eq v₁ v₂ env oc).2 h
+
 /-- The algebraic core of commit–commit commutativity. -/
 theorem outcomeDist_comm_commit_algebraic
     {b₁ b₂ : L.Ty}
