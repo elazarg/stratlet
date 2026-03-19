@@ -4,7 +4,7 @@ import Vegas.BigStep
 /-!
 # Strategic semantics bridge
 
-Vegas's `outcomeDist` produces `FDist U.Outcome` — a Finsupp-based weighted
+Vegas's `outcomeDist` produces `FDist (Outcome P)` — a Finsupp-based weighted
 distribution over outcomes. This file connects them to probability theory
 and packages normalized Vegas programs as `KernelGame`s.
 
@@ -16,7 +16,7 @@ all distributions are normalized.
 namespace Vegas
 
 variable {P : Type} [DecidableEq P] {L : ExprLanguage}
-  [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+  [E : ExprKit P L] [D : DistKit P L]
 
 /-- A player's Vegas strategy component, bundled with normalization. -/
 structure PlayerStrategy (who : P) where
@@ -55,8 +55,8 @@ theorem toProfile_normalizedOn (σ : ∀ who, PlayerStrategy (P := P) (L := L) w
 noncomputable def toKernelGame (p : VegasCore P L Γ) (env : Env (Player := P) L Γ)
     (hd : NormalizedDists p) : GameTheory.KernelGame P where
   Strategy := PlayerStrategy (P := P) (L := L)
-  Outcome := U.Outcome
-  utility := fun o i => (U.payoff o i : ℝ)
+  Outcome := Outcome P
+  utility := fun o i => (o i : ℝ)
   outcomeKernel := fun σ =>
     let prof := toProfile σ
     (outcomeDist prof p env).toPMF (outcomeDist_totalWeight_eq_one hd (toProfile_normalizedOn σ p))
@@ -74,7 +74,7 @@ noncomputable def toKernelGame (p : VegasCore P L Γ) (env : Env (Player := P) L
     (toKernelGame p env hd).udist σ =
       ((outcomeDist (toProfile σ) p env).toPMF
         (outcomeDist_totalWeight_eq_one hd (toProfile_normalizedOn σ p))).bind
-        (fun o => PMF.pure (fun i => (U.payoff o i : ℝ))) := rfl
+        (fun o => PMF.pure (fun i => (o i : ℝ))) := rfl
 
 /-- Expected utility in the restricted kernel game matches Vegas expected payoff. -/
 theorem toKernelGame_eu (p : VegasCore P L Γ) (env : Env (Player := P) L Γ)
@@ -82,13 +82,13 @@ theorem toKernelGame_eu (p : VegasCore P L Γ) (env : Env (Player := P) L Γ)
     (σ : ∀ who, PlayerStrategy (P := P) (L := L) who) (who : P) :
     (toKernelGame p env hd).eu σ who =
       (outcomeDist (toProfile σ) p env).sum
-        (fun o w => (w : ℝ) * (U.payoff o who : ℝ)) := by
+        (fun o w => (w : ℝ) * (o who : ℝ)) := by
   let hnorm :=
     outcomeDist_totalWeight_eq_one (env := env) hd (toProfile_normalizedOn σ p)
   simpa [GameTheory.KernelGame.eu, toKernelGame, hnorm, NNRat.toNNReal_coe_real] using
     (FDist.expect_toPMF_eq_sum
       (d := outcomeDist (toProfile σ) p env)
       (h := hnorm)
-      (f := fun o => (U.payoff o who : ℝ)))
+      (f := fun o => (o who : ℝ)))
 
 end Vegas

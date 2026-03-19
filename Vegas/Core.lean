@@ -48,6 +48,8 @@ structure ExprLanguage where
   decEqVal : ∀ {τ : Ty}, DecidableEq (Val τ)
   bool : Ty
   toBool : Val bool → Bool
+  int : Ty
+  toInt : Val int → Int
 
 attribute [instance] ExprLanguage.decEqTy ExprLanguage.decEqVal
 
@@ -330,17 +332,16 @@ class DistKit (Player : Type) (L : ExprLanguage) where
     DistExpr Γ τ → Env (Player := Player) L Γ → FDist (L.Val τ)
   deps : {Γ : Ctx Player L} → {τ : L.Ty} → DistExpr Γ τ → List VarId
 
-/-- Visibility-aware payoff interface. Utility outputs need not be finite. -/
-class PayoffKit (Player : Type) (L : ExprLanguage) where
-  PayoffExpr : Ctx Player L → Type
-  Outcome : Type
-  decEqOutcome : DecidableEq Outcome
-  payoff : Outcome → Player → Int
-  eval : {Γ : Ctx Player L} →
-    PayoffExpr Γ → Env (Player := Player) L Γ → Outcome
-  deps : {Γ : Ctx Player L} → PayoffExpr Γ → List VarId
+/-- Canonical outcome type: finitely-supported integer payoffs per player.
+    Derived from the protocol's `ret` constructor rather than parameterized. -/
+abbrev Outcome (Player : Type) [DecidableEq Player] := Player →₀ Int
 
-attribute [instance] PayoffKit.decEqOutcome
+/-- Evaluate a list of per-player payoff expressions into an outcome. -/
+noncomputable def evalPayoffs {Player : Type} [DecidableEq Player] {L : ExprLanguage}
+    [E : ExprKit Player L] {Γ : Ctx Player L}
+    (payoffs : List (Player × E.Expr Γ L.int))
+    (env : Env (Player := Player) L Γ) : Outcome Player :=
+  payoffs.foldl (fun acc (p, e) => acc + Finsupp.single p (L.toInt (E.eval e env))) 0
 
 /-- Whether a value is sampled publicly by nature, privately by nature, or by
 the owning player. -/
@@ -383,9 +384,9 @@ def evalGuard {Player : Type} [DecidableEq Player] {L : ExprLanguage}
 /- Generic Vegas-style protocol syntax over a visibility-aware expression
 language. -/
 inductive VegasCore (Player : Type) [DecidableEq Player] (L : ExprLanguage)
-    [E : ExprKit Player L] [D : DistKit Player L] [U : PayoffKit Player L] :
+    [E : ExprKit Player L] [D : DistKit Player L] :
     Ctx Player L → Type where
-  | ret (u : U.PayoffExpr Γ) : VegasCore Player L Γ
+  | ret (payoffs : List (Player × E.Expr Γ L.int)) : VegasCore Player L Γ
   | letExpr (x : VarId) {b : L.Ty} (e : E.Expr Γ b)
       (k : VegasCore Player L ((x, .pub b) :: Γ)) :
       VegasCore Player L Γ
@@ -410,7 +411,7 @@ abbrev CommitKernel (Player : Type) [DecidableEq Player] (L : ExprLanguage)
 
 /-- Generic profiles for Vegas-style commit nodes. -/
 structure Profile (Player : Type) [DecidableEq Player] (L : ExprLanguage)
-    [E : ExprKit Player L] [D : DistKit Player L] [U : PayoffKit Player L] where
+    [E : ExprKit Player L] [D : DistKit Player L] where
   commit : {Γ : Ctx Player L} → {b : L.Ty} → (who : Player) →
     (x : VarId) → (acts : List (L.Val b)) →
     (R : E.Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) L.bool) →
@@ -418,14 +419,14 @@ structure Profile (Player : Type) [DecidableEq Player] (L : ExprLanguage)
 
 /-- Partial generic profiles with optional commit kernels. -/
 structure PProfile (Player : Type) [DecidableEq Player] (L : ExprLanguage)
-    [E : ExprKit Player L] [D : DistKit Player L] [U : PayoffKit Player L] where
+    [E : ExprKit Player L] [D : DistKit Player L] where
   commit? : {Γ : Ctx Player L} → {b : L.Ty} → (who : Player) →
     (x : VarId) → (acts : List (L.Val b)) →
     (R : E.Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) L.bool) →
     Option (CommitKernel Player L who Γ b)
 
 def PProfile.toProfile {Player : Type} [DecidableEq Player] {L : ExprLanguage}
-    [E : ExprKit Player L] [D : DistKit Player L] [U : PayoffKit Player L]
+    [E : ExprKit Player L] [D : DistKit Player L]
     (π : PProfile Player L) (fallback : Profile Player L) :
     Profile Player L where
   commit := fun {Γ} {b} who x acts R view =>
@@ -467,16 +468,5 @@ structure IDistKit (L : ExprLanguage) where
   DistExpr : L.CtxSimple → L.Ty → Type
   eval : {Γ : L.CtxSimple} → {τ : L.Ty} → DistExpr Γ τ → L.EnvSimple Γ → PMF (L.Val τ)
   deps : {Γ : L.CtxSimple} → {τ : L.Ty} → DistExpr Γ τ → List (Sigma fun τ => L.Var Γ τ)
-
-/-- Backend-facing payoff interface. Utility outputs need not lie in a finite
-value domain. -/
-structure IPayoffKit (L : ExprLanguage) where
-  Player : Type
-  decEqPlayer : DecidableEq Player
-  PayoffExpr : L.CtxSimple → Type
-  eval : {Γ : L.CtxSimple} → PayoffExpr Γ → L.EnvSimple Γ → Player → Int
-  deps : {Γ : L.CtxSimple} → PayoffExpr Γ → List (Sigma fun τ => L.Var Γ τ)
-
-attribute [instance] IPayoffKit.decEqPlayer
 
 end Vegas

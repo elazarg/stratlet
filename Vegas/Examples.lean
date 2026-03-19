@@ -36,7 +36,7 @@ def matchingPennies : VegasSimple Γ0 :=
     (.commit vb 1 (b := .bool) [true, false] (.constBool true)
       (.reveal va' 0 va hva_in_Γ2
         (.reveal vb' 1 vb hvb_in_Γ3
-          (.ret mpPayoff))))
+          (.ret mpPayoff.entries))))
 
 noncomputable def mpProfile : ProfileSimple where
   commit := fun {_Γ} {b} _who x _acts _R _view =>
@@ -57,7 +57,7 @@ def conditionedGame : VegasSimple Γ0 :=
       (.commit vb 1 (b := .bool) [true, false]
         (.var va' (.there .here))
         (.reveal vb' 1 vb .here
-          (.ret ⟨[(0, .constInt 1), (1, .constInt 0)], by decide⟩))))
+          (.ret [(0, .constInt 1), (1, .constInt 0)]))))
 
 example : WF matchingPennies := by
   decide

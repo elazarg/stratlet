@@ -33,6 +33,8 @@ def simpleExpr : Vegas.ExprLanguage where
     cases τ <;> infer_instance
   bool := .bool
   toBool := id
+  int := .int
+  toInt := id
 
 abbrev BindTySimple : Type := Vegas.BindTy Player simpleExpr
 abbrev CtxSimple : Type := Vegas.Ctx Player simpleExpr

@@ -117,7 +117,7 @@ def Execution.length : Execution c₁ c₂ → Nat
     - `commit x who acts R k`: deps = all vars visible to `who` in Γ
     - `reveal y who x hx k`: deps = `[x]` -/
 def VegasCore.extractEvents {P : Type} [DecidableEq P] {L : ExprLanguage}
-    [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+    [E : ExprKit P L] [D : DistKit P L]
     {Γ : Ctx P L} : VegasCore P L Γ → List EventNode
   | .ret _ => []
   | .letExpr x e k =>
@@ -146,7 +146,7 @@ noncomputable def initPartialEnv {P : Type} {L : ExprLanguage} :
     The initial partial env is populated from the given Env Γ
     (the "already bound" variables). -/
 noncomputable def VegasCore.initConfig {P : Type} [DecidableEq P] {L : ExprLanguage}
-    [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+    [E : ExprKit P L] [D : DistKit P L]
     {Γ : Ctx P L} (p : VegasCore P L Γ) (env : Env (Player := P) L Γ) :
     Config L where
   pending := VegasCore.extractEvents p
@@ -255,7 +255,7 @@ theorem initPartialEnv_consistent {P : Type} {L : ExprLanguage}
     given profile σ and current partial env `pe`. Returns 0 if the node
     is not found or env reconstruction fails. -/
 noncomputable def VegasCore.nodeWeight {P : Type} [DecidableEq P] {L : ExprLanguage}
-    [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+    [E : ExprKit P L] [D : DistKit P L]
     (σ : Profile P L) (pe : PartialEnv L) :
     {Γ : Ctx P L} → VegasCore P L Γ → VarId → TaggedVal L → ℚ≥0
   | _, .ret _, _, _ => 0
@@ -285,14 +285,14 @@ noncomputable def VegasCore.nodeWeight {P : Type} [DecidableEq P] {L : ExprLangu
 /-- Weight of a step under a profile σ: looks up the node in the VegasCore
     and computes the weight from the pre-step partial env. -/
 noncomputable def Step.weight {P : Type} [DecidableEq P] {L : ExprLanguage}
-    [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+    [E : ExprKit P L] [D : DistKit P L]
     (σ : Profile P L) {Γ : Ctx P L} (p : VegasCore P L Γ)
     {c₁ c₂ : Config L} (s : Step c₁ c₂) : ℚ≥0 :=
   VegasCore.nodeWeight σ c₁.env p s.node.id s.value
 
 /-- Weight of a complete execution (product of step weights). -/
 noncomputable def Execution.weight {P : Type} [DecidableEq P] {L : ExprLanguage}
-    [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+    [E : ExprKit P L] [D : DistKit P L]
     (σ : Profile P L) {Γ : Ctx P L} (p : VegasCore P L Γ)
     {c₁ c₂ : Config L} : Execution c₁ c₂ → ℚ≥0
   | .done => 1

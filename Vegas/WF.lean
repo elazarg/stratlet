@@ -25,7 +25,7 @@ def WF {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L] :
+:
     {Γ : Vegas.Ctx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
   | Γ, .letExpr x _ k => Fresh x Γ ∧ WF k
@@ -37,7 +37,7 @@ def decidableWF {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L] :
+:
     {Γ : Vegas.Ctx P L} → (p : Vegas.VegasCore P L Γ) → Decidable (WF p)
   | _, .ret _ => .isTrue trivial
   | _, .letExpr _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
@@ -49,7 +49,7 @@ instance {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L]
+
     {Γ : Vegas.Ctx P L} {p : Vegas.VegasCore P L Γ} :
     Decidable (WF p) := decidableWF p
 
@@ -59,7 +59,7 @@ def RevealComplete {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L] :
+:
     {Γ : Vegas.Ctx P L} → List VarId → Vegas.VegasCore P L Γ → Prop
   | _, pending, .ret _ => pending = []
   | _, pending, .letExpr _ _ k => RevealComplete pending k
@@ -74,7 +74,7 @@ def decidableRevealComplete {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L] :
+:
     {Γ : Vegas.Ctx P L} →
     (pending : List VarId) → (p : Vegas.VegasCore P L Γ) →
     Decidable (RevealComplete pending p)
@@ -89,7 +89,7 @@ instance {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L]
+
     {pending : List VarId} {Γ : Vegas.Ctx P L} {p : Vegas.VegasCore P L Γ} :
     Decidable (RevealComplete pending p) := decidableRevealComplete pending p
 
@@ -98,7 +98,7 @@ def WFProg {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L]
+
     {Γ : Vegas.Ctx P L}
     (p : Vegas.VegasCore P L Γ) : Prop :=
   WF p ∧ RevealComplete [] p
@@ -194,7 +194,7 @@ def Legal {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L] :
+:
     {Γ : Vegas.Ctx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
   | _, .letExpr _ _ k => Legal k
@@ -208,7 +208,7 @@ def DistinctActs {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L] :
+:
     {Γ : Vegas.Ctx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
   | _, .letExpr _ _ k => DistinctActs k
@@ -220,7 +220,7 @@ def AdmissibleProfile {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L]
+
     (σ : Vegas.Profile P L) :
     {Γ : Vegas.Ctx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
@@ -250,7 +250,7 @@ def NormalizedDists {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L] :
+:
     {Γ : Vegas.Ctx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
   | _, .letExpr _ _ k => NormalizedDists k
@@ -262,7 +262,7 @@ def Profile.NormalizedOn {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L]
+
     (σ : Vegas.Profile P L) :
     {Γ : Vegas.Ctx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True

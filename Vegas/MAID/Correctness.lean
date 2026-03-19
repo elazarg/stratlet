@@ -8,7 +8,7 @@ namespace Vegas
 open MAID
 
 variable {Player : Type} [DecidableEq Player] {L : ExprLanguage}
-variable [E : ExprKit Player L] [D : DistKit Player L] [U : PayoffKit Player L]
+variable [E : ExprKit Player L] [D : DistKit Player L]
 variable {B : MAIDBackend Player L}
 
 -- RawNodeEnv helpers
@@ -18,13 +18,13 @@ def RawNodeEnv.extend (raw : RawNodeEnv L) (nid : Nat) (tv : RawTaggedVal L) :
     RawNodeEnv L :=
   fun i => if i = nid then some tv else raw i
 
-omit E D U in
+omit E D in
 theorem readVal_extend_self (raw : RawNodeEnv L) (nid : Nat) (τ : L.Ty)
     (v : L.Val τ) :
     MAIDCompileState.readVal (B := B) (raw.extend nid ⟨τ, v⟩) τ nid = v := by
   simp [RawNodeEnv.extend, MAIDCompileState.readVal]
 
-omit E D U in
+omit E D in
 theorem readVal_extend_ne (raw : RawNodeEnv L) (nid nid' : Nat)
     (tv : RawTaggedVal L) (τ : L.Ty) (hne : nid' ≠ nid) :
     MAIDCompileState.readVal (B := B) (raw.extend nid tv) τ nid' =
@@ -49,14 +49,14 @@ theorem InsensitiveTo.eq_of_eq_off [Nonempty (RawTaggedVal L)]
         split <;> [rfl; exact hoff i (by assumption)]
     _ = f raw₂ := hins raw₂ tv
 
--- nativeOutcomeDist: direct FDist U.Outcome by induction on VegasSimple
+-- nativeOutcomeDist: direct FDist (Outcome Player) by induction on VegasSimple
 
 
-/-- Direct computation of `FDist U.Outcome` by recursion on `VegasSimple`,
+/-- Direct computation of `FDist (Outcome Player)` by recursion on `VegasSimple`,
 threading a plain `RawNodeEnv L` argument. No `FDist (RawNodeEnv L)` appears.
 
 Each `sample`/`commit` does `FDist.bind μ (fun v => recurse with extended raw)`.
-The `FDist.bind` is over `FDist (L.Val τ)` → `FDist U.Outcome`, both of which
+The `FDist.bind` is over `FDist (L.Val τ)` → `FDist (Outcome Player)`, both of which
 have computable `DecidableEq`. -/
 noncomputable def nativeOutcomeDist
     (B : MAIDBackend Player L)
@@ -65,9 +65,9 @@ noncomputable def nativeOutcomeDist
     (p : VegasCore Player L Γ) →
     (ρ : RawNodeEnv L → Env (Player := Player) L Γ) →
     (nextId : Nat) →
-    RawNodeEnv L → FDist U.Outcome
+    RawNodeEnv L → FDist (Outcome Player)
   | _, .ret u, ρ, _, raw =>
-      FDist.pure (U.eval u (ρ raw))
+      FDist.pure (evalPayoffs u (ρ raw))
   | _, .letExpr (b := b) x e k, ρ, nextId, raw =>
       nativeOutcomeDist B σ k
         (fun raw => Env.cons (Player := Player) (L := L) (x := x) (τ := .pub b)
@@ -193,8 +193,8 @@ noncomputable def extractOutcome
     {Γ : Ctx Player L} →
     VegasCore Player L Γ →
     (RawNodeEnv L → Env (Player := Player) L Γ) →
-    Nat → (RawNodeEnv L → U.Outcome)
-  | _, .ret u, ρ, _ => fun raw => U.eval u (ρ raw)
+    Nat → (RawNodeEnv L → Outcome Player)
+  | _, .ret u, ρ, _ => fun raw => evalPayoffs u (ρ raw)
   | _, .letExpr (b := b) x e k, ρ, nextId =>
       extractOutcome B k
         (fun raw => Env.cons (Player := Player) (L := L) (x := x) (τ := .pub b)
@@ -634,7 +634,7 @@ theorem MAIDCompileState.ofProg_descAt_old
 -- ctxDeps tracking lemmas
 
 section
-omit [DecidableEq Player] E D U
+omit [DecidableEq Player] E D
 
 theorem lookupDepsAux_append_singleton_eq_of_ne
     (vars : List (MAIDVarEntry Player L))
@@ -1501,13 +1501,13 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
             ∃ who,
               ((st₀.addUtilityNodes (st₀.ctxDeps Γ')
                 (st₀.depsOfVars_lt (Γ'.map Prod.fst))
-                (fun who raw => (U.payoff (U.eval u (ρ raw)) who : ℝ))
+                (fun who raw => ((evalPayoffs u (ρ raw)) who : ℝ))
                 Finset.univ.toList).descAt nd).kind = NodeKind.utility who := by
           exact MAIDCompileState.addUtilityNodes_all_utility
             (st := st₀)
             (deps := st₀.ctxDeps Γ')
             (hdeps := st₀.depsOfVars_lt (Γ'.map Prod.fst))
-            (ufn := fun who raw => (U.payoff (U.eval u (ρ raw)) who : ℝ))
+            (ufn := fun who raw => ((evalPayoffs u (ρ raw)) who : ℝ))
             (players := Finset.univ.toList)
             (i := nd)
             hge
@@ -1706,7 +1706,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
         simpa [deps] using (eq_on_ctxDeps_rawOfTAssign (st := st) (deps := deps) hρ_deps a₀)
       let μ : FDist (st.toStruct.Val nd0) := data.dist nd0 a₀
       let f :
-          @TAssign Player _ B.fintypePlayer st.nextId st.toStruct → U.Outcome :=
+          @TAssign Player _ B.fintypePlayer st.nextId st.toStruct → Outcome Player :=
         fun a => extractOutcome B (VegasCore.sample x τ m D' k) ρ st₀.nextId (rawOfTAssign st a)
       have hbindmap_aux :
           ∀ (nodes : List (Fin st.nextId))
@@ -1744,7 +1744,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
             (st.rawEnvOfCfg (projCfg a₀ (st.toStruct.obsParents nd0)))
             (st.descAt nd0)) _ = _
         -- Step 2: Use chance_bind_eq to resolve the dependent-type cast
-        let H : L.Val τ.base → FDist U.Outcome :=
+        let H : L.Val τ.base → FDist (Outcome Player) :=
           fun w => nativeOutcomeDist B σ k ρ' (id + 1)
             ((rawOfTAssign st a₀).extend id ⟨τ.base, w⟩)
         have hGH : ∀ v, (fun v => FDist.map f (List.foldl (evalStepFDist data)
@@ -1880,7 +1880,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
         simpa [obs] using (eq_on_ctxDeps_rawOfTAssign (st := st) (deps := obs) hρ_deps a₀)
       let μ : FDist (st.toStruct.Val nd0) := data.dist nd0 a₀
       let f :
-          @TAssign Player _ B.fintypePlayer st.nextId st.toStruct → U.Outcome :=
+          @TAssign Player _ B.fintypePlayer st.nextId st.toStruct → Outcome Player :=
         fun a => extractOutcome B (VegasCore.commit x who acts R k) ρ st₀.nextId (rawOfTAssign st a)
       have hbindmap_aux :
           ∀ (nodes : List (Fin st.nextId))
@@ -1919,7 +1919,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
             (st.rawEnvOfCfg (projCfg a₀ (st.toStruct.obsParents nd0)))
             (st.descAt nd0)) _ = _
         -- Step 2: Use decision_bind_eq to resolve the dependent-type cast
-        let H : L.Val b → FDist U.Outcome :=
+        let H : L.Val b → FDist (Outcome Player) :=
           fun w => nativeOutcomeDist B σ k ρ' (id + 1)
             ((rawOfTAssign st a₀).extend id ⟨b, w⟩)
         have hGH : ∀ v, (fun v => FDist.map f (List.foldl (evalStepFDist data)
@@ -1994,7 +1994,7 @@ theorem maid_map_extract_eq_outcomeDist
     let hkn := ofProg_kernelNormalized B p σ hl ha hd hσ_norm
         (fun _ => env) .empty (MAIDCompileState.empty_kernelNormalized σ)
     let pol := compiledPolicy st σ hkn
-    let extract : @TAssign Player _ B.fintypePlayer st.nextId S → U.Outcome :=
+    let extract : @TAssign Player _ B.fintypePlayer st.nextId S → Outcome Player :=
       fun a => extractOutcome B p (fun _ => env) 0 (rawOfTAssign st a)
     PMF.map extract (evalAssignDist S sem pol) =
       (outcomeDist σ p env).toPMF (outcomeDist_totalWeight_eq_one hd hσ_norm) := by
@@ -2055,7 +2055,7 @@ theorem vegas_maid_dist_eq
     let S := st.toStruct
     let sem := MAIDCompileState.toSem st
     ∃ (pol : @Policy Player _ B.fintypePlayer st.nextId S)
-      (extract : @TAssign Player _ B.fintypePlayer st.nextId S → U.Outcome),
+      (extract : @TAssign Player _ B.fintypePlayer st.nextId S → Outcome Player),
       PMF.map extract (evalAssignDist S sem pol) =
         (outcomeDist σ p env).toPMF (outcomeDist_totalWeight_eq_one hd hσ_norm) := by
   let _ := B.fintypePlayer
@@ -2063,7 +2063,7 @@ theorem vegas_maid_dist_eq
   let hkn := ofProg_kernelNormalized B p σ hl ha hd hσ_norm
       (fun _ => env) .empty (MAIDCompileState.empty_kernelNormalized σ)
   let pol := compiledPolicy st σ hkn
-  let extract : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct → U.Outcome :=
+  let extract : @TAssign Player _ B.fintypePlayer st.nextId st.toStruct → Outcome Player :=
     fun a => extractOutcome B p (fun _ => env) 0 (rawOfTAssign st a)
   exact ⟨pol, extract,
     maid_map_extract_eq_outcomeDist B p env σ hl ha hd hwf hσ_norm⟩

@@ -13,14 +13,13 @@ noncomputable def outcomeDist {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L]
     (σ : Vegas.Profile P L) :
     {Γ : Vegas.Ctx P L} →
       Vegas.VegasCore P L Γ →
       Vegas.Env (Player := P) L Γ →
-      FDist U.Outcome
-  | _, .ret u, env =>
-      FDist.pure (U.eval u env)
+      FDist (Outcome P)
+  | _, .ret payoffs, env =>
+      FDist.pure (evalPayoffs payoffs env)
   | _, .letExpr x e k, env =>
       outcomeDist σ k <|
         Vegas.Env.cons (Player := P) (L := L) (x := x) (τ := .pub _)
@@ -45,7 +44,6 @@ theorem outcomeDist_totalWeight_eq_one {P : Type} [DecidableEq P]
     {L : Vegas.ExprLanguage}
     [E : Vegas.ExprKit P L]
     [D : Vegas.DistKit P L]
-    [U : Vegas.PayoffKit P L]
     {Γ : Vegas.Ctx P L} {σ : Vegas.Profile P L}
     {p : Vegas.VegasCore P L Γ} {env : Vegas.Env (Player := P) L Γ}
     (hd : NormalizedDists p) (hσ : σ.NormalizedOn p) :

@@ -26,7 +26,7 @@ namespace Vegas
 open MAID
 
 variable {Player : Type} [DecidableEq Player] {L : ExprLanguage}
-variable [E : ExprKit Player L] [D : DistKit Player L] [U : PayoffKit Player L]
+variable [E : ExprKit Player L] [D : DistKit Player L]
 
 /-- Untyped payload used to reconstruct Vegas environments from MAID parent
 configurations. -/
@@ -39,7 +39,7 @@ abbrev RawNodeEnv (L : ExprLanguage) : Type := Nat → Option (RawTaggedVal L)
 truth for both `MAID.Struct` and `MAID.Sem`. -/
 inductive CompiledNode (Player : Type) [DecidableEq Player] (L : ExprLanguage)
     (B : MAIDBackend Player L) [ExprKit Player L] [DistKit Player L]
-    [PayoffKit Player L] where
+    where
   | chance (τ : L.Ty) (parents : Finset Nat)
       (cpdFDist : RawNodeEnv L → FDist (L.Val τ))
       (cpdNorm : ∀ raw, FDist.totalWeight (cpdFDist raw) = 1)
@@ -126,7 +126,7 @@ abbrev MAIDVarEntry (Player : Type) (L : ExprLanguage) :=
 /-- Internal state for direct Vegas-to-MAID compilation. -/
 structure MAIDCompileState (Player : Type) [DecidableEq Player] (L : ExprLanguage)
     (B : MAIDBackend Player L) [ExprKit Player L] [DistKit Player L]
-    [PayoffKit Player L] where
+    where
   nextId : Nat
   nodes : List (Nat × CompiledNode Player L B)
   vars : List (MAIDVarEntry Player L)
@@ -162,7 +162,7 @@ def lookupDepsAux : List (MAIDVarEntry Player L) → VarId → Finset Nat
 def lookupDeps (st : MAIDCompileState Player L B) (x : VarId) : Finset Nat :=
   lookupDepsAux st.vars x
 
-omit [DecidableEq Player] E D U in
+omit [DecidableEq Player] E D in
 theorem lookupDepsAux_lt {vars : List (MAIDVarEntry Player L)} {n : Nat}
     (hvars : ∀ e ∈ vars, ∀ d ∈ e.2.2, d < n) (x : VarId) :
     ∀ d ∈ lookupDepsAux vars x, d < n := by
@@ -341,12 +341,12 @@ noncomputable def ofProg
       (RawNodeEnv L → Env (Player := Player) L Γ) →
       MAIDCompileState Player L B →
       MAIDCompileState Player L B
-  | Γ, .ret u, _hl, _ha, _hd, ρ, st =>
+  | Γ, .ret payoffs, _hl, _ha, _hd, ρ, st =>
       let _ : Fintype Player := B.fintypePlayer
       st.addUtilityNodes
         (st.ctxDeps Γ)
         (st.depsOfVars_lt _)
-        (fun who raw => (U.payoff (U.eval u (ρ raw)) who : ℝ))
+        (fun who raw => ((evalPayoffs payoffs (ρ raw)) who : ℝ))
         Finset.univ.toList
   | Γ, .letExpr (b := b) x e k, hl, ha, hd, ρ, st =>
       let deps := st.ctxDeps Γ

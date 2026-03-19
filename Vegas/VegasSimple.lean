@@ -9,9 +9,6 @@ value and expression layer from `Vegas.ExprSimple`.
 
 namespace Vegas
 
-/-- Vegas outcomes: finitely supported integer payoffs by player. -/
-abbrev Outcome := Player →₀ Int
-
 inductive DistExpr (Γ : CtxSimple) (b : BaseTy) : Type where
   | weighted (entries : List (Val b × ℚ≥0)) : DistExpr Γ b
   | ite (c : Expr Γ .bool) (t f : DistExpr Γ b) : DistExpr Γ b
@@ -59,22 +56,16 @@ def EnvSimple.projectDist {Γ : CtxSimple} (τ : BindTySimple) (m : SampleMode �
     (env : EnvSimple Γ) : EnvSimple (distCtx τ m Γ) :=
   Vegas.Env.projectDist (Player := Player) (L := simpleExpr) τ m env
 
+/-- Per-player payoff expressions with no duplicate players.
+    Convenience wrapper for constructing `ret` payloads. -/
 structure PayoffMap (Γ : CtxSimple) where
   entries : List (Player × Expr Γ .int)
   nodup : (entries.map Prod.fst).Nodup
 
-noncomputable def evalPayoffMap (u : PayoffMap Γ) (env : EnvSimple Γ) : Outcome :=
+/-- Evaluate a PayoffMap into an outcome (Player →₀ Int). -/
+noncomputable def evalPayoffMap (u : PayoffMap Γ) (env : EnvSimple Γ) :
+    Outcome Player :=
   u.entries.foldl (fun acc (p, e) => acc + Finsupp.single p (evalExpr e env)) 0
-
-/-- The current Vegas payoff layer, exposed through the generic
-visibility-aware protocol interface. -/
-noncomputable instance payoffKitSimple : Vegas.PayoffKit Player simpleExpr where
-  PayoffExpr := PayoffMap
-  Outcome := Outcome
-  decEqOutcome := inferInstance
-  payoff := fun o who => o who
-  eval := @evalPayoffMap
-  deps := fun u => u.entries.foldr (fun pe acc => exprVars pe.2 ++ acc) []
 
 abbrev evalR {Γ : CtxSimple} {b : BaseTy} {who : Player} {x : VarId}
     (R : Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) .bool)
@@ -82,15 +73,6 @@ abbrev evalR {Γ : CtxSimple} {b : BaseTy} {who : Player} {x : VarId}
   Vegas.evalGuard (Player := Player) (L := simpleExpr) inferInstance R a view
 
 abbrev VegasSimple : CtxSimple → Type := Vegas.VegasCore Player simpleExpr
-
-/- `observe` and `assert` remain intentionally outside the current core
-surface. The planned semantics are:
-
-- `observe (c : Expr Γ .bool) (k : VegasSimple Γ)`:
-  `if evalExpr c env then outcomeDist σ k env else FDist.zero`
-- `assert (who : Player) (P : EnvSimple (viewCtx who Γ) → Bool) (k : VegasSimple Γ)`:
-  `if P (env.toView who) then outcomeDist σ k env else FDist.zero`
--/
 
 abbrev CommitKernelSimple (who : Player) (Γ : CtxSimple) (b : BaseTy) : Type :=
   Vegas.CommitKernel Player simpleExpr who Γ b

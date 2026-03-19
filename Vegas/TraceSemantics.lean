@@ -39,15 +39,15 @@ determined by the prior `commit`.
 namespace Vegas
 
 variable {P : Type} [DecidableEq P] {L : ExprLanguage}
-  [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+  [E : ExprKit P L] [D : DistKit P L]
 
 /-- A complete execution path through a Vegas program.
     Indexed by the program it traverses. Records the value chosen at each
     `sample` and `commit` site. `letExpr` and `reveal` are deterministic
     wrappers (no choice recorded). -/
 inductive Trace : (Γ : Ctx P L) → VegasCore P L Γ → Type where
-  | ret {Γ : Ctx P L} {u : U.PayoffExpr Γ} :
-      Trace Γ (.ret u)
+  | ret {Γ : Ctx P L} {payoffs : List (P × E.Expr Γ L.int)} :
+      Trace Γ (.ret payoffs)
   | letExpr {Γ : Ctx P L} {x : VarId} {b : L.Ty} {e : E.Expr Γ b}
       {k : VegasCore P L ((x, .pub b) :: Γ)} :
       Trace ((x, .pub b) :: Γ) k → Trace Γ (.letExpr x e k)
@@ -67,7 +67,7 @@ inductive Trace : (Γ : Ctx P L) → VegasCore P L Γ → Type where
 
 noncomputable instance instDecidableEqTrace
     {Γ : Ctx P L} {p : VegasCore P L Γ} :
-    DecidableEq (@Trace P _ L E D U Γ p) :=
+    DecidableEq (@Trace P _ L E D Γ p) :=
   fun a b => Classical.propDecidable (a = b)
 
 
@@ -76,9 +76,9 @@ noncomputable instance instDecidableEqTrace
     path — no weighting, no distribution binding. -/
 noncomputable def traceOutcome :
     {Γ : Ctx P L} → (p : VegasCore P L Γ) → Env (Player := P) L Γ →
-      Trace Γ p → U.Outcome
-  | _, .ret u, env, .ret =>
-      U.eval u env
+      Trace Γ p → Outcome P
+  | _, .ret payoffs, env, .ret =>
+      evalPayoffs payoffs env
   | _, .letExpr _ e k, env, .letExpr t =>
       traceOutcome k (Env.cons (E.eval e env) env) t
   | _, .sample _ _ _ _ k, env, .sample v t =>
@@ -136,17 +136,17 @@ def Trace.legal : {Γ : Ctx P L} → (p : VegasCore P L Γ) → Env (Player := P
     at sample sites. Characterizes the game's possible outcomes regardless
     of strategy. -/
 inductive CanReach : {Γ : Ctx P L} → VegasCore P L Γ → Env (Player := P) L Γ →
-    U.Outcome → Prop where
-  | ret {Γ : Ctx P L} {u : U.PayoffExpr Γ} {env : Env (Player := P) L Γ} :
-      CanReach (.ret u) env (U.eval u env)
+    Outcome P → Prop where
+  | ret {Γ : Ctx P L} {payoffs : List (P × E.Expr Γ L.int)} {env : Env (Player := P) L Γ} :
+      CanReach (.ret payoffs) env (evalPayoffs payoffs env)
   | letExpr {Γ : Ctx P L} {x : VarId} {b : L.Ty} {e : E.Expr Γ b}
       {k : VegasCore P L ((x, .pub b) :: Γ)} {env : Env (Player := P) L Γ}
-      {oc : U.Outcome} :
+      {oc : Outcome P} :
       CanReach k (Env.cons (E.eval e env) env) oc →
       CanReach (.letExpr x e k) env oc
   | sample {Γ : Ctx P L} {x : VarId} {τ : BindTy P L} {m : SampleMode τ}
       {D' : D.DistExpr (distCtx τ m Γ) τ.base} {k : VegasCore P L ((x, τ) :: Γ)}
-      {env : Env (Player := P) L Γ} {oc : U.Outcome}
+      {env : Env (Player := P) L Γ} {oc : Outcome P}
       (v : L.Val τ.base)
       (hsupp : v ∈ (D.eval D' (Env.projectDist τ m env)).support) :
       CanReach k (Env.cons v env) oc →
@@ -155,7 +155,7 @@ inductive CanReach : {Γ : Ctx P L} → VegasCore P L Γ → Env (Player := P) L
       {acts : List (L.Val b)}
       {R : E.Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) L.bool}
       {k : VegasCore P L ((x, .hidden who b) :: Γ)}
-      {env : Env (Player := P) L Γ} {oc : U.Outcome}
+      {env : Env (Player := P) L Γ} {oc : Outcome P}
       (v : L.Val b) (hacts : v ∈ acts)
       (hR : evalGuard E R v (Env.toView who env) = true) :
       CanReach k (Env.cons v env) oc →
@@ -163,7 +163,7 @@ inductive CanReach : {Γ : Ctx P L} → VegasCore P L Γ → Env (Player := P) L
   | reveal {Γ : Ctx P L} {y : VarId} {who : P} {x : VarId} {b : L.Ty}
       {hx : HasVar (L := L) Γ x (.hidden who b)}
       {k : VegasCore P L ((y, .pub b) :: Γ)}
-      {env : Env (Player := P) L Γ} {oc : U.Outcome} :
+      {env : Env (Player := P) L Γ} {oc : Outcome P} :
       CanReach k (Env.cons (x := y) (τ := .pub b)
         (show L.Val b from Env.get env hx) env) oc →
       CanReach (.reveal y who x hx k) env oc
@@ -172,17 +172,17 @@ inductive CanReach : {Γ : Ctx P L} → VegasCore P L Γ → Env (Player := P) L
     profile `σ`. Uses the profile's support at commit sites (not just legality)
     and the distribution's support at sample sites. -/
 inductive Reach (σ : Profile P L) :
-    {Γ : Ctx P L} → VegasCore P L Γ → Env (Player := P) L Γ → U.Outcome → Prop where
-  | ret {Γ : Ctx P L} {u : U.PayoffExpr Γ} {env : Env (Player := P) L Γ} :
-      Reach σ (.ret u) env (U.eval u env)
+    {Γ : Ctx P L} → VegasCore P L Γ → Env (Player := P) L Γ → Outcome P → Prop where
+  | ret {Γ : Ctx P L} {payoffs : List (P × E.Expr Γ L.int)} {env : Env (Player := P) L Γ} :
+      Reach σ (.ret payoffs) env (evalPayoffs payoffs env)
   | letExpr {Γ : Ctx P L} {x : VarId} {b : L.Ty} {e : E.Expr Γ b}
       {k : VegasCore P L ((x, .pub b) :: Γ)} {env : Env (Player := P) L Γ}
-      {oc : U.Outcome} :
+      {oc : Outcome P} :
       Reach σ k (Env.cons (E.eval e env) env) oc →
       Reach σ (.letExpr x e k) env oc
   | sample {Γ : Ctx P L} {x : VarId} {τ : BindTy P L} {m : SampleMode τ}
       {D' : D.DistExpr (distCtx τ m Γ) τ.base} {k : VegasCore P L ((x, τ) :: Γ)}
-      {env : Env (Player := P) L Γ} {oc : U.Outcome}
+      {env : Env (Player := P) L Γ} {oc : Outcome P}
       (v : L.Val τ.base)
       (hsupp : v ∈ (D.eval D' (Env.projectDist τ m env)).support) :
       Reach σ k (Env.cons v env) oc →
@@ -191,7 +191,7 @@ inductive Reach (σ : Profile P L) :
       {acts : List (L.Val b)}
       {R : E.Expr ((x, .pub b) :: flattenCtx (viewCtx who Γ)) L.bool}
       {k : VegasCore P L ((x, .hidden who b) :: Γ)}
-      {env : Env (Player := P) L Γ} {oc : U.Outcome}
+      {env : Env (Player := P) L Γ} {oc : Outcome P}
       (v : L.Val b)
       (hsupp : v ∈ (σ.commit who x acts R (Env.toView who env)).support) :
       Reach σ k (Env.cons v env) oc →
@@ -199,7 +199,7 @@ inductive Reach (σ : Profile P L) :
   | reveal {Γ : Ctx P L} {y : VarId} {who : P} {x : VarId} {b : L.Ty}
       {hx : HasVar (L := L) Γ x (.hidden who b)}
       {k : VegasCore P L ((y, .pub b) :: Γ)}
-      {env : Env (Player := P) L Γ} {oc : U.Outcome} :
+      {env : Env (Player := P) L Γ} {oc : Outcome P} :
       Reach σ k (Env.cons (x := y) (τ := .pub b)
         (show L.Val b from Env.get env hx) env) oc →
       Reach σ (.reveal y who x hx k) env oc
@@ -237,7 +237,7 @@ theorem pos_weight_trace_reach {Γ : Ctx P L} {p : VegasCore P L Γ}
 
 /-- Every reachable outcome has a witnessing trace. -/
 theorem canReach_has_trace {Γ : Ctx P L} {p : VegasCore P L Γ}
-    {env : Env (Player := P) L Γ} {oc : U.Outcome}
+    {env : Env (Player := P) L Γ} {oc : Outcome P}
     (h : CanReach p env oc) :
     ∃ t : Trace Γ p, t.legal p env ∧ traceOutcome p env t = oc := by
   induction h with
@@ -259,7 +259,7 @@ theorem canReach_has_trace {Γ : Ctx P L} {p : VegasCore P L Γ}
 /-- **Support correctness**: an outcome is in the support of `outcomeDist`
     iff it is reachable under the profile. -/
 theorem reach_iff_outcomeDist_support {Γ : Ctx P L} (σ : Profile P L)
-    (p : VegasCore P L Γ) (env : Env (Player := P) L Γ) (oc : U.Outcome) :
+    (p : VegasCore P L Γ) (env : Env (Player := P) L Γ) (oc : Outcome P) :
     Reach σ p env oc ↔ oc ∈ (outcomeDist σ p env).support := by
   induction p with
   | ret u =>
@@ -298,9 +298,9 @@ theorem reach_iff_outcomeDist_support {Γ : Ctx P L} (σ : Profile P L)
     avoids requiring `Fintype (Trace Γ p)` (which would need `Fintype Int`). -/
 noncomputable def traceWeightSum (σ : Profile P L) :
     {Γ : Ctx P L} → (p : VegasCore P L Γ) → Env (Player := P) L Γ →
-      U.Outcome → ℚ≥0
+      Outcome P → ℚ≥0
   | _, .ret u, env, oc =>
-      if oc = U.eval u env then 1 else 0
+      if oc = evalPayoffs u env then 1 else 0
   | _, .letExpr _ e k, env, oc =>
       traceWeightSum σ k (Env.cons (E.eval e env) env) oc
   | _, .sample _ τ m D' k, env, oc =>
@@ -320,7 +320,7 @@ noncomputable def traceWeightSum (σ : Profile P L) :
     that `FDist.bind` produces, this is a direct structural induction with
     `FDist.bind_apply` at each `sample`/`commit` step. -/
 theorem adequacy_pointwise {Γ : Ctx P L} (σ : Profile P L)
-    (p : VegasCore P L Γ) (env : Env (Player := P) L Γ) (oc : U.Outcome) :
+    (p : VegasCore P L Γ) (env : Env (Player := P) L Γ) (oc : Outcome P) :
     (outcomeDist σ p env) oc = traceWeightSum σ p env oc := by
   induction p with
   | ret u =>
@@ -330,12 +330,7 @@ theorem adequacy_pointwise {Γ : Ctx P L} (σ : Profile P L)
     exact ih _
   | sample x τ m D' k ih =>
     simp only [outcomeDist, traceWeightSum, FDist.bind_apply]
-    exact Finset.sum_congr rfl fun v _ => by
-      change (D.eval D' (Env.projectDist τ m env)) v *
-          (outcomeDist σ k (Env.cons v env)) oc =
-        (D.eval D' (Env.projectDist τ m env)) v *
-          traceWeightSum σ k (Env.cons v env) oc
-      rw [ih]
+    exact Finset.sum_congr rfl fun v _ => by rw [ih]
   | commit x who acts R k ih =>
     simp only [outcomeDist, traceWeightSum, FDist.bind_apply]
     exact Finset.sum_congr rfl fun v _ => by rw [ih]
@@ -485,7 +480,7 @@ theorem admissible_pos_weight_legal {Γ : Ctx P L} {σ : Profile P L}
 
 /-- Under an admissible profile, `Reach` implies `CanReach`. -/
 theorem admissible_reach_canReach {Γ : Ctx P L} {σ : Profile P L}
-    {p : VegasCore P L Γ} {env : Env (Player := P) L Γ} {oc : U.Outcome}
+    {p : VegasCore P L Γ} {env : Env (Player := P) L Γ} {oc : Outcome P}
     (hadm : AdmissibleProfile σ p)
     (h : Reach σ p env oc) :
     CanReach p env oc := by
@@ -521,20 +516,20 @@ reduces to showing that `Env.cons a (Env.cons b env)` and
 through the appropriate HasVar embeddings.
 -/
 
-omit E D U in
+omit E D in
 /-- Helper: invisible bindings don't affect viewCtx. -/
 theorem viewCtx_skip_invisible {p : P} {x : VarId} {τ : BindTy P L} {Γ : Ctx P L}
     (h : canSee p τ = false) :
     viewCtx p ((x, τ) :: Γ) = viewCtx p Γ := by
   simp [viewCtx, Vegas.viewCtx, h]
 
-omit [DecidableEq P] E D in
+omit E D in
 /-- The algebraic core of commit–commit commutativity: two independent
     `FDist.bind`s commute. Immediate from `FDist.bind_comm`. -/
 theorem outcomeDist_comm_commit_algebraic
     {b₁ b₂ : L.Ty}
     (d₁ : FDist (L.Val b₁)) (d₂ : FDist (L.Val b₂))
-    (f : L.Val b₁ → L.Val b₂ → FDist U.Outcome) :
+    (f : L.Val b₁ → L.Val b₂ → FDist (Outcome P)) :
     d₁.bind (fun v₁ => d₂.bind (fun v₂ => f v₁ v₂)) =
     d₂.bind (fun v₂ => d₁.bind (fun v₁ => f v₁ v₂)) :=
   FDist.bind_comm d₁ d₂ f
