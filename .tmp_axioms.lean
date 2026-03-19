@@ -1,6 +1,0 @@
-import GameTheory.EFGKuhnFull
-#print axioms EFG.kuhn_mixed_to_behavioral
-#print axioms EFG.mixed_to_behavioral_nplayer
-#print axioms EFG.mixedToBehavioralFlat_decision_sub_general
-#print axioms EFG.mixedToBehavioralFlat_chance_eq_general
-
