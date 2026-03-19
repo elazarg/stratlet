@@ -36,62 +36,61 @@ structure EventNode where
   deriving DecidableEq, Repr
 
 
-/-- A value tagged with its base type. -/
-structure TaggedVal where
-  base : BaseTy
-  val : Val base
+/-- A value tagged with its base type, parameterized by the expression language. -/
+structure TaggedVal (L : ExprLanguage) where
+  base : L.Ty
+  val : L.Val base
 
-instance : DecidableEq TaggedVal := by
+instance {L : ExprLanguage} : DecidableEq (TaggedVal L) := by
   intro ⟨b₁, v₁⟩ ⟨b₂, v₂⟩
-  cases b₁ <;> cases b₂
-  · -- int, int
-    exact if h : v₁ = v₂
-      then .isTrue (by subst h; rfl)
-      else .isFalse (by intro heq; cases heq; exact h rfl)
-  · exact .isFalse (by intro h; cases h)
-  · exact .isFalse (by intro h; cases h)
-  · -- bool, bool
-    exact if h : v₁ = v₂
-      then .isTrue (by subst h; rfl)
-      else .isFalse (by intro heq; cases heq; exact h rfl)
+  cases decEq b₁ b₂ with
+  | isTrue hb =>
+    subst hb
+    exact if hv : v₁ = v₂
+      then .isTrue (by subst hv; rfl)
+      else .isFalse (by intro heq; cases heq; exact hv rfl)
+  | isFalse hb =>
+    exact .isFalse (by intro heq; cases heq; exact hb rfl)
 
 /-- A partial assignment of variable values. -/
-def PartialEnv := VarId → Option TaggedVal
+def PartialEnv (L : ExprLanguage) := VarId → Option (TaggedVal L)
 
-instance : Inhabited PartialEnv := ⟨fun _ => none⟩
+instance {L : ExprLanguage} : Inhabited (PartialEnv L) := ⟨fun _ => none⟩
+
+variable {L : ExprLanguage}
 
 /-- The empty partial environment. -/
-def PartialEnv.empty : PartialEnv := fun _ => none
+def PartialEnv.empty : PartialEnv L := fun _ => none
 
 /-- Extend a partial environment with a single binding. -/
-def PartialEnv.set (pe : PartialEnv) (x : VarId) (v : TaggedVal) : PartialEnv :=
+def PartialEnv.set (pe : PartialEnv L) (x : VarId) (v : TaggedVal L) : PartialEnv L :=
   fun y => if y = x then some v else pe y
 
 
 /-- State of action-graph execution. -/
-structure Config where
+structure Config (L : ExprLanguage) where
   pending : List EventNode   -- events not yet fired
-  env     : PartialEnv       -- resolved variable values
+  env     : PartialEnv L     -- resolved variable values
 
 /-- A node is ready when all its dependencies are resolved. -/
-def EventNode.ready (e : EventNode) (c : Config) : Bool :=
+def EventNode.ready (e : EventNode) (c : Config L) : Bool :=
   e.deps.all (fun x => (c.env x).isSome)
 
 /-- The events that can fire right now. -/
-def Config.readyEvents (c : Config) : List EventNode :=
+def Config.readyEvents (c : Config L) : List EventNode :=
   c.pending.filter (·.ready c)
 
 /-- No pending events remain. -/
-def Config.terminal (c : Config) : Prop := c.pending = []
+def Config.terminal (c : Config L) : Prop := c.pending = []
 
-instance : Decidable (Config.terminal c) :=
+instance : Decidable (Config.terminal (L := L) c) :=
   inferInstanceAs (Decidable (c.pending = []))
 
 
 /-- One step: fire a ready node, recording its value. -/
-structure Step (c₁ c₂ : Config) where
+structure Step {L : ExprLanguage} (c₁ c₂ : Config L) where
   node : EventNode
-  value : TaggedVal
+  value : TaggedVal L
   hmem : node ∈ c₁.pending
   hready : node.ready c₁ = true
   henv : c₂.env = c₁.env.set node.id value
@@ -99,9 +98,9 @@ structure Step (c₁ c₂ : Config) where
 
 
 /-- A complete execution: a sequence of steps from one config to another. -/
-inductive Execution : Config → Config → Type where
-  | done {c : Config} : Execution c c
-  | step {c₁ c₂ c₃ : Config} : Step c₁ c₂ → Execution c₂ c₃ → Execution c₁ c₃
+inductive Execution : Config L → Config L → Type where
+  | done {c : Config L} : Execution c c
+  | step {c₁ c₂ c₃ : Config L} : Step c₁ c₂ → Execution c₂ c₃ → Execution c₁ c₃
 
 /-- Length of an execution (number of steps). -/
 def Execution.length : Execution c₁ c₂ → Nat
@@ -109,55 +108,63 @@ def Execution.length : Execution c₁ c₂ → Nat
   | .step _ rest => 1 + rest.length
 
 
-/-- Extract the event graph from a VegasSimple. Walks the program structure and
-    builds one EventNode per binding site.
+/-- Extract the event graph from a VegasCore program. Walks the program
+    structure and builds one EventNode per binding site.
 
     Dependency computation follows the current Vegas protocol structure:
-    - `letExpr x e k`: deps = `exprVars e`
-    - `sample x τ m D k`: deps = `distExprVars D`
+    - `letExpr x e k`: deps = `E.deps e`
+    - `sample x τ m D' k`: deps = `D.deps D'`
     - `commit x who acts R k`: deps = all vars visible to `who` in Γ
     - `reveal y who x hx k`: deps = `[x]` -/
-def VegasSimple.extractEvents : VegasSimple Γ → List EventNode
+def VegasCore.extractEvents {P : Type} [DecidableEq P] {L : ExprLanguage}
+    [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+    {Γ : Ctx P L} : VegasCore P L Γ → List EventNode
   | .ret _ => []
   | .letExpr x e k =>
-    { id := x, kind := .letExpr, deps := exprVars e } ::
-    VegasSimple.extractEvents k
-  | .sample x _τ _m D k =>
-    { id := x, kind := .sample, deps := distExprVars D } ::
-    VegasSimple.extractEvents k
+    { id := x, kind := .letExpr, deps := E.deps e } ::
+    extractEvents k
+  | .sample x _τ _m D' k =>
+    { id := x, kind := .sample, deps := D.deps D' } ::
+    extractEvents k
   | .commit x who _acts _R k =>
     { id := x, kind := .commit,
       deps := (viewCtx who Γ).map Prod.fst } ::
-    VegasSimple.extractEvents k
+    extractEvents k
   | .reveal y _who x _hx k =>
     { id := y, kind := .reveal, deps := [x] } ::
-    VegasSimple.extractEvents k
+    extractEvents k
 
-/-- Build a PartialEnv from a typed EnvSimple by looking up each variable in Γ. -/
-noncomputable def initPartialEnv : (Γ : CtxSimple) → EnvSimple Γ → PartialEnv
+/-- Build a PartialEnv from a typed Env by looking up each variable in Γ. -/
+noncomputable def initPartialEnv {P : Type} {L : ExprLanguage} :
+    (Γ : Ctx P L) → Env (Player := P) L Γ → PartialEnv L
   | [], _ => PartialEnv.empty
   | (x, τ) :: Γ', env =>
     let rest := initPartialEnv Γ' (fun a b h => env a b (.there h))
-    rest.set x ⟨τ.base, env.get .here⟩
+    rest.set x ⟨τ.base, Env.get env .here⟩
 
-/-- Build initial Config from a VegasSimple and an initial EnvSimple.
-    The initial partial env is populated from the given EnvSimple Γ
+/-- Build initial Config from a VegasCore program and an initial Env.
+    The initial partial env is populated from the given Env Γ
     (the "already bound" variables). -/
-noncomputable def VegasSimple.initConfig (p : VegasSimple Γ) (env : EnvSimple Γ) : Config where
-  pending := VegasSimple.extractEvents p
+noncomputable def VegasCore.initConfig {P : Type} [DecidableEq P] {L : ExprLanguage}
+    [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+    {Γ : Ctx P L} (p : VegasCore P L Γ) (env : Env (Player := P) L Γ) :
+    Config L where
+  pending := VegasCore.extractEvents p
   env := initPartialEnv Γ env
 
 
-/-- A PartialEnv is consistent with an EnvSimple Γ when every variable
+/-- A PartialEnv is consistent with an Env Γ when every variable
     in Γ maps to its correct value. -/
-def PartialEnv.consistent (pe : PartialEnv) {Γ : CtxSimple} (env : EnvSimple Γ) : Prop :=
-  ∀ x τ (h : HasVarSimple Γ x τ), pe x = some ⟨τ.base, env.get h⟩
+def PartialEnv.consistent {P : Type} {L : ExprLanguage}
+    (pe : PartialEnv L) {Γ : Ctx P L} (env : Env (Player := P) L Γ) : Prop :=
+  ∀ x τ (h : HasVar (L := L) Γ x τ), pe x = some ⟨τ.base, Env.get env h⟩
 
-/-- Reconstruct a typed EnvSimple from a PartialEnv, if all variables
+/-- Reconstruct a typed Env from a PartialEnv, if all variables
     in Γ are resolved with the correct base types. -/
-noncomputable def PartialEnv.toEnv? (pe : PartialEnv) :
-    (Γ : CtxSimple) → Option (EnvSimple Γ)
-  | [] => some EnvSimple.empty
+noncomputable def PartialEnv.toEnv? {P : Type} {L : ExprLanguage}
+    (pe : PartialEnv L) :
+    (Γ : Ctx P L) → Option (Env (Player := P) L Γ)
+  | [] => some (Env.empty L)
   | (x, τ) :: Γ' =>
     match pe x with
     | none => none
@@ -167,28 +174,28 @@ noncomputable def PartialEnv.toEnv? (pe : PartialEnv) :
         match pe.toEnv? Γ' with
         | none => none
         | some env' =>
-          let v' : Val τ.base := by
+          let v' : L.Val τ.base := by
             cases h
             exact v
-          some (EnvSimple.cons v' env')
+          some (Env.cons v' env')
       | .isFalse _ => none
 
 -- Commutativity: sets with distinct keys commute
-theorem PartialEnv.set_comm (pe : PartialEnv) (x y : VarId)
-    (vx vy : TaggedVal) (hne : x ≠ y) :
+theorem PartialEnv.set_comm (pe : PartialEnv L) (x y : VarId)
+    (vx vy : TaggedVal L) (hne : x ≠ y) :
     (pe.set x vx).set y vy = (pe.set y vy).set x vx := by
   funext z
   simp only [PartialEnv.set]
   split <;> split <;> simp_all
 
 -- Get after set (same key)
-@[simp] theorem PartialEnv.set_get_same (pe : PartialEnv) (x : VarId)
-    (v : TaggedVal) : (pe.set x v) x = some v := by
+@[simp] theorem PartialEnv.set_get_same (pe : PartialEnv L) (x : VarId)
+    (v : TaggedVal L) : (pe.set x v) x = some v := by
   simp [PartialEnv.set]
 
 -- Get after set (different key)
-@[simp] theorem PartialEnv.set_get_diff (pe : PartialEnv) (x y : VarId)
-    (v : TaggedVal) (hne : y ≠ x) : (pe.set x v) y = pe y := by
+@[simp] theorem PartialEnv.set_get_diff (pe : PartialEnv L) (x y : VarId)
+    (v : TaggedVal L) (hne : y ≠ x) : (pe.set x v) y = pe y := by
   simp [PartialEnv.set, hne]
 
 -- Nodup of mapped list is preserved by erase
@@ -220,7 +227,8 @@ private theorem nodup_map_not_mem_erase [DecidableEq α]
       exact ⟨fun heq => hfb (heq ▸ List.mem_map.mpr ⟨n, hn_in, rfl⟩), ih hnd' hn_in⟩
 
 -- initPartialEnv produces a consistent PartialEnv (requires no shadowing)
-theorem initPartialEnv_consistent (Γ : CtxSimple) (env : EnvSimple Γ)
+theorem initPartialEnv_consistent {P : Type} {L : ExprLanguage}
+    (Γ : Ctx P L) (env : Env (Player := P) L Γ)
     (hwf : WFCtx Γ) : (initPartialEnv Γ env).consistent env := by
   intro x τ h
   induction Γ with
@@ -243,24 +251,26 @@ theorem initPartialEnv_consistent (Γ : CtxSimple) (env : EnvSimple Γ)
       exact ih (fun a b h => env a b (.there h)) hnd.2 h'
 
 
-/-- Walk a VegasSimple to compute the weight of assigning `tv` to variable `id`,
+/-- Walk a VegasCore to compute the weight of assigning `tv` to variable `id`,
     given profile σ and current partial env `pe`. Returns 0 if the node
     is not found or env reconstruction fails. -/
-noncomputable def VegasSimple.nodeWeight (σ : ProfileSimple) (pe : PartialEnv) :
-    VegasSimple Γ → VarId → TaggedVal → ℚ≥0
-  | .ret _, _, _ => 0
-  | .letExpr x _ k, id, tv =>
-      if x = id then 1 else VegasSimple.nodeWeight σ pe k id tv
-  | .sample x τ m D k, id, tv =>
+noncomputable def VegasCore.nodeWeight {P : Type} [DecidableEq P] {L : ExprLanguage}
+    [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+    (σ : Profile P L) (pe : PartialEnv L) :
+    {Γ : Ctx P L} → VegasCore P L Γ → VarId → TaggedVal L → ℚ≥0
+  | _, .ret _, _, _ => 0
+  | _, .letExpr x _ k, id, tv =>
+      if x = id then 1 else nodeWeight σ pe k id tv
+  | Γ, .sample x τ m D' k, id, tv =>
       if x = id then
         match decEq tv.base τ.base with
         | .isTrue h =>
           match pe.toEnv? (distCtx τ m Γ) with
-          | some env => (evalDistExpr D env) (h ▸ tv.val)
+          | some env => (D.eval D' env) (h ▸ tv.val)
           | none => 0
         | .isFalse _ => 0
-      else VegasSimple.nodeWeight σ pe k id tv
-  | .commit x who (b := b) acts R k, id, tv =>
+      else nodeWeight σ pe k id tv
+  | Γ, .commit x who (b := b) acts R k, id, tv =>
       if x = id then
         match decEq tv.base b with
         | .isTrue h =>
@@ -268,25 +278,30 @@ noncomputable def VegasSimple.nodeWeight (σ : ProfileSimple) (pe : PartialEnv) 
           | some view => (σ.commit who x acts R view) (h ▸ tv.val)
           | none => 0
         | .isFalse _ => 0
-      else VegasSimple.nodeWeight σ pe k id tv
-  | .reveal y _ _ _ k, id, tv =>
-      if y = id then 1 else VegasSimple.nodeWeight σ pe k id tv
+      else nodeWeight σ pe k id tv
+  | _, .reveal y _ _ _ k, id, tv =>
+      if y = id then 1 else nodeWeight σ pe k id tv
 
-/-- Weight of a step under a profile σ: looks up the node in the VegasSimple
+/-- Weight of a step under a profile σ: looks up the node in the VegasCore
     and computes the weight from the pre-step partial env. -/
-noncomputable def Step.weight (σ : ProfileSimple) (p : VegasSimple Γ)
-    (s : Step c₁ c₂) : ℚ≥0 :=
-  VegasSimple.nodeWeight σ c₁.env p s.node.id s.value
+noncomputable def Step.weight {P : Type} [DecidableEq P] {L : ExprLanguage}
+    [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+    (σ : Profile P L) {Γ : Ctx P L} (p : VegasCore P L Γ)
+    {c₁ c₂ : Config L} (s : Step c₁ c₂) : ℚ≥0 :=
+  VegasCore.nodeWeight σ c₁.env p s.node.id s.value
 
 /-- Weight of a complete execution (product of step weights). -/
-noncomputable def Execution.weight (σ : ProfileSimple) (p : VegasSimple Γ) :
-    Execution c₁ c₂ → ℚ≥0
+noncomputable def Execution.weight {P : Type} [DecidableEq P] {L : ExprLanguage}
+    [E : ExprKit P L] [D : DistKit P L] [U : PayoffKit P L]
+    (σ : Profile P L) {Γ : Ctx P L} (p : VegasCore P L Γ)
+    {c₁ c₂ : Config L} : Execution c₁ c₂ → ℚ≥0
   | .done => 1
   | .step s rest => s.weight σ p * rest.weight σ p
 
 
 /-- Values assigned to each variable id during an execution. -/
-def Execution.assignments : Execution c₁ c₂ → VarId → Option TaggedVal
+def Execution.assignments {L : ExprLanguage} {c₁ c₂ : Config L} :
+    Execution c₁ c₂ → VarId → Option (TaggedVal L)
   | .done, _ => none
   | .step s rest, x =>
       if s.node.id = x then some s.value else rest.assignments x
@@ -316,7 +331,7 @@ theorem Execution.assignments_none_of_not_mem
 /-- After a complete execution, `env x` equals the assigned value (if any)
     or the initial env (if no node wrote to `x`).
     Requires SSA (unique node ids among pending). -/
-theorem execution_env_at {c₁ c₂ : Config}
+theorem execution_env_at {c₁ c₂ : Config L}
     (exec : Execution c₁ c₂) (hterm : c₂.terminal)
     (huniq : (c₁.pending.map EventNode.id).Nodup) (x : VarId) :
     c₂.env x = match exec.assignments x with
@@ -354,7 +369,7 @@ theorem execution_env_at {c₁ c₂ : Config}
 /-- Two complete executions that assign the same value at each node id
     produce the same final environment, regardless of firing order.
     Requires SSA (unique node ids). -/
-theorem execution_env_unique {c₁ c_term₁ c_term₂ : Config}
+theorem execution_env_unique {c₁ c_term₁ c_term₂ : Config L}
     (exec₁ : Execution c₁ c_term₁)
     (exec₂ : Execution c₁ c_term₂)
     (hterm₁ : c_term₁.terminal) (hterm₂ : c_term₂.terminal)
@@ -370,7 +385,7 @@ namespace ActionGraphExamples
 
 open Examples in
 /-- Extract event graph from matching pennies. -/
-def mpEvents : List EventNode := VegasSimple.extractEvents matchingPennies
+noncomputable def mpEvents : List EventNode := VegasCore.extractEvents matchingPennies
 
 example :
     mpEvents.map (fun n => (n.id, n.kind, n.deps)) =
@@ -380,7 +395,7 @@ example :
 
 open Examples in
 /-- Extract event graph from conditioned game. -/
-def cgEvents : List EventNode := VegasSimple.extractEvents conditionedGame
+noncomputable def cgEvents : List EventNode := VegasCore.extractEvents conditionedGame
 
 example :
     cgEvents.map (fun n => (n.id, n.kind, n.deps)) =
