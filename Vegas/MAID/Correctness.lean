@@ -636,14 +636,6 @@ theorem MAIDCompileState.ofProg_descAt_old
 section
 omit [DecidableEq Player] E D U
 
-theorem HasVar.mem_map_fst
-    {Γ : Ctx Player L} {x : VarId} {τ : BindTy Player L}
-    (h : HasVar (L := L) Γ x τ) :
-    x ∈ Γ.map Prod.fst := by
-  induction h with
-  | here => simp
-  | there h ih => exact List.mem_cons_of_mem _ ih
-
 theorem lookupDepsAux_append_singleton_eq_of_ne
     (vars : List (MAIDVarEntry Player L))
     (x y : VarId) (τ : BindTy Player L) (deps : Finset Nat)
