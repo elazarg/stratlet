@@ -507,6 +507,64 @@ theorem viewVCtx_skip_invisible {p : P} {x : VarId} {τ : BindTy P L}
     viewVCtx p ((x, τ) :: Γ) = viewVCtx p Γ := by
   simp [viewVCtx, Vegas.viewVCtx, h]
 
+/-- Transport the right commit's guard across swapping a distinct player's
+    fresh hidden binding past it. -/
+def commuteGuardRightDistinct
+    {Γ : VCtx P L}
+    {x₁ : VarId} {who₁ who₂ : P} {b₁ : L.Ty}
+    {x₂ : VarId} {b₂ : L.Ty}
+    (hneq : who₁ ≠ who₂)
+    (R₂ : L.Expr ((x₂, b₂) :: eraseVCtx
+      (viewVCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) L.bool) :
+    L.Expr ((x₂, b₂) :: eraseVCtx (viewVCtx who₂ Γ)) L.bool :=
+  cast
+    (by simp [viewVCtx, Vegas.viewVCtx, canSee, Ne.symm hneq])
+    R₂
+
+/-- Transport the left commit's guard across swapping a distinct player's
+    fresh hidden binding past it. -/
+def commuteGuardLeftDistinct
+    {Γ : VCtx P L}
+    {x₂ : VarId} {who₂ who₁ : P} {b₂ : L.Ty}
+    {x₁ : VarId} {b₁ : L.Ty}
+    (hneq : who₁ ≠ who₂)
+    (R₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who₁ Γ)) L.bool) :
+    L.Expr ((x₁, b₁) :: eraseVCtx
+      (viewVCtx who₁ ((x₂, .hidden who₂ b₂) :: Γ))) L.bool :=
+  cast
+    (by simp [viewVCtx, Vegas.viewVCtx, canSee, hneq])
+    R₁
+
+/-- Guard-agreement condition for transporting the left guard across an
+    adjacent distinct-player commit swap. -/
+def GuardTransportLeft
+    {Γ : VCtx P L}
+    {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
+    {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
+    (R₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who₁ Γ)) L.bool)
+    (R₁' : L.Expr ((x₁, b₁) :: eraseVCtx
+      (viewVCtx who₁ ((x₂, .hidden who₂ b₂) :: Γ))) L.bool) : Prop :=
+  ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
+      (e : VEnv (Player := P) L Γ),
+    evalGuard R₁ v₁ (VEnv.toView who₁ e) =
+    evalGuard R₁' v₁
+      (VEnv.toView who₁ (VEnv.cons (τ := .hidden who₂ b₂) v₂ e))
+
+/-- Guard-agreement condition for transporting the right guard across an
+    adjacent distinct-player commit swap. -/
+def GuardTransportRight
+    {Γ : VCtx P L}
+    {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
+    {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
+    (R₂ : L.Expr ((x₂, b₂) :: eraseVCtx
+      (viewVCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) L.bool)
+    (R₂' : L.Expr ((x₂, b₂) :: eraseVCtx (viewVCtx who₂ Γ)) L.bool) : Prop :=
+  ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
+      (e : VEnv (Player := P) L Γ),
+    evalGuard R₂ v₂
+      (VEnv.toView who₂ (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
+    evalGuard R₂' v₂ (VEnv.toView who₂ e)
+
 /-- Two adjacent commits have the same profile-free reachable outcomes when
     their guards and continuations commute pointwise under the swapped
     environments. This is the operational form of commit-commit commutativity:
@@ -531,16 +589,8 @@ theorem canReach_comm_commit
         (e : VEnv (Player := P) L Γ) (oc' : Outcome P),
       CanReach k (VEnv.cons v₂ (VEnv.cons v₁ e)) oc' ↔
       CanReach k' (VEnv.cons v₁ (VEnv.cons v₂ e)) oc')
-    (hR₁ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ),
-      evalGuard R₁ v₁ (VEnv.toView who₁ e) =
-      evalGuard R₁' v₁
-        (VEnv.toView who₁ (VEnv.cons (τ := .hidden who₂ b₂) v₂ e)))
-    (hR₂ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ),
-      evalGuard R₂ v₂
-        (VEnv.toView who₂ (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
-      evalGuard R₂' v₂ (VEnv.toView who₂ e)) :
+    (hR₁ : GuardTransportLeft (P := P) (L := L) R₁ R₁')
+    (hR₂ : GuardTransportRight (P := P) (L := L) R₂ R₂') :
     CanReach
       (.commit x₁ who₁ acts₁ R₁
         (.commit x₂ who₂ acts₂ R₂ k)) env oc ↔
@@ -598,16 +648,8 @@ theorem canReach_comm_commit_distinct
         (e : VEnv (Player := P) L Γ) (oc' : Outcome P),
       CanReach k (VEnv.cons v₂ (VEnv.cons v₁ e)) oc' ↔
       CanReach k' (VEnv.cons v₁ (VEnv.cons v₂ e)) oc')
-    (hR₁ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ),
-      evalGuard R₁ v₁ (VEnv.toView who₁ e) =
-      evalGuard R₁' v₁
-        (VEnv.toView who₁ (VEnv.cons (τ := .hidden who₂ b₂) v₂ e)))
-    (hR₂ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ),
-      evalGuard R₂ v₂
-        (VEnv.toView who₂ (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
-      evalGuard R₂' v₂ (VEnv.toView who₂ e)) :
+    (hR₁ : GuardTransportLeft (P := P) (L := L) R₁ R₁')
+    (hR₂ : GuardTransportRight (P := P) (L := L) R₂ R₂') :
     CanReach
       (.commit x₁ who₁ acts₁ R₁
         (.commit x₂ who₂ acts₂ R₂ k)) env oc ↔
@@ -616,6 +658,49 @@ theorem canReach_comm_commit_distinct
         (.commit x₁ who₁ acts₁ R₁' k')) env oc := by
   let _ := hneq
   exact canReach_comm_commit (env := env) (oc := oc) hk_eq hR₁ hR₂
+
+/-- Distinct-player adjacent commit commutation with canonical transported
+    guards. This is the clean statement to build on; the remaining proof
+    burden is isolated to the two guard-transport side conditions. -/
+theorem canReach_comm_commit_distinct_transport
+    {Γ : VCtx P L} {env : VEnv (Player := P) L Γ} {oc : Outcome P}
+    {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
+    {acts₁ : List (L.Val b₁)}
+    {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who₁ Γ)) L.bool}
+    {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
+    {acts₂ : List (L.Val b₂)}
+    {R₂ : L.Expr ((x₂, b₂) :: eraseVCtx
+      (viewVCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) L.bool}
+    {k : VegasCore P L
+      ((x₂, .hidden who₂ b₂) :: (x₁, .hidden who₁ b₁) :: Γ)}
+    {k' : VegasCore P L
+      ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
+    (hneq : who₁ ≠ who₂)
+    (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
+        (e : VEnv (Player := P) L Γ) (oc' : Outcome P),
+      CanReach k (VEnv.cons v₂ (VEnv.cons v₁ e)) oc' ↔
+      CanReach k' (VEnv.cons v₁ (VEnv.cons v₂ e)) oc')
+    (hR₁ : GuardTransportLeft (P := P) (L := L) R₁
+      (commuteGuardLeftDistinct (P := P) (L := L)
+        (x₂ := x₂) (who₂ := who₂) (b₂ := b₂) hneq R₁))
+    (hR₂ : GuardTransportRight (P := P) (L := L) R₂
+      (commuteGuardRightDistinct (P := P) (L := L)
+        (x₁ := x₁) (who₁ := who₁) (b₁ := b₁) hneq R₂)) :
+    CanReach
+      (.commit x₁ who₁ acts₁ R₁
+        (.commit x₂ who₂ acts₂ R₂ k)) env oc ↔
+    CanReach
+      (.commit x₂ who₂ acts₂ (commuteGuardRightDistinct (P := P) (L := L) hneq R₂)
+        (.commit x₁ who₁ acts₁
+          (commuteGuardLeftDistinct (P := P) (L := L)
+            (x₂ := x₂) (who₂ := who₂) (b₂ := b₂) hneq R₁) k')) env oc := by
+  exact canReach_comm_commit_distinct
+    (env := env) (oc := oc)
+    (R₂' := commuteGuardRightDistinct (P := P) (L := L)
+      (x₁ := x₁) (who₁ := who₁) (b₁ := b₁) hneq R₂)
+    (R₁' := commuteGuardLeftDistinct (P := P) (L := L)
+      (x₂ := x₂) (who₂ := who₂) (b₂ := b₂) hneq R₁)
+    hneq hk_eq hR₁ hR₂
 
 /-- The algebraic core of commit–commit commutativity. -/
 theorem outcomeDist_comm_commit_algebraic
