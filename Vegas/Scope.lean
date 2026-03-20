@@ -13,8 +13,8 @@ recover the intended information-flow discipline extrinsically:
 - `GuardUsesOnly who x Γ R` states that commit guard `R` depends only on the
   proposed action `x` and variables visible to `who`
 - `ViewScoped p` is the recursive scoping judgment for raw Vegas programs
-- `KernelRespectsObservation` / `ProfileRespectsObservation` state that
-  behavioral strategies are invariant under observationally equivalent states
+- `KernelRespectsObservation` / `OperationalProfileRespectsObservation` state
+  that operational kernels are invariant under observationally equivalent states
 
 These predicates let us reason about visibility without re-encoding it into the
 raw core syntax.
@@ -196,15 +196,15 @@ def KernelRespectsObservation
 
 /-- Observation-respecting raw profiles choose the same commit distribution on
     observationally equivalent states at every commit site. -/
-def ProfileRespectsObservation (σ : Profile P L) :
+def OperationalProfileRespectsObservation (σ : OperationalProfile P L) :
     {Γ : VCtx P L} → VegasCore P L Γ → Prop
   | _, .ret _ => True
-  | _, .letExpr _ _ k => ProfileRespectsObservation σ k
-  | _, .sample _ _ _ _ k => ProfileRespectsObservation σ k
+  | _, .letExpr _ _ k => OperationalProfileRespectsObservation σ k
+  | _, .sample _ _ _ _ k => OperationalProfileRespectsObservation σ k
   | Γ, .commit x who R k =>
       KernelRespectsObservation (L := L) (Γ := Γ) (who := who) (σ.commit who x R) ∧
-      ProfileRespectsObservation σ k
-  | _, .reveal _ _ _ _ k => ProfileRespectsObservation σ k
+      OperationalProfileRespectsObservation σ k
+  | _, .reveal _ _ _ _ k => OperationalProfileRespectsObservation σ k
 
 /-- Convenience projection from a scoped commit node to its guard-scoping fact. -/
 theorem ViewScoped.commit_guard_usesOnly
@@ -311,14 +311,15 @@ theorem GuardUsesOnly.not_mem_hidden_other
   · exact (not_mem_visibleVars_hidden_other (L := L) (Γ := Γ)
       (x := x₁) (who := who₂) (owner := who₁) (τ := b₁) hfresh₁ hneq) hxvis
 
-/-- A profile satisfying `ProfileRespectsObservation` chooses the same commit
+/-- An operational profile satisfying
+`OperationalProfileRespectsObservation` chooses the same commit
     kernel output on observationally equivalent states at every commit site. -/
-theorem ProfileRespectsObservation.commit_eq_of_obsEq
+theorem OperationalProfileRespectsObservation.commit_eq_of_obsEq
     {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
     {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
     {k : VegasCore P L ((x, .hidden who b) :: Γ)}
-    {σ : Profile P L}
-    (hσ : ProfileRespectsObservation (L := L) σ (.commit x who R k))
+    {σ : OperationalProfile P L}
+    (hσ : OperationalProfileRespectsObservation (L := L) σ (.commit x who R k))
     {ρ₁ ρ₂ : Env L.Val (eraseVCtx Γ)}
     (hobs : ObsEq (L := L) (Γ := Γ) who ρ₁ ρ₂) :
     σ.commit who x R ρ₁ = σ.commit who x R ρ₂ :=

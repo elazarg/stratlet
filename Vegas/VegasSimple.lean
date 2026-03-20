@@ -1,4 +1,5 @@
 import Vegas.ExprSimple
+import Vegas.Operational
 
 /-!
 # Vegas protocol syntax
@@ -36,8 +37,15 @@ abbrev CommitKernelSimple (who : Player) (Γ : VCtxSimple) (b : BaseTy) :
     Type :=
   Vegas.CommitKernel Player simpleExpr who Γ b
 
-abbrev ProfileSimple : Type := Vegas.Profile Player simpleExpr
+abbrev OperationalProfileSimple : Type := Vegas.OperationalProfile Player simpleExpr
 
-abbrev PProfileSimple : Type := Vegas.PProfile Player simpleExpr
+abbrev PartialOperationalProfileSimple : Type :=
+  Vegas.PartialOperationalProfile Player simpleExpr
+
+/-- Backward-compatible alias. Prefer `OperationalProfileSimple`. -/
+abbrev ProfileSimple : Type := OperationalProfileSimple
+
+/-- Backward-compatible alias. Prefer `PartialOperationalProfileSimple`. -/
+abbrev PProfileSimple : Type := PartialOperationalProfileSimple
 
 end Vegas

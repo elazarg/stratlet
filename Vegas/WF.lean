@@ -189,18 +189,25 @@ def DistinctActs {P : Type} [DecidableEq P]
   | _, .commit _ _ _ k => DistinctActs k
   | _, .reveal _ _ _ _ k => DistinctActs k
 
-def AdmissibleProfile {P : Type} [DecidableEq P]
+def FairPlayProfile {P : Type} [DecidableEq P]
     {L : Vegas.IExpr}
-    (σ : Vegas.Profile P L) :
+    (σ : Vegas.OperationalProfile P L) :
     {Γ : Vegas.VCtx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
-  | _, .letExpr _ _ k => AdmissibleProfile σ k
-  | _, .sample _ _ _ _ k => AdmissibleProfile σ k
+  | _, .letExpr _ _ k => FairPlayProfile σ k
+  | _, .sample _ _ _ _ k => FairPlayProfile σ k
   | _, .commit x who R k =>
     (∀ env, FDist.Supported (σ.commit who x R env)
       (fun a => Vegas.evalGuard (Player := P) (L := L) R a env = true)) ∧
-    AdmissibleProfile σ k
-  | _, .reveal _ _ _ _ k => AdmissibleProfile σ k
+    FairPlayProfile σ k
+  | _, .reveal _ _ _ _ k => FairPlayProfile σ k
+
+/-- Backward-compatible alias for fair-play profiles. Prefer `FairPlayProfile`
+in new code. -/
+abbrev AdmissibleProfile {P : Type} [DecidableEq P]
+    {L : Vegas.IExpr} (σ : Vegas.OperationalProfile P L)
+    {Γ : Vegas.VCtx P L} (p : Vegas.VegasCore P L Γ) : Prop :=
+  FairPlayProfile σ p
 
 namespace DistExpr
 
@@ -224,9 +231,9 @@ def NormalizedDists {P : Type} [DecidableEq P]
   | _, .commit _ _ _ k => NormalizedDists k
   | _, .reveal _ _ _ _ k => NormalizedDists k
 
-def Profile.NormalizedOn {P : Type} [DecidableEq P]
+def OperationalProfile.NormalizedOn {P : Type} [DecidableEq P]
     {L : Vegas.IExpr}
-    (σ : Vegas.Profile P L) :
+    (σ : Vegas.OperationalProfile P L) :
     {Γ : Vegas.VCtx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
   | _, .letExpr _ _ k => σ.NormalizedOn k

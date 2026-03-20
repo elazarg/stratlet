@@ -11,7 +11,7 @@ namespace Vegas
 
 noncomputable def outcomeDist {P : Type} [DecidableEq P]
     {L : Vegas.IExpr}
-    (σ : Vegas.Profile P L) :
+    (σ : Vegas.OperationalProfile P L) :
     {Γ : Vegas.VCtx P L} →
       Vegas.VegasCore P L Γ →
       Vegas.VEnv (Player := P) L Γ →
@@ -42,7 +42,7 @@ noncomputable def outcomeDist {P : Type} [DecidableEq P]
 
 theorem outcomeDist_totalWeight_eq_one {P : Type} [DecidableEq P]
     {L : Vegas.IExpr}
-    {Γ : Vegas.VCtx P L} {σ : Vegas.Profile P L}
+    {Γ : Vegas.VCtx P L} {σ : Vegas.OperationalProfile P L}
     {p : Vegas.VegasCore P L Γ} {env : Vegas.VEnv (Player := P) L Γ}
     (hd : NormalizedDists p) (hσ : σ.NormalizedOn p) :
     (outcomeDist σ p env).totalWeight = 1 := by
