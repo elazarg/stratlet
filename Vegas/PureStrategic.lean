@@ -1,5 +1,7 @@
 import GameTheory.Core.KernelGame
 import GameTheory.Concepts.SolutionConcepts
+import GameTheory.Concepts.PotentialGame
+import GameTheory.Concepts.PotentialFIP
 import GameTheory.Theorems.NashExistence
 import Vegas.Finite
 import Vegas.BigStep
@@ -235,12 +237,26 @@ def IsPureDominant
     (who : P) (s : ProgramPureStrategy (P := P) (L := L) who p) : Prop :=
   (toStrategicKernelGame p env hd).IsDominant who s
 
+/-- Pure strict Nash equilibrium of the fixed-program Vegas strategic form. -/
+def IsPureStrictNash
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (σ : ProgramPureProfile (P := P) (L := L) p) : Prop :=
+  (toStrategicKernelGame p env hd).IsStrictNash σ
+
 /-- Exact potential for the fixed-program Vegas strategic form. -/
 def IsPureExactPotential
     (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
     (hd : NormalizedDists p)
     (Φ : ProgramPureProfile (P := P) (L := L) p → ℝ) : Prop :=
   (toStrategicKernelGame p env hd).IsExactPotential Φ
+
+/-- Ordinal potential for the fixed-program Vegas strategic form. -/
+def IsPureOrdinalPotential
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (Φ : ProgramPureProfile (P := P) (L := L) p → ℝ) : Prop :=
+  (toStrategicKernelGame p env hd).IsOrdinalPotential Φ
 
 /-- If every player has a dominant pure strategy for the fixed program,
 then the program has a pure Nash equilibrium. -/
@@ -253,6 +269,101 @@ theorem pure_nash_of_all_have_dominant
   simpa [IsPureDominant, IsPureNash] using
     (GameTheory.KernelGame.nash_of_all_have_dominant
       (G := toStrategicKernelGame p env hd) h)
+
+/-- Every exact potential on the fixed-program pure strategic form is also an
+ordinal potential. -/
+theorem IsPureExactPotential.toOrdinal
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    {Φ : ProgramPureProfile (P := P) (L := L) p → ℝ}
+    (hΦ : IsPureExactPotential p env hd Φ) :
+    IsPureOrdinalPotential p env hd Φ := by
+  simpa [IsPureExactPotential, IsPureOrdinalPotential] using
+    (GameTheory.KernelGame.IsExactPotential.toOrdinal
+      (G := toStrategicKernelGame p env hd) hΦ)
+
+/-- A global maximizer of an exact potential is a pure Nash equilibrium. -/
+theorem IsPureExactPotential.nash_of_maximizer
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    {Φ : ProgramPureProfile (P := P) (L := L) p → ℝ}
+    (hΦ : IsPureExactPotential p env hd Φ)
+    {σ : ProgramPureProfile (P := P) (L := L) p}
+    (hmax : ∀ τ : ProgramPureProfile (P := P) (L := L) p, Φ σ ≥ Φ τ) :
+    IsPureNash p env hd σ := by
+  simpa [IsPureExactPotential, IsPureNash] using
+    (GameTheory.KernelGame.IsExactPotential.nash_of_maximizer
+      (G := toStrategicKernelGame p env hd) hΦ hmax)
+
+/-- A global maximizer of an ordinal potential is a pure Nash equilibrium. -/
+theorem IsPureOrdinalPotential.nash_of_maximizer
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    {Φ : ProgramPureProfile (P := P) (L := L) p → ℝ}
+    (hΦ : IsPureOrdinalPotential p env hd Φ)
+    {σ : ProgramPureProfile (P := P) (L := L) p}
+    (hmax : ∀ τ : ProgramPureProfile (P := P) (L := L) p, Φ σ ≥ Φ τ) :
+    IsPureNash p env hd σ := by
+  simpa [IsPureOrdinalPotential, IsPureNash] using
+    (GameTheory.KernelGame.IsOrdinalPotential.nash_of_maximizer
+      (G := toStrategicKernelGame p env hd) hΦ hmax)
+
+/-- A strict global maximizer of an exact potential is a pure strict Nash
+equilibrium. -/
+theorem IsPureExactPotential.strictNash_of_strict_maximizer
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    {Φ : ProgramPureProfile (P := P) (L := L) p → ℝ}
+    (hΦ : IsPureExactPotential p env hd Φ)
+    {σ : ProgramPureProfile (P := P) (L := L) p}
+    (hmax : ∀ τ : ProgramPureProfile (P := P) (L := L) p, τ ≠ σ → Φ σ > Φ τ) :
+    IsPureStrictNash p env hd σ := by
+  intro who s' hs'
+  have hpot := hΦ who σ s'
+  have hne : Function.update σ who s' ≠ σ := by
+    intro h
+    apply hs'
+    have := congr_fun h who
+    simpa [Function.update] using this
+  have hlt := hmax _ hne
+  linarith
+
+/-- In the fixed-program pure strategic form, exact-potential Nash equilibria
+are exactly the local maximizers of the potential. -/
+theorem IsPureExactPotential.isNash_iff_local_maximizer
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    {Φ : ProgramPureProfile (P := P) (L := L) p → ℝ}
+    (hΦ : IsPureExactPotential p env hd Φ)
+    {σ : ProgramPureProfile (P := P) (L := L) p} :
+    IsPureNash p env hd σ ↔
+      ∀ who (s' : ProgramPureStrategy (P := P) (L := L) who p),
+        Φ σ ≥ Φ (Function.update σ who s') := by
+  constructor
+  · intro hN who s'
+    have hpot := hΦ who σ s'
+    have hge := hN who s'
+    linarith
+  · intro hmax who s'
+    have hpot := hΦ who σ s'
+    have hge := hmax who s'
+    linarith
+
+/-- In the fixed-program pure strategic form, ordinal-potential Nash
+equilibria are exactly the local maximizers of the potential. -/
+theorem IsPureOrdinalPotential.isNash_iff_local_maximizer
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    {Φ : ProgramPureProfile (P := P) (L := L) p → ℝ}
+    (hΦ : IsPureOrdinalPotential p env hd Φ)
+    {σ : ProgramPureProfile (P := P) (L := L) p} :
+    IsPureNash p env hd σ ↔
+      ∀ who (s' : ProgramPureStrategy (P := P) (L := L) who p),
+        Φ σ ≥ Φ (Function.update σ who s') := by
+  simpa [IsPureOrdinalPotential, IsPureNash] using
+    (GameTheory.KernelGame.IsOrdinalPotential.isNash_iff_local_maximizer
+      (G := toStrategicKernelGame p env hd) hΦ
+      (σ := σ))
 
 /-- An exact potential on the fixed-program pure strategic form guarantees a
 pure Nash equilibrium, provided the pure profile space is nonempty. -/
