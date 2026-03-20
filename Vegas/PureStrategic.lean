@@ -1,10 +1,13 @@
 import GameTheory.Core.KernelGame
 import GameTheory.Concepts.SolutionConcepts
+import GameTheory.Concepts.BestResponse
+import GameTheory.Concepts.NashProperties
 import GameTheory.Concepts.PotentialGame
 import GameTheory.Concepts.PotentialFIP
 import GameTheory.Theorems.NashExistence
 import Vegas.Finite
 import Vegas.BigStep
+import Vegas.Strategic
 
 /-!
 # Fixed-Program Pure Strategic Form
@@ -133,6 +136,25 @@ noncomputable instance instFintype
 
 end ProgramPureProfile
 
+namespace PureProfile
+
+/-- A global pure Vegas profile agrees with a fixed-program pure profile when
+they choose the same action at every commit site encountered in the program. -/
+def AgreesOnProgram
+    (π : PureProfile (P := P) (L := L)) :
+    {Γ : VCtx P L} →
+      (p : VegasCore P L Γ) →
+      ProgramPureProfile (P := P) (L := L) p → Prop
+  | _, .ret _, _ => True
+  | _, .letExpr _ _ k, σ => AgreesOnProgram π k σ
+  | _, .sample _ _ _ _ k, σ => AgreesOnProgram π k σ
+  | _, .commit x who R k, σ =>
+      (π who).commit x R = ProgramPureStrategy.headKernel (P := P) (L := L) (σ who) ∧
+      AgreesOnProgram π k (ProgramPureProfile.tail (P := P) (L := L) σ)
+  | _, .reveal _ _ _ _ k, σ => AgreesOnProgram π k σ
+
+end PureProfile
+
 /-- Evaluate a fixed-program pure profile directly, threading the continuation
 profile through the program structure. -/
 noncomputable def outcomeDistPure :
@@ -184,6 +206,37 @@ theorem outcomeDistPure_totalWeight_eq_one
   | reveal y who x hx k ih =>
       exact ih hd
 
+/-- If a global pure Vegas profile agrees with a fixed-program pure profile on
+the commit sites of `p`, then both induce the same outcome distribution on `p`. -/
+theorem outcomeDist_eq_outcomeDistPure_of_agrees
+    (π : PureProfile (P := P) (L := L))
+    {Γ : VCtx P L} {p : VegasCore P L Γ}
+    {σ : ProgramPureProfile (P := P) (L := L) p}
+    {env : VEnv (Player := P) L Γ}
+    (hag : PureProfile.AgreesOnProgram (P := P) (L := L) π p σ) :
+    outcomeDist π.toOperationalProfile p env = outcomeDistPure p σ env := by
+  induction p with
+  | ret u =>
+      rfl
+  | letExpr x e k ih =>
+      simpa [outcomeDist, outcomeDistPure] using ih hag
+  | sample x τ m D' k ih =>
+      simp only [outcomeDist, outcomeDistPure, ih hag]
+  | commit x who R k ih =>
+      rcases hag with ⟨hhead, htail⟩
+      simp only [outcomeDist, outcomeDistPure]
+      rw [show
+          π.toOperationalProfile.commit who x R (VEnv.eraseEnv env) =
+            FDist.pure
+              ((ProgramPureStrategy.headKernel (P := P) (L := L) (σ who))
+                (projectViewEnv (P := P) (L := L) who (VEnv.eraseEnv env))) by
+            simp [PureProfile.toOperationalProfile, PureProfile.toBehavioral,
+              BehavioralProfile.toOperationalProfile, BehavioralStrategy.toOperationalKernel,
+              PureStrategy.toBehavioral, hhead]]
+      simpa [FDist.pure_bind] using ih htail
+  | reveal y who x hx k ih =>
+      simpa [outcomeDist, outcomeDistPure] using ih hag
+
 /-- Fixed-program pure strategic form of a Vegas program. -/
 noncomputable def toStrategicKernelGame
     (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
@@ -223,6 +276,45 @@ theorem toStrategicKernelGame_eu
       (h := hnorm)
       (f := fun o => (o who : ℝ)))
 
+/-- If a global pure Vegas profile agrees with a fixed-program pure profile on
+`p`, then the ordinary behavioral `toKernelGame` and the fixed-program pure
+`toStrategicKernelGame` have the same outcome kernel on these profiles. -/
+theorem toKernelGame_outcomeKernel_eq_toStrategicKernelGame_of_agrees
+    (π : PureProfile (P := P) (L := L))
+    {Γ : VCtx P L} (p : VegasCore P L Γ)
+    (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (σ : ProgramPureProfile (P := P) (L := L) p)
+    (hag : PureProfile.AgreesOnProgram (P := P) (L := L) π p σ) :
+    (toKernelGame p env hd).outcomeKernel π.toBehavioral =
+      (toStrategicKernelGame p env hd).outcomeKernel σ := by
+  have hout :
+      outcomeDist π.toBehavioral.toOperationalProfile p env = outcomeDistPure p σ env := by
+    simpa [PureProfile.toOperationalProfile] using
+      outcomeDist_eq_outcomeDistPure_of_agrees (P := P) (L := L) π hag
+  rw [toKernelGame_outcomeKernel, toStrategicKernelGame_outcomeKernel]
+  simp [hout]
+
+/-- Under agreement on the commit sites of `p`, the ordinary behavioral Vegas
+kernel game and the fixed-program pure strategic form assign the same expected
+utility. -/
+theorem toKernelGame_eu_eq_toStrategicKernelGame_eu_of_agrees
+    (π : PureProfile (P := P) (L := L))
+    {Γ : VCtx P L} (p : VegasCore P L Γ)
+    (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (σ : ProgramPureProfile (P := P) (L := L) p)
+    (hag : PureProfile.AgreesOnProgram (P := P) (L := L) π p σ)
+    (who : P) :
+    (toKernelGame p env hd).eu π.toBehavioral who =
+      (toStrategicKernelGame p env hd).eu σ who := by
+  have hout :
+      outcomeDist π.toBehavioral.toOperationalProfile p env = outcomeDistPure p σ env := by
+    simpa [PureProfile.toOperationalProfile] using
+      outcomeDist_eq_outcomeDistPure_of_agrees (P := P) (L := L) π hag
+  rw [toKernelGame_eu, toStrategicKernelGame_eu]
+  simp [hout]
+
 /-- Pure Nash equilibrium of the fixed-program Vegas strategic form. -/
 def IsPureNash
     (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
@@ -236,6 +328,14 @@ def IsPureDominant
     (hd : NormalizedDists p)
     (who : P) (s : ProgramPureStrategy (P := P) (L := L) who p) : Prop :=
   (toStrategicKernelGame p env hd).IsDominant who s
+
+/-- Pure best response in the fixed-program Vegas strategic form. -/
+def IsPureBestResponse
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (who : P) (σ : ProgramPureProfile (P := P) (L := L) p)
+    (s : ProgramPureStrategy (P := P) (L := L) who p) : Prop :=
+  (toStrategicKernelGame p env hd).IsBestResponse who σ s
 
 /-- Pure strict Nash equilibrium of the fixed-program Vegas strategic form. -/
 def IsPureStrictNash
@@ -269,6 +369,59 @@ theorem pure_nash_of_all_have_dominant
   simpa [IsPureDominant, IsPureNash] using
     (GameTheory.KernelGame.nash_of_all_have_dominant
       (G := toStrategicKernelGame p env hd) h)
+
+/-- Pure Nash equilibrium is exactly everyone playing a pure best response. -/
+theorem isPureNash_iff_bestResponse
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (σ : ProgramPureProfile (P := P) (L := L) p) :
+    IsPureNash p env hd σ ↔
+      ∀ who, IsPureBestResponse p env hd who σ (σ who) := by
+  simpa [IsPureNash, IsPureBestResponse] using
+    (GameTheory.KernelGame.isNash_iff_bestResponse
+      (G := toStrategicKernelGame p env hd) σ)
+
+/-- Any pure dominant strategy is a pure best response against every profile. -/
+theorem pure_dominant_isBestResponse
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (who : P)
+    (s : ProgramPureStrategy (P := P) (L := L) who p)
+    (σ : ProgramPureProfile (P := P) (L := L) p)
+    (hdom : IsPureDominant p env hd who s) :
+    IsPureBestResponse p env hd who σ s := by
+  simpa [IsPureDominant, IsPureBestResponse] using
+    (GameTheory.KernelGame.dominant_isBestResponse
+      (G := toStrategicKernelGame p env hd) who s σ hdom)
+
+/-- In the fixed-program pure strategic form, pure Nash is equivalent to there
+being no strictly improving pure unilateral deviation. -/
+theorem isPureNash_iff_no_improving
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    {σ : ProgramPureProfile (P := P) (L := L) p} :
+    IsPureNash p env hd σ ↔
+      ¬ ∃ (who : P) (s' : ProgramPureStrategy (P := P) (L := L) who p),
+        (toStrategicKernelGame p env hd).eu (Function.update σ who s') who >
+          (toStrategicKernelGame p env hd).eu σ who := by
+  simpa [IsPureNash] using
+    (GameTheory.KernelGame.isNash_iff_no_improving
+      (G := toStrategicKernelGame p env hd) (σ := σ))
+
+/-- Replacing a pure Nash action with another pure best response preserves the
+deviator's expected utility. -/
+theorem pure_nash_update_bestResponse_eu_eq
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    {σ : ProgramPureProfile (P := P) (L := L) p}
+    (hN : IsPureNash p env hd σ)
+    {who : P} {s' : ProgramPureStrategy (P := P) (L := L) who p}
+    (hbr : IsPureBestResponse p env hd who σ s') :
+    (toStrategicKernelGame p env hd).eu (Function.update σ who s') who =
+      (toStrategicKernelGame p env hd).eu σ who := by
+  simpa [IsPureNash, IsPureBestResponse] using
+    (GameTheory.KernelGame.isNash_update_bestResponse
+      (G := toStrategicKernelGame p env hd) hN hbr)
 
 /-- Every exact potential on the fixed-program pure strategic form is also an
 ordinal potential. -/
