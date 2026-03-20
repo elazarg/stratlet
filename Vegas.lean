@@ -5,12 +5,14 @@ import Vegas.ExprSimple
 import Vegas.VegasSimple
 import Vegas.WF
 import Vegas.Scope
+import Vegas.Finite
 import Vegas.Examples
 import Vegas.BigStep
 import Vegas.TraceSemantics
 import Vegas.TraceCorollaries
 import Vegas.ActionGraph
 import Vegas.Strategies
+import Vegas.PureStrategic
 import Vegas.Strategic
 import Vegas.Equilibrium
 import Vegas.MAID
