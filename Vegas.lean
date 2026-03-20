@@ -15,4 +15,8 @@ import Vegas.ViewKernel
 import Vegas.PureStrategic
 import Vegas.Strategic
 import Vegas.Equilibrium
+import Vegas.GameProperties
+import Vegas.Corollaries.Equilibrium
+import Vegas.Corollaries.GameProperties
+import Vegas.Corollaries.PureStrategic
 import Vegas.MAID
