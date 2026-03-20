@@ -1,0 +1,106 @@
+% macros.tex — Vegas paper notation
+
+% ── Packages ──────────────────────────────────────────────────────────
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{stmaryrd}       % \llbracket, \rrbracket
+\usepackage{mathtools}       % \coloneqq
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+% ── Theorem environments ──────────────────────────────────────────────
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+% ── Players and sets ──────────────────────────────────────────────────
+\newcommand{\Players}{\mathcal{I}}
+\newcommand{\pl}[1]{i_{#1}}                % player subscript
+
+% ── Types and values ──────────────────────────────────────────────────
+\newcommand{\Ty}{\mathsf{Ty}}
+\newcommand{\Val}{\mathsf{Val}}
+\newcommand{\Expr}{\mathsf{Expr}}
+\newcommand{\bool}{\mathsf{bool}}
+\newcommand{\intt}{\mathsf{int}}
+
+% ── Visibility annotations ────────────────────────────────────────────
+\newcommand{\pub}{\ensuremath{\mathsf{pub}}}
+\newcommand{\hid}{\ensuremath{\mathsf{hid}}}
+
+% ── Contexts ──────────────────────────────────────────────────────────
+\newcommand{\VCtx}{\Gamma}
+\newcommand{\view}[1]{\Gamma\!\!\downarrow_{#1}}       % viewVCtx
+\newcommand{\pubctx}[1]{#1^{\pub}}                     % pubVCtx
+\newcommand{\flatctx}[1]{\lfloor #1 \rfloor}           % flattenVCtx
+\newcommand{\erasectx}[1]{\| #1 \|}                    % eraseVCtx
+\newcommand{\erasepub}[1]{\| #1^{\pub} \|}             % erasePubVCtx
+
+% ── Constructs ────────────────────────────────────────────────────────
+\newcommand{\Ret}{\ensuremath{\mathbf{ret}}}
+\newcommand{\Let}{\ensuremath{\mathbf{let}}}
+\newcommand{\Sample}{\ensuremath{\mathbf{sample}}}
+\newcommand{\Commit}{\ensuremath{\mathbf{commit}}}
+\newcommand{\Reveal}{\ensuremath{\mathbf{reveal}}}
+
+% ── Distributions ─────────────────────────────────────────────────────
+\newcommand{\FDist}[1]{\mathcal{D}(#1)}
+\newcommand{\PMF}[1]{\mathrm{PMF}(#1)}
+
+% ── Denotational semantics ────────────────────────────────────────────
+\newcommand{\den}[1]{\llbracket #1 \rrbracket}         % \den{p}
+\newcommand{\densub}[2]{\llbracket #1 \rrbracket_{#2}} % \densub{p}{\sigma}
+
+% ── Outcomes ──────────────────────────────────────────────────────────
+\newcommand{\Outcome}{\mathcal{O}}
+\newcommand{\outcomeDist}{\mathrm{outcomeDist}}
+
+% ── Profiles and strategies ───────────────────────────────────────────
+\newcommand{\Profile}{\sigma}
+\newcommand{\CommitKernel}{\kappa}
+\newcommand{\Admissible}{\mathrm{Admissible}}
+
+% ── Traces ────────────────────────────────────────────────────────────
+\newcommand{\Tr}[1]{\mathrm{Tr}(#1)}
+\newcommand{\trweight}[1]{w_{#1}}                      % traceWeight
+\newcommand{\trout}{\mathrm{out}}                       % traceOutcome
+
+% ── Strategic bridge ──────────────────────────────────────────────────
+\newcommand{\KG}{\mathcal{G}}
+\newcommand{\toKG}{\mathrm{game}}
+\newcommand{\EU}{\mathrm{EU}}
+
+% ── MAID ──────────────────────────────────────────────────────────────
+\newcommand{\MAID}{\mathrm{MAID}}
+
+% ── Standing assumptions ──────────────────────────────────────────────
+\newcommand{\Legal}{\mathrm{Legal}}
+\newcommand{\DistinctActs}{\mathrm{DistinctActs}}
+\newcommand{\NormDists}{\mathrm{NormalizedDists}}
+\newcommand{\NormOn}{\mathrm{NormalizedOn}}
+\newcommand{\WF}{\mathrm{WF}}
+\newcommand{\FreshBindings}{\mathrm{FreshBindings}}
+\newcommand{\RevealComplete}{\mathrm{RevealComplete}}
+
+% ── Environments ──────────────────────────────────────────────────────
+\newcommand{\VEnv}{\mathrm{VEnv}}
+\newcommand{\Env}{\mathrm{Env}}
+
+% ── Misc math ─────────────────────────────────────────────────────────
+\newcommand{\NNQ}{\mathbb{Q}_{\ge 0}}
+\newcommand{\Reach}{\mathrm{Reach}}
+\newcommand{\CanReach}{\mathrm{CanReach}}
+\newcommand{\PlayerStrat}{\mathrm{PlayerStrategy}}
+\newcommand{\fresh}{\mathrm{Fresh}}
+\newcommand{\bind}{\mathbin{\gg\!=}}
+
+% ── Lean references ───────────────────────────────────────────────────
+\newcommand{\leanref}[1]{\texttt{#1}}
