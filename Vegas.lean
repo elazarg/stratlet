@@ -1,5 +1,6 @@
 import Vegas.FDist
 import Vegas.Core
+import Vegas.Operational
 import Vegas.ExprSimple
 import Vegas.VegasSimple
 import Vegas.WF
@@ -9,6 +10,7 @@ import Vegas.BigStep
 import Vegas.TraceSemantics
 import Vegas.TraceCorollaries
 import Vegas.ActionGraph
+import Vegas.Strategies
 import Vegas.Strategic
 import Vegas.Equilibrium
 import Vegas.MAID
