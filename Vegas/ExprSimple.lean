@@ -127,6 +127,47 @@ theorem dist_deps_sound {Γ : CtxSimple} {b : BaseTy}
     · exact iht (ha.mono (Finset.subset_union_right.trans Finset.subset_union_left))
     · exact ihf (ha.mono Finset.subset_union_right)
 
+def Expr.weakenAfterHead
+    {Γ : CtxSimple} {x y : VarId} {τ σ b : BaseTy}
+    (e : Expr ((x, τ) :: Γ) b) : Expr ((x, τ) :: (y, σ) :: Γ) b :=
+  match e with
+  | .var _ .here => .var x .here
+  | .var z (.there h') => .var z (.there (.there h'))
+  | .constInt i => .constInt i
+  | .constBool v => .constBool v
+  | .addInt l r => .addInt l.weakenAfterHead r.weakenAfterHead
+  | .eqInt l r => .eqInt l.weakenAfterHead r.weakenAfterHead
+  | .eqBool l r => .eqBool l.weakenAfterHead r.weakenAfterHead
+  | .andBool l r => .andBool l.weakenAfterHead r.weakenAfterHead
+  | .notBool e => .notBool e.weakenAfterHead
+  | .ite c t f => .ite c.weakenAfterHead t.weakenAfterHead f.weakenAfterHead
+
+theorem evalExpr_weakenAfterHead
+    {Γ : CtxSimple} {x y : VarId} {τ σ b : BaseTy}
+    (e : Expr ((x, τ) :: Γ) b)
+    (vx : Val τ) (vy : Val σ) (env : PlainEnv Γ) :
+    evalExpr e.weakenAfterHead (Env.cons (x := x) vx (Env.cons (x := y) vy env)) =
+      evalExpr e (Env.cons (x := x) vx env) := by
+  induction e with
+  | var z h =>
+      cases h <;> simp [Expr.weakenAfterHead, evalExpr]
+  | constInt i =>
+      simp [Expr.weakenAfterHead, evalExpr]
+  | constBool v =>
+      simp [Expr.weakenAfterHead, evalExpr]
+  | addInt l r ihl ihr =>
+      simp [Expr.weakenAfterHead, evalExpr, ihl, ihr]
+  | eqInt l r ihl ihr =>
+      simp [Expr.weakenAfterHead, evalExpr, ihl, ihr]
+  | eqBool l r ihl ihr =>
+      simp [Expr.weakenAfterHead, evalExpr, ihl, ihr]
+  | andBool l r ihl ihr =>
+      simp [Expr.weakenAfterHead, evalExpr, ihl, ihr]
+  | notBool e ih =>
+      simp [Expr.weakenAfterHead, evalExpr, ih]
+  | ite c t f ihc iht ihf =>
+      simp [Expr.weakenAfterHead, evalExpr, ihc, iht, ihf]
+
 /-- The current concrete language, viewed as an instance of `IExpr`. -/
 noncomputable def simpleExpr : Vegas.IExpr where
   Ty := BaseTy
@@ -140,6 +181,11 @@ noncomputable def simpleExpr : Vegas.IExpr where
   Expr := Expr
   eval := @evalExpr
   exprDeps := @exprDeps
+  extendAfterHead := by
+    intro Γ x y τ σ b e
+    refine ⟨e.weakenAfterHead, ?_⟩
+    intro vx vy env
+    exact evalExpr_weakenAfterHead e vx vy env
   DistExpr := DistExpr
   evalDist := @evalDistExpr
   distDeps := @distExprDeps

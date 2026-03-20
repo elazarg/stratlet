@@ -98,6 +98,13 @@ structure IExpr where
   Expr : Ctx Ty → Ty → Type
   eval : {Γ : Ctx Ty} → {τ : Ty} → Expr Γ τ → Env Val Γ → Val τ
   exprDeps : {Γ : Ctx Ty} → {τ : Ty} → Expr Γ τ → Finset VarId
+  extendAfterHead :
+    ∀ {Γ : Ctx Ty} {x y : VarId} {τ σ b : Ty}
+      (e : Expr ((x, τ) :: Γ) b),
+      ∃ e' : Expr ((x, τ) :: (y, σ) :: Γ) b,
+        ∀ (vx : Val τ) (vy : Val σ) (env : Env Val Γ),
+          eval e' (Env.cons (x := x) vx (Env.cons (x := y) vy env)) =
+            eval e (Env.cons (x := x) vx env)
   DistExpr : Ctx Ty → Ty → Type
   evalDist : {Γ : Ctx Ty} → {τ : Ty} →
     DistExpr Γ τ → Env Val Γ → @FDist (Val τ) decEqVal
