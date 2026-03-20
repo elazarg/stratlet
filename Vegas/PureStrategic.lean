@@ -1,4 +1,6 @@
 import GameTheory.Core.KernelGame
+import GameTheory.Concepts.SolutionConcepts
+import GameTheory.Theorems.NashExistence
 import Vegas.Finite
 import Vegas.BigStep
 
@@ -114,6 +116,19 @@ def tail
         exact ProgramPureStrategy.tailOwn (P := P) (L := L) (σ who)
       · simpa [ProgramPureStrategy, h] using σ i
 
+noncomputable instance instFintype
+    (LF : FiniteValuation L) [Fintype P]
+    {Γ : VCtx P L} (p : VegasCore P L Γ) :
+    Fintype (ProgramPureProfile (P := P) (L := L) p) := by
+  classical
+  dsimp [ProgramPureProfile]
+  exact @Pi.instFintype
+    P
+    (fun who => ProgramPureStrategy (P := P) (L := L) who p)
+    inferInstance
+    inferInstance
+    (fun who => ProgramPureStrategy.instFintype (P := P) (L := L) LF who p)
+
 end ProgramPureProfile
 
 /-- Evaluate a fixed-program pure profile directly, threading the continuation
@@ -205,5 +220,59 @@ theorem toStrategicKernelGame_eu
       (d := outcomeDistPure p σ env)
       (h := hnorm)
       (f := fun o => (o who : ℝ)))
+
+/-- Pure Nash equilibrium of the fixed-program Vegas strategic form. -/
+def IsPureNash
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (σ : ProgramPureProfile (P := P) (L := L) p) : Prop :=
+  (toStrategicKernelGame p env hd).IsNash σ
+
+/-- Pure dominant strategy in the fixed-program Vegas strategic form. -/
+def IsPureDominant
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (who : P) (s : ProgramPureStrategy (P := P) (L := L) who p) : Prop :=
+  (toStrategicKernelGame p env hd).IsDominant who s
+
+/-- Exact potential for the fixed-program Vegas strategic form. -/
+def IsPureExactPotential
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (Φ : ProgramPureProfile (P := P) (L := L) p → ℝ) : Prop :=
+  (toStrategicKernelGame p env hd).IsExactPotential Φ
+
+/-- If every player has a dominant pure strategy for the fixed program,
+then the program has a pure Nash equilibrium. -/
+theorem pure_nash_of_all_have_dominant
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (h : ∀ who, ∃ s : ProgramPureStrategy (P := P) (L := L) who p,
+      IsPureDominant p env hd who s) :
+    ∃ σ : ProgramPureProfile (P := P) (L := L) p, IsPureNash p env hd σ := by
+  simpa [IsPureDominant, IsPureNash] using
+    (GameTheory.KernelGame.nash_of_all_have_dominant
+      (G := toStrategicKernelGame p env hd) h)
+
+/-- An exact potential on the fixed-program pure strategic form guarantees a
+pure Nash equilibrium, provided the pure profile space is nonempty. -/
+theorem pure_exact_potential_nash_exists
+    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (hd : NormalizedDists p)
+    (LF : FiniteValuation L) [Finite P]
+    {Φ : ProgramPureProfile (P := P) (L := L) p → ℝ}
+    (hΦ : IsPureExactPotential p env hd Φ)
+    [Nonempty (ProgramPureProfile (P := P) (L := L) p)] :
+    ∃ σ : ProgramPureProfile (P := P) (L := L) p, IsPureNash p env hd σ := by
+  let _ : Fintype P := Fintype.ofFinite P
+  let _ : Fintype (ProgramPureProfile (P := P) (L := L) p) :=
+    ProgramPureProfile.instFintype (P := P) (L := L) LF p
+  let _ : Fintype ((toStrategicKernelGame p env hd).Profile) :=
+    ProgramPureProfile.instFintype (P := P) (L := L) LF p
+  let _ : Nonempty ((toStrategicKernelGame p env hd).Profile) :=
+    inferInstanceAs (Nonempty (ProgramPureProfile (P := P) (L := L) p))
+  simpa [IsPureExactPotential, IsPureNash] using
+    (GameTheory.KernelGame.exact_potential_nash_exists
+      (G := toStrategicKernelGame p env hd) (Φ := Φ) hΦ)
 
 end Vegas
