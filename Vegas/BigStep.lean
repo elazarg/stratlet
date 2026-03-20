@@ -28,9 +28,9 @@ noncomputable def outcomeDist {P : Type} [DecidableEq P]
         (fun v =>
           outcomeDist σ k
             (Vegas.VEnv.cons (Player := P) (L := L) (x := x) (τ := τ) v env))
-  | _, .commit x who acts R k, env =>
+  | _, .commit x who R k, env =>
       FDist.bind
-        (σ.commit who x acts R (Vegas.VEnv.toView (Player := P) (L := L) who env))
+        (σ.commit who x R (Vegas.VEnv.eraseEnv env))
         (fun v =>
           outcomeDist σ k
             (Vegas.VEnv.cons (Player := P) (L := L) (x := x)
@@ -54,7 +54,7 @@ theorem outcomeDist_totalWeight_eq_one {P : Type} [DecidableEq P]
   | sample x τ m D' k ih =>
       simp only [outcomeDist]
       exact FDist.totalWeight_bind_of_normalized (hd.1 _) (fun _ _ => ih hd.2 hσ)
-  | commit x who acts R k ih =>
+  | commit x who R k ih =>
       simp only [outcomeDist]
       exact FDist.totalWeight_bind_of_normalized (hσ.1 _) (fun _ _ => ih hd hσ.2)
   | reveal y who x hx k ih =>

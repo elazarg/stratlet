@@ -118,6 +118,27 @@ theorem nonutility_pos (nd : CompiledNode Player L B)
 
 end CompiledNode
 
+/-- Canonical enumeration of all values of a finite language type. The Vegas
+core no longer carries explicit action lists, so the MAID backend derives its
+decision-domain menu from the finite value type itself. -/
+noncomputable def allValues (B : MAIDBackend Player L) (τ : L.Ty) : List (L.Val τ) := by
+  let _ : Fintype (L.Val τ) := B.toMAIDValuation.instFintypeVal L τ
+  exact (Finset.univ : Finset (L.Val τ)).toList
+
+theorem allValues_nodup (B : MAIDBackend Player L) (τ : L.Ty) :
+    (allValues B τ).Nodup := by
+  let _ : Fintype (L.Val τ) := B.toMAIDValuation.instFintypeVal L τ
+  simpa [allValues] using Finset.nodup_toList (Finset.univ : Finset (L.Val τ))
+
+theorem allValues_ne_nil (B : MAIDBackend Player L) (τ : L.Ty) :
+    allValues B τ ≠ [] := by
+  intro hnil
+  have hlen : (allValues B τ).length = 0 := by simpa [hnil]
+  have hpos := B.domainSize_pos τ
+  have hlen' : 0 < (allValues B τ).length := by
+    simpa [allValues, MAIDBackend.domainSize] using hpos
+  omega
+
 /-- Variable-to-dependency entries accumulated during compilation. -/
 abbrev MAIDVarEntry (Player : Type) (L : IExpr) :=
   VarId × BindTy Player L × Finset Nat
@@ -261,6 +282,13 @@ noncomputable def defaultView (B : MAIDBackend Player L) :
         (MAIDValuation.defaultVal L B.toMAIDValuation τ.base)
         (defaultView B Γ)
 
+noncomputable def defaultEnv (B : MAIDBackend Player L) :
+    (Γ : Ctx L.Ty) → Env L.Val Γ
+  | [] => Env.empty L.Val
+  | (_, τ) :: Γ =>
+      Env.cons (MAIDValuation.defaultVal L B.toMAIDValuation τ)
+        (defaultEnv B Γ)
+
 def addUtilityNodes (st : MAIDCompileState Player L B)
     (deps : Finset Nat) (hdeps : ∀ d ∈ deps, d < st.nextId)
     (ufn : Player → RawNodeEnv L → ℝ) :
@@ -379,21 +407,21 @@ noncomputable def ofProg
             simpa using hd'
           subst d
           exact Nat.lt_succ_self _))
-  | Γ, .commit (b := b) x who acts R k, hl, ha, hd, ρ, st =>
+  | Γ, .commit (b := b) x who R k, hl, ha, hd, ρ, st =>
       let obs := st.ctxDeps Γ
-      have hacts : acts ≠ [] := by
-        rcases hl.1 (defaultView B (viewVCtx who Γ)) with ⟨a, ha, _⟩
-        exact List.ne_nil_of_mem ha
+      let acts := allValues B b
+      have hacts : acts ≠ [] := allValues_ne_nil B b
+      have hnodup : acts.Nodup := allValues_nodup B b
       let id := st.nextId
       let res := st.addNode
-        (.decision b who acts hacts ha.1 obs
-          (fun σ raw => σ.commit who x acts R (VEnv.toView who (ρ raw)))) (by
+        (.decision b who acts hacts hnodup obs
+          (fun σ raw => σ.commit who x R (VEnv.eraseEnv (ρ raw)))) (by
         intro d hd'
         have hd'' : d ∈ obs := by
           simpa [CompiledNode.parents, CompiledNode.obsParents] using hd'
         exact st.depsOfVars_lt _ d hd'')
       let st' := res.2
-      ofProg B k hl.2 ha.2 hd
+      ofProg B k hl.2 ha hd
         (fun raw =>
           let env := ρ raw
           let v := MAIDCompileState.readVal (B := B) raw b id

@@ -521,14 +521,15 @@ noncomputable def evalPayoffs {Player : Type} [DecidableEq Player]
       acc + Finsupp.single p (L.toInt (L.eval e (VEnv.erasePubEnv env))))
     0
 
-/-- Evaluate a commit guard against a proposed action and the committing
-player's current view. -/
+/-- Evaluate a commit guard against a proposed action and the full erased
+    environment. Visibility is enforced by dependency constraints on `R`,
+    not by restricting the environment type. -/
 def evalGuard {Player : Type} [DecidableEq Player] {L : IExpr}
     {Γ : VCtx Player L} {b : L.Ty}
-    {who : Player} {x : VarId}
-    (R : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) L.bool)
-    (a : L.Val b) (view : VEnv (Player := Player) L (viewVCtx who Γ)) : Bool :=
-  L.toBool (L.eval R (Env.cons a (VEnv.eraseEnv view)))
+    {x : VarId}
+    (R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool)
+    (a : L.Val b) (env : Env L.Val (eraseVCtx Γ)) : Bool :=
+  L.toBool (L.eval R (Env.cons a env))
 
 /- Generic Vegas-style protocol syntax over an expression language. -/
 inductive VegasCore (Player : Type) [DecidableEq Player] (L : IExpr) :
@@ -544,8 +545,7 @@ inductive VegasCore (Player : Type) [DecidableEq Player] (L : IExpr) :
       (k : VegasCore Player L ((x, τ) :: Γ)) :
       VegasCore Player L Γ
   | commit {Γ} (x : VarId) (who : Player) {b : L.Ty}
-      (acts : List (L.Val b))
-      (R : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) L.bool)
+      (R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool)
       (k : VegasCore Player L ((x, .hidden who b) :: Γ)) :
       VegasCore Player L Γ
   | reveal {Γ} (y : VarId) (who : Player) (x : VarId) {b : L.Ty}
@@ -553,35 +553,37 @@ inductive VegasCore (Player : Type) [DecidableEq Player] (L : IExpr) :
       (k : VegasCore Player L ((y, .pub b) :: Γ)) :
       VegasCore Player L Γ
 
-/-- Generic commit kernels indexed by a player view. -/
+/-- Generic commit kernels: given the full erased environment, produce a
+    distribution over action values. Visibility is a side condition on the
+    kernel's dependency set, not a type constraint. -/
 abbrev CommitKernel (Player : Type) [DecidableEq Player] (L : IExpr)
-    (who : Player) (Γ : VCtx Player L) (b : L.Ty) : Type :=
-  VEnv (Player := Player) L (viewVCtx who Γ) → FDist (L.Val b)
+    (_who : Player) (Γ : VCtx Player L) (b : L.Ty) : Type :=
+  Env L.Val (eraseVCtx Γ) → FDist (L.Val b)
 
 /-- Generic profiles for Vegas-style commit nodes. -/
 structure Profile (Player : Type) [DecidableEq Player]
     (L : IExpr) where
   commit : {Γ : VCtx Player L} → {b : L.Ty} → (who : Player) →
-    (x : VarId) → (acts : List (L.Val b)) →
-    (R : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) L.bool) →
+    (x : VarId) →
+    (R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool) →
     CommitKernel Player L who Γ b
 
 /-- Partial generic profiles with optional commit kernels. -/
 structure PProfile (Player : Type) [DecidableEq Player]
     (L : IExpr) where
   commit? : {Γ : VCtx Player L} → {b : L.Ty} → (who : Player) →
-    (x : VarId) → (acts : List (L.Val b)) →
-    (R : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) L.bool) →
+    (x : VarId) →
+    (R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool) →
     Option (CommitKernel Player L who Γ b)
 
 def PProfile.toProfile {Player : Type} [DecidableEq Player]
     {L : IExpr}
     (π : PProfile Player L) (fallback : Profile Player L) :
     Profile Player L where
-  commit := fun {Γ} {b} who x acts R view =>
-    match π.commit? (Γ := Γ) (b := b) who x acts R with
-    | some k => k view
-    | none => fallback.commit who x acts R view
+  commit := fun {Γ} {b} who x R env =>
+    match π.commit? (Γ := Γ) (b := b) who x R with
+    | some k => k env
+    | none => fallback.commit who x R env
 
 /-- Extra assumptions needed only for finite-backend compilation. -/
 structure FiniteValuation (L : IExpr) where

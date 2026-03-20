@@ -3,6 +3,7 @@ import Vegas.Core
 import Vegas.ExprSimple
 import Vegas.VegasSimple
 import Vegas.WF
+import Vegas.Scope
 import Vegas.Examples
 import Vegas.BigStep
 import Vegas.TraceSemantics

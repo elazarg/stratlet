@@ -38,14 +38,14 @@ def mpPayoff : PayoffMap Γ4 :=
    ], by decide⟩
 
 noncomputable def matchingPennies : VegasSimple Γ0 :=
-  .commit va 0 (b := .bool) [true, false] (.constBool true)
-    (.commit vb 1 (b := .bool) [true, false] (.constBool true)
+  .commit va 0 (b := .bool) (.constBool true)
+    (.commit vb 1 (b := .bool) (.constBool true)
       (.reveal va' 0 va hva_in_Γ2
         (.reveal vb' 1 vb hvb_in_Γ3
           (.ret mpPayoff.entries))))
 
 noncomputable def mpProfile : ProfileSimple where
-  commit := fun {_Γ} {b} _who x _acts _R _view =>
+  commit := fun {_Γ} {b} _who x _R _env =>
     match x with
     | 0 =>
       match b with
@@ -58,16 +58,15 @@ noncomputable def mpProfile : ProfileSimple where
     | _ => FDist.zero
 
 -- conditionedGame: commit guard references revealed value
--- Guard for player 1: the expression sees (vb, .bool) :: eraseVCtx (viewVCtx 1 Γ1')
+-- Guard for player 1: the expression sees (vb, .bool) :: eraseVCtx Γ1'
 -- where Γ1' = [(va', .pub .bool), (vb, .hidden 1 .bool), (va, .hidden 0 .bool)]
--- viewVCtx 1 Γ1' = [(va', .pub .bool), (vb, .hidden 1 .bool)]
--- eraseVCtx above = [(va', .bool), (vb, .bool)]
--- so context is (vb, .bool) :: [(va', .bool), (vb, .bool)]
+-- eraseVCtx Γ1' = [(va', .bool), (vb, .bool), (va, .bool)]
+-- so guard context is (vb, .bool) :: [(va', .bool), (vb, .bool), (va, .bool)]
 -- and the guard var va' is at .there .here
 noncomputable def conditionedGame : VegasSimple Γ0 :=
-  .commit va 0 (b := .bool) [true, false] (.constBool true)
+  .commit va 0 (b := .bool) (.constBool true)
     (.reveal va' 0 va .here
-      (.commit vb 1 (b := .bool) [true, false]
+      (.commit vb 1 (b := .bool)
         (.var va' (.there .here))
         (.reveal vb' 1 vb .here
           (.ret [(0, .constInt 1), (1, .constInt 0)]))))
@@ -83,11 +82,11 @@ example : WFProg matchingPennies := by
 
 example : Legal matchingPennies := by
   constructor
-  · intro _view
-    exact ⟨true, by simp, by rfl⟩
+  · intro _env
+    exact ⟨true, by rfl⟩
   · constructor
-    · intro _view
-      exact ⟨true, by simp, by rfl⟩
+    · intro _env
+      exact ⟨true, by rfl⟩
     · trivial
 
 example : DistinctActs matchingPennies := by
@@ -98,10 +97,10 @@ example : NormalizedDists matchingPennies := by
 
 example : mpProfile.NormalizedOn matchingPennies := by
   constructor
-  · intro _view
+  · intro _env
     simp [mpProfile, va, FDist.totalWeight_pure]
   · constructor
-    · intro _view
+    · intro _env
       simp [mpProfile, vb, FDist.totalWeight_pure]
     · trivial
 
@@ -116,22 +115,15 @@ example : WFProg conditionedGame := by
 
 example : ¬ Legal conditionedGame := by
   intro hlegal
-  let viewFalse :
-      VEnvSimple (viewVCtx 1 ((va', .pub .bool) :: (va, .hidden 0 .bool) :: Γ0)) := by
-    simpa [Γ0, Vegas.viewVCtx, Vegas.canSee] using
-      (VEnvSimple.cons false VEnvSimple.empty : VEnvSimple [(va', .pub .bool)])
-  obtain ⟨a, ha, hg⟩ := hlegal.2.1 viewFalse
-  cases a with
-  | false =>
-      have : False := by
-        simp [viewFalse, Vegas.evalGuard, Vegas.simpleExpr,
-          Vegas.evalExpr, Vegas.VEnv.eraseEnv] at hg
-      exact this
-  | true =>
-      have : False := by
-        simp [viewFalse, Vegas.evalGuard, Vegas.simpleExpr,
-          Vegas.evalExpr, Vegas.VEnv.eraseEnv] at hg
-      exact this
+  -- The guard for player 1's commit is (.var va' (.there .here)) which reads va'.
+  -- With va' = false, guard evaluates to false for all choices,
+  -- contradicting Legal (which requires ∃ choice satisfying the guard).
+  -- Full erased env with va' = false, va = true
+  let envFalse : Env simpleExpr.Val (eraseVCtx ((va', .pub .bool) :: (va, .hidden 0 .bool) :: Γ0)) :=
+    Env.cons false (Env.cons true (Env.empty _))
+  obtain ⟨a, hg⟩ := hlegal.2.1 envFalse
+  cases a <;> simpa [envFalse, conditionedGame, Γ0, va, va', Vegas.evalGuard, Vegas.evalExpr,
+    Vegas.simpleExpr, eraseVCtx, Env.cons, Env.get, BindTy.base] using hg
 
 example : DistinctActs conditionedGame := by
   simp [conditionedGame, DistinctActs]
@@ -141,19 +133,19 @@ example : NormalizedDists conditionedGame := by
 
 example : mpProfile.NormalizedOn conditionedGame := by
   constructor
-  · intro _view
+  · intro _env
     simp [mpProfile, va, FDist.totalWeight_pure]
   · constructor
-    · intro _view
+    · intro _env
       simp [mpProfile, vb, FDist.totalWeight_pure]
     · trivial
 
 -- sequentialReveal: same as matching pennies but Player 0 reveals before
 -- Player 1 commits, giving Player 1 information about Player 0's choice.
 noncomputable def sequentialReveal : VegasSimple Γ0 :=
-  .commit va 0 (b := .bool) [true, false] (.constBool true)
+  .commit va 0 (b := .bool) (.constBool true)
     (.reveal va' 0 va .here
-      (.commit vb 1 (b := .bool) [true, false] (.constBool true)
+      (.commit vb 1 (b := .bool) (.constBool true)
         (.reveal vb' 1 vb .here
           (.ret mpPayoff.entries))))
 
@@ -162,11 +154,11 @@ example : WFProg sequentialReveal := by
 
 example : Legal sequentialReveal := by
   constructor
-  · intro _view
-    exact ⟨true, by simp, by rfl⟩
+  · intro _env
+    exact ⟨true, by rfl⟩
   · constructor
-    · intro _view
-      exact ⟨true, by simp, by rfl⟩
+    · intro _env
+      exact ⟨true, by rfl⟩
     · trivial
 
 example : DistinctActs sequentialReveal := by
@@ -177,10 +169,10 @@ example : NormalizedDists sequentialReveal := by
 
 example : mpProfile.NormalizedOn sequentialReveal := by
   constructor
-  · intro _view
+  · intro _env
     simp [mpProfile, va, FDist.totalWeight_pure]
   · constructor
-    · intro _view
+    · intro _env
       simp [mpProfile, vb, FDist.totalWeight_pure]
     · trivial
 

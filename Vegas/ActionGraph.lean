@@ -110,7 +110,7 @@ noncomputable def VegasCore.extractEvents {P : Type} [DecidableEq P] {L : IExpr}
   | .sample x _τ _m D' k =>
     { id := x, kind := .sample, deps := (L.distDeps D').toList } ::
     extractEvents k
-  | .commit x who _acts _R k =>
+  | .commit x who _R k =>
     { id := x, kind := .commit,
       deps := (viewVCtx who Γ).map Prod.fst } ::
     extractEvents k
@@ -158,6 +158,24 @@ noncomputable def PartialEnv.toVEnv? {P : Type} {L : IExpr}
         | some env' =>
           let v' : L.Val τ.base := by cases h; exact v
           some (VEnv.cons v' env')
+      | .isFalse _ => none
+
+/-- Reconstruct a typed Env from a PartialEnv. -/
+noncomputable def PartialEnv.toEnv? {L : IExpr}
+    (pe : PartialEnv L) :
+    (Γ : Ctx L.Ty) → Option (Env L.Val Γ)
+  | [] => some (Env.empty L.Val)
+  | (x, τ) :: Γ' =>
+    match pe x with
+    | none => none
+    | some ⟨b, v⟩ =>
+      match decEq b τ with
+      | .isTrue h =>
+        match pe.toEnv? Γ' with
+        | none => none
+        | some env' =>
+          let v' : L.Val τ := by cases h; exact v
+          some (Env.cons v' env')
       | .isFalse _ => none
 
 -- Commutativity: sets with distinct keys commute
@@ -251,12 +269,12 @@ noncomputable def VegasCore.nodeWeight {P : Type} [DecidableEq P]
           | none => 0
         | .isFalse _ => 0
       else nodeWeight σ pe k id tv
-  | Γ, .commit x who (b := b) acts R k, id, tv =>
+  | Γ, .commit x who (b := b) R k, id, tv =>
       if x = id then
         match decEq tv.base b with
         | .isTrue h =>
-          match pe.toVEnv? (viewVCtx who Γ) with
-          | some view => (σ.commit who x acts R view) (h ▸ tv.val)
+          match pe.toEnv? (eraseVCtx Γ) with
+          | some env => (σ.commit who x R env) (h ▸ tv.val)
           | none => 0
         | .isFalse _ => 0
       else nodeWeight σ pe k id tv

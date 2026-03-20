@@ -28,7 +28,7 @@ def WF {P : Type} [DecidableEq P]
   | _, .ret _ => True
   | Γ, .letExpr x _ k => Fresh x Γ ∧ WF k
   | Γ, .sample x _ _ _ k => Fresh x Γ ∧ WF k
-  | Γ, .commit x _ _ _ k => Fresh x Γ ∧ WF k
+  | Γ, .commit x _ _ k => Fresh x Γ ∧ WF k
   | Γ, .reveal y _ _ _ k => Fresh y Γ ∧ WF k
 
 def decidableWF {P : Type} [DecidableEq P]
@@ -38,7 +38,7 @@ def decidableWF {P : Type} [DecidableEq P]
   | _, .ret _ => .isTrue trivial
   | _, .letExpr _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
   | _, .sample _ _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
-  | _, .commit _ _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
+  | _, .commit _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
   | _, .reveal _ _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableWF k)
 
 instance {P : Type} [DecidableEq P]
@@ -55,7 +55,7 @@ def RevealComplete {P : Type} [DecidableEq P]
   | _, pending, .ret _ => pending = []
   | _, pending, .letExpr _ _ k => RevealComplete pending k
   | _, pending, .sample _ _ _ _ k => RevealComplete pending k
-  | _, pending, .commit x _ _ _ k => RevealComplete (x :: pending) k
+  | _, pending, .commit x _ _ k => RevealComplete (x :: pending) k
   | _, pending, .reveal _ _ x _ k =>
     x ∈ pending ∧ RevealComplete (pending.filter (· ≠ x)) k
 
@@ -70,7 +70,7 @@ def decidableRevealComplete {P : Type} [DecidableEq P]
   | _, _, .ret _ => inferInstanceAs (Decidable (_ = []))
   | _, pending, .letExpr _ _ k => decidableRevealComplete pending k
   | _, pending, .sample _ _ _ _ k => decidableRevealComplete pending k
-  | _, pending, .commit x _ _ _ k => decidableRevealComplete (x :: pending) k
+  | _, pending, .commit x _ _ k => decidableRevealComplete (x :: pending) k
   | _, pending, .reveal _ _ x _ k =>
     @instDecidableAnd _ _ (inferInstance) (decidableRevealComplete (pending.filter (· ≠ x)) k)
 
@@ -181,9 +181,9 @@ def Legal {P : Type} [DecidableEq P]
   | _, .ret _ => True
   | _, .letExpr _ _ k => Legal k
   | _, .sample _ _ _ _ k => Legal k
-  | Γ, .commit _ who acts R k =>
-    (∀ view : Vegas.VEnv (Player := P) L (Vegas.viewVCtx who Γ),
-        ∃ a ∈ acts, Vegas.evalGuard (Player := P) (L := L) R a view = true) ∧
+  | Γ, .commit _ _who (b := b) R k =>
+    (∀ env : Env L.Val (Vegas.eraseVCtx Γ),
+        ∃ a : L.Val b, Vegas.evalGuard (Player := P) (L := L) R a env = true) ∧
     Legal k
   | _, .reveal _ _ _ _ k => Legal k
 
@@ -194,7 +194,7 @@ def DistinctActs {P : Type} [DecidableEq P]
   | _, .ret _ => True
   | _, .letExpr _ _ k => DistinctActs k
   | _, .sample _ _ _ _ k => DistinctActs k
-  | _, .commit _ _ acts _ k => acts.Nodup ∧ DistinctActs k
+  | _, .commit _ _ _ k => DistinctActs k
   | _, .reveal _ _ _ _ k => DistinctActs k
 
 def AdmissibleProfile {P : Type} [DecidableEq P]
@@ -204,9 +204,9 @@ def AdmissibleProfile {P : Type} [DecidableEq P]
   | _, .ret _ => True
   | _, .letExpr _ _ k => AdmissibleProfile σ k
   | _, .sample _ _ _ _ k => AdmissibleProfile σ k
-  | _, .commit x who acts R k =>
-    (∀ view, FDist.Supported (σ.commit who x acts R view)
-      (fun a => a ∈ acts ∧ Vegas.evalGuard (Player := P) (L := L) R a view = true)) ∧
+  | _, .commit x who R k =>
+    (∀ env, FDist.Supported (σ.commit who x R env)
+      (fun a => Vegas.evalGuard (Player := P) (L := L) R a env = true)) ∧
     AdmissibleProfile σ k
   | _, .reveal _ _ _ _ k => AdmissibleProfile σ k
 
@@ -229,7 +229,7 @@ def NormalizedDists {P : Type} [DecidableEq P]
   | _, .sample _ _ _ D' k =>
     (∀ env, FDist.totalWeight (L.evalDist D' (VEnv.eraseDistEnv _ _ env)) = 1) ∧
     NormalizedDists k
-  | _, .commit _ _ _ _ k => NormalizedDists k
+  | _, .commit _ _ _ k => NormalizedDists k
   | _, .reveal _ _ _ _ k => NormalizedDists k
 
 def Profile.NormalizedOn {P : Type} [DecidableEq P]
@@ -239,8 +239,8 @@ def Profile.NormalizedOn {P : Type} [DecidableEq P]
   | _, .ret _ => True
   | _, .letExpr _ _ k => σ.NormalizedOn k
   | _, .sample _ _ _ _ k => σ.NormalizedOn k
-  | _, .commit x who acts R k =>
-    (∀ view, FDist.totalWeight (σ.commit who x acts R view) = 1) ∧ σ.NormalizedOn k
+  | _, .commit x who R k =>
+    (∀ view, FDist.totalWeight (σ.commit who x R view) = 1) ∧ σ.NormalizedOn k
   | _, .reveal _ _ _ _ k => σ.NormalizedOn k
 
 theorem DistExpr.Normalized_ite {Γ : CtxSimple} {b : BaseTy}

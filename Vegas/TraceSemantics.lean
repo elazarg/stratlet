@@ -57,11 +57,10 @@ inductive Trace : (Γ : VCtx P L) → VegasCore P L Γ → Type where
       {k : VegasCore P L ((x, τ) :: Γ)} :
       L.Val τ.base → Trace ((x, τ) :: Γ) k → Trace Γ (.sample x τ m D' k)
   | commit {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
-      {acts : List (L.Val b)}
-      {R : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) L.bool}
+      {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
       {k : VegasCore P L ((x, .hidden who b) :: Γ)} :
       L.Val b → Trace ((x, .hidden who b) :: Γ) k →
-      Trace Γ (.commit x who acts R k)
+      Trace Γ (.commit x who R k)
   | reveal {Γ : VCtx P L} {y : VarId} {who : P} {x : VarId} {b : L.Ty}
       {hx : VHasVar (L := L) Γ x (.hidden who b)}
       {k : VegasCore P L ((y, .pub b) :: Γ)} :
@@ -85,7 +84,7 @@ noncomputable def traceOutcome :
       traceOutcome k (VEnv.cons (L.eval e (VEnv.erasePubEnv env)) env) t
   | _, .sample _ _ _ _ k, env, .sample v t =>
       traceOutcome k (VEnv.cons v env) t
-  | _, .commit _ _ _ _ k, env, .commit v t =>
+  | _, .commit _ _ _ k, env, .commit v t =>
       traceOutcome k (VEnv.cons v env) t
   | _, .reveal y _who _x (b := b) hx k, env, .reveal t =>
       let val : L.Val b := VEnv.get env hx
@@ -106,16 +105,16 @@ noncomputable def traceWeight (σ : Profile P L) :
   | _, .sample _ τ m D' k, env, .sample v t =>
       (L.evalDist D' (VEnv.eraseDistEnv τ m env)) v *
       traceWeight σ k (VEnv.cons v env) t
-  | _, .commit x who acts R k, env, .commit v t =>
-      (σ.commit who x acts R (VEnv.toView who env)) v *
+  | _, .commit x who R k, env, .commit v t =>
+      (σ.commit who x R (VEnv.eraseEnv env)) v *
       traceWeight σ k (VEnv.cons v env) t
   | _, .reveal y _who _x (b := b) hx k, env, .reveal t =>
       let val : L.Val b := VEnv.get env hx
       traceWeight σ k (VEnv.cons (x := y) (τ := .pub b) val env) t
 
 
-/-- A trace is legal if every `commit` choice is in the action list and
-    satisfies constraint `R`, and every `sample` choice is in the
+/-- A trace is legal if every `commit` choice satisfies constraint `R`, and
+    every `sample` choice is in the
     distribution's support. -/
 def Trace.legal : {Γ : VCtx P L} → (p : VegasCore P L Γ) →
     VEnv (Player := P) L Γ → Trace Γ p → Prop
@@ -125,8 +124,8 @@ def Trace.legal : {Γ : VCtx P L} → (p : VegasCore P L Γ) →
   | _, .sample _ τ m D' k, env, .sample v t =>
       v ∈ (L.evalDist D' (VEnv.eraseDistEnv τ m env)).support ∧
       legal k (VEnv.cons v env) t
-  | _, .commit _ who acts R k, env, .commit v t =>
-      v ∈ acts ∧ evalGuard R v (VEnv.toView who env) = true ∧
+  | _, .commit _ who R k, env, .commit v t =>
+      evalGuard R v (VEnv.eraseEnv env) = true ∧
       legal k (VEnv.cons v env) t
   | _, .reveal y _who _x (b := b) hx k, env, .reveal t =>
       let val : L.Val b := VEnv.get env hx
@@ -159,14 +158,12 @@ inductive CanReach : {Γ : VCtx P L} → VegasCore P L Γ →
       CanReach k (VEnv.cons v env) oc →
       CanReach (.sample x τ m D' k) env oc
   | commit {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
-      {acts : List (L.Val b)}
-      {R : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) L.bool}
+      {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
       {k : VegasCore P L ((x, .hidden who b) :: Γ)}
       {env : VEnv (Player := P) L Γ} {oc : Outcome P}
-      (v : L.Val b) (hacts : v ∈ acts)
-      (hR : evalGuard R v (VEnv.toView who env) = true) :
+      (v : L.Val b) (hR : evalGuard R v (VEnv.eraseEnv env) = true) :
       CanReach k (VEnv.cons v env) oc →
-      CanReach (.commit x who acts R k) env oc
+      CanReach (.commit x who R k) env oc
   | reveal {Γ : VCtx P L} {y : VarId} {who : P} {x : VarId} {b : L.Ty}
       {hx : VHasVar (L := L) Γ x (.hidden who b)}
       {k : VegasCore P L ((y, .pub b) :: Γ)}
@@ -200,14 +197,13 @@ inductive Reach (σ : Profile P L) :
       Reach σ k (VEnv.cons v env) oc →
       Reach σ (.sample x τ m D' k) env oc
   | commit {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
-      {acts : List (L.Val b)}
-      {R : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) L.bool}
+      {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
       {k : VegasCore P L ((x, .hidden who b) :: Γ)}
       {env : VEnv (Player := P) L Γ} {oc : Outcome P}
       (v : L.Val b)
-      (hsupp : v ∈ (σ.commit who x acts R (VEnv.toView who env)).support) :
+      (hsupp : v ∈ (σ.commit who x R (VEnv.eraseEnv env)).support) :
       Reach σ k (VEnv.cons v env) oc →
-      Reach σ (.commit x who acts R k) env oc
+      Reach σ (.commit x who R k) env oc
   | reveal {Γ : VCtx P L} {y : VarId} {who : P} {x : VarId} {b : L.Ty}
       {hx : VHasVar (L := L) Γ x (.hidden who b)}
       {k : VegasCore P L ((y, .pub b) :: Γ)}
@@ -223,10 +219,11 @@ theorem legal_trace_canReach {Γ : VCtx P L} {p : VegasCore P L Γ}
     (t : Trace Γ p) (hl : t.legal p env) :
     CanReach p env (traceOutcome p env t) := by
   induction t with
-  | ret => exact .ret
+  | ret =>
+    simpa [traceOutcome] using (CanReach.ret (P := P) (L := L) (env := env))
   | letExpr _ ih => exact .letExpr (ih hl)
   | sample v _ ih => exact .sample v hl.1 (ih hl.2)
-  | commit v _ ih => exact .commit v hl.1 hl.2.1 (ih hl.2.2)
+  | commit v _ ih => exact .commit v hl.1 (ih hl.2)
   | reveal _ ih => exact .reveal (ih hl)
 
 /-- A positive-weight trace witnesses profile-dependent reachability. -/
@@ -235,7 +232,8 @@ theorem pos_weight_trace_reach {Γ : VCtx P L} {p : VegasCore P L Γ}
     (σ : Profile P L) (t : Trace Γ p) (hw : traceWeight σ p env t ≠ 0) :
     Reach σ p env (traceOutcome p env t) := by
   induction t with
-  | ret => exact .ret
+  | ret =>
+    simpa [traceOutcome] using (Reach.ret (σ := σ) (P := P) (L := L) (env := env))
   | letExpr _ ih => exact .letExpr (ih hw)
   | sample v _ ih =>
     have h1 := left_ne_zero_of_mul hw
@@ -253,16 +251,18 @@ theorem canReach_has_trace {Γ : VCtx P L} {p : VegasCore P L Γ}
     (h : CanReach p env oc) :
     ∃ t : Trace Γ p, t.legal p env ∧ traceOutcome p env t = oc := by
   induction h with
-  | ret => exact ⟨.ret, trivial, rfl⟩
+  | ret =>
+    refine ⟨.ret, trivial, ?_⟩
+    simp [traceOutcome]
   | letExpr _ ih =>
     obtain ⟨t, hl, ho⟩ := ih
     exact ⟨.letExpr t, hl, ho⟩
   | sample v hsupp _ ih =>
     obtain ⟨t, hl, ho⟩ := ih
     exact ⟨.sample v t, ⟨hsupp, hl⟩, ho⟩
-  | commit v hacts hR _ ih =>
+  | commit v hR _ ih =>
     obtain ⟨t, hl, ho⟩ := ih
-    exact ⟨.commit v t, ⟨hacts, hR, hl⟩, ho⟩
+    exact ⟨.commit v t, ⟨hR, hl⟩, ho⟩
   | reveal _ ih =>
     obtain ⟨t, hl, ho⟩ := ih
     exact ⟨.reveal t, hl, ho⟩
@@ -291,7 +291,7 @@ theorem reach_iff_outcomeDist_support {Γ : VCtx P L} (σ : Profile P L)
       | sample v hsupp hk => exact ⟨v, hsupp, (ih _).mp hk⟩
     · rintro ⟨v, hsupp, hmem⟩
       exact .sample v hsupp ((ih _).mpr hmem)
-  | commit x who acts R k ih =>
+  | commit x who R k ih =>
     simp only [outcomeDist, FDist.mem_support_bind]
     constructor
     · intro h
@@ -317,9 +317,9 @@ noncomputable def traceWeightSum (σ : Profile P L) :
       (L.evalDist D' (VEnv.eraseDistEnv τ m env)).support.sum fun v =>
         (L.evalDist D' (VEnv.eraseDistEnv τ m env)) v *
         traceWeightSum σ k (VEnv.cons v env) oc
-  | _, .commit x who acts R k, env, oc =>
-      (σ.commit who x acts R (VEnv.toView who env)).support.sum fun v =>
-        (σ.commit who x acts R (VEnv.toView who env)) v *
+  | _, .commit x who R k, env, oc =>
+      (σ.commit who x R (VEnv.eraseEnv env)).support.sum fun v =>
+        (σ.commit who x R (VEnv.eraseEnv env)) v *
         traceWeightSum σ k (VEnv.cons v env) oc
   | _, .reveal y _who _x (b := b) hx k, env, oc =>
       let val : L.Val b := VEnv.get env hx
@@ -339,7 +339,7 @@ theorem adequacy_pointwise {Γ : VCtx P L} (σ : Profile P L)
   | sample x τ m D' k ih =>
     simp only [outcomeDist, traceWeightSum, FDist.bind_apply]
     exact Finset.sum_congr rfl fun v _ => by rw [ih]
-  | commit x who acts R k ih =>
+  | commit x who R k ih =>
     simp only [outcomeDist, traceWeightSum, FDist.bind_apply]
     exact Finset.sum_congr rfl fun v _ => by rw [ih]
   | reveal y who x hx k ih =>
@@ -357,8 +357,8 @@ noncomputable def traceDist (σ : Profile P L) :
   | _, .sample _ τ m D' k, env =>
       (L.evalDist D' (VEnv.eraseDistEnv τ m env)).bind fun v =>
         (traceDist σ k (VEnv.cons v env)).map (.sample v ·)
-  | _, .commit x who acts R k, env =>
-      FDist.bind (σ.commit who x acts R (VEnv.toView who env)) fun v =>
+  | _, .commit x who R k, env =>
+      FDist.bind (σ.commit who x R (VEnv.eraseEnv env)) fun v =>
         (traceDist σ k (VEnv.cons v env)).map (.commit v ·)
   | _, .reveal y _who _x (b := b) hx k, env =>
       let val : L.Val b := VEnv.get env hx
@@ -379,11 +379,11 @@ private theorem Trace.sample_injective {Γ : VCtx P L} {x : VarId}
   fun _ _ h => (Trace.sample.inj h).2
 
 private theorem Trace.commit_injective {Γ : VCtx P L} {x : VarId} {who : P}
-    {b : L.Ty} {acts : List (L.Val b)}
-    {R : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) L.bool}
+    {b : L.Ty}
+    {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
     {k : VegasCore P L ((x, .hidden who b) :: Γ)} (v : L.Val b) :
     Function.Injective fun (t : Trace ((x, .hidden who b) :: Γ) k) =>
-      Trace.commit (acts := acts) (R := R) v t :=
+      Trace.commit (R := R) v t :=
   fun _ _ h => (Trace.commit.inj h).2
 
 private theorem Trace.reveal_injective {Γ : VCtx P L} {y : VarId} {who : P}
@@ -421,7 +421,7 @@ theorem traceDist_apply (σ : Profile P L) {Γ : VCtx P L}
           (fun t' _ h => hne ((Trace.sample.inj h).1)), mul_zero]
       · intro hv
         rw [Finsupp.mem_support_iff, not_not] at hv; simp [hv]
-  | commit x who acts R k ih =>
+  | commit x who R k ih =>
     cases t with
     | commit v t =>
       simp only [traceDist, traceWeight]
@@ -449,14 +449,14 @@ theorem outcomeDist_eq_map_traceDist (σ : Profile P L) {Γ : VCtx P L}
     outcomeDist σ p env = (traceDist σ p env).map (traceOutcome p env) := by
   induction p with
   | ret u =>
-    simp only [outcomeDist, traceDist]
-    rw [FDist.map_pure]; rfl
+    rw [outcomeDist, traceDist, FDist.map_pure]
+    simp [traceOutcome]
   | letExpr x e k ih =>
     simp only [outcomeDist, traceDist]; rw [ih, FDist.map_map]; congr 1
   | sample x τ m D' k ih =>
     simp only [outcomeDist, traceDist]; rw [FDist.bind_map]
     congr 1; ext v; rw [ih, FDist.map_map]; congr 1
-  | commit x who acts R k ih =>
+  | commit x who R k ih =>
     simp only [outcomeDist, traceDist]; rw [FDist.bind_map]
     congr 1; ext v; rw [ih, FDist.map_map]; congr 1
   | reveal y who x hx k ih =>
@@ -480,7 +480,7 @@ theorem admissible_pos_weight_legal {Γ : VCtx P L} {σ : Profile P L}
     have h1 := left_ne_zero_of_mul hw
     have h2 := right_ne_zero_of_mul hw
     have hv := hadm.1 _ v (Finsupp.mem_support_iff.mpr h1)
-    exact ⟨hv.1, hv.2, ih hadm.2 h2⟩
+    exact ⟨hv, ih hadm.2 h2⟩
   | reveal _ ih => exact ih hadm hw
 
 /-- Under an admissible profile, `Reach` implies `CanReach`. -/
@@ -495,245 +495,111 @@ theorem admissible_reach_canReach {Γ : VCtx P L} {σ : Profile P L}
   | sample v hsupp _ ih => exact .sample v hsupp (ih hadm)
   | commit v hsupp _ ih =>
     have hv := hadm.1 _ v hsupp
-    exact .commit v hv.1 hv.2 (ih hadm.2)
+    exact .commit v hv (ih hadm.2)
   | reveal _ ih => exact .reveal (ih hadm)
 
 
 /-! ### Independent events commute -/
 
-/-- Helper: invisible bindings don't affect viewVCtx. -/
-theorem viewVCtx_skip_invisible {p : P} {x : VarId} {τ : BindTy P L}
-    {Γ : VCtx P L} (h : canSee p τ = false) :
-    viewVCtx p ((x, τ) :: Γ) = viewVCtx p Γ := by
-  simp [viewVCtx, Vegas.viewVCtx, h]
-
-/-- Transport the right commit's guard across swapping a distinct player's
-    fresh hidden binding past it. -/
-def commuteGuardRightDistinct
-    {Γ : VCtx P L}
-    {x₁ : VarId} {who₁ who₂ : P} {b₁ : L.Ty}
-    {x₂ : VarId} {b₂ : L.Ty}
-    (hneq : who₁ ≠ who₂)
-    (R₂ : L.Expr ((x₂, b₂) :: eraseVCtx
-      (viewVCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) L.bool) :
-    L.Expr ((x₂, b₂) :: eraseVCtx (viewVCtx who₂ Γ)) L.bool :=
-  cast
-    (by simp [viewVCtx, Vegas.viewVCtx, canSee, Ne.symm hneq])
-    R₂
-
-/-- Transport the left commit's guard across swapping a distinct player's
-    fresh hidden binding past it. -/
-def commuteGuardLeftDistinct
-    {Γ : VCtx P L}
-    {x₂ : VarId} {who₂ who₁ : P} {b₂ : L.Ty}
-    {x₁ : VarId} {b₁ : L.Ty}
-    (hneq : who₁ ≠ who₂)
-    (R₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who₁ Γ)) L.bool) :
-    L.Expr ((x₁, b₁) :: eraseVCtx
-      (viewVCtx who₁ ((x₂, .hidden who₂ b₂) :: Γ))) L.bool :=
-  cast
-    (by simp [viewVCtx, Vegas.viewVCtx, canSee, hneq])
-    R₁
-
-/-- Guard-agreement condition for transporting the left guard across an
-    adjacent distinct-player commit swap. -/
-def GuardTransportLeft
-    {Γ : VCtx P L}
-    {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
-    {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
-    (R₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who₁ Γ)) L.bool)
-    (R₁' : L.Expr ((x₁, b₁) :: eraseVCtx
-      (viewVCtx who₁ ((x₂, .hidden who₂ b₂) :: Γ))) L.bool) : Prop :=
-  ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-      (e : VEnv (Player := P) L Γ),
-    evalGuard R₁ v₁ (VEnv.toView who₁ e) =
-    evalGuard R₁' v₁
-      (VEnv.toView who₁ (VEnv.cons (τ := .hidden who₂ b₂) v₂ e))
-
-/-- Guard-agreement condition for transporting the right guard across an
-    adjacent distinct-player commit swap. -/
-def GuardTransportRight
-    {Γ : VCtx P L}
-    {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
-    {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
-    (R₂ : L.Expr ((x₂, b₂) :: eraseVCtx
-      (viewVCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) L.bool)
-    (R₂' : L.Expr ((x₂, b₂) :: eraseVCtx (viewVCtx who₂ Γ)) L.bool) : Prop :=
-  ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-      (e : VEnv (Player := P) L Γ),
-    evalGuard R₂ v₂
-      (VEnv.toView who₂ (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
-    evalGuard R₂' v₂ (VEnv.toView who₂ e)
-
 /-- Two adjacent commits have the same profile-free reachable outcomes when
-    their guards and continuations commute pointwise under the swapped
-    environments. This is the operational form of commit-commit commutativity:
-    anything legally reachable in one order is legally reachable in the other. -/
+    their guards and continuations commute pointwise. Since guards live in
+    the full erased context, no guard transport is needed — only pointwise
+    guard agreement and continuation commutation. -/
 theorem canReach_comm_commit
     {Γ : VCtx P L} {env : VEnv (Player := P) L Γ} {oc : Outcome P}
     {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
-    {acts₁ : List (L.Val b₁)}
-    {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who₁ Γ)) L.bool}
+    {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx Γ) L.bool}
     {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
-    {acts₂ : List (L.Val b₂)}
     {R₂ : L.Expr ((x₂, b₂) :: eraseVCtx
-      (viewVCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) L.bool}
+      ((x₁, .hidden who₁ b₁) :: Γ)) L.bool}
     {k : VegasCore P L
       ((x₂, .hidden who₂ b₂) :: (x₁, .hidden who₁ b₁) :: Γ)}
-    {R₂' : L.Expr ((x₂, b₂) :: eraseVCtx (viewVCtx who₂ Γ)) L.bool}
+    {R₂' : L.Expr ((x₂, b₂) :: eraseVCtx Γ) L.bool}
     {R₁' : L.Expr ((x₁, b₁) :: eraseVCtx
-      (viewVCtx who₁ ((x₂, .hidden who₂ b₂) :: Γ))) L.bool}
+      ((x₂, .hidden who₂ b₂) :: Γ)) L.bool}
     {k' : VegasCore P L
       ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
     (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
         (e : VEnv (Player := P) L Γ) (oc' : Outcome P),
       CanReach k (VEnv.cons v₂ (VEnv.cons v₁ e)) oc' ↔
       CanReach k' (VEnv.cons v₁ (VEnv.cons v₂ e)) oc')
-    (hR₁ : GuardTransportLeft (P := P) (L := L) R₁ R₁')
-    (hR₂ : GuardTransportRight (P := P) (L := L) R₂ R₂') :
+    (hR₁ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
+        (e : VEnv (Player := P) L Γ),
+      evalGuard R₁ v₁ (VEnv.eraseEnv e) =
+      evalGuard R₁' v₁ (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₂ b₂) v₂ e)))
+    (hR₂ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
+        (e : VEnv (Player := P) L Γ),
+      evalGuard R₂ v₂ (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
+      evalGuard R₂' v₂ (VEnv.eraseEnv e)) :
     CanReach
-      (.commit x₁ who₁ acts₁ R₁
-        (.commit x₂ who₂ acts₂ R₂ k)) env oc ↔
+      (.commit x₁ who₁ R₁
+        (.commit x₂ who₂ R₂ k)) env oc ↔
     CanReach
-      (.commit x₂ who₂ acts₂ R₂'
-        (.commit x₁ who₁ acts₁ R₁' k')) env oc := by
+      (.commit x₂ who₂ R₂'
+        (.commit x₁ who₁ R₁' k')) env oc := by
   constructor
   · intro h
     cases h with
-    | commit v₁ hacts₁ hguard₁ h =>
+    | commit v₁ hguard₁ h =>
       cases h with
-      | commit v₂ hacts₂ hguard₂ h =>
-        apply CanReach.commit v₂ hacts₂
-        · rw [← hR₂ v₁ v₂ env]
-          exact hguard₂
-        · apply CanReach.commit v₁ hacts₁
-          · rw [← hR₁ v₁ v₂ env]
-            exact hguard₁
+      | commit v₂ hguard₂ h =>
+        apply CanReach.commit v₂
+        · rw [← hR₂ v₁ v₂ env]; exact hguard₂
+        · apply CanReach.commit v₁
+          · rw [← hR₁ v₁ v₂ env]; exact hguard₁
           · exact (hk_eq v₁ v₂ env oc).1 h
   · intro h
     cases h with
-    | commit v₂ hacts₂ hguard₂ h =>
+    | commit v₂ hguard₂ h =>
       cases h with
-      | commit v₁ hacts₁ hguard₁ h =>
-        apply CanReach.commit v₁ hacts₁
-        · rw [hR₁ v₁ v₂ env]
-          exact hguard₁
-        · apply CanReach.commit v₂ hacts₂
-          · rw [hR₂ v₁ v₂ env]
-            exact hguard₂
+      | commit v₁ hguard₁ h =>
+        apply CanReach.commit v₁
+        · rw [hR₁ v₁ v₂ env]; exact hguard₁
+        · apply CanReach.commit v₂
+          · rw [hR₂ v₁ v₂ env]; exact hguard₂
           · exact (hk_eq v₁ v₂ env oc).2 h
 
-/-- Clean corollary of `canReach_comm_commit` for the intended independence
-    case: distinct players' fresh hidden commitments are invisible to each
-    other. This packages the operational commutation theorem at the
-    player-distinct interface used by the paper. -/
-theorem canReach_comm_commit_distinct
+/-- Main adjacent-commit commutation theorem in operational form.
+
+    This restates `canReach_comm_commit` in the paper-facing language:
+    two adjacent commit linearizations are operationally equivalent when
+    their continuations commute pointwise and their guards make the same
+    legality decision on the corresponding erased environments. -/
+theorem canReach_comm_commit_main
     {Γ : VCtx P L} {env : VEnv (Player := P) L Γ} {oc : Outcome P}
     {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
-    {acts₁ : List (L.Val b₁)}
-    {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who₁ Γ)) L.bool}
+    {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx Γ) L.bool}
     {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
-    {acts₂ : List (L.Val b₂)}
     {R₂ : L.Expr ((x₂, b₂) :: eraseVCtx
-      (viewVCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) L.bool}
+      ((x₁, .hidden who₁ b₁) :: Γ)) L.bool}
     {k : VegasCore P L
       ((x₂, .hidden who₂ b₂) :: (x₁, .hidden who₁ b₁) :: Γ)}
-    {R₂' : L.Expr ((x₂, b₂) :: eraseVCtx (viewVCtx who₂ Γ)) L.bool}
+    {R₂' : L.Expr ((x₂, b₂) :: eraseVCtx Γ) L.bool}
     {R₁' : L.Expr ((x₁, b₁) :: eraseVCtx
-      (viewVCtx who₁ ((x₂, .hidden who₂ b₂) :: Γ))) L.bool}
+      ((x₂, .hidden who₂ b₂) :: Γ)) L.bool}
     {k' : VegasCore P L
       ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
-    (hneq : who₁ ≠ who₂)
     (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
         (e : VEnv (Player := P) L Γ) (oc' : Outcome P),
       CanReach k (VEnv.cons v₂ (VEnv.cons v₁ e)) oc' ↔
       CanReach k' (VEnv.cons v₁ (VEnv.cons v₂ e)) oc')
-    (hR₁ : GuardTransportLeft (P := P) (L := L) R₁ R₁')
-    (hR₂ : GuardTransportRight (P := P) (L := L) R₂ R₂') :
+    (hR₁ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
+        (e : VEnv (Player := P) L Γ),
+      evalGuard R₁ v₁ (VEnv.eraseEnv e) =
+      evalGuard R₁' v₁ (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₂ b₂) v₂ e)))
+    (hR₂ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
+        (e : VEnv (Player := P) L Γ),
+      evalGuard R₂ v₂ (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
+      evalGuard R₂' v₂ (VEnv.eraseEnv e)) :
     CanReach
-      (.commit x₁ who₁ acts₁ R₁
-        (.commit x₂ who₂ acts₂ R₂ k)) env oc ↔
+      (.commit x₁ who₁ R₁
+        (.commit x₂ who₂ R₂ k)) env oc ↔
     CanReach
-      (.commit x₂ who₂ acts₂ R₂'
-        (.commit x₁ who₁ acts₁ R₁' k')) env oc := by
-  let _ := hneq
-  exact canReach_comm_commit (env := env) (oc := oc) hk_eq hR₁ hR₂
-
-/-- Distinct-player adjacent commit commutation with canonical transported
-    guards. This is the clean statement to build on; the remaining proof
-    burden is isolated to the two guard-transport side conditions. -/
-theorem canReach_comm_commit_distinct_transport
-    {Γ : VCtx P L} {env : VEnv (Player := P) L Γ} {oc : Outcome P}
-    {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
-    {acts₁ : List (L.Val b₁)}
-    {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who₁ Γ)) L.bool}
-    {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
-    {acts₂ : List (L.Val b₂)}
-    {R₂ : L.Expr ((x₂, b₂) :: eraseVCtx
-      (viewVCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) L.bool}
-    {k : VegasCore P L
-      ((x₂, .hidden who₂ b₂) :: (x₁, .hidden who₁ b₁) :: Γ)}
-    {k' : VegasCore P L
-      ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
-    (hneq : who₁ ≠ who₂)
-    (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ) (oc' : Outcome P),
-      CanReach k (VEnv.cons v₂ (VEnv.cons v₁ e)) oc' ↔
-      CanReach k' (VEnv.cons v₁ (VEnv.cons v₂ e)) oc')
-    (hR₁ : GuardTransportLeft (P := P) (L := L) R₁
-      (commuteGuardLeftDistinct (P := P) (L := L)
-        (x₂ := x₂) (who₂ := who₂) (b₂ := b₂) hneq R₁))
-    (hR₂ : GuardTransportRight (P := P) (L := L) R₂
-      (commuteGuardRightDistinct (P := P) (L := L)
-        (x₁ := x₁) (who₁ := who₁) (b₁ := b₁) hneq R₂)) :
-    CanReach
-      (.commit x₁ who₁ acts₁ R₁
-        (.commit x₂ who₂ acts₂ R₂ k)) env oc ↔
-    CanReach
-      (.commit x₂ who₂ acts₂ (commuteGuardRightDistinct (P := P) (L := L) hneq R₂)
-        (.commit x₁ who₁ acts₁
-          (commuteGuardLeftDistinct (P := P) (L := L)
-            (x₂ := x₂) (who₂ := who₂) (b₂ := b₂) hneq R₁) k')) env oc := by
-  exact canReach_comm_commit_distinct
+      (.commit x₂ who₂ R₂'
+        (.commit x₁ who₁ R₁' k')) env oc := by
+  exact canReach_comm_commit
     (env := env) (oc := oc)
-    (R₂' := commuteGuardRightDistinct (P := P) (L := L)
-      (x₁ := x₁) (who₁ := who₁) (b₁ := b₁) hneq R₂)
-    (R₁' := commuteGuardLeftDistinct (P := P) (L := L)
-      (x₂ := x₂) (who₂ := who₂) (b₂ := b₂) hneq R₁)
-    hneq hk_eq hR₁ hR₂
-
-/-- Clean final form of distinct-player commit commutation: once the
-    continuation commutes recursively, the canonical guard transports suffice.
-    The remaining proof is currently deferred. -/
-theorem canReach_comm_commit_distinct_canonical
-    {Γ : VCtx P L} {env : VEnv (Player := P) L Γ} {oc : Outcome P}
-    {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
-    {acts₁ : List (L.Val b₁)}
-    {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who₁ Γ)) L.bool}
-    {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
-    {acts₂ : List (L.Val b₂)}
-    {R₂ : L.Expr ((x₂, b₂) :: eraseVCtx
-      (viewVCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) L.bool}
-    {k : VegasCore P L
-      ((x₂, .hidden who₂ b₂) :: (x₁, .hidden who₁ b₁) :: Γ)}
-    {k' : VegasCore P L
-      ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
-    (hneq : who₁ ≠ who₂)
-    (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ) (oc' : Outcome P),
-      CanReach k (VEnv.cons v₂ (VEnv.cons v₁ e)) oc' ↔
-      CanReach k' (VEnv.cons v₁ (VEnv.cons v₂ e)) oc') :
-    CanReach
-      (.commit x₁ who₁ acts₁ R₁
-        (.commit x₂ who₂ acts₂ R₂ k)) env oc ↔
-    CanReach
-      (.commit x₂ who₂ acts₂
-          (commuteGuardRightDistinct (P := P) (L := L)
-            (x₁ := x₁) (who₁ := who₁) (b₁ := b₁) hneq R₂)
-        (.commit x₁ who₁ acts₁
-          (commuteGuardLeftDistinct (P := P) (L := L)
-            (x₂ := x₂) (who₂ := who₂) (b₂ := b₂) hneq R₁) k')) env oc := by
-  sorry
+    hk_eq hR₁ hR₂
 
 /-- The algebraic core of commit-commit commutativity. -/
 theorem outcomeDist_comm_commit_algebraic
@@ -744,22 +610,22 @@ theorem outcomeDist_comm_commit_algebraic
     d₂.bind (fun v₂ => d₁.bind (fun v₁ => f v₁ v₂)) :=
   FDist.bind_comm d₁ d₂ f
 
-/-- Two adjacent commits with disjoint variable references produce the
-    same outcome distribution regardless of order. -/
+/-- Two adjacent commits with independent strategies produce the same
+    outcome distribution regardless of order. Since guards and strategies
+    now receive the full erased environment, independence is expressed
+    directly as pointwise equality of strategy outputs. -/
 theorem outcomeDist_comm_commit
     {Γ : VCtx P L} {σ : Profile P L} {env : VEnv (Player := P) L Γ}
     {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
-    {acts₁ : List (L.Val b₁)}
-    {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who₁ Γ)) L.bool}
+    {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx Γ) L.bool}
     {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
-    {acts₂ : List (L.Val b₂)}
     {R₂ : L.Expr ((x₂, b₂) :: eraseVCtx
-      (viewVCtx who₂ ((x₁, .hidden who₁ b₁) :: Γ))) L.bool}
+      ((x₁, .hidden who₁ b₁) :: Γ)) L.bool}
     {k : VegasCore P L
       ((x₂, .hidden who₂ b₂) :: (x₁, .hidden who₁ b₁) :: Γ)}
-    {R₂' : L.Expr ((x₂, b₂) :: eraseVCtx (viewVCtx who₂ Γ)) L.bool}
+    {R₂' : L.Expr ((x₂, b₂) :: eraseVCtx Γ) L.bool}
     {R₁' : L.Expr ((x₁, b₁) :: eraseVCtx
-      (viewVCtx who₁ ((x₂, .hidden who₂ b₂) :: Γ))) L.bool}
+      ((x₂, .hidden who₂ b₂) :: Γ)) L.bool}
     {k' : VegasCore P L
       ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
     (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
@@ -767,19 +633,19 @@ theorem outcomeDist_comm_commit
       outcomeDist σ k (VEnv.cons v₂ (VEnv.cons v₁ e)) =
       outcomeDist σ k' (VEnv.cons v₁ (VEnv.cons v₂ e)))
     (hσ₁ : ∀ (v₂ : L.Val b₂) (e : VEnv (Player := P) L Γ),
-      σ.commit who₁ x₁ acts₁ R₁ (VEnv.toView who₁ e) =
-      σ.commit who₁ x₁ acts₁ R₁'
-        (VEnv.toView who₁ (VEnv.cons (τ := .hidden who₂ b₂) v₂ e)))
+      σ.commit who₁ x₁ R₁ (VEnv.eraseEnv e) =
+      σ.commit who₁ x₁ R₁'
+        (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₂ b₂) v₂ e)))
     (hσ₂ : ∀ (v₁ : L.Val b₁) (e : VEnv (Player := P) L Γ),
-      σ.commit who₂ x₂ acts₂ R₂
-        (VEnv.toView who₂ (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
-      σ.commit who₂ x₂ acts₂ R₂' (VEnv.toView who₂ e)) :
+      σ.commit who₂ x₂ R₂
+        (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
+      σ.commit who₂ x₂ R₂' (VEnv.eraseEnv e)) :
     outcomeDist σ
-      (.commit x₁ who₁ acts₁ R₁
-        (.commit x₂ who₂ acts₂ R₂ k)) env =
+      (.commit x₁ who₁ R₁
+        (.commit x₂ who₂ R₂ k)) env =
     outcomeDist σ
-      (.commit x₂ who₂ acts₂ R₂'
-        (.commit x₁ who₁ acts₁ R₁' k')) env := by
+      (.commit x₂ who₂ R₂'
+        (.commit x₁ who₁ R₁' k')) env := by
   simp only [outcomeDist]
   simp_rw [hσ₂ _ env]
   rw [FDist.bind_comm]

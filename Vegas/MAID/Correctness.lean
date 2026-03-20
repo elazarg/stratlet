@@ -80,9 +80,9 @@ noncomputable def nativeOutcomeDist
             (fun raw => VEnv.cons (Player := Player) (L := L) (x := x) (τ := τ)
               (MAIDCompileState.readVal (B := B) raw τ.base nextId) (ρ raw))
             (nextId + 1) (raw.extend nextId ⟨τ.base, v⟩))
-  | _, .commit (b := b) x who acts R k, ρ, nextId, raw =>
+  | _, .commit (b := b) x who R k, ρ, nextId, raw =>
       FDist.bind
-        (σ.commit who x acts R (VEnv.toView (Player := Player) (L := L) who (ρ raw)))
+        (σ.commit who x R (VEnv.eraseEnv (ρ raw)))
         (fun v =>
           nativeOutcomeDist B σ k
             (fun raw => VEnv.cons (Player := Player) (L := L) (x := x) (τ := .hidden who b)
@@ -138,7 +138,7 @@ theorem nativeOutcomeDist_eq_outcomeDist
     congr 1
     exact VEnv.cons_ext (readVal_extend_self (B := B) raw nextId τ.base v)
       (hρ nextId (le_refl _) raw ⟨τ.base, v⟩)
-  | @commit _ x who b acts R k ih =>
+  | @commit _ x who b R k ih =>
     intro raw
     simp only [nativeOutcomeDist, outcomeDist]
     congr 1; funext v
@@ -204,7 +204,7 @@ noncomputable def extractOutcome
         (fun raw => VEnv.cons (Player := Player) (L := L) (x := x) (τ := τ)
           (MAIDCompileState.readVal (B := B) raw τ.base nextId) (ρ raw))
         (nextId + 1)
-  | _, .commit (b := b) x who _acts _R k, ρ, nextId =>
+  | _, .commit (b := b) x who _R k, ρ, nextId =>
       extractOutcome B k
         (fun raw => VEnv.cons (Player := Player) (L := L) (x := x) (τ := .hidden who b)
           (MAIDCompileState.readVal (B := B) raw b nextId) (ρ raw))
@@ -422,10 +422,13 @@ theorem ofProg_kernelNormalized
     exact ih hl ha hd.2 hσ_norm _ _
       ((st₀.addNode _ _).2.addVar_kernelNormalized σ _ _ _ _
         (st₀.addNode_chance_kernelNormalized σ τ.base _ _ _ _ hst₀))
-  | @commit Γ x who b acts R k ih =>
-    exact ih hl.2 ha.2 hd hσ_norm.2 _ _
+  | @commit Γ x who b R k ih =>
+    let acts := allValues B b
+    have hacts : acts ≠ [] := allValues_ne_nil B b
+    have hnodup : acts.Nodup := allValues_nodup B b
+    exact ih hl.2 ha hd hσ_norm.2 _ _
       ((st₀.addNode _ _).2.addVar_kernelNormalized σ _ _ _ _
-        (st₀.addNode_decision_kernelNormalized σ b who acts _ ha.1 _ _ _ hst₀
+        (st₀.addNode_decision_kernelNormalized σ b who acts hacts hnodup _ _ _ hst₀
           (fun raw => hσ_norm.1 _)))
   | reveal y who x hx k ih =>
     exact ih hl ha hd hσ_norm _ _ (st₀.addVar_kernelNormalized σ _ _ _ _ hst₀)
@@ -486,22 +489,24 @@ theorem MAIDCompileState.ofProg_nextId_le
                     (ofProg._proof_3 B Γ_1 x τ m D' k hd ρ st₀)).2.addVar
               x τ {st₀.nextId} (ofProg._proof_5 B Γ_1 x τ m D' k hd ρ st₀)))
           rfl)
-  | commit x who acts R k ih =>
-    change st₀.nextId ≤ (MAIDCompileState.ofProg B k hl.2 ha.2 hd _ _).nextId
+  | commit x who R k ih =>
+    rename_i Γ' b
+    let acts := allValues B b
+    change st₀.nextId ≤ (MAIDCompileState.ofProg B k hl.2 ha hd _ _).nextId
     refine le_trans (Nat.le_succ _) ?_
     (expose_names;
       exact
         le_of_le_of_eq''
-          (ih hl.right ha.right hd
+          (ih hl.right ha hd
             (fun raw ↦
               have env := ρ raw;
-              have v := readVal raw _ st₀.nextId;
-              VEnv.cons v env)
-            ((st₀.addNode
-                    (CompiledNode.decision _ who acts _ _ (st₀.ctxDeps Γ_1) fun σ raw ↦
-                      σ.commit who x acts R (VEnv.toView who (ρ raw)))
+               have v := readVal raw b st₀.nextId;
+               VEnv.cons v env)
+             ((st₀.addNode
+                    (CompiledNode.decision b who acts (allValues_ne_nil B b) (allValues_nodup B b) (st₀.ctxDeps Γ') fun σ raw ↦
+                      σ.commit who x R (VEnv.eraseEnv (ρ raw)))
                     _).2.addVar
-              x _ {st₀.nextId} _))
+              x (.hidden who b) {st₀.nextId} _))
           rfl)
   | reveal y who x hx k ih =>
     (expose_names;
@@ -620,9 +625,9 @@ theorem MAIDCompileState.ofProg_descAt_old
     simp only [MAIDCompileState.descAt, MAIDCompileState.addVar, MAIDCompileState.addNode]
     congr 1
     rw [List.getElem_append_left (by rw [st₀.nodes_length_eq_nextId]; exact hj)]
-  | commit x who acts R k ih =>
-    change (MAIDCompileState.ofProg B k hl.2 ha.2 hd _ _).descAt ⟨j, _⟩ = _
-    rw [ih hl.2 ha.2 hd _ _ (Nat.lt_succ_of_lt hj)]
+  | commit x who R k ih =>
+    change (MAIDCompileState.ofProg B k hl.2 ha hd _ _).descAt ⟨j, _⟩ = _
+    rw [ih hl.2 ha hd _ _ (Nat.lt_succ_of_lt hj)]
     simp only [MAIDCompileState.descAt, MAIDCompileState.addVar, MAIDCompileState.addNode]
     congr 1
     rw [List.getElem_append_left (by rw [st₀.nodes_length_eq_nextId]; exact hj)]
@@ -1765,7 +1770,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
         exact congr_arg (fun env => L.evalDist D' (VEnv.eraseDistEnv τ m env)) hρeq
       simpa [MAIDCompileState.ofProg, deps, id, cpdFDist, cpdNorm, nd, stNode, st₁, ρ', st, data, f]
         using hmain
-  | commit x who acts R k ih =>
+  | commit x who R k ih =>
       rename_i Γ' b
       dsimp
       intro a₀
@@ -1775,12 +1780,12 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
         exact hxΓ (hvars x hxmem)
       let obs := st₀.ctxDeps Γ'
       let id := st₀.nextId
-      have hacts : acts ≠ [] := by
-        rcases hl.1 (MAIDCompileState.defaultView B (viewVCtx who Γ')) with ⟨a, ha', _⟩
-        exact List.ne_nil_of_mem ha'
+      let acts := allValues B b
+      have hacts : acts ≠ [] := allValues_ne_nil B b
+      have hnodup : acts.Nodup := allValues_nodup B b
       let kernel : Profile Player L → RawNodeEnv L → FDist (L.Val b) :=
-        fun σ raw => σ.commit who x acts R (VEnv.toView who (ρ raw))
-      let nd : CompiledNode Player L B := .decision b who acts hacts ha.1 obs kernel
+        fun σ raw => σ.commit who x R (VEnv.eraseEnv (ρ raw))
+      let nd : CompiledNode Player L B := .decision b who acts hacts hnodup obs kernel
       have hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st₀.nextId := by
         intro d hd'
         have hd'' : d ∈ obs := by
@@ -1810,7 +1815,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
                 simpa using hd'
               subst d
               exact Nat.lt_succ_self _)
-            (st₀.addNode_decision_kernelNormalized σ b who acts _ ha.1 _ kernel hndeps hst₀
+            (st₀.addNode_decision_kernelNormalized σ b who acts hacts hnodup _ kernel hndeps hst₀
               (fun raw => hσ_norm.1 _)))
       have hctx₁ : st₁.ctxDeps ((x, .hidden who b) :: Γ') = {id} ∪ st₀.ctxDeps Γ' := by
         simpa [st₁, stNode, nd, obs, id] using
@@ -1828,15 +1833,15 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
           simp [hctx₁, hmem]
         have hρj := hρ_deps j hj' raw tv
         exact VEnv.cons_ext (readVal_extend_ne (B := B) raw j id tv b hjid.symm) hρj
-      let st : MAIDCompileState Player L B := MAIDCompileState.ofProg B k hl.2 ha.2 hd ρ' st₁
+      let st : MAIDCompileState Player L B := MAIDCompileState.ofProg B k hl.2 ha hd ρ' st₁
       have hkn : st.KernelNormalized σ := by
-        simpa [st] using ofProg_kernelNormalized B k σ hl.2 ha.2 hd hσ_norm.2 ρ' st₁ hst₁
+        simpa [st] using ofProg_kernelNormalized B k σ hl.2 ha hd hσ_norm.2 ρ' st₁ hst₁
       let data := compiledFDistData st σ hkn
       have hid_lt : id < st.nextId := by
         exact Nat.lt_of_lt_of_le
           (by
             simp [st₁, stNode, id, MAIDCompileState.addVar, MAIDCompileState.addNode])
-          (MAIDCompileState.ofProg_nextId_le B k hl.2 ha.2 hd ρ' st₁)
+          (MAIDCompileState.ofProg_nextId_le B k hl.2 ha hd ρ' st₁)
       let nd0 : Fin st.nextId := ⟨id, hid_lt⟩
       have hdrop :
           (List.finRange st.nextId).drop id =
@@ -1851,7 +1856,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
           st.descAt nd0 = st₁.descAt ⟨id, by
             simp [st₁, stNode, id, MAIDCompileState.addVar, MAIDCompileState.addNode]⟩ := by
         simpa [st, nd0] using
-          (MAIDCompileState.ofProg_descAt_old B k hl.2 ha.2 hd ρ' st₁ id
+          (MAIDCompileState.ofProg_descAt_old B k hl.2 ha hd ρ' st₁ id
             (by
               simp [st₁, stNode, id, MAIDCompileState.addVar, MAIDCompileState.addNode]))
       have hdesc0 : st.descAt nd0 = nd := by
@@ -1880,7 +1885,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
       let μ : FDist (st.toStruct.Val nd0) := data.dist nd0 a₀
       let f :
           @TAssign Player _ B.fintypePlayer st.nextId st.toStruct → Outcome Player :=
-        fun a => extractOutcome B (VegasCore.commit x who acts R k) ρ st₀.nextId (rawOfTAssign st a)
+        fun a => extractOutcome B (VegasCore.commit x who R k) ρ st₀.nextId (rawOfTAssign st a)
       have hbindmap_aux :
           ∀ (nodes : List (Fin st.nextId))
             (g : st.toStruct.Val nd0 →
@@ -1900,7 +1905,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
       have hmain :
           FDist.map f
               ((List.finRange st.nextId).drop id |>.foldl (evalStepFDist data) (FDist.pure a₀)) =
-            nativeOutcomeDist B σ (VegasCore.commit x who acts R k) ρ
+            nativeOutcomeDist B σ (VegasCore.commit x who R k) ρ
               st₀.nextId (rawOfTAssign st a₀) := by
         rw [hdrop, foldl_evalStepFDist_cons, evalStepFDist, FDist.pure_bind]
         change
@@ -1908,10 +1913,10 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
               (((List.finRange st.nextId).drop st₁.nextId).foldl
                 (evalStepFDist data)
                 (FDist.bind μ (fun v => FDist.pure (updateAssign a₀ nd0 v)))) =
-            nativeOutcomeDist B σ (VegasCore.commit x who acts R k) ρ
+            nativeOutcomeDist B σ (VegasCore.commit x who R k) ρ
               st₀.nextId (rawOfTAssign st a₀)
         rw [hbindmap_aux _ _]
-        have hih := ih hl.2 ha.2 hd hwf.2 hσ_norm.2 ρ' st₁ hst₁ hvars₁ hρ'_deps
+        have hih := ih hl.2 ha hd hwf.2 hσ_norm.2 ρ' st₁ hst₁ hvars₁ hρ'_deps
         -- Step 1: Expose compiledNodeFDist in the bind
         change FDist.bind (compiledNodeFDist st σ
             (st.rawEnvOfCfg (projCfg a₀ (st.toStruct.parents nd0)))
@@ -1937,7 +1942,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
         -- Distributions match
         simp only [nativeOutcomeDist, kernel, H]
         congr 1
-        exact congr_arg (fun env => σ.commit who x acts R (VEnv.toView who env)) hρeq
+        exact congr_arg (fun env => σ.commit who x R (VEnv.eraseEnv env)) hρeq
       simpa [MAIDCompileState.ofProg, obs, id, hacts, kernel, nd, stNode, st₁, ρ', st, data, f]
         using hmain
   | reveal y who x hx k ih =>

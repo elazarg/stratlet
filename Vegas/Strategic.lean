@@ -16,19 +16,17 @@ variable {P : Type} [DecidableEq P] {L : IExpr}
 /-- A player's Vegas strategy component, bundled with normalization. -/
 structure PlayerStrategy (who : P) where
   commit : {Γ : VCtx P L} → {b : L.Ty} → (x : VarId) →
-    (acts : List (L.Val b)) →
-    (R : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) L.bool) →
+    (R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool) →
     CommitKernel P L who Γ b
   normalized : {Γ : VCtx P L} → {b : L.Ty} → (x : VarId) →
-    (acts : List (L.Val b)) →
-    (R : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) L.bool) →
-    (view : VEnv (Player := P) L (viewVCtx who Γ)) →
-    FDist.totalWeight (commit x acts R view) = 1
+    (R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool) →
+    (env : Env L.Val (eraseVCtx Γ)) →
+    FDist.totalWeight (commit x R env) = 1
 
 /-- Assemble per-player strategy components into a Vegas `Profile`. -/
 def toProfile (σ : ∀ who, PlayerStrategy (P := P) (L := L) who) :
     Profile P L where
-  commit := fun who x acts R view => (σ who).commit x acts R view
+  commit := fun who x R env => (σ who).commit x R env
 
 /-- Bundled player strategies are normalized on every Vegas program. -/
 theorem toProfile_normalizedOn (σ : ∀ who, PlayerStrategy (P := P) (L := L) who)
@@ -38,8 +36,8 @@ theorem toProfile_normalizedOn (σ : ∀ who, PlayerStrategy (P := P) (L := L) w
   | ret u => trivial
   | letExpr x e k ih => exact ih
   | sample x τ m D' k ih => exact ih
-  | commit x who acts R k ih =>
-      exact ⟨(fun view => (σ who).normalized x acts R view), ih⟩
+  | commit x who R k ih =>
+      exact ⟨(fun env => (σ who).normalized x R env), ih⟩
   | reveal y who x hx k ih => exact ih
 
 /-- Vegas denotational semantics as a `KernelGame`. -/
