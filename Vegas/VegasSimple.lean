@@ -25,10 +25,10 @@ noncomputable def evalPayoffMap (u : PayoffMap Γ) (env : VEnvSimple Γ) :
     Outcome Player :=
   Vegas.evalPayoffs u.entries env
 
-noncomputable abbrev evalR {Γ : VCtxSimple} {b : BaseTy} {who : Player} {x : VarId}
-    (R : simpleExpr.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) .bool)
-    (a : Val b) (view : VEnvSimple (viewVCtx who Γ)) : Bool :=
-  Vegas.evalGuard (Player := Player) (L := simpleExpr) R a view
+noncomputable abbrev evalR {Γ : VCtxSimple} {b : BaseTy} {x : VarId}
+    (R : simpleExpr.Expr ((x, b) :: eraseVCtx Γ) .bool)
+    (a : Val b) (env : Env simpleExpr.Val (eraseVCtx Γ)) : Bool :=
+  Vegas.evalGuard (Player := Player) (L := simpleExpr) R a env
 
 abbrev VegasSimple : VCtxSimple → Type := Vegas.VegasCore Player simpleExpr
 
