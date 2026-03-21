@@ -1,5 +1,6 @@
 import Vegas.Strategic
 import Vegas.MAID.Compile
+import GameTheory.Languages.MAID.FoldEval
 
 /-!
 # FDist-based MAID fold
