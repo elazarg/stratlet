@@ -1309,6 +1309,51 @@ private theorem fdist_transport_bind_castValType
     (fdist_transport h d).bind (fun v => f (castValType hdesc v)) = d.bind f := by
   subst hdesc; rfl
 
+open MAID in
+/-- At the commit's new decision node, `compiledDecisionKernel` returns
+`fdist_transport ... (headKernel (β who) view)`. Binding with `f ∘ castValType`
+cancels the transport + cast, leaving `(headKernel (β who) view).bind f`. -/
+theorem compiledDecisionKernel_commit_bind_cancel
+    {Γ : VCtx Player L}
+    {x : VarId} {who : Player} {b : L.Ty}
+    {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+    {k : VegasCore Player L ((x, .hidden who b) :: Γ)}
+    (B : MAIDBackend Player L)
+    (hl : Legal (.commit (b := b) x who R k))
+    (ha : DistinctActs (.commit (b := b) x who R k))
+    (hd : NormalizedDists (.commit (b := b) x who R k))
+    (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ)
+    (st₀ : MAIDCompileState Player L B)
+    (β : ProgramBehavioralProfile (P := Player) (L := L)
+      (.commit (b := b) x who R k))
+    (raw : RawNodeEnv L)
+    {γ : Type} [DecidableEq γ] (f : L.Val b → FDist γ) :
+    let _ := B.fintypePlayer
+    let st := MAIDCompileState.ofProg B
+      (.commit (b := b) x who R k) hl ha hd ρ st₀
+    let nd0 : Fin st.nextId := ⟨st₀.nextId,
+      Nat.lt_of_lt_of_le
+        (by simp [MAIDCompileState.addVar, MAIDCompileState.addNode])
+        (MAIDCompileState.ofProg_nextId_le B k hl.2 ha hd _ _)⟩
+    let hdesc0 : st.descAt nd0 = .decision b who (allValues B b)
+        (allValues_ne_nil B b) (allValues_nodup B b)
+        (st₀.viewDeps who Γ) := by
+      sorry
+    (compiledDecisionKernel B (.commit (b := b) x who R k)
+      hl ha hd ρ st₀ β nd0 raw).bind
+      (fun v => f (castValType hdesc0 v)) =
+    (ProgramBehavioralStrategy.headKernel (P := Player) (L := L)
+      (β who)
+      (projectViewEnv who (VEnv.eraseEnv (ρ raw)))).bind f := by
+  intro _ st nd0 hdesc0
+  -- compiledDecisionKernel at commit with nd0.val = st₀.nextId
+  -- returns fdist_transport ... (headKernel (β who) view)
+  simp only [compiledDecisionKernel]
+  split
+  · -- New node case: transport + castValType cancel
+    rw [fdist_transport_bind_castValType (hdesc := hdesc0)]
+  · next hne => exact absurd rfl hne
+
 -- Compatibility of compiled FDist data with sem and pol
 
 open MAID in
@@ -1736,11 +1781,12 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
           · next _ _ _ _ _ _ hdesc₁ => rfl
           · next _ _ _ hdesc₁ => exact absurd (hdesc₁.symm.trans hdesc0 :
               CompiledNode.utility _ _ _ = .decision b who acts hacts hnodup obs) nofun
-        -- μ = dk nd0 rawO through compiledDecisionKernel at the commit node.
-        -- The dk returns fdist_transport ... (headKernel (β who) view₁).
-        -- castValType cancel + hViewEq close. Needs heartbeat budget for rw [hμ].
+        -- hμ gives μ = dk nd0 rawO. Through compiledDecisionKernel_commit_bind_cancel,
+        -- the bind with H ∘ castValType cancels, leaving (headKernel (β who) view₁).bind H.
+        -- hViewEq gives view₁ = view₂. Together this closes the goal.
+        -- Blocked by: rw [hμ] times out (proof term too large).
         sorry
-      exact hmain
+      sorry -- exact hmain (times out)
   | reveal y who x hx k ih =>
       rename_i Γ' b
       dsimp
@@ -1754,7 +1800,7 @@ theorem foldFDist_map_extract_eq_nativeOutcomeDist
           VEnv.cons (τ := .pub b) v (ρ raw)
       let st₁ := st₀.addVar y (.pub b) (st₀.lookupDeps x) (st₀.lookupDeps_lt x)
       have hvars₁ : st₁.VarsSubCtx ((y, .pub b) :: Γ') := by
-        simpa [st₁] using st.VarsSubCtx_addVar hvars y _ _ _ hyΓ
+        simpa [st₁] using st₀.VarsSubCtx_addVar hvars y _ _ _ hyΓ
       have hctx₁ : st₁.ctxDeps ((y, .pub b) :: Γ') = st₀.ctxDeps Γ' := by
         simpa [st₁] using st₀.ctxDeps_reveal_step y who x hx hyΓ hyvars
       have hρ'_deps : ∀ j, j ∉ st₁.ctxDeps ((y, .pub b) :: Γ') → InsensitiveTo ρ' j := by
