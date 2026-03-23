@@ -98,6 +98,13 @@ private theorem MAIDCompileState.ofProg_preserves_decision_monotone
   | letExpr _ _ k ih => sorry -- no new nodes, delegate to IH on k
   | sample _ _ _ _ k ih => sorry -- chance node, delegate to IH on k
   | commit x who_c R k ih =>
+    -- Apply IH on k with intermediate state st₁ = addNode + addVar of st₀.
+    -- Two sub-obligations:
+    -- 1. DecisionMonotone st₁: old pairs from hmon; new node vs old from hvis
+    --    (new node's obsParents = viewDeps who_c Γ, and hvis says old decisions
+    --     are in viewDeps, with obsParents ⊆ viewDeps)
+    -- 2. DecisionVisible st₁ ((x,.hidden who_c b)::Γ): viewDeps monotonicity
+    --    through context extension (canSee who (.hidden who b) = true)
     exact ih hl.2 ha hd hfresh.2 _ _ sorry sorry
   | reveal _ _ _ _ k ih => sorry -- no new nodes, delegate to IH on k
 
