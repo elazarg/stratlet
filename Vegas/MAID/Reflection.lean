@@ -65,6 +65,7 @@ private noncomputable def reflectPolicyAux
             letI : Fintype P := B.fintypePlayer
             intro view
             -- The decision node for this commit is at index st.nextId in st_final
+            -- Node at id is a decision for who (from addNode_descAt_new + ofProg_descAt_old)
             have hkind : st_final.toStruct.kind ⟨id, hid_lt⟩ =
                 MAID.NodeKind.decision who := sorry
             have hval : st_final.toStruct.Val ⟨id, hid_lt⟩ = L.Val b := sorry
