@@ -62,7 +62,6 @@ private noncomputable def reflectPolicyAux
           (MAIDCompileState.ofProg_nextId_le B k hl.2 hd _ _)
       let kernel : ProgramBehavioralKernelPMF who Γ b :=
         { run := by
-            letI : Fintype P := B.fintypePlayer
             intro view
             -- The decision node for this commit is at index st.nextId in st_final
             -- Node at id is a decision for who (from addNode_descAt_new + ofProg_descAt_old)
@@ -82,12 +81,14 @@ private noncomputable def reflectPolicyAux
                   exact Nat.lt_succ_self _)).nextId := by
               simp [MAIDCompileState.addVar, MAIDCompileState.addNode]
             have hdesc : st_final.descAt ⟨id, hid_lt⟩ = nd := by
-              -- Chain: ofProg_descAt_old gives st₁.descAt, then addVar gives addNode, then addNode_descAt_new
-              let ρ' : RawNodeEnv L → VEnv (Player := P) L ((x, .hidden who b) :: Γ) :=
-                fun raw => VEnv.cons (τ := .hidden who b) (MAIDCompileState.readVal (B := B) raw b st.nextId) (ρ raw)
+              let ρ' (raw : RawNodeEnv L) : VEnv (Player := P) L ((x, .hidden who b) :: Γ) :=
+                VEnv.cons (MAIDCompileState.readVal (B := B) raw b st.nextId) (ρ raw)
               let st₁ := (st.addNode nd hndeps).2.addVar x (.hidden who b) {st.nextId}
-                (fun d hd₁ => by simp only [Finset.mem_singleton] at hd₁; subst hd₁; exact Nat.lt_succ_self _)
-              show (MAIDCompileState.ofProg B k hl.2 hd ρ' st₁).descAt ⟨st.nextId, _⟩ = nd
+                (fun d hd₁ => by
+                  simp only [Finset.mem_singleton] at hd₁
+                  subst hd₁
+                  exact Nat.lt_succ_self _)
+              change (MAIDCompileState.ofProg B k hl.2 hd ρ' st₁).descAt ⟨st.nextId, _⟩ = nd
               rw [MAIDCompileState.ofProg_descAt_old B k hl.2 hd ρ' st₁ st.nextId hst1_lt]
               simp only [st₁, MAIDCompileState.addVar]
               exact st.addNode_descAt_new nd hndeps
@@ -137,7 +138,7 @@ theorem reflectPolicy_outcomeDistBehavioralPMF_eq
     (hwf : WF p) :
     let st := MAIDCompileState.ofProg B p hl hd (fun _ => env) .empty
     ∀ (pol : MAID.Policy (fp := B.fintypePlayer) st.toStruct),
-      let extract : @TAssign P _ B.fintypePlayer st.nextId st.toStruct → Outcome P :=
+      let extract : TAssign (fp := B.fintypePlayer) st.toStruct → Outcome P :=
         fun a => extractOutcome B p (fun _ => env) 0 (rawOfTAssign st a)
       let σ_pmf := reflectPolicy B p hl hd env pol
       PMF.map extract (evalAssignDist (fp := B.fintypePlayer) st.toStruct
@@ -157,8 +158,7 @@ private noncomputable def compilePureProfileAux
     (ρ : RawNodeEnv L → VEnv (Player := P) L Γ) →
     (st₀ : MAIDCompileState P L B) →
     ProgramPureProfile p →
-    @MAID.PurePolicy P _ B.fintypePlayer
-      (MAIDCompileState.ofProg B p hl hd ρ st₀).nextId
+    MAID.PurePolicy (fp := B.fintypePlayer)
       (MAIDCompileState.ofProg B p hl hd ρ st₀).toStruct
   | _, .ret _, _, _, _, _, _ => by
       letI := B.fintypePlayer; intro _p ⟨d, _⟩
@@ -222,9 +222,8 @@ noncomputable def compilePureProfile
     (hl : Legal p) (hd : NormalizedDists p)
     (env : VEnv L Γ)
     (π : ProgramPureProfile p) :
-    let _ : Fintype P := B.fintypePlayer
     let st := MAIDCompileState.ofProg B p hl hd (fun _ => env) .empty
-    @MAID.PurePolicy P _ B.fintypePlayer st.nextId st.toStruct :=
+    MAID.PurePolicy (fp := B.fintypePlayer) st.toStruct :=
   compilePureProfileAux B p hl hd (fun _ => env) .empty π
 
 /-- The compiled pure policy, lifted to a behavioral MAID policy via
@@ -242,8 +241,7 @@ theorem compilePureProfile_eq_pureToPolicy
     let st := MAIDCompileState.ofProg B p hl hd (fun _ => env) .empty
     let β := ProgramPureProfile.toBehavioral p π
     compiledPolicy B p hl hd (fun _ => env) .empty β =
-      @MAID.pureToPolicy P _ B.fintypePlayer st.nextId st.toStruct
-        (compilePureProfile B p hl hd env π) := by
+      MAID.pureToPolicy (fp := B.fintypePlayer) (compilePureProfile B p hl hd env π) := by
   sorry
 
 end Vegas
