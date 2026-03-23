@@ -155,7 +155,28 @@ private theorem MAIDCompileState.DecisionMonotone_addNode_addVar_nonDec
     (hmon : st.DecisionMonotone)
     (hnotDec : ∀ who, nd.kind ≠ .decision who) :
     ((st.addNode nd hndeps).2.addVar x τ {st.nextId} hdeps).DecisionMonotone := by
-  sorry
+  -- addVar doesn't change nodes/nextId, so it suffices to show for addNode
+  -- The new state has nextId = st.nextId + 1, new node is nd (not a decision)
+  intro who d₁ d₂ hk₁ hk₂ hlt
+  -- Any node at index st.nextId is nd, which is not a decision
+  have old (d : Fin _) (hkd : (((st.addNode nd hndeps).2.addVar x τ _ hdeps).descAt d).kind =
+      .decision who) : d.val < st.nextId := by
+    by_contra hge; push_neg at hge
+    have heq : d.val = st.nextId := by
+      have := d.isLt; simp [MAIDCompileState.addVar, MAIDCompileState.addNode] at this; omega
+    have hdesc : ((st.addNode nd hndeps).2.addVar x τ _ hdeps).descAt d = nd := by
+      show ((st.nodes ++ [(st.nextId, nd)])[d.val]'(by simp [MAIDCompileState.addNode, MAIDCompileState.addVar, st.nodes_length_eq_nextId]; omega)).2 = nd
+      rw [List.getElem_append_right (by rw [st.nodes_length_eq_nextId]; omega)]
+      simp [st.nodes_length_eq_nextId, heq]
+    rw [hdesc] at hkd; exact absurd hkd (fun h => hnotDec who h)
+  have old₁ := old d₁ hk₁; have old₂ := old d₂ hk₂
+  have hdesc (d : Fin _) (hold : d.val < st.nextId) :
+      ((st.addNode nd hndeps).2.addVar x τ _ hdeps).descAt d = st.descAt ⟨d.val, hold⟩ := by
+    show ((st.nodes ++ [(st.nextId, nd)])[d.val]'(by simp [MAIDCompileState.addNode, MAIDCompileState.addVar, st.nodes_length_eq_nextId]; omega)).2 = (st.nodes[d.val]'(by rw [st.nodes_length_eq_nextId]; exact hold)).2
+    congr 1
+    exact List.getElem_append_left (by rw [st.nodes_length_eq_nextId]; exact hold)
+  rw [hdesc d₁ old₁] at hk₁ ⊢; rw [hdesc d₂ old₂] at hk₂ ⊢
+  exact hmon who ⟨d₁.val, old₁⟩ ⟨d₂.val, old₂⟩ hk₁ hk₂ hlt
 
 /-- `addNode + addVar` of non-decision node preserves `DecisionVisible`. -/
 private theorem MAIDCompileState.DecisionVisible_addNode_addVar_cons
