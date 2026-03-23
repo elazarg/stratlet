@@ -925,6 +925,20 @@ private noncomputable def fdist_transport {α β : Type} [DecidableEq α] [Decid
     [DecidableEq α] [DecidableEq β] (h : α = β) (d : FDist α) :
     (fdist_transport h d).totalWeight = d.totalWeight := by subst h; rfl
 
+@[simp] private theorem toPMF_fdist_transport {α β : Type}
+    [DecidableEq α] [DecidableEq β] (h : α = β) (d : FDist α)
+    (hn : (fdist_transport h d).totalWeight = 1) :
+    (fdist_transport h d).toPMF hn =
+      h ▸ (d.toPMF ((fdist_transport_totalWeight h d).symm ▸ hn)) := by
+  subst h; rfl
+
+private theorem toPMF_fdist_transport_cast {α β : Type}
+    [DecidableEq α] [DecidableEq β] (h : α = β) (d : FDist α)
+    (hn : (fdist_transport h d).totalWeight = 1) :
+    (fdist_transport h d).toPMF hn =
+      cast (congrArg PMF h) (d.toPMF ((fdist_transport_totalWeight h d).symm ▸ hn)) := by
+  subst h; rfl
+
 private theorem fdist_transport_congr {α β : Type}
     [DecidableEq α] [DecidableEq β]
     {h₁ h₂ : α = β} (d : FDist α) :
@@ -960,8 +974,10 @@ noncomputable def compiledDecisionKernel
       RawNodeEnv L →
       FDist (CompiledNode.valType
         ((MAIDCompileState.ofProg B p hl ha hd ρ st₀).descAt nd))
-  | _, .ret _, _, _, _, _, _, _, _, _ => by
-      exact FDist.pure (Classical.choice inferInstance)
+  | _, .ret _, _, _, _, _, _, _, nd, _ => by
+      letI := B.fintypePlayer
+      change FDist ((MAIDCompileState.ofProg B (.ret _) _ _ _ _ _).toStruct.Val nd)
+      exact FDist.pure default
   | _Γ, .letExpr (b := b) x e k, hl, ha, hd, ρ, st₀, β, nd, raw =>
       compiledDecisionKernel B k hl ha hd
         (fun raw => VEnv.cons (τ := .pub b)
@@ -1807,6 +1823,51 @@ theorem compiledDecisionKernel_commit_bind_cancel
   · rw [fdist_transport_bind_castValType (hdesc := hdesc0)]
   · next hne => exact absurd hnd0 hne
 
+-- The toPMF of compiledDecisionKernel equals translateStrategy at decision nodes.
+open MAID in
+private theorem dk_toPMF_eq_ts
+    (B : MAIDBackend Player L)
+    {Γ : VCtx Player L}
+    (p : VegasCore Player L Γ)
+    (hl : Legal p) (ha : DistinctActs p) (hd : NormalizedDists p)
+    (ρ : RawNodeEnv L → VEnv L Γ)
+    (st₀ : MAIDCompileState Player L B)
+    (β : ProgramBehavioralProfile p)
+    (who : Player)
+    (nd : Fin (MAIDCompileState.ofProg B p hl ha hd ρ st₀).nextId)
+    (hk : (MAIDCompileState.ofProg B p hl ha hd ρ st₀).toStruct.kind (fp := B.fintypePlayer) nd =
+      .decision who)
+    (cfg) :
+    letI := B.fintypePlayer
+    (compiledDecisionKernel B p hl ha hd ρ st₀ β nd
+      ((MAIDCompileState.ofProg B p hl ha hd ρ st₀).rawEnvOfCfg cfg)).toPMF
+      (compiledDecisionKernel_normalized B p hl ha hd ρ st₀ β nd _ ⟨who, by
+        simp [toStruct_kind] at hk; exact hk⟩) =
+      (translateStrategy B p hl ha hd ρ st₀ β) who ⟨⟨nd, hk⟩, cfg⟩ := by
+  letI := B.fintypePlayer
+  induction p generalizing st₀ with
+  | ret =>
+      change ((compiledDecisionKernel B (.ret _) _ _ _ _ _ _ nd _).toPMF _) = _
+      simp only [compiledDecisionKernel, translateStrategy, id]
+      exact (FDist.toPMF_congr rfl).trans (FDist.toPMF_pure _)
+  | letExpr x e k ih => exact @ih _ _ _ _ _ β nd hk cfg
+  | sample x τ m D' k ih => exact @ih _ _ _ _ _ β nd hk cfg
+  | @commit _ x who' b R k ih =>
+      -- Both compiledDecisionKernel and translateStrategy for commit use
+      -- by_cases on nd.val = st₀.nextId.
+      -- Case nd = id: both produce the behavioral kernel κ
+      -- Case nd ≠ id: both recurse → use ih
+      simp only [compiledDecisionKernel, translateStrategy]
+      split
+      · -- nd.val = st₀.nextId: both produce the behavioral kernel
+        -- Convert LHS to cast form, then match RHS cast form
+        rw [toPMF_fdist_transport_cast]
+        simp only [id, eq_mpr_eq_cast]
+        congr 1
+      · -- nd.val ≠ st₀.nextId: both recurse
+        exact @ih _ _ _ _ _ _ nd hk cfg
+  | reveal y who' x hx k ih => exact @ih _ _ _ _ _ β nd hk cfg
+
 -- Compatibility of compiled FDist data with sem and pol
 
 open MAID in
@@ -1825,7 +1886,71 @@ theorem compiledFDistData_compatible
       (compiledPolicy B p hl ha hd ρ st₀ β) := by
   letI := B.fintypePlayer
   intro nd a
-  sorry
+  let st := MAIDCompileState.ofProg B p hl ha hd ρ st₀
+  cases hdesc : st.descAt nd with
+  | chance τ deps cpd cpdNorm =>
+      have hdist := compiledFDistData_dist_chance B p hl ha hd ρ st₀ β nd a hdesc
+      have hdesc' : (MAIDCompileState.ofProg B p hl ha hd ρ st₀).descAt nd =
+          .chance τ deps cpd cpdNorm := hdesc
+      -- Use conv to rewrite the FDist inside toPMF
+      conv_lhs =>
+        arg 1
+        rw [show (compiledFDistData B p hl ha hd ρ st₀ β).dist nd a =
+              (compiledFDistData' B p hl ha hd ρ st₀ β).dist nd a from rfl, hdist]
+      -- Now LHS: (fdist_transport _ (cpd rawP)).toPMF _
+      -- Unfold nodeDist on RHS and resolve
+      unfold nodeDist
+      split
+      next hk =>
+        -- Goal: (fdist_transport _ (cpd rawP)).toPMF _ = toSem.chanceCPD ⟨nd, _⟩ cfg
+        -- Both sides are casts of (cpd rawP).toPMF via the same type equality
+        simp only [MAIDCompileState.toSem]
+        simp_all only [toStruct_Val, toPMF_fdist_transport, eq_mpr_eq_cast, id_eq, ne_eq]
+        split
+        next τ_1 _parents cpdFDist cpdNorm_1
+          heq =>
+          simp_all only [CompiledNode.chance.injEq]
+          obtain ⟨left, right⟩ := hdesc'
+          obtain ⟨left_1, right⟩ := right
+          subst left left_1
+          simp_all only [heq_eq_eq]
+          subst right
+          grind
+        next τ_1 who acts hacts hnodup obs heq => simp_all only [reduceCtorEq]
+        next who parents ufn heq => simp_all only [reduceCtorEq]
+      next _ hk =>
+        simp only [toStruct_kind, CompiledNode.kind, hdesc'] at hk; exact (nomatch hk)
+      next _ hk =>
+        simp only [toStruct_kind, CompiledNode.kind, hdesc'] at hk; exact (nomatch hk)
+  | decision τ who acts hacts hnodup obs =>
+      have hdist := compiledFDistData_dist_decision B p hl ha hd ρ st₀ β nd a hdesc
+      have hdesc' : (MAIDCompileState.ofProg B p hl ha hd ρ st₀).descAt nd =
+          .decision τ who acts hacts hnodup obs := hdesc
+      conv_lhs =>
+        arg 1
+        rw [show (compiledFDistData B p hl ha hd ρ st₀ β).dist nd a =
+              (compiledFDistData' B p hl ha hd ρ st₀ β).dist nd a from rfl, hdist]
+      unfold nodeDist
+      split
+      next hk =>
+        simp only [toStruct_kind, CompiledNode.kind, hdesc'] at hk; exact (nomatch hk)
+      next p₁ hk =>
+        simp only [compiledPolicy]
+        exact (FDist.toPMF_congr rfl).trans
+          (dk_toPMF_eq_ts B p hl ha hd ρ st₀ β p₁ nd hk _)
+      next _ hk =>
+        simp only [toStruct_kind, CompiledNode.kind, hdesc'] at hk; exact (nomatch hk)
+  | utility who deps ufn =>
+      have : Subsingleton (PMF (st.toStruct.Val nd)) := by
+        rw [toStruct_Val, hdesc]
+        dsimp [CompiledNode.valType]
+        exact ⟨fun a b => PMF.ext fun ⟨⟩ => by
+          change a () = b ()
+          have ha := a.2.tsum_eq
+          have hb := b.2.tsum_eq
+          rw [tsum_eq_single () (fun x hx => absurd (Subsingleton.elim x ()) hx)] at ha hb
+          exact ha.trans hb.symm⟩
+      exact Subsingleton.elim _ _
 
 -- Algebraic lemmas for the core bridge induction
 
