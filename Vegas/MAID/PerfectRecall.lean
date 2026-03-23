@@ -378,26 +378,23 @@ private theorem MAIDCompileState.ofProg_preserves_decision_monotone
     simp only [ofProg]
     exact DecisionMonotone_addUtilityNodes st₀ _ _ _ _ hmon
   | letExpr _ _ k ih =>
-    exact ih hl ha hd hfresh.2 _ _ hmon
-      (DecisionVisible_addVar_cons st₀ _ _ _ _ hfresh.1 hvis)
+    simp only [ofProg]
+    exact ih hl ha hd hfresh.2 _ _ hmon (DecisionVisible_addVar_cons st₀ _ _ _ _ hfresh.1 hvis)
   | sample _ _ _ _ k ih =>
-    exact ih hl ha hd.2 hfresh.2 _ _
-      (DecisionMonotone_addNode_addVar_nonDec st₀ _ _ _ _ _ hmon
-        (fun who h => by simp [CompiledNode.kind] at h))
-      (DecisionVisible_addNode_addVar_cons st₀ _ _ _ _ _ hfresh.1 hvis
-        (fun who h => by simp [CompiledNode.kind] at h))
+    refine ih hl ha hd.2 hfresh.2 _ _ ?_ ?_
+    · exact DecisionMonotone_addNode_addVar_nonDec st₀ _ _ _ _ _ hmon
+        (fun who h => by simp [CompiledNode.kind] at h)
+    · exact DecisionVisible_addNode_addVar_cons st₀ _ _ _ _ _ hfresh.1 hvis
+        (fun who h => by simp [CompiledNode.kind] at h)
   | commit x who_c R k ih =>
-    -- New decision node at st₀.nextId, obsParents = viewDeps who_c Γ.
-    -- DecisionMonotone of st₁: old pairs from hmon; new vs old from hvis
-    -- DecisionVisible of st₁: old from hvis + viewDeps monotonicity;
-    --   new node visible because canSee who_c (.hidden who_c b) = true
-    exact ih hl.2 ha hd hfresh.2 _ _
-      (DecisionMonotone_addNode_addVar_decision st₀ _ _ _ _ _ who_c hmon hvis rfl rfl)
-      (DecisionVisible_addNode_addVar_cons_decision st₀ _ _ _ _ _ hfresh.1 hvis who_c _ rfl rfl rfl
-        sorry)
+    refine ih hl.2 ha hd hfresh.2 _ _ ?_ ?_
+    · exact DecisionMonotone_addNode_addVar_decision st₀ _ _ _ _ _ who_c hmon hvis rfl rfl
+    · exact DecisionVisible_addNode_addVar_cons_decision st₀ _ _ _ _ _ hfresh.1 hvis who_c _ rfl rfl rfl
+        sorry
   | reveal _ _ _ _ k ih =>
-    exact ih hl ha hd hfresh.2 _ _ hmon
-      (DecisionVisible_addVar_cons st₀ _ _ _ _ hfresh.1 hvis)
+    refine ih hl ha hd hfresh.2 _ _ ?_ ?_
+    · exact hmon
+    · exact DecisionVisible_addVar_cons st₀ _ _ _ _ hfresh.1 hvis
 
 /-- For any two decision nodes of the same player with `d₁.val < d₂.val`,
 `d₁` is a direct obsParent of `d₂` and d₁'s obsParents are a subset of d₂'s.
