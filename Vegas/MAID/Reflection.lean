@@ -45,7 +45,7 @@ private noncomputable def reflectPolicyAux
     (st₀ : MAIDCompileState P L B) →
     MAID.Policy (fp := B.fintypePlayer)
       (MAIDCompileState.ofProg B p hl hd ρ st₀).toStruct →
-    ProgramBehavioralProfilePMF (P := P) (L := L) p
+    ProgramBehavioralProfilePMF p
   | _, .ret _, _, _, _, _, _ => fun _ => PUnit.unit
   | _, .letExpr (b := b) x e k, hl, hd, ρ, st, pol =>
       reflectPolicyAux B k hl hd _ _ pol
@@ -53,7 +53,7 @@ private noncomputable def reflectPolicyAux
       reflectPolicyAux B k hl hd.2 _ _ pol
   | Γ, .commit (b := b) x who R k, hl, hd, ρ, st, pol =>
       -- Kernel: read MAID policy at this decision node (sorry for ViewEnv→Cfg)
-      let kernel : ProgramBehavioralKernelPMF (P := P) (L := L) who Γ b :=
+      let kernel : ProgramBehavioralKernelPMF who Γ b :=
         { run := fun _view => sorry }
       fun i => by
         by_cases h : who = i
