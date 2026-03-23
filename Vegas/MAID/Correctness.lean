@@ -1153,7 +1153,18 @@ private theorem compiledFDistData_dist_chance
         (cpd ((MAIDCompileState.ofProg B p hl ha hd ρ st₀).rawEnvOfCfg
           (projCfg a ((MAIDCompileState.ofProg B p hl ha hd ρ st₀).toStruct.parents nd)))) := by
   letI := B.fintypePlayer
-  simpa [compiledFDistData', compiledFDistData, hdesc]
+  simp only [compiledFDistData', compiledFDistData]
+  split
+  · next _ _ cpd₁ _ hdesc₁ =>
+      have heq := hdesc₁.symm.trans hdesc
+      change CompiledNode.chance _ _ cpd₁ _ = CompiledNode.chance τ deps cpd cpdNorm at heq
+      injection heq with h1 _ h3; subst h1; cases h3; rfl
+  · next _ _ _ _ _ _ hdesc₁ =>
+      exact absurd (hdesc₁.symm.trans hdesc :
+        CompiledNode.decision _ _ _ _ _ _ = .chance τ deps cpd cpdNorm) nofun
+  · next _ _ _ hdesc₁ =>
+      exact absurd (hdesc₁.symm.trans hdesc :
+        CompiledNode.utility _ _ _ = .chance τ deps cpd cpdNorm) nofun
 
 open MAID in
 private theorem compiledFDistData_dist_decision
@@ -1178,7 +1189,15 @@ private theorem compiledFDistData_dist_decision
         ((MAIDCompileState.ofProg B p hl ha hd ρ st₀).rawEnvOfCfg
           (projCfg a ((MAIDCompileState.ofProg B p hl ha hd ρ st₀).toStruct.obsParents nd))) := by
   letI := B.fintypePlayer
-  simpa [compiledFDistData', compiledFDistData, hdesc]
+  simp only [compiledFDistData', compiledFDistData]
+  split
+  · next _ _ _ _ hdesc₁ =>
+      exact absurd (hdesc₁.symm.trans hdesc :
+        CompiledNode.chance _ _ _ _ = .decision τ who acts hacts hnodup obs) nofun
+  · next _ _ _ _ _ _ hdesc₁ => rfl
+  · next _ _ _ hdesc₁ =>
+      exact absurd (hdesc₁.symm.trans hdesc :
+        CompiledNode.utility _ _ _ = .decision τ who acts hacts hnodup obs) nofun
 
 open MAID in
 private theorem compiledFDistData_dist_utility
@@ -1206,7 +1225,18 @@ private theorem compiledFDistData_dist_utility
           rfl)
         (FDist.pure ()) := by
   letI := B.fintypePlayer
-  simpa [compiledFDistData', compiledFDistData, hdesc]
+  simp only [compiledFDistData', compiledFDistData]
+  split
+  · next _ _ _ _ hdesc₁ =>
+      exact absurd (hdesc₁.symm.trans hdesc :
+        CompiledNode.chance _ _ _ _ = .utility who deps ufn) nofun
+  · next _ _ _ _ _ _ hdesc₁ =>
+      exact absurd (hdesc₁.symm.trans hdesc :
+        CompiledNode.decision _ _ _ _ _ _ = .utility who deps ufn) nofun
+  · next _ _ _ hdesc₁ =>
+      have heq := hdesc₁.symm.trans hdesc
+      change CompiledNode.utility _ _ _ = CompiledNode.utility who deps ufn at heq
+      rfl
 
 @[congr] theorem FDist.toPMF_congr [DecidableEq α]
     {d₁ d₂ : FDist α} {h₁ h₂} (heq : d₁ = d₂) :
