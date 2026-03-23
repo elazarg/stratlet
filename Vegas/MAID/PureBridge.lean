@@ -304,6 +304,7 @@ theorem maid_pure_bridge
     (π : ProgramPureProfile (P := P) (L := L) p)
     (hl : Legal p) (ha : DistinctActs p)
     (hd : NormalizedDists p) (hfresh : FreshBindings p) :
+    let _ : Fintype P := B.fintypePlayer
     let β := ProgramPureProfile.toBehavioral (P := P) (L := L) p π
     let st := MAIDCompileState.ofProg B p hl ha hd (fun _ => env) .empty
     let S := st.toStruct
