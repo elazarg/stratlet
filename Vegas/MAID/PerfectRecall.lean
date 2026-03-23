@@ -190,7 +190,50 @@ private theorem MAIDCompileState.DecisionVisible_addNode_addVar_cons
     (hnotDec : ∀ who, nd.kind ≠ .decision who) :
     ((st.addNode nd hndeps).2.addVar x τ {st.nextId} hdeps).DecisionVisible
       ((x, τ) :: Γ) := by
-  sorry
+  intro who d hkd
+  -- Node at st.nextId is nd (non-decision), so d must be an old node
+  have hold : d.val < st.nextId := by
+    by_contra hge; push_neg at hge
+    have heq : d.val = st.nextId := by
+      have := d.isLt; simp [MAIDCompileState.addVar, MAIDCompileState.addNode] at this; omega
+    have hdesc : ((st.addNode nd hndeps).2.addVar x τ _ hdeps).descAt d = nd := by
+      change ((st.nodes ++ [(st.nextId, nd)])[d.val]'(by
+        simp [MAIDCompileState.addNode, MAIDCompileState.addVar,
+          st.nodes_length_eq_nextId]; omega)).2 = nd
+      rw [List.getElem_append_right (by rw [st.nodes_length_eq_nextId]; omega)]
+      simp [st.nodes_length_eq_nextId, heq]
+    rw [hdesc] at hkd; exact absurd hkd (fun h => hnotDec who h)
+  -- Reduce descAt to old state
+  have hdesc : ((st.addNode nd hndeps).2.addVar x τ _ hdeps).descAt d =
+      st.descAt ⟨d.val, hold⟩ := by
+    change ((st.nodes ++ [(st.nextId, nd)])[d.val]'(by
+      simp [MAIDCompileState.addNode, MAIDCompileState.addVar,
+        st.nodes_length_eq_nextId]; omega)).2 =
+      (st.nodes[d.val]'(by rw [st.nodes_length_eq_nextId]; exact hold)).2
+    congr 1
+    exact List.getElem_append_left (by rw [st.nodes_length_eq_nextId]; exact hold)
+  rw [hdesc] at hkd ⊢
+  obtain ⟨hmem, hsub⟩ := hvis who ⟨d.val, hold⟩ hkd
+  -- viewDeps monotonicity: st.viewDeps ⊆ new viewDeps (addNode preserves, addVar+cons grows)
+  have hview_sub : st.viewDeps who Γ ⊆
+      ((st.addNode nd hndeps).2.addVar x τ _ hdeps).viewDeps who ((x, τ) :: Γ) := by
+    intro d' hd'
+    -- addNode doesn't change viewDeps
+    have hd'' : d' ∈ (st.addNode nd hndeps).2.viewDeps who Γ :=
+      viewDeps_addNode_eq st nd hndeps who Γ ▸ hd'
+    -- addVar + cons grows viewDeps (same as DecisionVisible_addVar_cons proof)
+    unfold viewDeps at hd'' ⊢
+    simp only [viewVCtx]
+    split
+    · simp only [List.map, depsOfVars]
+      exact Finset.mem_union_right _
+        (depsOfVars_addVar_eq_of_fresh (st.addNode nd hndeps).2 x τ _ hdeps
+          ((viewVCtx who Γ).map Prod.fst)
+          (fun h => hfreshΓ (viewVCtx_map_fst_sub h)) ▸ hd'')
+    · exact depsOfVars_addVar_eq_of_fresh (st.addNode nd hndeps).2 x τ _ hdeps
+        ((viewVCtx who Γ).map Prod.fst)
+        (fun h => hfreshΓ (viewVCtx_map_fst_sub h)) ▸ hd''
+  exact ⟨hview_sub hmem, fun d' hd' => hview_sub (hsub hd')⟩
 
 /-- Generalized induction: `ofProg` preserves `DecisionMonotone` when started
 from a state satisfying both `DecisionMonotone` and `DecisionVisible`. -/
