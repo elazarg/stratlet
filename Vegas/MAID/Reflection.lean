@@ -36,6 +36,35 @@ At each commit site `(x, who, Γ, b)` in program `p`:
 - Read the MAID policy at that node's information set
 - Convert the Vegas `ViewEnv` to the MAID infoset configuration
 - Apply the policy to get the PMF over values -/
+private noncomputable def reflectPolicyAux
+    (B : MAIDBackend P L) :
+    {Γ : VCtx P L} →
+    (p : VegasCore P L Γ) →
+    (hl : Legal p) → (hd : NormalizedDists p) →
+    (ρ : RawNodeEnv L → VEnv (Player := P) L Γ) →
+    (st₀ : MAIDCompileState P L B) →
+    MAID.Policy (fp := B.fintypePlayer)
+      (MAIDCompileState.ofProg B p hl hd ρ st₀).toStruct →
+    ProgramBehavioralProfilePMF (P := P) (L := L) p
+  | _, .ret _, _, _, _, _, _ => fun _ => PUnit.unit
+  | _, .letExpr (b := b) x e k, hl, hd, ρ, st, pol =>
+      reflectPolicyAux B k hl hd _ _ pol
+  | _, .sample x τ m D' k, hl, hd, ρ, st, pol =>
+      reflectPolicyAux B k hl hd.2 _ _ pol
+  | Γ, .commit (b := b) x who R k, hl, hd, ρ, st, pol =>
+      -- Kernel: read MAID policy at this decision node (sorry for ViewEnv→Cfg)
+      let kernel : ProgramBehavioralKernelPMF (P := P) (L := L) who Γ b :=
+        { run := fun _view => sorry }
+      fun i => by
+        by_cases h : who = i
+        · subst h
+          simpa [ProgramBehavioralStrategyPMF] using
+            (kernel, reflectPolicyAux B k hl.2 hd _ _ pol who)
+        · simpa [ProgramBehavioralStrategyPMF, h] using
+            reflectPolicyAux B k hl.2 hd _ _ pol i
+  | _, .reveal (b := b) y who x hx k, hl, hd, ρ, st, pol =>
+      reflectPolicyAux B k hl hd _ _ pol
+
 noncomputable def reflectPolicy
     (B : MAIDBackend P L)
     {Γ : VCtx P L}
@@ -44,8 +73,8 @@ noncomputable def reflectPolicy
     (env : VEnv L Γ) :
     let st := MAIDCompileState.ofProg B p hl hd (fun _ => env) .empty
     MAID.Policy (fp := B.fintypePlayer) st.toStruct →
-    ProgramBehavioralProfilePMF (P := P) (L := L) p := by
-  sorry
+    ProgramBehavioralProfilePMF (P := P) (L := L) p :=
+  reflectPolicyAux B p hl hd (fun _ => env) .empty
 
 /-- Semantic correctness of `reflectPolicy`: the PMF behavioral profile
 obtained by reflecting a MAID policy produces the same outcome distribution
