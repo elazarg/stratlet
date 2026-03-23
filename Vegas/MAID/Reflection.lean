@@ -243,7 +243,15 @@ private theorem compilePureProfile_eq_pureToPolicy_aux
                  MAID.pureToPolicy, MAID.pureToPlayerStrategy]
   | letExpr _ _ k ih => exact ih hl hd hfresh.2 _ _ _
   | sample _ _ _ _ k ih => exact ih hl hd.2 hfresh.2 _ _ _
-  | commit x who_c R k ih => sorry
+  | commit x who_c R k ih =>
+    funext player ⟨d, cfg⟩
+    simp only [translateStrategy, compilePureProfileAux,
+      MAID.pureToPolicy, MAID.pureToPlayerStrategy]
+    split
+    · -- isTrue: cast h (FDist.toPMF_pure v) = PMF.pure (cast h' v)
+      sorry
+    · -- isFalse: IH + ProgramBehavioralProfile.tail_toBehavioral
+      sorry
   | reveal _ _ _ _ k ih => exact ih hl hd hfresh.2 _ _ _
 
 /-- The compiled pure policy, lifted to a behavioral MAID policy via
