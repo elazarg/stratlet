@@ -226,6 +226,26 @@ noncomputable def compilePureProfile
     MAID.PurePolicy (fp := B.fintypePlayer) st.toStruct :=
   compilePureProfileAux B p hl hd (fun _ => env) .empty π
 
+/-- Generalized: translateStrategy of toBehavioral = pureToPolicy of compilePureProfileAux -/
+private theorem compilePureProfile_eq_pureToPolicy_aux
+    (B : MAIDBackend P L)
+    {Γ : VCtx P L}
+    (p : VegasCore P L Γ)
+    (hl : Legal p) (hd : NormalizedDists p) (hfresh : FreshBindings p)
+    (ρ : RawNodeEnv L → VEnv (Player := P) L Γ)
+    (st₀ : MAIDCompileState P L B)
+    (π : ProgramPureProfile p) :
+    translateStrategy B p hl hd ρ st₀ (ProgramPureProfile.toBehavioral p π) =
+      MAID.pureToPolicy (fp := B.fintypePlayer) (compilePureProfileAux B p hl hd ρ st₀ π) := by
+  induction p generalizing st₀ with
+  | ret => funext player ⟨d, cfg⟩
+           simp [translateStrategy, compilePureProfileAux,
+                 MAID.pureToPolicy, MAID.pureToPlayerStrategy]
+  | letExpr _ _ k ih => exact ih hl hd hfresh.2 _ _ _
+  | sample _ _ _ _ k ih => exact ih hl hd.2 hfresh.2 _ _ _
+  | commit x who_c R k ih => sorry
+  | reveal _ _ _ _ k ih => exact ih hl hd hfresh.2 _ _ _
+
 /-- The compiled pure policy, lifted to a behavioral MAID policy via
 `pureToPolicy`, agrees with the `compiledPolicy` of the operationally
 lifted pure profile. -/
@@ -242,6 +262,7 @@ theorem compilePureProfile_eq_pureToPolicy
     let β := ProgramPureProfile.toBehavioral p π
     compiledPolicy B p hl hd (fun _ => env) .empty β =
       MAID.pureToPolicy (fp := B.fintypePlayer) (compilePureProfile B p hl hd env π) := by
-  sorry
+  intro st β
+  exact compilePureProfile_eq_pureToPolicy_aux B p hl hd hfresh (fun _ => env) .empty π
 
 end Vegas
