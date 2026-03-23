@@ -52,9 +52,30 @@ private noncomputable def reflectPolicyAux
   | _, .sample x τ m D' k, hl, hd, ρ, st, pol =>
       reflectPolicyAux B k hl hd.2 _ _ pol
   | Γ, .commit (b := b) x who R k, hl, hd, ρ, st, pol =>
-      -- Kernel: read MAID policy at this decision node (sorry for ViewEnv→Cfg)
+      -- At this commit site, node id = st.nextId is a decision for `who`.
+      -- The kernel reads the MAID policy at that node.
+      letI := B.fintypePlayer
+      let st_final := MAIDCompileState.ofProg B (.commit x who R k) hl hd ρ st
+      let id := st.nextId
+      let hid_lt : id < st_final.nextId :=
+        Nat.lt_of_lt_of_le (by simp [MAIDCompileState.addNode, MAIDCompileState.addVar]; omega)
+          (MAIDCompileState.ofProg_nextId_le B k hl.2 hd _ _)
       let kernel : ProgramBehavioralKernelPMF who Γ b :=
-        { run := fun _view => sorry }
+        { run := by
+            letI : Fintype P := B.fintypePlayer
+            intro view
+            -- The decision node for this commit is at index st.nextId in st_final
+            have hkind : st_final.toStruct.kind ⟨id, hid_lt⟩ =
+                MAID.NodeKind.decision who := sorry
+            have hval : st_final.toStruct.Val ⟨id, hid_lt⟩ = L.Val b := sorry
+            let obs := st_final.toStruct.obsParents ⟨id, hid_lt⟩
+            let forwardMap := fun (cfg : @MAID.Cfg P _ B.fintypePlayer
+                st_final.nextId st_final.toStruct obs) =>
+              projectViewEnv (P := P) (L := L) who
+                (VEnv.eraseEnv (ρ (st_final.rawEnvOfCfg cfg)))
+            by_cases h : ∃ cfg, forwardMap cfg = view
+            · exact hval ▸ (pol who ⟨⟨⟨id, hid_lt⟩, hkind⟩, Classical.choose h⟩)
+            · exact PMF.pure (MAIDValuation.defaultVal L B.toMAIDValuation b) }
       fun i => by
         by_cases h : who = i
         · subst h
