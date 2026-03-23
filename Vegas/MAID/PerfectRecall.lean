@@ -82,6 +82,34 @@ def MAIDCompileState.DecisionVisible
     d.val ∈ st.viewDeps who Γ ∧
       (st.descAt d).obsParents ⊆ st.viewDeps who Γ
 
+/-! ## DecisionMonotone preservation lemmas -/
+
+/-- `addUtilityNodes` preserves `DecisionMonotone` (new nodes are all utility). -/
+private theorem MAIDCompileState.DecisionMonotone_addUtilityNodes
+    (st : MAIDCompileState P L B)
+    (deps : Finset Nat) (hdeps : ∀ d ∈ deps, d < st.nextId)
+    (ufn : P → RawNodeEnv L → ℝ) (players : List P)
+    (hmon : st.DecisionMonotone) :
+    (st.addUtilityNodes deps hdeps ufn players).DecisionMonotone := by
+  intro who d₁ d₂ hk₁ hk₂ hlt
+  have old₁ : d₁.val < st.nextId := by
+    by_contra hge; push_neg at hge
+    have ⟨w, hw⟩ := addUtilityNodes_all_utility st deps hdeps ufn players d₁ hge
+    simp only [toStruct_kind] at hw; rw [hw] at hk₁; exact nomatch hk₁
+  have old₂ : d₂.val < st.nextId := by
+    by_contra hge; push_neg at hge
+    have ⟨w, hw⟩ := addUtilityNodes_all_utility st deps hdeps ufn players d₂ hge
+    simp only [toStruct_kind] at hw; rw [hw] at hk₂; exact nomatch hk₂
+  -- Rewrite descAt to old state using descAt_old + Fin casting
+  have h₁ : (st.addUtilityNodes deps hdeps ufn players).descAt d₁ =
+      st.descAt ⟨d₁.val, old₁⟩ := by
+    convert addUtilityNodes_descAt_old st deps hdeps ufn players d₁.val old₁ using 2
+  have h₂ : (st.addUtilityNodes deps hdeps ufn players).descAt d₂ =
+      st.descAt ⟨d₂.val, old₂⟩ := by
+    convert addUtilityNodes_descAt_old st deps hdeps ufn players d₂.val old₂ using 2
+  rw [h₁] at hk₁ ⊢; rw [h₂] at hk₂ ⊢
+  exact hmon who ⟨d₁.val, old₁⟩ ⟨d₂.val, old₂⟩ hk₁ hk₂ hlt
+
 /-- Generalized induction: `ofProg` preserves `DecisionMonotone` when started
 from a state satisfying both `DecisionMonotone` and `DecisionVisible`. -/
 private theorem MAIDCompileState.ofProg_preserves_decision_monotone
@@ -94,19 +122,17 @@ private theorem MAIDCompileState.ofProg_preserves_decision_monotone
     (hvis : st₀.DecisionVisible Γ) :
     (MAIDCompileState.ofProg B p hl ha hd ρ st₀).DecisionMonotone := by
   induction p generalizing st₀ with
-  | ret payoffs => sorry -- utility nodes only; need addUtilityNodes_all_utility
-  | letExpr _ _ k ih => sorry -- no new nodes, delegate to IH on k
-  | sample _ _ _ _ k ih => sorry -- chance node, delegate to IH on k
+  | ret payoffs =>
+    simp only [ofProg]
+    exact DecisionMonotone_addUtilityNodes st₀ _ _ _ _ hmon
+  | letExpr _ _ k ih =>
+    exact ih hl ha hd hfresh.2 _ _ hmon sorry
+  | sample _ _ _ _ k ih =>
+    exact ih hl ha hd.2 hfresh.2 _ _ sorry sorry
   | commit x who_c R k ih =>
-    -- Apply IH on k with intermediate state st₁ = addNode + addVar of st₀.
-    -- Two sub-obligations:
-    -- 1. DecisionMonotone st₁: old pairs from hmon; new node vs old from hvis
-    --    (new node's obsParents = viewDeps who_c Γ, and hvis says old decisions
-    --     are in viewDeps, with obsParents ⊆ viewDeps)
-    -- 2. DecisionVisible st₁ ((x,.hidden who_c b)::Γ): viewDeps monotonicity
-    --    through context extension (canSee who (.hidden who b) = true)
     exact ih hl.2 ha hd hfresh.2 _ _ sorry sorry
-  | reveal _ _ _ _ k ih => sorry -- no new nodes, delegate to IH on k
+  | reveal _ _ _ _ k ih =>
+    exact ih hl ha hd hfresh.2 _ _ hmon sorry
 
 /-- For any two decision nodes of the same player with `d₁.val < d₂.val`,
 `d₁` is a direct obsParent of `d₂` and d₁'s obsParents are a subset of d₂'s.
