@@ -65,6 +65,41 @@ theorem MAIDCompileState.viewDeps_addNode_eq
 
 /-! ## Core property: same-player decisions have monotone observation sets -/
 
+/-- The decision-monotonicity invariant for a compile state. -/
+def MAIDCompileState.DecisionMonotone (st : MAIDCompileState P L B) : Prop :=
+  ∀ (who : P) (d₁ d₂ : Fin st.nextId),
+    (st.descAt d₁).kind = .decision who →
+    (st.descAt d₂).kind = .decision who →
+    d₁.val < d₂.val →
+    d₁.val ∈ (st.descAt d₂).obsParents ∧
+      (st.descAt d₁).obsParents ⊆ (st.descAt d₂).obsParents
+
+/-- Decision nodes' IDs and obsParents are all in `viewDeps who Γ`. -/
+def MAIDCompileState.DecisionVisible
+    (st : MAIDCompileState P L B) (Γ : VCtx P L) : Prop :=
+  ∀ (who : P) (d : Fin st.nextId),
+    (st.descAt d).kind = .decision who →
+    d.val ∈ st.viewDeps who Γ ∧
+      (st.descAt d).obsParents ⊆ st.viewDeps who Γ
+
+/-- Generalized induction: `ofProg` preserves `DecisionMonotone` when started
+from a state satisfying both `DecisionMonotone` and `DecisionVisible`. -/
+private theorem MAIDCompileState.ofProg_preserves_decision_monotone
+    {Γ : VCtx P L}
+    (p : VegasCore P L Γ) (hl : Legal p) (ha : DistinctActs p)
+    (hd : NormalizedDists p) (hwf : WF p)
+    (ρ : RawNodeEnv L → VEnv (Player := P) L Γ)
+    (st₀ : MAIDCompileState P L B)
+    (hmon : st₀.DecisionMonotone)
+    (hvis : st₀.DecisionVisible Γ) :
+    (MAIDCompileState.ofProg B p hl ha hd ρ st₀).DecisionMonotone := by
+  induction p generalizing st₀ with
+  | ret => sorry -- utility nodes only, no new decisions
+  | letExpr _ _ k ih => sorry -- no new nodes, delegate to IH on k
+  | sample _ _ _ _ k ih => sorry -- chance node, delegate to IH on k
+  | commit x who_c R k ih => sorry -- KEY CASE: new decision node
+  | reveal _ _ _ _ k ih => sorry -- no new nodes, delegate to IH on k
+
 /-- For any two decision nodes of the same player with `d₁.val < d₂.val`,
 `d₁` is a direct obsParent of `d₂` and d₁'s obsParents are a subset of d₂'s.
 This is the key invariant maintained by the sequential compiler. -/
@@ -80,7 +115,13 @@ theorem MAIDCompileState.ofProg_decision_obs_monotone
       d₁.val < d₂.val →
       d₁.val ∈ (st.descAt d₂).obsParents ∧
         (st.descAt d₁).obsParents ⊆ (st.descAt d₂).obsParents := by
-  sorry
+  intro st
+  exact ofProg_preserves_decision_monotone p hl ha hd hwf (fun _ => env)
+    .empty
+    -- empty state is trivially DecisionMonotone
+    (fun _ d₁ _ _ _ _ => absurd d₁.isLt (Nat.not_lt_zero _))
+    -- empty state is trivially DecisionVisible
+    (fun _ d _ => absurd d.isLt (Nat.not_lt_zero _))
 
 /-! ## Main theorem -/
 
