@@ -932,7 +932,11 @@ private theorem pmfFoldBridge
             unfold MAIDCompileState.viewDeps
             simp only [viewVCtx, hsee, ite_true, List.map_cons, MAIDCompileState.depsOfVars]
             rw [stNode.lookupDeps_addVar_eq_self_of_fresh x (.hidden who b) {id}
-                (by intro d hd; simp at hd; subst hd; exact Nat.lt_succ_self _) hxvars_sn,
+                (by
+                  intro d hd
+                  simp only [Finset.mem_singleton] at hd
+                  subst hd
+                  exact Nat.lt_succ_self _) hxvars_sn,
               stNode.depsOfVars_addVar_eq_of_not_mem x (.hidden who b) _ _ _ hx_not_view,
               Finset.singleton_union]
             congr 1
@@ -978,7 +982,9 @@ private theorem pmfFoldBridge
           have hVD : st₁.viewDeps who' ((x, .hidden who b) :: Γ') = st₀.viewDeps who' Γ' := by
             unfold MAIDCompileState.viewDeps
             have hcf : canSee who' (BindTy.hidden who b) = false := by
-              cases h : canSee who' (BindTy.hidden who b); rfl; exact absurd h hsee
+              cases h : canSee who' (BindTy.hidden who b)
+              · rfl
+              · exact absurd h hsee
             simp only [viewVCtx, hcf, ite_false, Bool.false_eq_true]
             rw [stNode.depsOfVars_addVar_eq_of_not_mem x (.hidden who b) _ _ _ hx_not_view]
             induction (viewVCtx who' Γ').map Prod.fst with
@@ -1007,7 +1013,11 @@ private theorem pmfFoldBridge
           | here =>
             exact ⟨id, by rw [hst₁_id]; omega,
               stNode.lookupDeps_addVar_eq_self_of_fresh x (.hidden who b) {id}
-                (by intro d hd'; simp at hd'; subst hd'; exact Nat.lt_succ_self _) hxvars,
+                (by
+                  intro d hd'
+                  simp only [Finset.mem_singleton] at hd'
+                  subst hd'
+                  exact Nat.lt_succ_self _) hxvars,
               by have := MAIDCompileState.addNode_descAt_new st₀ nd hndeps
                  simp only [show st₁.descAt ⟨id, _⟩ = nd from this, nd],
               fun _ => rfl⟩
@@ -1134,7 +1144,11 @@ private theorem pmfFoldBridge
         have hprofile : reflectPolicyAux B k hl.2 hd ρ' st₁ pol =
             ProgramBehavioralProfilePMF.tail
               (reflectPolicyAux B (.commit x p R k) hl hd ρ st₀ pol) := by
-          sorry -- .tail(reflectPolicyAux(.commit...)) = reflectPolicyAux(k...)
+          funext i
+          simp only [reflectPolicyAux, ProgramBehavioralProfilePMF.tail,
+            ProgramBehavioralStrategyPMF.tailOwn]
+          split_ifs with h <;> subst_vars <;>
+            simp only [eq_mp_eq_cast, eq_mpr_eq_cast, cast_cast, cast_eq] <;> rfl
         -- Use convert to handle cast + profile mismatch, creating manageable subgoals
         rw [hprofile]
         convert rfl using 2
@@ -1207,8 +1221,9 @@ private theorem pmfFoldBridge
         rw [hreadval raw₁, hreadval raw₂] at hhead
         -- hhead : readVal raw₁ b j = readVal raw₂ b j
         have hj_vd := hVD ▸ Finset.mem_union_left _ hj_mem
-        have htyped_j := htyped j hj_vd (by simp [st₁, MAIDCompileState.addVar]; exact hklt)
-        simp only [RawsMatchDescAt, show st₁.descAt ⟨j, _⟩ = st₀.descAt ⟨j, hklt⟩ from rfl] at htyped_j
+        have htyped_j := htyped j hj_vd (by simp only [MAIDCompileState.addVar, st₁]; exact hklt)
+        simp only [RawsMatchDescAt,
+          show st₁.descAt ⟨j, _⟩ = st₀.descAt ⟨j, hklt⟩ from rfl] at htyped_j
         -- Split on descAt to apply readVal_tagged_eq
         revert htyped_j hdescAt_type; match st₀.descAt ⟨j, hklt⟩ with
         | .chance τ _ _ _ | .decision τ _ _ _ _ _ =>
@@ -1222,7 +1237,9 @@ private theorem pmfFoldBridge
       · exact hraw_lookup_eq i hi_lookup
       · apply hρ_readers who raw₁ raw₂
         · intro j hj  -- hout: j ≥ st₀.nextId → raw₁ j = raw₂ j
-          exact hout j (by simp [st₁, MAIDCompileState.addVar] at hj ⊢; exact hj)
+          exact hout j (by
+                          simp [st₁, MAIDCompileState.addVar] at hj ⊢
+                          exact hj)
         · intro j hj hjlt  -- hnot_vd: j ∉ viewDeps → raw₁ j = raw₂ j
           by_cases hj_lookup : j ∈ st₀.lookupDeps x
           · exact hraw_lookup_eq j hj_lookup  -- gap filled by singleton argument
