@@ -389,6 +389,77 @@ private noncomputable def compilePureProfileAuxV
   | _, .reveal (b := b) y who x hx k, hl, hd, ρ, st, π =>
       compilePureProfileAuxV B k hl hd _ _ π
 
+private theorem compilePureProfileAuxV_player_indep
+    (B : MAIDBackend Player L) {Γ : VCtx Player L}
+    (p : VegasCore Player L Γ) :
+    ∀ (hl : Legal p) (hd : NormalizedDists p)
+      (ρ : RawNodeEnv L → VEnv L Γ)
+      (st₀ : MAIDCompileState Player L B)
+      (π₁ π₂ : ProgramPureProfile p)
+      (who : Player),
+      π₁ who = π₂ who →
+      compilePureProfileAuxV B p hl hd ρ st₀ π₁ who =
+        compilePureProfileAuxV B p hl hd ρ st₀ π₂ who := by
+  induction p with
+  | ret => intros; rfl
+  | letExpr x e k ih => intro hl hd ρ st π₁ π₂ who h; exact ih hl hd _ _ π₁ π₂ who h
+  | sample x τ m D' k ih => intro hl hd ρ st π₁ π₂ who h; exact ih hl hd.2 _ _ π₁ π₂ who h
+  | reveal y who_r x_r hx k ih => intro hl hd ρ st π₁ π₂ who h; exact ih hl hd _ _ π₁ π₂ who h
+  | commit x who_commit R k ih =>
+    intro hl hd ρ st π₁ π₂ who h
+    rename_i Γ' b
+    letI := B.fintypePlayer
+    change (compilePureProfileAuxV B (.commit x who_commit R k) hl hd ρ st π₁) who =
+           (compilePureProfileAuxV B (.commit x who_commit R k) hl hd ρ st π₂) who
+    simp only [compilePureProfileAuxV]
+    funext ⟨d, cfg⟩; dsimp only
+    split
+    · -- isTrue: d.val.val = st.nextId → headKernel equality
+      rename_i hd_eq; simp only [id]; congr 2
+      suffices hwho : who = who_commit by subst hwho; exact h
+      have hkind := d.prop; rw [toStruct_kind] at hkind
+      let nd : CompiledNode Player L B :=
+        .decision b who_commit (allValues B b) (allValues_ne_nil B b)
+          (allValues_nodup B b) (st.viewDeps who_commit Γ')
+      have hndeps : ∀ dd ∈ nd.parents ∪ nd.obsParents, dd < st.nextId := by
+        intro dd hdd; rcases Finset.mem_union.mp hdd with hm | hm <;>
+          simpa [CompiledNode.parents, CompiledNode.obsParents, nd] using st.depsOfVars_lt _ dd hm
+      let st' := (st.addNode nd hndeps).2
+      let st₁ := st'.addVar x (.hidden who_commit b) ({st.nextId}) (by
+        intro dd hdd; simp only [Finset.mem_singleton] at hdd; subst dd
+        exact Nat.lt_succ_self _)
+      have hst1_lt : st.nextId < st₁.nextId := by
+        simp [st₁, st', MAIDCompileState.addVar, MAIDCompileState.addNode]
+      have hdesc0 : st₁.descAt ⟨st.nextId, hst1_lt⟩ = nd := by
+        simp only [st₁, MAIDCompileState.addVar, st']; exact st.addNode_descAt_new nd hndeps
+      let ρ' : RawNodeEnv L → VEnv (Player := Player) L ((x, .hidden who_commit b) :: Γ') :=
+        fun raw => VEnv.cons (τ := .hidden who_commit b)
+          (MAIDCompileState.readVal (B := B) raw b st.nextId) (ρ raw)
+      have hid_lt : st.nextId < (MAIDCompileState.ofProg B k hl.2 hd ρ' st₁).nextId :=
+        Nat.lt_of_lt_of_le hst1_lt (MAIDCompileState.ofProg_nextId_le B k hl.2 hd ρ' st₁)
+      have hdesc : (MAIDCompileState.ofProg B k hl.2 hd ρ' st₁).descAt
+          ⟨st.nextId, hid_lt⟩ = nd :=
+        (MAIDCompileState.ofProg_descAt_old B k hl.2 hd ρ' st₁ st.nextId hst1_lt).trans hdesc0
+      -- The ofProg at .commit definitionally equals ofProg at k with modified state
+      have key : (MAIDCompileState.ofProg B (.commit x who_commit R k) hl hd ρ st).descAt
+          (⟨st.nextId, hd_eq ▸ d.val.isLt⟩ : Fin _) = nd := hdesc
+      have hkind2 : (MAIDCompileState.ofProg B (.commit x who_commit R k) hl hd ρ st).toStruct.kind
+          (⟨st.nextId, hd_eq ▸ d.val.isLt⟩ : Fin _) = .decision who_commit := by
+        rw [toStruct_kind, key, CompiledNode.kind]
+      have hkind_who := d.prop  -- S.kind d.val = .decision who
+      rw [show d.val = (⟨st.nextId, hd_eq ▸ d.val.isLt⟩ : Fin _) from Fin.ext hd_eq] at hkind_who
+      exact NodeKind.decision.inj (hkind_who.symm.trans hkind2)
+    · -- isFalse: delegate to continuation via IH
+      rename_i hd_ne
+      have htail : π₁.tail who = π₂.tail who := by
+        simp only [ProgramPureProfile.tail]
+        by_cases hwho : who_commit = who
+        · subst hwho
+          simp only
+          exact congr_arg ProgramPureStrategy.tailOwn h
+        · simp only [hwho, ↓reduceDIte]; exact congrArg (Eq.mp _) h
+      exact congr_fun (ih hl.2 hd _ _ π₁.tail π₂.tail who htail) ⟨d, cfg⟩
+
 /-- Compile a Vegas pure profile to a MAID pure policy. -/
 noncomputable def compilePureProfileV
     (B : MAIDBackend Player L) {Γ : VCtx Player L}
@@ -400,5 +471,18 @@ noncomputable def compilePureProfileV
     PurePolicy (fp := B.fintypePlayer)
       (compiledStruct B p env hl hd hfresh hpub) :=
   compilePureProfileAuxV B p hl hd (fun _ => env) .empty π
+
+/-- The compiled MAID pure policy at player `who` depends only on `π who`. -/
+theorem compilePureProfileV_player_indep
+    (B : MAIDBackend Player L) {Γ : VCtx Player L}
+    (p : VegasCore Player L Γ) (env : VEnv (Player := Player) L Γ)
+    (hl : Legal p) (hd : NormalizedDists p)
+    (hfresh : FreshBindings p)
+    (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
+    (π₁ π₂ : ProgramPureProfile (P := Player) (L := L) p)
+    (who : Player) (h : π₁ who = π₂ who) :
+    compilePureProfileV B p env hl hd hfresh hpub π₁ who =
+      compilePureProfileV B p env hl hd hfresh hpub π₂ who :=
+  compilePureProfileAuxV_player_indep B p hl hd _ _ π₁ π₂ who h
 
 end Vegas

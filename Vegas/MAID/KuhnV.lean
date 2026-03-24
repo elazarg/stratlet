@@ -76,7 +76,11 @@ theorem compilePureProfileV_eq_mk
     (π : ProgramPureProfile (P := Player) (L := L) p) :
     compilePureProfileV B p env hl hd hfresh hpub π =
       fun who => compilePureStrategyV B p env hl hd hfresh hpub who (π who) := by
-  sorry
+  funext who
+  simp only [compilePureStrategyV]
+  exact compilePureProfileV_player_indep B p env hl hd hfresh hpub
+    π (fun i => if h : i = who then h ▸ π who else defaultPureStrategy B p i)
+    who (by simp)
 
 /-! ## RHS connection: MAID mixed = Vegas mixed -/
 
