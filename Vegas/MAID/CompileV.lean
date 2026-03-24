@@ -349,10 +349,53 @@ private theorem revealConsistent_reveal'
             { rs with revealTime := fun i =>
                 if i = nid then min (↑rs.nextId) (rs.revealTime i) else rs.revealTime i }
         | none => rs).aliasVar y x) := by
-  -- Same proof as reveal case of computeReveals_consistent; addVar doesn't
-  -- change nodes/nextId, so all RevealConsistent fields transfer directly
-  -- modulo the revealTime adjustment (min preserves bounds).
-  sorry
+  have hav_nid : (st.addVar y (.pub b) deps hdeps).nextId = st.nextId := rfl
+  constructor
+  · simp only [RevealState.aliasVar, MAIDCompileState.addVar]; split <;> simp [hcon.sync]
+  · intro nd hk
+    have h := hcon.chance nd hk
+    simp only [RevealState.aliasVar]
+    split
+    · rename_i nid hx_eq; simp only; by_cases heq : nd.val = nid
+      · rw [if_pos heq, h, min_eq_right]
+        have h1 := hcon.nodeOf_lt x nid hx_eq
+        have h2 : nd.val ≤ rs.nextId := by rw [hcon.sync]; omega
+        exact WithTop.coe_le_coe.mpr h2
+      · rw [if_neg heq]; exact h
+    · exact h
+  · intro nd p hk
+    have h := hcon.decision nd p hk
+    simp only [RevealState.aliasVar]
+    split
+    · rename_i nid hx_eq; simp only; by_cases heq : nd.val = nid
+      · rw [if_pos heq]
+        have h1 := hcon.nodeOf_lt x nid hx_eq
+        have h2 : nd.val < rs.nextId := by rw [hcon.sync]; omega
+        exact lt_min (WithTop.coe_lt_coe.mpr h2) h
+      · rw [if_neg heq]; exact h
+    · exact h
+  · intro v nid hnid
+    show nid < st.nextId
+    simp only [RevealState.aliasVar] at hnid
+    cases hx_eq : rs.nodeOf x with
+    | none =>
+        simp [hx_eq] at hnid
+        by_cases hv : v = y
+        · subst hv; simp at hnid
+        · simp [hv] at hnid; exact hcon.nodeOf_lt v nid hnid
+    | some nid' =>
+        simp [hx_eq] at hnid
+        by_cases hv : v = y
+        · subst hv; simp at hnid; subst hnid; exact hcon.nodeOf_lt x nid' hx_eq
+        · simp [hv] at hnid; exact hcon.nodeOf_lt v nid hnid
+  · intro i hi
+    rw [hav_nid] at hi
+    simp only [RevealState.aliasVar]
+    split
+    · rename_i nid hx_eq; simp only
+      rw [if_neg (show i ≠ nid from by have := hcon.nodeOf_lt x nid hx_eq; omega)]
+      exact hcon.unset i hi
+    · exact hcon.unset i hi
 
 /-! ## Main consistency theorem -/
 
