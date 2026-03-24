@@ -222,6 +222,8 @@ noncomputable def toVegasMAID
       rcases Finset.mem_image.mp hi with ⟨⟨j, hj⟩, _, rfl⟩
       exact hvisible d p hkind j hj }
 
+/-! ## Main consistency theorem -/
+
 /-- `computeReveals` produces a state consistent with `ofProg`:
     chance nodes have revealTime = index, decision nodes have revealTime > index. -/
 theorem computeReveals_consistent (B : MAIDBackend Player L)
@@ -236,17 +238,31 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
   induction p generalizing st₀ rs₀ with
   | ret payoffs =>
       simp only [computeReveals, MAIDCompileState.ofProg]
+      -- addUtilityNodes adds only utility nodes; foldl adds public nodes
+      -- Utility nodes: sorry for now (needs auxiliary induction on player list)
       sorry
   | letExpr x e k ih =>
       simp only [computeReveals, MAIDCompileState.ofProg]
       exact ih hl hd _ _ _ ⟨hcon₀.sync, hcon₀.chance, hcon₀.decision, hcon₀.nodeOf_lt⟩
   | sample x τ m D' k ih =>
+      rename_i Γ'
       simp only [computeReveals, MAIDCompileState.ofProg]
       apply ih (hd := hd.2)
-      -- Need: RevealConsistent after addNode(.chance) + addVar vs addPublicNode + bindVar.
-      -- Each field is straightforward (old nodes preserved via List.getElem_append_left,
-      -- new node is .chance with revealTime = ↑id, nodeOf x = st₀.nextId < nextId+1).
-      -- Closing requires the same descAt/addNode list manipulation as Correctness.lean.
+      -- Extract the chance node being added
+      let cnd : CompiledNode Player L B :=
+        .chance τ.base (st₀.ctxDeps Γ') (fun raw => L.evalDist D' (VEnv.eraseDistEnv τ m (ρ raw)))
+          (fun raw => hd.1 (ρ raw))
+      have hcnd_kind : cnd.kind = .chance := rfl
+      -- The deps proof from the compiler
+      have hcnd_deps : ∀ d ∈ cnd.parents ∪ cnd.obsParents, d < st₀.nextId := by
+        intro d hd'; simp [cnd, CompiledNode.parents, CompiledNode.obsParents] at hd'
+        exact st₀.depsOfVars_lt _ d hd'
+      have hdeps : ∀ d ∈ ({st₀.nextId} : Finset Nat), d < st₀.nextId + 1 := by
+        intro d hd'; simp at hd'; omega
+      -- The goal should be definitionally equal to:
+      show RevealConsistent
+        ((st₀.addNode cnd hcnd_deps).2.addVar x τ {st₀.nextId} hdeps)
+        (rs₀.addPublicNode.bindVar x rs₀.nextId)
       sorry
   | commit x who R k ih =>
       simp only [computeReveals, MAIDCompileState.ofProg]
@@ -255,7 +271,49 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
   | reveal y who x hx k ih =>
       simp only [computeReveals, MAIDCompileState.ofProg]
       apply ih (hd := hd)
-      sorry
+      refine ⟨?_, ?_, ?_, ?_⟩
+      · simp only [RevealState.aliasVar, MAIDCompileState.addVar]
+        split <;> simp [hcon₀.sync]
+      · intro nd hk
+        have h := hcon₀.chance nd hk  -- addVar doesn't change descAt
+        simp only [RevealState.aliasVar]
+        split
+        · rename_i nid hx_eq
+          simp only; by_cases heq : nd.val = nid
+          · rw [if_pos heq, h, min_eq_right]
+            have h1 := hcon₀.nodeOf_lt x nid hx_eq
+            have h2 : nd.val ≤ rs₀.nextId := by
+              rw [hcon₀.sync]; omega
+            exact WithTop.coe_le_coe.mpr h2
+          · rw [if_neg heq]; exact h
+        · exact h
+      · intro nd p hk
+        have h := hcon₀.decision nd p hk
+        simp only [RevealState.aliasVar]
+        split
+        · rename_i nid hx_eq
+          simp only; by_cases heq : nd.val = nid
+          · rw [if_pos heq]
+            have h1 := hcon₀.nodeOf_lt x nid hx_eq
+            have h2 : nd.val < rs₀.nextId := by rw [hcon₀.sync]; omega
+            exact lt_min (WithTop.coe_lt_coe.mpr h2) h
+          · rw [if_neg heq]; exact h
+        · exact h
+      · intro v nid hnid
+        show nid < st₀.nextId
+        simp only [RevealState.aliasVar] at hnid
+        cases hx_eq : rs₀.nodeOf x with
+        | none =>
+            simp [hx_eq] at hnid
+            by_cases hv : v = y
+            · subst hv; simp at hnid
+            · simp [hv] at hnid; exact hcon₀.nodeOf_lt v nid hnid
+        | some nid' =>
+            simp [hx_eq] at hnid
+            by_cases hv : v = y
+            · subst hv; simp at hnid; subst hnid
+              exact hcon₀.nodeOf_lt x nid' hx_eq
+            · simp [hv] at hnid; exact hcon₀.nodeOf_lt v nid hnid
 
 /-- Decision parents in the compiled MAID are all visible to the player
     (the factored-observation property). -/
