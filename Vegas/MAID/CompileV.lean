@@ -521,36 +521,11 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
           (∃ q, (st.descAt ⟨i, Nat.lt_trans (st.descAt_parent_lt d hi) d.2⟩).kind =
             .decision q ∧ q = p) := by
   induction p generalizing st₀ rs₀ with
-  | ret payoffs =>
-      -- No decision nodes are created by ret (only utility nodes).
-      -- Any existing decision node d was already in st; its parents
-      -- were set before and the invariant was satisfied then.
-      sorry
-  | letExpr x e k ih =>
-      -- letExpr adds a public variable. viewVCtx gains x for all players.
-      -- x's lookupDeps = pubCtxDeps which are all public. IH applies.
-      sorry
-  | sample x τ m D' k ih =>
-      -- sample adds chance node at id, variable x with deps = {id}.
-      -- id is a chance node → revealTime = ↑id ≤ ↑nextId. IH applies.
-      sorry
-  | commit x who R k ih =>
-      -- commit adds decision node for `who` at id, variable x with deps = {id}.
-      -- For player `who`: x is in viewVCtx (own hidden), deps = {id},
-      --   descAt(id).kind = .decision who ✓
-      -- For other players: x is NOT in viewVCtx (hidden for `who`)
-      -- The NEW decision node's parents = viewDeps who Γ = deps of
-      --   visible vars. By hvar, these are public or same-player. ✓
-      -- Old decision nodes: preserved by addNode, revealTime only decreases.
-      sorry
-  | reveal y who x hx k ih =>
-      -- reveal adds public variable y with same deps as x.
-      -- x was hidden for `who`, now y is public.
-      -- y's deps are x's deps, which by hvar (for player `who`)
-      -- pointed to public-or-who's-decision nodes. After reveal,
-      -- the node is now public (revealTime set to ↑nextId), so the
-      -- invariant is maintained for all players viewing y.
-      sorry
+  | ret => sorry
+  | letExpr x e k ih => exact ih hl hd _ _ _ hcon₀ (by sorry)
+  | sample x τ m D' k ih => exact ih (hd := hd.2) _ _ _ sorry (by sorry)
+  | commit x who R k ih => exact ih (hd := hd) _ _ _ sorry (by sorry)
+  | reveal y who x hx k ih => exact ih (hd := hd) _ _ _ sorry (by sorry)
 
 /-- The main experimental compilation function: Vegas program → VegasMAID. -/
 noncomputable def compileVegasMAID
