@@ -868,8 +868,34 @@ private theorem varVisible_addNode_chance_addVar
     (hvar : VarVisible Γ st rs) :
     VarVisible ((x, τ) :: Γ) ((st.addNode nd hnd).2.addVar x τ {st.nextId} hdeps)
       (rs.addPublicNode.bindVar x rs.nextId) := by
-  -- Proof verified in run_code. File elaboration issues with WithTop coercions.
-  sorry
+  have hnid : ((st.addNode nd hnd).2.addVar x τ {st.nextId} hdeps).nextId = st.nextId + 1 := by
+    simp [MAIDCompileState.addNode, MAIDCompileState.addVar]
+  intro who y σ hy i hi
+  by_cases heq : y = x
+  · subst heq
+    rw [(st.addNode nd hnd).2.lookupDeps_addVar_eq_self_of_fresh y _ _ _
+      (fun hm => hfresh_x ((st.VarsSubCtx_addNode hvars nd hnd) y hm))] at hi
+    simp at hi; subst hi
+    left; simp only [RevealState.addPublicNode, RevealState.bindVar]
+    rw [if_pos hcon.sync.symm, hnid]
+    exact_mod_cast (show rs.nextId ≤ st.nextId + 1 by have := hcon.sync; omega)
+  · rw [(st.addNode nd hnd).2.lookupDeps_addVar_eq_of_ne x _ _ _ heq] at hi
+    have hy' : (y, σ) ∈ viewVCtx who Γ := by
+      unfold viewVCtx at hy; split at hy
+      · simp only [List.mem_cons, Prod.mk.injEq] at hy
+        rcases hy with ⟨rfl, _⟩ | hy
+        · exact absurd rfl heq
+        · exact hy
+      · exact hy
+    have hilt : i < st.nextId := st.lookupDeps_lt y i hi
+    rcases hvar who y σ hy' i hi with h | h
+    · left; simp only [RevealState.addPublicNode, RevealState.bindVar]
+      rw [if_neg (show i ≠ rs.nextId from by rw [hcon.sync]; omega)]
+      rw [hnid]
+      exact le_trans h (WithTop.coe_le_coe.mpr (Nat.le_succ _))
+    · right
+      show ((st.addNode nd hnd).2.descAt ⟨i, by simp [MAIDCompileState.addNode]; omega⟩).kind = _
+      rw [MAIDCompileState.addNode_descAt_old st nd hnd ⟨i, hilt⟩]; exact h
 
 /-- VarVisible extension for addNode(.decision)+addVar (commit case).
     Proof verified in run_code. -/
