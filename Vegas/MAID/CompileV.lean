@@ -839,6 +839,7 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
     (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ)
     (st₀ : MAIDCompileState Player L B) (rs₀ : RevealState)
     (hcon₀ : RevealConsistent st₀ rs₀)
+    (hvars : st₀.VarsSubCtx Γ)
     -- The property holds for all decision nodes already in st₀
     (hprev : ∀ (d : Fin st₀.nextId) (pw : Player),
       (st₀.descAt d).kind = .decision pw →
@@ -924,7 +925,7 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
       -- letExpr: no new nodes, addVar doesn't change descAt. IH with same hprev.
       exact ih hl hd hfresh.2 _ _ _
         ⟨hcon₀.sync, hcon₀.chance, hcon₀.decision, hcon₀.nodeOf_lt, hcon₀.unset⟩
-        hprev (by sorry) -- VarVisible for extended context
+        (st₀.VarsSubCtx_addVar hvars x _ _ _ hfresh.1) hprev (by sorry) -- VarVisible
   | sample x τ m D' k ih =>
       rename_i Γ'
       simp only [computeReveals, MAIDCompileState.ofProg]
@@ -939,10 +940,11 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
       exact ih hl hd.2 hfresh.2 _ _ _
         (revealConsistent_addChance' hcon₀ cnd
           (by intro ⟨_, h⟩; simp [cnd, CompiledNode.kind] at h) hcnd_deps x τ hdeps)
+        ((st₀.addNode cnd hcnd_deps).2.VarsSubCtx_addVar (st₀.VarsSubCtx_addNode hvars cnd hcnd_deps)
+          x _ _ _ hfresh.1)
         (hprev_transfer_addNode hcon₀ cnd
           (by intro ⟨_, h⟩; simp [cnd, CompiledNode.kind] at h) hcnd_deps hprev)
-        (by -- VarVisible for extended context
-            sorry)
+        (by sorry) -- VarVisible
   | commit x who R k ih =>
       -- THE key case: new decision node + IH for continuation.
       -- New node's parents = viewDeps who Γ'. By hvar₀, each dep has
@@ -959,6 +961,8 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
         intro d hd'; simp at hd'; omega
       exact ih hl.2 hd hfresh.2 _ _ _
         (revealConsistent_addDecision' hcon₀ dnd rfl hdnd_deps x (.hidden who b) hdeps)
+        ((st₀.addNode dnd hdnd_deps).2.VarsSubCtx_addVar (st₀.VarsSubCtx_addNode hvars dnd hdnd_deps)
+          x _ _ _ hfresh.1)
         (by -- hprev: old decisions + NEW decision
             intro d' pw' hk' i hi'
             have hbound : d'.val ≤ st₀.nextId := by
@@ -1019,6 +1023,7 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
       simp only [computeReveals, MAIDCompileState.ofProg]
       exact ih hl hd hfresh.2 _ _ _
         (revealConsistent_reveal' hcon₀ y x _ _ _)
+        (st₀.VarsSubCtx_addVar hvars y _ _ _ hfresh.1)
         (by -- hprev: addVar doesn't change descAt, reveal only decreases revealTime
             intro d pw hk i hi
             rcases hprev d pw hk i hi with h | h
@@ -1052,6 +1057,7 @@ noncomputable def compileVegasMAID
   toVegasMAID B st rs
     (computeReveals_consistent B p hl hd _ _ _ hcon)
     (computeReveals_parents_visible B p hl hd hfresh _ _ _ hcon
+      (by intro x hx; simp [MAIDCompileState.empty] at hx)
       (fun d => d.elim0)
       (by intro who y σ hy i hi; exfalso;
           simp [MAIDCompileState.empty, MAIDCompileState.lookupDeps,
