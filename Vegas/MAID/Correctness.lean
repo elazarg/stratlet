@@ -1567,7 +1567,7 @@ private theorem eval_pubExpr_insensitive_of_ctxDeps
   simpa [VEnv.erasePubEnv_get, hxPub, hxΓ] using
     (hρ_var hxΓ j hj' raw tv)
 
-private theorem eval_pubExpr_insensitive_of_pubCtxDeps
+theorem eval_pubExpr_insensitive_of_pubCtxDeps
     (st : MAIDCompileState Player L B)
     {Γ : VCtx Player L}
     (ρ : RawNodeEnv L → VEnv L Γ)

@@ -268,7 +268,43 @@ private theorem pmfFoldBridge
       nativeOutcomeDistPMF B p hd
         (reflectPolicyAux B p hl hd ρ st₀ pol)
         ρ st₀.nextId (rawOfTAssign st a₀) := by
-  sorry
+  letI := B.fintypePlayer
+  dsimp only
+  induction p generalizing st₀ with
+  | ret u => sorry
+  | letExpr x e k ih =>
+    rename_i Γ' b
+    intro pol a₀
+    have hxΓ : Fresh x Γ' := hfresh.1
+    have hxvars : x ∉ st₀.vars.map Prod.fst := fun hxmem => hxΓ (hvars x hxmem)
+    let ρ' : RawNodeEnv L → VEnv L ((x, .pub b) :: Γ') :=
+      fun raw => VEnv.cons (L := L) (x := x) (τ := .pub b)
+        (L.eval e (VEnv.erasePubEnv (ρ raw))) (ρ raw)
+    let st₁ := st₀.addVar x (.pub b) (st₀.pubCtxDeps Γ') (st₀.depsOfVars_lt _)
+    have hρ'_deps : ∀ j, j ∉ st₁.ctxDeps ((x, .pub b) :: Γ') → InsensitiveTo ρ' j := by
+      intro j hj raw tv
+      rw [st₀.ctxDeps_letExpr_step x hxΓ hxvars] at hj
+      have hρj := hρ_deps j hj raw tv
+      simp only [ρ', hρj]
+    have hρ'_var : EnvRespectsLookupDeps st₁ ρ' := by
+      intro y τ hy j hj raw tv
+      cases hy with
+      | here =>
+          have hj' : j ∉ st₀.pubCtxDeps Γ' := by
+            simpa [st₁, st₀.lookupDeps_addVar_eq_self_of_fresh x (.pub b)
+              (st₀.pubCtxDeps Γ') (st₀.depsOfVars_lt _) hxvars] using hj
+          exact Vegas.eval_pubExpr_insensitive_of_pubCtxDeps st₀ ρ hρ_var e j hj' raw tv
+      | there hy' =>
+          have hxy : y ≠ x := fun hEq => hxΓ (hEq.symm ▸ hy'.mem_map_fst)
+          have hj' : j ∉ st₀.lookupDeps y := by
+            simpa [st₁, st₀.lookupDeps_addVar_eq_of_ne x (.pub b)
+              (st₀.pubCtxDeps Γ') (st₀.depsOfVars_lt _) hxy] using hj
+          simpa [ρ', VEnv.get, VEnv.cons_get_there] using hρ_var hy' j hj' raw tv
+    exact ih hl hd hfresh.2 ρ' st₁
+      (st₀.VarsSubCtx_letExpr_step hvars x hxΓ) hρ'_deps hρ'_var pol a₀
+  | sample x τ m D' k ih => sorry
+  | commit x who R k ih => sorry
+  | reveal y who x hx k ih => sorry
 
 /-- Semantic correctness of `reflectPolicy`: the PMF behavioral profile
 obtained by reflecting a MAID policy produces the same outcome distribution
