@@ -794,9 +794,8 @@ private theorem pmfFoldBridge
               (VEnv.eraseEnv (ρ raw₁)) =
               projectViewEnv p (VEnv.eraseEnv (ρ raw₂)) := by
             exact hchoose_view.trans hViewEq.symm
-          -- Use ViewDeterminesRaw on rawEnvOfCfg + rawEnvOfCfg_injective
-          -- obsParents ⊆ viewDeps; rawEnvOfCfg is none outside obsParents
-          -- hρ_readers gives raw agreement at viewDeps from ρ view equality
+          -- Use hρ_readers: both rawEnvOfCfg are none outside obs,
+          -- and ρ views agree → raw values at obs agree → rawEnvOfCfg agree
           sorry
         -- With cfg equality, the pol values match. Cast cancel for the rest.
         sorry
