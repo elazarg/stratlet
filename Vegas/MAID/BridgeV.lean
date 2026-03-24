@@ -44,7 +44,7 @@ private theorem pmfFoldBridgeV
     let S := st.toStruct
     let sem := MAIDCompileState.toSem st
     let extract : TAssign (fp := B.fintypePlayer) S → Outcome Player :=
-      fun a => extractOutcomeAux B p ρ st₀.nextId (rawOfTAssignV B p hl hd ρ st₀ a)
+      fun a => extractOutcomeAux B p ρ st₀.nextId (rawOfTAssign st a)
     ∀ (pol : Policy (fp := B.fintypePlayer) S)
       (a₀ : TAssign (fp := B.fintypePlayer) S),
       PMF.map extract
@@ -52,7 +52,7 @@ private theorem pmfFoldBridgeV
           (evalStep S sem pol) (PMF.pure a₀)) =
       nativeOutcomeDistPMFV B p hd
         (reflectPolicyAuxV B p hl hd ρ st₀ pol)
-        ρ st₀.nextId (rawOfTAssignV B p hl hd ρ st₀ a₀) := by
+        ρ st₀.nextId (rawOfTAssign st a₀) := by
   sorry
 
 /-! ## Reverse bridge -/

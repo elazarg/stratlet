@@ -51,7 +51,19 @@ noncomputable def vegasMAIDSem
 
 /-! ## Raw environment conversion -/
 
-/-- Convert a MAID total assignment to a raw node environment. -/
+/-- Convert a MAID total assignment to a raw node environment (generalized). -/
+noncomputable def rawOfTAssign
+    (st : MAIDCompileState Player L B)
+    (a : TAssign (fp := B.fintypePlayer) st.toStruct) :
+    RawNodeEnv L :=
+  haveI := B.fintypePlayer
+  fun i =>
+    if hi : i < st.nextId then
+      MAIDCompileState.taggedOfVal (st.descAt ⟨i, hi⟩) (a ⟨i, hi⟩)
+    else
+      none
+
+/-- Convert a MAID total assignment to a raw node environment (top-level). -/
 noncomputable def rawOfTAssignV
     (B : MAIDBackend Player L) {Γ : VCtx Player L}
     (p : VegasCore Player L Γ) (env : VEnv (Player := Player) L Γ)
@@ -61,13 +73,7 @@ noncomputable def rawOfTAssignV
     (a : TAssign (fp := B.fintypePlayer)
       (compiledStruct B p env hl hd hfresh hpub)) :
     RawNodeEnv L :=
-  haveI : Fintype Player := B.fintypePlayer
-  let st := compiledState B p env hl hd
-  fun i =>
-    if hi : i < st.nextId then
-      MAIDCompileState.taggedOfVal (st.descAt ⟨i, hi⟩) (a ⟨i, hi⟩)
-    else
-      none
+  rawOfTAssign (compiledState B p env hl hd) a
 
 /-! ## Outcome extraction -/
 
@@ -236,7 +242,7 @@ noncomputable def compiledPolicyV
 
 /-- Auxiliary for `reflectPolicyV`, threading compile state.
 Mirrors `reflectPolicyAux` from Reflection.lean. -/
-private noncomputable def reflectPolicyAuxV
+noncomputable def reflectPolicyAuxV
     (B : MAIDBackend Player L) :
     {Γ : VCtx Player L} →
     (p : VegasCore Player L Γ) →
