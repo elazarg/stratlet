@@ -344,7 +344,7 @@ private def EnvReadValAtDeps (st : MAIDCompileState P L B)
     (Γ : VCtx P L) (ρ : RawNodeEnv L → VEnv L Γ) : Prop :=
   ∀ (x : VarId) (who' : P) (b : L.Ty) (hx : VHasVar Γ x (.hidden who' b)),
     (st.lookupDeps x).Nonempty →
-    ∃ j, st.lookupDeps x = {j} ∧ j < st.nextId ∧
+    ∃ j, ∃ _ : j < st.nextId, st.lookupDeps x = {j} ∧
       ∀ raw, VEnv.get (ρ raw) hx = MAIDCompileState.readVal (B := B) raw b j
 
 private theorem pmfFoldBridge
@@ -497,10 +497,10 @@ private theorem pmfFoldBridge
             rwa [show st₁.lookupDeps y = st₀.lookupDeps y from by
               simp [st₁, st₀.lookupDeps_addVar_eq_of_ne x (.pub b)
                 (st₀.pubCtxDeps Γ') (st₀.depsOfVars_lt _) hne]] at hne_deps
-          rcases hρ_readval y who' bt hy' hne_deps' with ⟨j, hld, hjlt, hget⟩
-          exact ⟨j, by simp [st₁, st₀.lookupDeps_addVar_eq_of_ne x (.pub b)
+          rcases hρ_readval y who' bt hy' hne_deps' with ⟨j, hjlt, hld, hget⟩
+          exact ⟨j, hjlt, by simp [st₁, st₀.lookupDeps_addVar_eq_of_ne x (.pub b)
             (st₀.pubCtxDeps Γ') (st₀.depsOfVars_lt _) hne, hld],
-            hjlt, fun raw => by simpa [ρ', VEnv.get, VEnv.cons_get_there] using hget raw⟩)
+            fun raw => by simpa [ρ', VEnv.get, VEnv.cons_get_there] using hget raw⟩)
       (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩) pol a₀
   | sample x τ m D' k ih =>
     rename_i Γ'
@@ -712,19 +712,17 @@ private theorem pmfFoldBridge
             fun w => by simp [stNode, MAIDCompileState.addNode, MAIDCompileState.lookupDeps]
           cases hz with
           | here => -- x has type .hidden who_z bz; lookupDeps x = {id}; ρ' reads via readVal
-            refine ⟨id, ?_, by rw [hst₁_id]; omega, fun raw => ?_⟩
-            · exact stNode.lookupDeps_addVar_eq_self_of_fresh x (.hidden who_z bz) {id}
-                (by intro d hd'; simp at hd'; subst hd'; exact Nat.lt_succ_self _) hxvars
-            · show MAIDCompileState.readVal (B := B) raw (BindTy.hidden who_z bz).base id =
-                   MAIDCompileState.readVal (B := B) raw bz id
-              rfl
+            exact ⟨id, by rw [hst₁_id]; omega,
+              stNode.lookupDeps_addVar_eq_self_of_fresh x (.hidden who_z bz) {id}
+                (by intro d hd'; simp at hd'; subst hd'; exact Nat.lt_succ_self _) hxvars,
+              fun _ => rfl⟩
           | there hy' =>
             have hne : z ≠ x := fun h => hxΓ (h.symm ▸ hy'.mem_map_fst)
             have hld_st₁_st₀ : st₁.lookupDeps z = st₀.lookupDeps z := by
               simp [st₁, stNode.lookupDeps_addVar_eq_of_ne x _ _ _ hne, hlN]
             have hne_z' : (st₀.lookupDeps z).Nonempty := by rwa [← hld_st₁_st₀]
-            rcases hρ_readval z who_z bz hy' hne_z' with ⟨j, hj_sing, hjlt, hget⟩
-            exact ⟨j, by rwa [hld_st₁_st₀], by rw [hst₁_id]; omega,
+            rcases hρ_readval z who_z bz hy' hne_z' with ⟨j, hjlt, hj_sing, hget⟩
+            exact ⟨j, by rw [hst₁_id]; omega, by rwa [hld_st₁_st₀],
               fun raw => by simpa [ρ', VEnv.get, VEnv.cons_get_there] using hget raw⟩)
         (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩) pol _
     -- Rewrite inner fold using IH
@@ -999,16 +997,17 @@ private theorem pmfFoldBridge
             fun w => by simp [stNode, MAIDCompileState.addNode, MAIDCompileState.lookupDeps]
           cases hz with
           | here =>
-            refine ⟨id, ?_, by rw [hst₁_id]; omega, fun raw => rfl⟩
-            exact stNode.lookupDeps_addVar_eq_self_of_fresh x (.hidden who b) {id}
-              (by intro d hd'; simp at hd'; subst hd'; exact Nat.lt_succ_self _) hxvars
+            exact ⟨id, by rw [hst₁_id]; omega,
+              stNode.lookupDeps_addVar_eq_self_of_fresh x (.hidden who b) {id}
+                (by intro d hd'; simp at hd'; subst hd'; exact Nat.lt_succ_self _) hxvars,
+              fun _ => rfl⟩
           | there hy' =>
             have hne : z ≠ x := fun h => hxΓ (h.symm ▸ hy'.mem_map_fst)
             have hld_eq : st₁.lookupDeps z = st₀.lookupDeps z := by
               simp [st₁, stNode.lookupDeps_addVar_eq_of_ne x _ _ _ hne, hlN]
             have hne_z' : (st₀.lookupDeps z).Nonempty := by rwa [← hld_eq]
-            rcases hρ_readval z who_z bz hy' hne_z' with ⟨j, hj_sing, hjlt, hget⟩
-            exact ⟨j, by rwa [hld_eq], by rw [hst₁_id]; omega,
+            rcases hρ_readval z who_z bz hy' hne_z' with ⟨j, hjlt, hj_sing, hget⟩
+            exact ⟨j, by rw [hst₁_id]; omega, by rwa [hld_eq],
               fun raw => by simpa [ρ', VEnv.get, VEnv.cons_get_there] using hget raw⟩)
         (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩) pol _
     -- Use IH to rewrite inner fold
@@ -1154,11 +1153,58 @@ private theorem pmfFoldBridge
       intro who raw₁ raw₂ hout hnot_vd htyped hview i hi
       have hview_old := Vegas.projectViewEnv_cons_eq
         (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩) hview
-      -- Reveal VDR: viewDeps = lookupDeps(x) ∪ old viewDeps.
-      -- Approach: for i ∈ lookupDeps(x), use EnvReadValAtDeps singleton + head equality
-      --           + readVal_tagged_eq. For i ∈ old viewDeps, forward to hρ_readers
-      --           (but hout gap at lookupDeps indices also needs the singleton argument).
-      sorry
+      have hy_not_view : y ∉ (viewVCtx who Γ').map Prod.fst :=
+        fun hmem => hyΓ (viewVCtx_map_fst_sub hmem)
+      have hVD : st₁.viewDeps who ((y, .pub b) :: Γ') =
+          st₀.lookupDeps x ∪ st₀.viewDeps who Γ' := by
+        unfold MAIDCompileState.viewDeps
+        simp only [viewVCtx, canSee, ite_true, List.map_cons, MAIDCompileState.depsOfVars]
+        rw [st₀.lookupDeps_addVar_eq_self_of_fresh y (.pub b) (st₀.lookupDeps x)
+            (st₀.lookupDeps_lt x) hyvars,
+          st₀.depsOfVars_addVar_eq_of_not_mem y (.pub b) _ _ _ hy_not_view]
+      -- Head value equality
+      have hhead := Vegas.projectViewEnv_cons_head_eq
+        (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩) (by simp [canSee]) hview
+      -- Key: prove raw equality at ALL lookupDeps(x) indices FIRST (lesson #1)
+      have hraw_lookup_eq : ∀ j ∈ st₀.lookupDeps x, raw₁ j = raw₂ j := by
+        intro j hj_mem
+        rcases hρ_readval x who' b hx ⟨j, hj_mem⟩ with ⟨k, hklt, hsingleton, hreadval⟩
+        have hjk : j = k := Finset.mem_singleton.mp (hsingleton ▸ hj_mem); subst hjk
+        rw [hreadval raw₁, hreadval raw₂] at hhead
+        -- hhead : readVal raw₁ b j = readVal raw₂ b j
+        have hj_vd := hVD ▸ Finset.mem_union_left _ hj_mem
+        have htyped_j := htyped j hj_vd (by simp [st₁, MAIDCompileState.addVar]; exact hklt)
+        simp only [RawsMatchDescAt, show st₁.descAt ⟨j, _⟩ = st₀.descAt ⟨j, hklt⟩ from rfl] at htyped_j
+        -- Split on descAt to apply readVal_tagged_eq (need τ = b from node type)
+        revert htyped_j; match st₀.descAt ⟨j, hklt⟩ with
+        | .chance τ _ _ _ | .decision τ _ _ _ _ _ =>
+          intro ⟨v₁, v₂, hraw₁, hraw₂⟩
+          -- τ = b holds because the node was compiled for the hidden var x of type b.
+          -- readVal_tagged_eq needs readVal at τ, but hhead is at b. Use τ = b.
+          have hτb : τ = b := sorry -- descAt type = bind type (structural invariant)
+          subst hτb
+          exact readVal_tagged_eq hraw₁ hraw₂ hhead
+        | .utility _ _ _ =>
+          intro ⟨h₁, h₂⟩; rw [h₁, h₂]
+      rw [hVD] at hi
+      rcases Finset.mem_union.mp hi with hi_lookup | hi_old
+      · exact hraw_lookup_eq i hi_lookup
+      · apply hρ_readers who raw₁ raw₂
+        · intro j hj  -- hout: j ≥ st₀.nextId → raw₁ j = raw₂ j
+          exact hout j (by simp [st₁, MAIDCompileState.addVar] at hj ⊢; exact hj)
+        · intro j hj hjlt  -- hnot_vd: j ∉ viewDeps → raw₁ j = raw₂ j
+          by_cases hj_lookup : j ∈ st₀.lookupDeps x
+          · exact hraw_lookup_eq j hj_lookup  -- gap filled by singleton argument
+          · exact hnot_vd j (fun hmem => by
+              rw [hVD] at hmem
+              rcases Finset.mem_union.mp hmem with h | h
+              · exact hj_lookup h
+              · exact hj h) (by simp [st₁, MAIDCompileState.addVar]; exact hjlt)
+        · intro j hj hjlt
+          exact htyped j (by rw [hVD]; exact Finset.mem_union_right _ hj)
+            (by simp [st₁, MAIDCompileState.addVar]; exact hjlt)
+        · exact hview_old
+        · exact hi_old
     exact ih hl hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers
       (fun z who_z bz hz hne_z => by
         cases hz with
@@ -1167,8 +1213,8 @@ private theorem pmfFoldBridge
           have hld_eq : st₁.lookupDeps z = st₀.lookupDeps z := by
             simp [st₁, st₀.lookupDeps_addVar_eq_of_ne y (.pub b) _ _ hne]
           have hne_z' : (st₀.lookupDeps z).Nonempty := by rwa [← hld_eq]
-          rcases hρ_readval z who_z bz hy' hne_z' with ⟨j, hj_sing, hjlt, hget⟩
-          exact ⟨j, by rwa [hld_eq], hjlt,
+          rcases hρ_readval z who_z bz hy' hne_z' with ⟨j, hjlt, hj_sing, hget⟩
+          exact ⟨j, hjlt, by rwa [hld_eq],
             fun raw => by simpa [ρ', VEnv.get, VEnv.cons_get_there] using hget raw⟩)
       (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩) pol a₀
 
