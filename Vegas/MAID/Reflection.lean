@@ -319,9 +319,23 @@ private theorem rawEnvOfCfg_rawsMatchDescAt
     (hdesc : st.descAt ⟨i, hilt⟩ = st₀.descAt ⟨i, hi₀⟩) :
     RawsMatchDescAt st₀ (st.rawEnvOfCfg cfg₁) (st.rawEnvOfCfg cfg₂) i hi₀ := by
   letI := B.fintypePlayer
-  -- rawEnvOfCfg at member indices gives taggedOfVal (descAt nd) (cfg nd).
-  -- Since hdesc equates descAt, the match in RawsMatchDescAt aligns.
-  sorry
+  -- Bridge: taggedOfVal with a parametric node → RawsMatchDescAt via subst
+  suffices ∀ (nd : CompiledNode P L B) (v₁ v₂ : CompiledNode.valType nd)
+      (hraw₁ : st.rawEnvOfCfg cfg₁ i = MAIDCompileState.taggedOfVal nd v₁)
+      (hraw₂ : st.rawEnvOfCfg cfg₂ i = MAIDCompileState.taggedOfVal nd v₂)
+      (hnd : nd = st₀.descAt ⟨i, hi₀⟩),
+      RawsMatchDescAt st₀ (st.rawEnvOfCfg cfg₁) (st.rawEnvOfCfg cfg₂) i hi₀ by
+    exact this (st.descAt ⟨i, hilt⟩) (cfg₁ ⟨⟨i, hilt⟩, hmem⟩) (cfg₂ ⟨⟨i, hilt⟩, hmem⟩)
+      (by unfold MAIDCompileState.rawEnvOfCfg; simp [hilt, hmem])
+      (by unfold MAIDCompileState.rawEnvOfCfg; simp [hilt, hmem])
+      hdesc
+  intro nd v₁ v₂ hraw₁ hraw₂ hnd
+  subst hnd
+  unfold RawsMatchDescAt; rw [hraw₁, hraw₂]
+  match st₀.descAt ⟨i, hi₀⟩, v₁, v₂ with
+  | .chance τ _ _ _, v₁, v₂ => exact ⟨v₁, v₂, rfl, rfl⟩
+  | .decision τ _ _ _ _ _, v₁, v₂ => exact ⟨v₁, v₂, rfl, rfl⟩
+  | .utility _ _ _, _, _ => exact ⟨rfl, rfl⟩
 
 private theorem pmfFoldBridge
     (B : MAIDBackend P L)
