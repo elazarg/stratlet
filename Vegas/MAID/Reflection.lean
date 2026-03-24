@@ -1135,12 +1135,18 @@ private theorem pmfFoldBridge
             ProgramBehavioralProfilePMF.tail
               (reflectPolicyAux B (.commit x p R k) hl hd ρ st₀ pol) := by
           sorry -- .tail(reflectPolicyAux(.commit...)) = reflectPolicyAux(k...)
+        -- Use convert to handle cast + profile mismatch, creating manageable subgoals
         rw [hprofile]
-        -- After rw, LHS profile = .tail(reflectPolicyAux(.commit...)).
-        -- RHS profile = .tail(fun i => ...) which is propositionally but not
-        -- definitionally equal (reflectPolicyAux commit case uses simpa casts).
-        -- Plus the PMF cast (castValType/▸).
-        sorry
+        convert rfl using 2
+        convert (pmf_descAt_cast_bind_cancel hdesc0 _
+          (fun v => nativeOutcomeDistPMF B k hd
+            (reflectPolicyAux B (.commit x p R k) hl hd ρ st₀ pol).tail ρ'
+            (id + 1) ((rawOfTAssign st a₀).extend id ⟨b, v⟩))
+          (congrArg PMF (congrArg CompiledNode.valType hdesc0.symm))).symm using 1
+        all_goals first
+          | exact hk
+          | exact pol p ⟨⟨nd0, _⟩, projCfg a₀ (st.toStruct.obsParents nd0)⟩
+          | sorry
       · exfalso; apply h_exists; exact ⟨_, hViewEq⟩
     · -- utility: contradiction
       rename_i hk; rw [toStruct_kind] at hk; rw [hkind_decision] at hk; exact absurd hk (by simp)
