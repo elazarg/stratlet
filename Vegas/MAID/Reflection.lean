@@ -831,7 +831,12 @@ private theorem pmfFoldBridge
               simp [raw₁, raw₂, st.rawEnvOfCfg_not_mem _ j hj_lt hj_mem]
           · show raw₁ j = raw₂ j
             simp only [raw₁, raw₂, MAIDCompileState.rawEnvOfCfg, hj_lt, dite_false]
-        -- With cfg equality, the pol values match. Cast cancel for the rest.
+        -- With cfg equality, unify both sides
+        rw [hcfg_eq]
+        -- Now both sides use projCfg a₀ (obsParents nd0).
+        -- LHS: (pol p ⟨⟨nd0, _⟩, projCfg ...⟩).bind (fun a => F (castValType hdesc0 a))
+        -- RHS: (hval ▸ pol p ⟨⟨⟨st₀.nextId, _⟩, _⟩, projCfg ...⟩).bind (fun v => F' v)
+        -- ⟨nd0, _⟩ = ⟨⟨st₀.nextId, _⟩, _⟩ and the cast + castValType cancel
         sorry
       · exfalso; apply h_exists; exact ⟨_, hViewEq⟩
     · -- utility: contradiction
