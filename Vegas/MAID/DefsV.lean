@@ -234,6 +234,82 @@ noncomputable def compiledPolicyV
       (compiledStruct B p env hl hd hfresh hpub) :=
   translateStrategyV B p hl hd (fun _ => env) .empty β
 
+/-- Auxiliary for `reflectPolicyV`, threading compile state.
+Mirrors `reflectPolicyAux` from Reflection.lean. -/
+private noncomputable def reflectPolicyAuxV
+    (B : MAIDBackend Player L) :
+    {Γ : VCtx Player L} →
+    (p : VegasCore Player L Γ) →
+    (hl : Legal p) → (hd : NormalizedDists p) →
+    (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ) →
+    (st₀ : MAIDCompileState Player L B) →
+    MAID.Policy (fp := B.fintypePlayer)
+      (MAIDCompileState.ofProg B p hl hd ρ st₀).toStruct →
+    ProgramBehavioralProfilePMF p
+  | _, .ret _, _, _, _, _, _ => fun _ => PUnit.unit
+  | _, .letExpr (b := b) x e k, hl, hd, ρ, st, pol =>
+      reflectPolicyAuxV B k hl hd
+        (fun raw => VEnv.cons (τ := .pub b) (L.eval e (VEnv.erasePubEnv (ρ raw))) (ρ raw))
+        (st.addVar x (.pub b) (st.pubCtxDeps _) (st.depsOfVars_lt _)) pol
+  | _, .sample x τ m D' k, hl, hd, ρ, st, pol =>
+      reflectPolicyAuxV B k hl hd.2 _ _ pol
+  | Γ, .commit (b := b) x who R k, hl, hd, ρ, st, pol =>
+      letI := B.fintypePlayer
+      let st_final := MAIDCompileState.ofProg B (.commit x who R k) hl hd ρ st
+      let id := st.nextId
+      let obs := st.viewDeps who Γ
+      let acts := allValues B b
+      let nd : CompiledNode Player L B :=
+        .decision b who acts (allValues_ne_nil B b) (allValues_nodup B b) obs
+      have hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId := by
+        intro d hd'
+        have : d ∈ st.viewDeps who Γ := by
+          rcases Finset.mem_union.mp hd' with h | h <;>
+            simpa [CompiledNode.parents, CompiledNode.obsParents, nd] using h
+        exact st.depsOfVars_lt _ d (by simpa [MAIDCompileState.viewDeps] using this)
+      let res := st.addNode nd hndeps
+      let st' := res.2
+      let ρ' : RawNodeEnv L → VEnv (Player := Player) L ((x, .hidden who b) :: Γ) :=
+        fun raw => VEnv.cons (τ := .hidden who b)
+          (MAIDCompileState.readVal (B := B) raw b id) (ρ raw)
+      let st₁ := st'.addVar x (.hidden who b) ({id}) (by
+        intro d hd₁; simp only [Finset.mem_singleton] at hd₁; subst hd₁
+        exact Nat.lt_succ_self _)
+      let hid_lt : id < st_final.nextId :=
+        Nat.lt_of_lt_of_le (by simp [MAIDCompileState.addNode, MAIDCompileState.addVar]; omega)
+          (MAIDCompileState.ofProg_nextId_le B k hl.2 hd _ _)
+      have hst1_lt : st.nextId < st₁.nextId := by
+        simp [st₁, st', res, id, MAIDCompileState.addVar, MAIDCompileState.addNode]
+      have hdesc : st_final.descAt ⟨id, hid_lt⟩ = nd := by
+        change (MAIDCompileState.ofProg B k hl.2 hd ρ' st₁).descAt ⟨st.nextId, _⟩ = nd
+        rw [MAIDCompileState.ofProg_descAt_old B k hl.2 hd ρ' st₁ st.nextId hst1_lt]
+        simp only [st₁, MAIDCompileState.addVar]
+        exact st.addNode_descAt_new nd hndeps
+      have hkind : st_final.toStruct.kind ⟨id, hid_lt⟩ =
+          MAID.NodeKind.decision who := by
+        simp only [toStruct_kind, hdesc, nd, CompiledNode.kind]
+      have hval : st_final.toStruct.Val ⟨id, hid_lt⟩ = L.Val b := by
+        change CompiledNode.valType (st_final.descAt ⟨id, hid_lt⟩) = L.Val b
+        rw [hdesc]; rfl
+      let kernel : ProgramBehavioralKernelPMF who Γ b :=
+        { run := by
+            intro view
+            let forwardMap (cfg : MAID.Cfg (fp := B.fintypePlayer) st_final.toStruct
+                (st_final.toStruct.obsParents ⟨id, hid_lt⟩)) :=
+              projectViewEnv who (VEnv.eraseEnv (ρ (st_final.rawEnvOfCfg cfg)))
+            by_cases h : ∃ cfg, forwardMap cfg = view
+            · exact hval ▸ (pol who ⟨⟨⟨id, hid_lt⟩, hkind⟩, Classical.choose h⟩)
+            · exact PMF.pure (MAIDValuation.defaultVal L B.toMAIDValuation b) }
+      fun i => by
+        by_cases h : who = i
+        · subst h
+          simpa [ProgramBehavioralStrategyPMF] using
+            (kernel, reflectPolicyAuxV B k hl.2 hd _ _ pol who)
+        · simpa [ProgramBehavioralStrategyPMF, h] using
+            reflectPolicyAuxV B k hl.2 hd _ _ pol i
+  | _, .reveal (b := b) y who x hx k, hl, hd, ρ, st, pol =>
+      reflectPolicyAuxV B k hl hd _ _ pol
+
 /-- Reflect a MAID policy to a Vegas PMF behavioral profile. -/
 noncomputable def reflectPolicyV
     (B : MAIDBackend Player L) {Γ : VCtx Player L}
@@ -243,8 +319,8 @@ noncomputable def reflectPolicyV
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
     (pol : Policy (fp := B.fintypePlayer)
       (compiledStruct B p env hl hd hfresh hpub)) :
-    ProgramBehavioralProfilePMF p := by
-  sorry
+    ProgramBehavioralProfilePMF p :=
+  reflectPolicyAuxV B p hl hd (fun _ => env) .empty pol
 
 /-- Auxiliary for `compilePureProfileV`, threading compile state.
 Mirrors `compilePureProfileAux` from Reflection.lean. -/
