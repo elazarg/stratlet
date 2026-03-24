@@ -755,6 +755,19 @@ theorem erasePubVCtx_map_fst_sub_viewVCtx {Γ : VCtx Player L} {who : Player} :
         right; exact ih x hx
       · simp only [h, ite_false]; exact ih x hx
 
+theorem MAIDCompileState.depsOfVars_addVar_eq_of_not_mem
+    (st : MAIDCompileState Player L B)
+    (x : VarId) (τ : BindTy Player L) (deps : Finset Nat)
+    (hdeps : ∀ d ∈ deps, d < st.nextId) (ys : List VarId) (hx : x ∉ ys) :
+    (st.addVar x τ deps hdeps).depsOfVars ys = st.depsOfVars ys := by
+  induction ys with
+  | nil => simp [depsOfVars]
+  | cons y ys ih =>
+    simp only [depsOfVars]
+    have hne : y ≠ x := fun heq => hx (heq ▸ .head _)
+    rw [st.lookupDeps_addVar_eq_of_ne x τ deps hdeps hne,
+      ih (fun hmem => hx (List.mem_cons_of_mem _ hmem))]
+
 theorem MAIDCompileState.pubCtxDeps_sub_ctxDeps
     (st : MAIDCompileState Player L B) (Γ : VCtx Player L) :
     st.pubCtxDeps Γ ⊆ st.ctxDeps Γ := by

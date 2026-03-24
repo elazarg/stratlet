@@ -425,8 +425,9 @@ private theorem pmfFoldBridge
           (st₀.depsOfVars_lt _) hxvars] at hi_vd
         -- st₁.depsOfVars = st₀.depsOfVars on viewVCtx (x ∉ viewVCtx by freshness)
         have hdeps_eq : st₁.depsOfVars (List.map Prod.fst (viewVCtx who Γ')) =
-            st₀.depsOfVars (List.map Prod.fst (viewVCtx who Γ')) := by
-          sorry
+            st₀.depsOfVars (List.map Prod.fst (viewVCtx who Γ')) :=
+          st₀.depsOfVars_addVar_eq_of_not_mem x (.pub b) _ _ _
+            (fun hmem => hxΓ (viewVCtx_map_fst_sub hmem))
         rw [hdeps_eq] at hi_vd
         -- pubCtxDeps Γ' ⊆ viewDeps who Γ' (public vars visible to all)
         rcases Finset.mem_union.mp hi_vd with h | h
