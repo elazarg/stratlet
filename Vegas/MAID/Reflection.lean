@@ -583,9 +583,8 @@ private theorem pmfFoldBridge
         intro who raw₁ raw₂ hout hnot_vd htyped hview i hi
         have hview_old := Vegas.projectViewEnv_cons_eq
           (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩) hview
-        -- Sample ViewDeterminesRaw: split on canSee, then i=id vs old
-        -- Structure: canSee → {id} ∪ old, ¬canSee → old
-        -- i=id: use projectViewEnv_cons_head_eq + RawsMatchDescAt (descAt = chance τ.base)
+        -- Sample VDR: canSee → {id} ∪ old viewDeps; ¬canSee → old viewDeps
+        -- i=id: projectViewEnv_cons_head_eq + RawsMatchDescAt (descAt = chance τ.base)
         -- i∈old: forward to hρ_readers via RawsMatchDescAt_of_descAt_eq
         sorry
       exact ih hl hd.2 hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers
