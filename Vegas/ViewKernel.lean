@@ -121,6 +121,7 @@ theorem projectViewEnv_cons_eq
     {who : P} {Γ : VCtx P L} {x : VarId} {τ : BindTy P L}
     {env₁ env₂ : VEnv (Player := P) L Γ}
     {v₁ v₂ : L.Val τ.base}
+    (hnodup : (((x, τ) :: Γ).map Prod.fst).Nodup)
     (h : projectViewEnv (P := P) (L := L) who
         (VEnv.eraseEnv (VEnv.cons (L := L) (x := x) (τ := τ) v₁ env₁)) =
       projectViewEnv (P := P) (L := L) who
@@ -133,6 +134,10 @@ theorem projectViewEnv_cons_eq
   -- (converse of projectViewEnv_eq_of_obsEq — needs viewVCtx/HasVar infrastructure)
   have hobs_ext : ObsEq (L := L) (Γ := (x, τ) :: Γ) who
       (VEnv.eraseEnv (VEnv.cons v₁ env₁)) (VEnv.eraseEnv (VEnv.cons v₂ env₂)) := by
+    -- From projectViewEnv eq, extract ObsEq using HasVar uniqueness (hnodup).
+    -- For each visible y' with hy' : HasVar (eraseVCtx Γ_ext) y' σ, the
+    -- projectViewEnv at y' uses hy'' = toErased(ofViewVCtx(toVHasVar h_view)).
+    -- By HasVar.eq_of_nodup, hy' = hy'', so env values agree.
     sorry
   -- Step 2: ObsEq for (x,τ)::Γ restricted to old vars → ObsEq for Γ
   have hobs : ObsEq (L := L) (Γ := Γ) who (VEnv.eraseEnv env₁) (VEnv.eraseEnv env₂) := by

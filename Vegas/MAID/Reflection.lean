@@ -409,7 +409,7 @@ private theorem pmfFoldBridge
       have hview_old : projectViewEnv (P := P) (L := L) who
           (VEnv.eraseEnv (ρ (st₁.rawEnvOfCfg cfg₁))) =
           projectViewEnv who (VEnv.eraseEnv (ρ (st₁.rawEnvOfCfg cfg₂))) :=
-        Vegas.projectViewEnv_cons_eq hview
+        Vegas.projectViewEnv_cons_eq (by sorry) hview
       -- viewDeps subset: st₁.viewDeps who ((x, .pub b) :: Γ') = st₀.viewDeps who Γ'
       -- st₁.viewDeps who ((x,.pub b)::Γ') = pubCtxDeps Γ' ∪ st₀.viewDeps who Γ'
       -- = st₀.viewDeps who Γ' (since pubCtxDeps ⊆ viewDeps)
@@ -815,7 +815,7 @@ private theorem pmfFoldBridge
           simpa [ρ', VEnv.get, VEnv.cons_get_there] using hρ_var hz' j hj' raw tv
     have hρ'_readers : CfgDeterminedByView st₁ ((y, .pub b) :: Γ') ρ' := by
       intro who ps hps cfg₁ cfg₂ hview
-      have hview_old := Vegas.projectViewEnv_cons_eq hview
+      have hview_old := Vegas.projectViewEnv_cons_eq (by sorry) hview
       have hps_old : ∀ i ∈ ps, i.val ∈ st₀.viewDeps who Γ' := by
         sorry -- viewDeps subset: st₁.viewDeps who Γ₁ = st₀.viewDeps who Γ'
       exact hρ_readers who hps_old cfg₁ cfg₂ hview_old
