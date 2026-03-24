@@ -611,11 +611,14 @@ private theorem pmfFoldBridge
           ρ' (id + 1) (rawOfTAssign st (MAID.updateAssign a₀ nd0 v)) := by
       intro v; rw [← hst₁_id]
       exact ih hl.2 hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var pol _
-    -- The remaining goals:
-    -- 1. nodeDist at decision node = pol who ⟨d, projCfg a₀ obsParents⟩
-    -- 2. The reflected kernel matches pol (via obs-config injectivity + Classical.choose)
-    -- 3. rawOfTAssign after updateAssign = raw.extend
-    -- 4. Type cast alignment between S.Val nd0 and L.Val b
+    -- Use IH to rewrite inner fold
+    simp_rw [hinner]
+    -- Now goal is: (nodeDist ...).bind (fun v => native ρ' (id+1) (rawOfTAssign st (updateAssign ...)))
+    --           = (headKernel ... view).bind (fun v => native (tail ...) ρ' (id+1) (raw₀.extend ...))
+    -- Remaining: match nodeDist with reflected kernel, and raw update with extend
+    -- This requires: obs-config injectivity to show Classical.choose = projCfg,
+    -- nodeDist at decision node = pol, rawOfTAssign_updateAssign_of_tagged,
+    -- and type cast alignment (S.Val nd0 = L.Val b via hdesc0).
     sorry
   | reveal y who' x hx k ih =>
     rename_i Γ' b
