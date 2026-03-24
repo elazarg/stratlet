@@ -706,7 +706,26 @@ private theorem pmfFoldBridge
           · exact hview_old
           · rwa [hVD] at hi
       exact ih hl hd.2 hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers
-        (sorry : EnvReadValAtDeps _ _ ρ') -- sample: .here readVal by construction, .there inherited
+        (fun z who_z bz hz hne_z => by
+          -- Helper: lookupDeps through addVar+addNode
+          have hlN : ∀ w, stNode.lookupDeps w = st₀.lookupDeps w :=
+            fun w => by simp [stNode, MAIDCompileState.addNode, MAIDCompileState.lookupDeps]
+          cases hz with
+          | here => -- x has type .hidden who_z bz; lookupDeps x = {id}; ρ' reads via readVal
+            refine ⟨id, ?_, by rw [hst₁_id]; omega, fun raw => ?_⟩
+            · exact stNode.lookupDeps_addVar_eq_self_of_fresh x (.hidden who_z bz) {id}
+                (by intro d hd'; simp at hd'; subst hd'; exact Nat.lt_succ_self _) hxvars
+            · show MAIDCompileState.readVal (B := B) raw (BindTy.hidden who_z bz).base id =
+                   MAIDCompileState.readVal (B := B) raw bz id
+              rfl
+          | there hy' =>
+            have hne : z ≠ x := fun h => hxΓ (h.symm ▸ hy'.mem_map_fst)
+            have hld_st₁_st₀ : st₁.lookupDeps z = st₀.lookupDeps z := by
+              simp [st₁, stNode.lookupDeps_addVar_eq_of_ne x _ _ _ hne, hlN]
+            have hne_z' : (st₀.lookupDeps z).Nonempty := by rwa [← hld_st₁_st₀]
+            rcases hρ_readval z who_z bz hy' hne_z' with ⟨j, hj_sing, hjlt, hget⟩
+            exact ⟨j, by rwa [hld_st₁_st₀], by rw [hst₁_id]; omega,
+              fun raw => by simpa [ρ', VEnv.get, VEnv.cons_get_there] using hget raw⟩)
         (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩) pol _
     -- Rewrite inner fold using IH
     simp_rw [hinner]
@@ -975,7 +994,22 @@ private theorem pmfFoldBridge
           · exact hview_old
           · rwa [hVD] at hi
       exact ih hl.2 hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers
-        (sorry : EnvReadValAtDeps _ _ ρ')
+        (fun z who_z bz hz hne_z => by
+          have hlN : ∀ w, stNode.lookupDeps w = st₀.lookupDeps w :=
+            fun w => by simp [stNode, MAIDCompileState.addNode, MAIDCompileState.lookupDeps]
+          cases hz with
+          | here =>
+            refine ⟨id, ?_, by rw [hst₁_id]; omega, fun raw => rfl⟩
+            exact stNode.lookupDeps_addVar_eq_self_of_fresh x (.hidden who b) {id}
+              (by intro d hd'; simp at hd'; subst hd'; exact Nat.lt_succ_self _) hxvars
+          | there hy' =>
+            have hne : z ≠ x := fun h => hxΓ (h.symm ▸ hy'.mem_map_fst)
+            have hld_eq : st₁.lookupDeps z = st₀.lookupDeps z := by
+              simp [st₁, stNode.lookupDeps_addVar_eq_of_ne x _ _ _ hne, hlN]
+            have hne_z' : (st₀.lookupDeps z).Nonempty := by rwa [← hld_eq]
+            rcases hρ_readval z who_z bz hy' hne_z' with ⟨j, hj_sing, hjlt, hget⟩
+            exact ⟨j, by rwa [hld_eq], by rw [hst₁_id]; omega,
+              fun raw => by simpa [ρ', VEnv.get, VEnv.cons_get_there] using hget raw⟩)
         (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩) pol _
     -- Use IH to rewrite inner fold
     simp_rw [hinner]
@@ -1126,7 +1160,16 @@ private theorem pmfFoldBridge
       --           (but hout gap at lookupDeps indices also needs the singleton argument).
       sorry
     exact ih hl hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers
-      (sorry : EnvReadValAtDeps _ _ ρ')
+      (fun z who_z bz hz hne_z => by
+        cases hz with
+        | there hy' =>
+          have hne : z ≠ y := fun h => hyΓ (h.symm ▸ hy'.mem_map_fst)
+          have hld_eq : st₁.lookupDeps z = st₀.lookupDeps z := by
+            simp [st₁, st₀.lookupDeps_addVar_eq_of_ne y (.pub b) _ _ hne]
+          have hne_z' : (st₀.lookupDeps z).Nonempty := by rwa [← hld_eq]
+          rcases hρ_readval z who_z bz hy' hne_z' with ⟨j, hj_sing, hjlt, hget⟩
+          exact ⟨j, by rwa [hld_eq], hjlt,
+            fun raw => by simpa [ρ', VEnv.get, VEnv.cons_get_there] using hget raw⟩)
       (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩) pol a₀
 
 /-- Semantic correctness of `reflectPolicy`: the PMF behavioral profile
