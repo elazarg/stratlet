@@ -1240,7 +1240,26 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
             · simp [hz] at hnid
               rw [st₀.lookupDeps_addVar_eq_of_ne y _ _ _ hz]
               split at hnid <;> exact hdt z nid hnid)
-        (by sorry) -- hhn for reveal continuation
+        (by -- hhn: y is pub (not hidden); old vars: aliasVar only changes y's nodeOf
+            intro z who' b' hv
+            cases hv with
+            | there hv' =>
+                simp only [RevealState.aliasVar]
+                by_cases hz : z = y
+                · -- z = y: nodeOf through aliasVar+match = nodeOf x
+                  subst hz
+                  show ((match rs₀.nodeOf x with
+                    | some nid => { rs₀ with revealTime := _ } | none => rs₀).aliasVar z x).nodeOf z ≠ none
+                  simp only [RevealState.aliasVar]
+                  cases rs₀.nodeOf x <;> simp
+                  · exact hhn x who _ hx
+                  · exact hhn x who _ hx
+                · -- z ≠ y: same structure, use cases on rs₀.nodeOf x
+                  cases rs₀.nodeOf x
+                  · -- none: aliasVar.nodeOf z = if z=y then rs₀.nodeOf x else rs₀.nodeOf z
+                    simp only [RevealState.aliasVar]; rw [if_neg hz]; exact hhn z who' b' hv'
+                  · -- some nid: same
+                    simp only [RevealState.aliasVar]; rw [if_neg hz]; exact hhn z who' b' hv')
         (by -- hnsc: y in new context; old vars via hnsc
             intro z nid hnid
             simp only [RevealState.aliasVar] at hnid
