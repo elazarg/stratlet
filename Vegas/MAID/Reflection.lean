@@ -243,7 +243,6 @@ This is the hard half of the reflectPolicy correctness proof. It requires:
 
 The proof is by structural induction on `p`, mirroring
 `foldFDist_map_extract_eq_nativeOutcomeDist` at the PMF level. -/
-
 private theorem foldl_evalStep_bind_left [Fintype P] {n : Nat}
     {S : MAID.Struct P n} (sem : MAID.Sem S) (pol : MAID.Policy S)
     (nodes : List (Fin n)) {β : Type} (μ : PMF β) (g : β → PMF (MAID.TAssign S)) :
@@ -260,6 +259,19 @@ private theorem foldl_evalStep_bind_left [Fintype P] {n : Nat}
           (MAID.nodeDist S sem pol nd a).bind (fun v' =>
             PMF.pure (MAID.updateAssign a nd v')))) from PMF.bind_bind _ _ _]
     exact ih _
+
+/-- Cast cancellation for nodeDist at compiled nodes: if `descAt nd = c`, then
+casting a `PMF (valType c)` to `PMF (valType (descAt nd))` and binding with
+`f ∘ castValType` gives the same result as binding without casts. -/
+private theorem pmf_descAt_cast_bind_cancel
+    {st : MAIDCompileState P L B} {nd : Fin st.nextId}
+    {c : CompiledNode P L B} (hdesc : st.descAt nd = c)
+    (d : PMF (CompiledNode.valType c))
+    {γ : Type} (f : CompiledNode.valType c → PMF γ)
+    (hcast : PMF (CompiledNode.valType c) =
+      PMF (CompiledNode.valType (st.descAt nd))) :
+    (cast hcast d).bind (fun v => f (castValType hdesc v)) = d.bind f := by
+  subst hdesc; rfl
 
 private theorem pmfFoldBridge
     (B : MAIDBackend P L)
@@ -473,7 +485,7 @@ private theorem pmfFoldBridge
     rw [hdrop, List.foldl_cons]
     simp only [nativeOutcomeDistPMF, reflectPolicyAux]
     -- evalStep at nd0: acc.bind (nodeDist.bind (pure ∘ updateAssign))
-    simp only [MAID.evalStep, PMF.pure_bind, PMF.map_bind]
+    simp only [MAID.evalStep, PMF.pure_bind]
     -- Distribute bind through fold using monad associativity, then map through bind
     rw [foldl_evalStep_bind_left, PMF.map_bind]
     have hst₁_id : st₁.nextId = id + 1 := by
@@ -491,11 +503,66 @@ private theorem pmfFoldBridge
       exact ih hl hd.2 hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var pol _
     -- Rewrite inner fold using IH
     simp_rw [hinner]
-    -- The nodeDist at a chance node = compiled sem's chanceCPD = cpdFDist.toPMF
-    -- The rawOfTAssign after updateAssign = raw.extend
-    -- These require working through the compiled sem definition and type casts
-    -- between S.Val nd0 and L.Val τ.base (definitionally equal via hdesc0)
-    sorry
+    -- Cast rawOfTAssign update to extend
+    have hraw : ∀ v, rawOfTAssign st (MAID.updateAssign a₀ nd0 v) =
+        (rawOfTAssign st a₀).extend id ⟨τ.base, castValType hdesc0 v⟩ :=
+      fun v => MAIDCompileState.rawOfTAssign_updateAssign_of_tagged st a₀ nd0
+        v ⟨τ.base, castValType hdesc0 v⟩ (taggedOfVal_chance_cast hdesc0 v)
+    simp_rw [hraw]
+    -- Now LHS: (nodeDist ...).bind (fun v => F (castValType hdesc0 v))
+    -- RHS: (cpdFDist (rawOfTAssign st a₀)).toPMF.bind F
+    -- Unfold nodeDist and toSem to expose the CPD
+    simp only [MAID.nodeDist]
+    have hkind_chance : (st.descAt nd0).kind = .chance := by
+      simp [hdesc0, nd, CompiledNode.kind]
+    split
+    · -- chance branch: the correct one
+      simp only [MAIDCompileState.toSem]
+      split
+      · -- inner match: .chance
+        rename_i hk τ₁ deps₁ cpd₁ norm₁ hdesc₁
+        have hinj := hdesc₁.symm.trans hdesc0
+        simp only [nd, CompiledNode.chance.injEq] at hinj
+        have hτeq := hinj.1
+        subst hτeq
+        have hcpd : cpd₁ = cpdFDist := eq_of_heq hinj.2.2
+        subst hcpd
+        have hdeps := hinj.2.1
+        subst hdeps
+        have hnorm : norm₁ = cpdNorm := funext fun _ => Subsingleton.elim _ _
+        subst hnorm
+        -- Now hdesc₁ and hdesc0 are proofs of the same statement; replace
+        rw [show hdesc₁ = hdesc0 from Subsingleton.elim _ _]
+        -- Factor out castValType hdesc0 so the cancel lemma can match
+        simp only [_root_.id, eq_mpr_eq_cast]
+        let F : CompiledNode.valType nd → PMF (Outcome P) :=
+          fun w => nativeOutcomeDistPMF B k hd.2
+            (reflectPolicyAux B k hl hd.2 ρ' st₁ pol) ρ'
+            (id + 1) ((rawOfTAssign st a₀).extend id ⟨τ.base, w⟩)
+        change PMF.bind (cast _ ((cpdFDist (st.rawEnvOfCfg
+          (MAID.projCfg a₀ (st.toStruct.parents nd0)))).toPMF _))
+          (fun a => F (castValType hdesc0 a)) = _
+        rw [pmf_descAt_cast_bind_cancel hdesc0]
+        -- Now: (cpdFDist (rawEnvOfCfg ...)).toPMF.bind F = RHS.bind F'
+        -- F and F' are the same (let bindings); distribution differs by hρeq
+        change ((cpdFDist (st.rawEnvOfCfg
+            (MAID.projCfg a₀ (st.toStruct.parents nd0)))).toPMF (cpdNorm _)).bind F =
+          ((L.evalDist D' (VEnv.eraseDistEnv τ m (ρ (rawOfTAssign st a₀)))).toPMF _).bind F
+        congr 1
+        exact congrArg (fun env => FDist.toPMF (L.evalDist D' (VEnv.eraseDistEnv τ m env))
+          (hd.1 env)) hρeq
+      · -- inner match .decision: contradicts hdesc0
+        rename_i hdesc₁
+        rw [hdesc₁] at hkind_chance; simp [CompiledNode.kind] at hkind_chance
+      · -- inner match .utility: contradicts hdesc0
+        rename_i hdesc₁
+        rw [hdesc₁] at hkind_chance; simp [CompiledNode.kind] at hkind_chance
+    · -- decision branch: contradicts kind = .chance
+      rename_i hk
+      rw [toStruct_kind] at hk; rw [hkind_chance] at hk; exact absurd hk (by simp)
+    · -- utility branch: contradicts kind = .chance
+      rename_i hk
+      rw [toStruct_kind] at hk; rw [hkind_chance] at hk; exact absurd hk (by simp)
   | commit x who R k ih =>
     rename_i Γ' b
     intro pol a₀
@@ -504,7 +571,8 @@ private theorem pmfFoldBridge
     let obs := st₀.viewDeps who Γ'
     let acts := allValues B b
     let id := st₀.nextId
-    let nd : CompiledNode P L B := .decision b who acts (allValues_ne_nil B b) (allValues_nodup B b) obs
+    let nd : CompiledNode P L B := .decision b who acts
+      (allValues_ne_nil B b) (allValues_nodup B b) obs
     have hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st₀.nextId := by
       intro d hd'; have hd'' : d ∈ obs := by
         simpa [nd, CompiledNode.parents, CompiledNode.obsParents] using hd'
@@ -599,7 +667,7 @@ private theorem pmfFoldBridge
         id (rawOfTAssign st a₀)
     rw [hdrop, List.foldl_cons]
     simp only [nativeOutcomeDistPMF, reflectPolicyAux]
-    simp only [MAID.evalStep, PMF.pure_bind, PMF.map_bind]
+    simp only [MAID.evalStep, PMF.pure_bind]
     rw [foldl_evalStep_bind_left, PMF.map_bind]
     have hst₁_id : st₁.nextId = id + 1 := by
       simp [st₁, stNode, id, MAIDCompileState.addVar, MAIDCompileState.addNode]

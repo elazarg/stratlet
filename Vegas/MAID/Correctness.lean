@@ -1704,12 +1704,12 @@ theorem compiledNodeFDist_decision_eq
 
 open MAID in
 /-- Cast from `CompiledNode.valType c` to `CompiledNode.valType c'` along `c = c'`. -/
-private def castValType {c c' : CompiledNode Player L B}
+def castValType {c c' : CompiledNode Player L B}
     (hc : c = c') (v : CompiledNode.valType c) : CompiledNode.valType c' :=
   hc ▸ v
 
 open MAID in
-private theorem taggedOfVal_chance_cast
+theorem taggedOfVal_chance_cast
     {c : CompiledNode Player L B}
     {τ₀ : L.Ty} {deps₀ : Finset Nat}
     {cpd₀ : RawNodeEnv L → FDist (L.Val τ₀)}
@@ -1720,7 +1720,7 @@ private theorem taggedOfVal_chance_cast
   subst hc; rfl
 
 open MAID in
-private theorem taggedOfVal_decision_cast
+theorem taggedOfVal_decision_cast
     {c : CompiledNode Player L B}
     {τ₀ : L.Ty} {who₀ : Player} {acts₀ : List (L.Val τ₀)}
     {hacts₀ : acts₀ ≠ []} {hnodup₀ : acts₀.Nodup}
