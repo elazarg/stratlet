@@ -1052,7 +1052,10 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
         ⟨hcon₀.sync, hcon₀.chance, hcon₀.decision, hcon₀.nodeOf_lt, hcon₀.unset⟩
         (st₀.VarsSubCtx_addVar hvars x _ _ _ hfresh.1) hprev
         (varVisible_addVar_pub st₀ rs₀ x _ _ hvars hfresh.1 _ _ hvar₀ (Finset.Subset.refl _))
-        (by sorry) (by sorry) -- hdt + hhn for letExpr continuation
+        (by sorry) -- hdt for letExpr: y≠x case from hdt, y=x case needs nodeOf x = none
+        (by -- hhn: new pub var x is not hidden; old hidden vars: nodeOf unchanged
+            intro z who' b' hv; cases hv with
+            | there hv' => exact hhn z who' b' hv')
   | sample x τ m D' k ih =>
       rename_i Γ'
       simp only [computeReveals, MAIDCompileState.ofProg]
