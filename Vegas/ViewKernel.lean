@@ -90,7 +90,7 @@ private theorem view_member_visible
   mem_visibleVars_of_view_member (L := L) (VHasVar.mem_map_fst h)
 
 /-- Project a full erased environment to the visible erased environment for
-player `who`. -/
+player `who`. Defined recursively on the context for clean reduction. -/
 noncomputable def projectViewEnv (who : P) {Γ : VCtx P L}
     (env : Env L.Val (eraseVCtx Γ)) :
     ViewEnv (P := P) (L := L) who Γ := by
