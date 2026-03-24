@@ -224,6 +224,136 @@ noncomputable def toVegasMAID
       rcases Finset.mem_image.mp hi with ⟨⟨j, hj⟩, _, rfl⟩
       exact hvisible d p hkind j hj }
 
+/-! ## Reusable lemmas for addNode consistency -/
+
+/-- RevealConsistent preserved by addNode(.chance) + addVar + addPublicNode + bindVar. -/
+private theorem revealConsistent_addChance'
+    {st : MAIDCompileState Player L B} {rs : RevealState}
+    (hcon : RevealConsistent st rs)
+    (nd : CompiledNode Player L B) (hkind : nd.kind = .chance)
+    (hnd : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
+    (x : VarId) (τ : BindTy Player L)
+    (hdeps : ∀ d ∈ ({st.nextId} : Finset Nat), d < st.nextId + 1) :
+    RevealConsistent
+      ((st.addNode nd hnd).2.addVar x τ {st.nextId} hdeps)
+      (rs.addPublicNode.bindVar x rs.nextId) := by
+  have hnid1 : ((st.addNode nd hnd).2.addVar x τ {st.nextId} hdeps).nextId
+      = st.nextId + 1 := by simp [MAIDCompileState.addNode, MAIDCompileState.addVar]
+  exact {
+    sync := by simp [RevealState.addPublicNode, RevealState.bindVar, hnid1, hcon.sync]
+    chance := by
+      intro nd' hk
+      have hbound : nd'.val ≤ st.nextId := by rw [hnid1] at nd'; omega
+      have hk_inner : ((st.addNode nd hnd).2.descAt ⟨nd'.val, by
+          simp [MAIDCompileState.addNode]; omega⟩).kind = .chance := hk
+      rcases Nat.lt_or_eq_of_le hbound with hlt | heq
+      · rw [MAIDCompileState.addNode_descAt_old st nd hnd ⟨nd'.val, hlt⟩] at hk_inner
+        simp only [RevealState.addPublicNode, RevealState.bindVar]
+        rw [if_neg (show nd'.val ≠ rs.nextId from by rw [hcon.sync]; omega)]
+        exact hcon.chance ⟨nd'.val, hlt⟩ hk_inner
+      · simp only [RevealState.addPublicNode, RevealState.bindVar]
+        rw [if_pos (show nd'.val = rs.nextId from by rw [hcon.sync]; omega)]
+        simp [hcon.sync, heq]
+    decision := by
+      intro nd' p hk
+      have hbound : nd'.val ≤ st.nextId := by rw [hnid1] at nd'; omega
+      have hk_inner : ((st.addNode nd hnd).2.descAt ⟨nd'.val, by
+          simp [MAIDCompileState.addNode]; omega⟩).kind = .decision p := hk
+      rcases Nat.lt_or_eq_of_le hbound with hlt | heq
+      · rw [MAIDCompileState.addNode_descAt_old st nd hnd ⟨nd'.val, hlt⟩] at hk_inner
+        simp only [RevealState.addPublicNode, RevealState.bindVar]
+        rw [if_neg (show nd'.val ≠ rs.nextId from by rw [hcon.sync]; omega)]
+        exact hcon.decision ⟨nd'.val, hlt⟩ p hk_inner
+      · exfalso
+        rw [show (⟨nd'.val, _⟩ : Fin (st.addNode nd hnd).2.nextId) =
+            ⟨st.nextId, by simp [MAIDCompileState.addNode]⟩ from Fin.ext heq] at hk_inner
+        rw [MAIDCompileState.addNode_descAt_new st nd hnd, hkind] at hk_inner
+        simp [CompiledNode.kind] at hk_inner
+    nodeOf_lt := by
+      intro v nid hnid
+      simp only [RevealState.addPublicNode, RevealState.bindVar] at hnid
+      rw [hnid1]
+      by_cases hv : v = x
+      · subst hv; simp at hnid; have := hcon.sync; omega
+      · simp [hv] at hnid
+        exact Nat.lt_trans (hcon.nodeOf_lt v nid hnid) (Nat.lt_succ_self _)
+    unset := by
+      intro i hi
+      simp only [RevealState.addPublicNode, RevealState.bindVar]
+      rw [if_neg (show i ≠ rs.nextId from by rw [hcon.sync]; omega)]
+      exact hcon.unset i (by omega) }
+
+/-- RevealConsistent preserved by addNode(.decision) + addVar + addPrivateNode + bindVar. -/
+private theorem revealConsistent_addDecision'
+    {st : MAIDCompileState Player L B} {rs : RevealState}
+    (hcon : RevealConsistent st rs)
+    (nd : CompiledNode Player L B) {who : Player} (hkind : nd.kind = .decision who)
+    (hnd : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId)
+    (x : VarId) (τ : BindTy Player L)
+    (hdeps : ∀ d ∈ ({st.nextId} : Finset Nat), d < st.nextId + 1) :
+    RevealConsistent
+      ((st.addNode nd hnd).2.addVar x τ {st.nextId} hdeps)
+      (rs.addPrivateNode.bindVar x rs.nextId) := by
+  have hnid1 : ((st.addNode nd hnd).2.addVar x τ {st.nextId} hdeps).nextId
+      = st.nextId + 1 := by simp [MAIDCompileState.addNode, MAIDCompileState.addVar]
+  exact {
+    sync := by simp [RevealState.addPrivateNode, RevealState.bindVar, hnid1, hcon.sync]
+    chance := by
+      intro nd' hk
+      have hbound : nd'.val ≤ st.nextId := by rw [hnid1] at nd'; omega
+      have hk_inner : ((st.addNode nd hnd).2.descAt ⟨nd'.val, by
+          simp [MAIDCompileState.addNode]; omega⟩).kind = .chance := hk
+      rcases Nat.lt_or_eq_of_le hbound with hlt | heq
+      · rw [MAIDCompileState.addNode_descAt_old st nd hnd ⟨nd'.val, hlt⟩] at hk_inner
+        exact hcon.chance ⟨nd'.val, hlt⟩ hk_inner
+      · exfalso
+        rw [show (⟨nd'.val, _⟩ : Fin (st.addNode nd hnd).2.nextId) =
+            ⟨st.nextId, by simp [MAIDCompileState.addNode]⟩ from Fin.ext heq] at hk_inner
+        rw [MAIDCompileState.addNode_descAt_new st nd hnd, hkind] at hk_inner
+        simp [CompiledNode.kind] at hk_inner
+    decision := by
+      intro nd' p hk
+      have hbound : nd'.val ≤ st.nextId := by rw [hnid1] at nd'; omega
+      have hk_inner : ((st.addNode nd hnd).2.descAt ⟨nd'.val, by
+          simp [MAIDCompileState.addNode]; omega⟩).kind = .decision p := hk
+      rcases Nat.lt_or_eq_of_le hbound with hlt | heq
+      · rw [MAIDCompileState.addNode_descAt_old st nd hnd ⟨nd'.val, hlt⟩] at hk_inner
+        simp only [RevealState.addPrivateNode, RevealState.bindVar]
+        exact hcon.decision ⟨nd'.val, hlt⟩ p hk_inner
+      · simp only [RevealState.addPrivateNode, RevealState.bindVar]
+        rw [hcon.unset nd'.val (by omega)]
+        exact WithTop.coe_lt_top _
+    nodeOf_lt := by
+      intro v nid hnid
+      simp only [RevealState.addPrivateNode, RevealState.bindVar] at hnid
+      rw [hnid1]
+      by_cases hv : v = x
+      · subst hv; simp at hnid; have := hcon.sync; omega
+      · simp [hv] at hnid
+        exact Nat.lt_trans (hcon.nodeOf_lt v nid hnid) (Nat.lt_succ_self _)
+    unset := by
+      intro i hi
+      simp only [RevealState.addPrivateNode, RevealState.bindVar]
+      exact hcon.unset i (by omega) }
+
+/-- RevealConsistent preserved by reveal (addVar + match/min on revealTime + aliasVar). -/
+private theorem revealConsistent_reveal'
+    {st : MAIDCompileState Player L B} {rs : RevealState}
+    (hcon : RevealConsistent st rs)
+    (y x : VarId) (b : L.Ty) (deps : Finset Nat)
+    (hdeps : ∀ d ∈ deps, d < st.nextId) :
+    RevealConsistent
+      (st.addVar y (.pub b) deps hdeps)
+      ((match rs.nodeOf x with
+        | some nid =>
+            { rs with revealTime := fun i =>
+                if i = nid then min (↑rs.nextId) (rs.revealTime i) else rs.revealTime i }
+        | none => rs).aliasVar y x) := by
+  -- Same proof as reveal case of computeReveals_consistent; addVar doesn't
+  -- change nodes/nextId, so all RevealConsistent fields transfer directly
+  -- modulo the revealTime adjustment (min preserves bounds).
+  sorry
+
 /-! ## Main consistency theorem -/
 
 /-- `computeReveals` produces a state consistent with `ofProg`:
@@ -533,19 +663,34 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
         ⟨hcon₀.sync, hcon₀.chance, hcon₀.decision, hcon₀.nodeOf_lt, hcon₀.unset⟩
         (by sorry)
   | sample x τ m D' k ih =>
+      rename_i Γ'
       simp only [computeReveals, MAIDCompileState.ofProg]
       apply ih (hd := hd.2)
-      · sorry -- RevealConsistent for intermediate state
+      · -- RevealConsistent: reuse proven lemma
+        exact revealConsistent_addChance' hcon₀
+          (CompiledNode.chance τ.base (st₀.ctxDeps Γ')
+            (fun raw => L.evalDist D' (VEnv.eraseDistEnv τ m (ρ raw)))
+            (fun raw => hd.1 (ρ raw)))
+          rfl (by intro d hd'; simp [CompiledNode.parents, CompiledNode.obsParents] at hd'
+                  exact st₀.depsOfVars_lt _ d hd')
+          x τ (by intro d hd'; simp at hd'; omega)
       · sorry -- VarVisible for extended context
   | commit x who R k ih =>
+      rename_i Γ' b
       simp only [computeReveals, MAIDCompileState.ofProg]
       apply ih (hd := hd)
-      · sorry -- RevealConsistent for intermediate state
+      · exact revealConsistent_addDecision' hcon₀
+          (CompiledNode.decision b who (allValues B b) (allValues_ne_nil B b)
+            (allValues_nodup B b) (st₀.viewDeps who Γ'))
+          rfl (by intro d hd'; simp [CompiledNode.parents, CompiledNode.obsParents] at hd'
+                  exact st₀.depsOfVars_lt _ d hd')
+          x (.hidden who b) (by intro d hd'; simp at hd'; omega)
       · sorry -- VarVisible for extended context
   | reveal y who x hx k ih =>
+      rename_i Γ' b
       simp only [computeReveals, MAIDCompileState.ofProg]
       apply ih (hd := hd)
-      · sorry -- RevealConsistent for intermediate state
+      · exact revealConsistent_reveal' hcon₀ y x b _ _
       · sorry -- VarVisible for extended context
 
 /-- The main experimental compilation function: Vegas program → VegasMAID. -/
