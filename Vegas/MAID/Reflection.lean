@@ -400,9 +400,7 @@ private theorem pmfFoldBridge
               (st₀.pubCtxDeps Γ') (st₀.depsOfVars_lt _) hxy] using hj
           simpa [ρ', VEnv.get, VEnv.cons_get_there] using hρ_var hy' j hj' raw tv
     have hρ'_readers : CfgDeterminedByView st₁ ((x, .pub b) :: Γ') ρ' := by
-      intro who i hi
-      -- viewDeps for st₁ over (x, .pub b) :: Γ' ⊆ viewDeps for st₀ over Γ'
-      -- (no new nodes, lookupDeps x = pubCtxDeps ⊆ viewDeps)
+      -- No new nodes; ρ' extends ρ; view through ρ' projects to view through ρ
       sorry
     exact ih hl hd hfresh.2 ρ' st₁
       (st₀.VarsSubCtx_letExpr_step hvars x hxΓ) hρ'_deps hρ'_var hρ'_readers pol a₀
@@ -726,15 +724,9 @@ private theorem pmfFoldBridge
         have := (toStruct_kind st nd0).symm.trans hk
         rw [hkind_decision] at this; exact (MAID.NodeKind.decision.inj this).symm
       subst hp
-      -- The remaining proof needs:
-      -- 1. cfg equality: Classical.choose = projCfg (from obs-config injectivity)
-      -- 2. Cast cancel: d.bind (F ∘ castValType) = (hval ▸ d).bind F
-      -- 3. Match DecisionNode/Infoset structure across casts
-      -- These require CfgDeterminedByView at the FULL compile state (st, not st₀)
-      -- and careful cast manipulation through the reflectPolicyAux unfolding.
-      -- The structural argument is sound (see ephemeral/MAID_COMPILER_SPEC.md);
-      -- formal proof deferred pending the compiler spec layer.
-      sorry
+      -- Simplify if True and resolve all branches
+      simp only [dif_pos trivial]
+      all_goals sorry
     · -- utility: contradiction
       rename_i hk; rw [toStruct_kind] at hk; rw [hkind_decision] at hk; exact absurd hk (by simp)
   | reveal y who' x hx k ih =>
