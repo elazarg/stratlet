@@ -730,6 +730,13 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
     (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ)
     (st₀ : MAIDCompileState Player L B) (rs₀ : RevealState)
     (hcon₀ : RevealConsistent st₀ rs₀)
+    -- The property holds for all decision nodes already in st₀
+    (hprev : ∀ (d : Fin st₀.nextId) (pw : Player),
+      (st₀.descAt d).kind = .decision pw →
+      ∀ (i : Nat) (hi : i ∈ (st₀.descAt d).parents),
+        rs₀.revealTime i ≤ ↑d.val ∨
+          (st₀.descAt ⟨i, Nat.lt_trans (st₀.descAt_parent_lt d hi) d.2⟩).kind = .decision pw)
+    -- VarVisible: visible deps are visible nodes (needed for commit case)
     (hvar₀ : VarVisible Γ st₀ rs₀) :
     let st := MAIDCompileState.ofProg B p hl hd ρ st₀
     let rs := computeReveals B p rs₀
@@ -739,44 +746,7 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
         rs.revealTime i ≤ ↑d.val ∨
           (∃ q, (st.descAt ⟨i, Nat.lt_trans (st.descAt_parent_lt d hi) d.2⟩).kind =
             .decision q ∧ q = p) := by
-  induction p generalizing st₀ rs₀ with
-  | ret payoffs =>
-      simp only [computeReveals, MAIDCompileState.ofProg]
-      letI := B.fintypePlayer
-      -- suffices: for any player list, addUtilityNodes preserves the property
-      suffices ∀ (players : List Player) (deps : Finset Nat)
-          (ufn : Player → RawNodeEnv L → ℝ)
-          (st : MAIDCompileState Player L B) (rs : RevealState)
-          (hdeps : ∀ d ∈ deps, d < st.nextId)
-          (hcon : RevealConsistent st rs)
-          (hvar : VarVisible _ st rs),
-          ∀ (d : Fin (st.addUtilityNodes deps hdeps ufn players).nextId) (p : Player),
-            ((st.addUtilityNodes deps hdeps ufn players).descAt d).kind = .decision p →
-            ∀ (i : Nat) (hi : i ∈ ((st.addUtilityNodes deps hdeps ufn players).descAt d).parents),
-              (players.foldl (fun rs' _ => rs'.addPublicNode) rs).revealTime i ≤ ↑d.val ∨
-                ∃ q, ((st.addUtilityNodes deps hdeps ufn players).descAt
-                  ⟨i, Nat.lt_trans ((st.addUtilityNodes deps hdeps ufn players).descAt_parent_lt d hi) d.2⟩).kind =
-                    .decision q ∧ q = p by
-        exact this _ _ _ st₀ rs₀ _ hcon₀ hvar₀
-      intro players
-      induction players with
-      | nil =>
-          -- Base: need revealTime i ≤ d.val, but VarVisible gives ≤ nextId.
-          -- Requires: (1) connecting VarVisible to decision parents via viewDeps,
-          -- (2) revealTime monotonicity (only min decreases it) to get ≤ d.val.
-          intro _ _ st rs _ _ _; sorry
-      | cons pw rest ih_ret =>
-          intro deps ufn st rs hdeps hcon hvar
-          simp only [MAIDCompileState.addUtilityNodes, List.foldl_cons]
-          let und : CompiledNode Player L B := .utility pw deps (ufn pw)
-          have hund_deps : ∀ d ∈ und.parents ∪ und.obsParents, d < st.nextId := by
-            intro d hd'; simp [und, CompiledNode.parents, CompiledNode.obsParents] at hd'
-            exact hdeps d hd'
-          sorry -- cons case: addNode(.utility) + addPublicNode, apply IH
-  | letExpr x e k ih => sorry
-  | sample x τ m D' k ih => sorry
-  | commit x who R k ih => sorry
-  | reveal y who x hx k ih => sorry
+  sorry
 
 /-- The main experimental compilation function: Vegas program → VegasMAID. -/
 noncomputable def compileVegasMAID
@@ -797,6 +767,7 @@ noncomputable def compileVegasMAID
   toVegasMAID B st rs
     (computeReveals_consistent B p hl hd _ _ _ hcon)
     (computeReveals_parents_visible B p hl hd hfresh _ _ _ hcon
+      (fun d => d.elim0)
       (by intro who y σ hy i hi; exfalso;
           simp [MAIDCompileState.empty, MAIDCompileState.lookupDeps,
                 MAIDCompileState.lookupDepsAux] at hi))
