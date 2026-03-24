@@ -1121,10 +1121,9 @@ private theorem pmfFoldBridge
             simp only [raw₁, raw₂, MAIDCompileState.rawEnvOfCfg, hj_lt, dite_false]
         -- With cfg equality, unify both sides
         rw [hcfg_eq]
-        -- Cast cancel: the two sides are propositionally equal.
-        -- The PMF cast (castValType/▸) cancels by pmf_descAt_cast_bind_cancel.
-        -- The profile mismatch (reflectPolicyAux vs ProgramBehavioralProfilePMF.tail)
-        -- is definitional but Lean can't see through toStruct.Val + tactic-defined terms.
+        -- Last sorry: cast cancel + profile equality.
+        -- Both are clearly true but fighting Lean's definitional reduction through
+        -- tactic-defined toStruct.Val and reflectPolicyAux.
         sorry
       · exfalso; apply h_exists; exact ⟨_, hViewEq⟩
     · -- utility: contradiction
