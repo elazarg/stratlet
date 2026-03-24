@@ -1187,7 +1187,30 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
                 rw [this]; exact h)
         (varVisible_addNode_decision_addVar st₀ rs₀ hcon₀ dnd who
           rfl hdnd_deps x b _ hvars hfresh.1 hdeps hvar₀)
-        (by sorry) (by sorry) (by sorry) -- hdt + hhn + hnsc for commit continuation
+        (by intro z nid hnid
+            simp only [RevealState.addPrivateNode, RevealState.bindVar] at hnid
+            by_cases hz : z = x
+            · subst hz; simp at hnid; subst hnid
+              rw [(st₀.addNode dnd hdnd_deps).2.lookupDeps_addVar_eq_self_of_fresh z _ _ _
+                (fun hm => hfresh.1 ((st₀.VarsSubCtx_addNode hvars dnd hdnd_deps) z hm))]
+              rw [hcon₀.sync]
+            · simp [hz] at hnid
+              rw [(st₀.addNode dnd hdnd_deps).2.lookupDeps_addVar_eq_of_ne x _ _ _ hz]
+              exact hdt z nid hnid)
+        (by intro z who' b' hv
+            simp only [RevealState.addPrivateNode, RevealState.bindVar]
+            cases hv with
+            | here => simp
+            | there hv' =>
+                by_cases hz : z = x
+                · subst hz; simp
+                · simp [hz]; exact hhn z who' b' hv')
+        (by intro z nid hnid
+            simp only [RevealState.addPrivateNode, RevealState.bindVar] at hnid
+            simp only [List.map_cons, List.mem_cons]
+            by_cases hz : z = x
+            · left; exact hz
+            · right; simp [hz] at hnid; exact hnsc z nid hnid)
   | reveal y who x hx k ih =>
       simp only [computeReveals, MAIDCompileState.ofProg]
       exact ih hl hd hfresh.2 _ _ _
