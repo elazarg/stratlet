@@ -1095,6 +1095,14 @@ private theorem pmfFoldBridge
       intro who raw₁ raw₂ hout hnot_vd htyped hview i hi
       have hview_old := Vegas.projectViewEnv_cons_eq
         (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩) hview
+      -- Reveal VDR: viewDeps = lookupDeps(x) ∪ old viewDeps.
+      -- For i ∈ old viewDeps: forward to hρ_readers (same as letExpr).
+      -- For i ∈ lookupDeps(x) \ old viewDeps: need raw equality from view.
+      --   If x ∈ viewVCtx who Γ' (who sees x): lookupDeps(x) ⊆ viewDeps, no new indices.
+      --   If x ∉ viewVCtx who Γ' (who doesn't see x): genuinely new indices.
+      --     The view gives get(x, ρ raw₁) = get(x, ρ raw₂) (from cons_head_eq),
+      --     but equal outputs don't imply equal inputs at individual lookupDeps indices.
+      -- TODO: This case needs either a structural lemma or reformulation.
       sorry
     exact ih hl hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers
       (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩) pol a₀
