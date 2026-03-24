@@ -30,7 +30,26 @@ variable {Player : Type} [DecidableEq Player] {L : IExpr}
 
 /-! ## Auxiliary: compile pure strategies to MAID -/
 
-/-- Compile a Vegas per-player pure strategy to a MAID per-player pure strategy. -/
+private noncomputable def defaultPureStrategy
+    (B : MAIDBackend Player L) :
+    {Γ : VCtx Player L} → (p : VegasCore Player L Γ) →
+    (i : Player) → ProgramPureStrategy (P := Player) (L := L) i p
+  | _, .ret _, _ => PUnit.unit
+  | _, .letExpr _ _ k, i => defaultPureStrategy B k i
+  | _, .sample _ _ _ _ k, i => defaultPureStrategy B k i
+  | Γ, .commit (b := b) _ owner _ k, i => by
+    by_cases h : owner = i
+    · subst h
+      simp only [ProgramPureStrategy]
+      exact ⟨fun _ =>
+        MAIDValuation.defaultVal L B.toMAIDValuation b,
+        defaultPureStrategy B k owner⟩
+    · simpa [ProgramPureStrategy, h] using
+        defaultPureStrategy B k i
+  | _, .reveal _ _ _ _ k, i => defaultPureStrategy B k i
+
+/-- Compile a Vegas per-player pure strategy to a MAID per-player
+pure strategy. -/
 noncomputable def compilePureStrategyV
     (B : MAIDBackend Player L) {Γ : VCtx Player L}
     (p : VegasCore Player L Γ) (env : VEnv (Player := Player) L Γ)
@@ -39,8 +58,12 @@ noncomputable def compilePureStrategyV
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
     (who : Player)
     (s : ProgramPureStrategy who p) :
-    PureStrategy (fp := B.fintypePlayer) (compiledStruct B p env hl hd hfresh hpub) who := by
-  sorry
+    PureStrategy (fp := B.fintypePlayer)
+      (compiledStruct B p env hl hd hfresh hpub) who :=
+  haveI := B.fintypePlayer
+  compilePureProfileV B p env hl hd hfresh hpub
+    (fun i => if h : i = who then h ▸ s
+      else defaultPureStrategy B p i) who
 
 /-- The compiled MAID pure policy from a full Vegas pure profile decomposes
 into per-player compiled strategies. -/
