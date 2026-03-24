@@ -241,8 +241,77 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
   | ret payoffs =>
       simp only [computeReveals, MAIDCompileState.ofProg]
       -- addUtilityNodes adds only utility nodes; foldl adds public nodes
-      -- Utility nodes: sorry for now (needs auxiliary induction on player list)
-      sorry
+      -- Induction on the player list with deps as a free parameter.
+      letI := B.fintypePlayer
+      suffices ∀ (players : List Player) (deps : Finset Nat)
+          (ufn : Player → RawNodeEnv L → ℝ)
+          (st : MAIDCompileState Player L B) (rs : RevealState)
+          (hdeps : ∀ d ∈ deps, d < st.nextId)
+          (hcon : RevealConsistent st rs),
+          RevealConsistent (st.addUtilityNodes deps hdeps ufn players)
+            (players.foldl (fun rs' _ => rs'.addPublicNode) rs) by
+        exact this _ _ _ st₀ rs₀ _ hcon₀
+      intro players
+      induction players with
+      | nil => intro _ _ st rs _ hcon; simpa [MAIDCompileState.addUtilityNodes]
+      | cons who rest ih_ret =>
+          intro deps ufn st rs hdeps hcon
+          simp only [MAIDCompileState.addUtilityNodes, List.foldl_cons]
+          let und : CompiledNode Player L B := .utility who deps (ufn who)
+          have hund_deps : ∀ d ∈ und.parents ∪ und.obsParents, d < st.nextId := by
+            intro d hd'; simp [und, CompiledNode.parents, CompiledNode.obsParents] at hd'
+            exact hdeps d hd'
+          exact ih_ret deps ufn (st.addNode und hund_deps).2 rs.addPublicNode
+            (fun d hd => Nat.lt_trans (hdeps d hd) (Nat.lt_succ_self _))
+            {
+              sync := by simp [RevealState.addPublicNode, MAIDCompileState.addNode, hcon.sync]
+              chance := by
+                intro nd' hk
+                have hbound : nd'.val ≤ st.nextId := by
+                  have := nd'.isLt; simp [MAIDCompileState.addNode] at this; omega
+                have hk_inner : ((st.addNode und hund_deps).2.descAt ⟨nd'.val, by
+                    simp [MAIDCompileState.addNode]; omega⟩).kind = .chance := hk
+                rcases Nat.lt_or_eq_of_le hbound with hlt | heq
+                · rw [MAIDCompileState.addNode_descAt_old st und hund_deps ⟨nd'.val, hlt⟩] at hk_inner
+                  have := hcon.chance ⟨nd'.val, hlt⟩ hk_inner
+                  simp only [RevealState.addPublicNode]
+                  rw [if_neg (show nd'.val ≠ rs.nextId from by rw [hcon.sync]; omega)]
+                  exact this
+                · exfalso
+                  rw [show (⟨nd'.val, _⟩ : Fin _) = ⟨st.nextId, by simp [MAIDCompileState.addNode]⟩
+                      from Fin.ext heq] at hk_inner
+                  rw [MAIDCompileState.addNode_descAt_new st und hund_deps] at hk_inner
+                  simp [und, CompiledNode.kind] at hk_inner
+              decision := by
+                intro nd' p hk
+                have hbound : nd'.val ≤ st.nextId := by
+                  have := nd'.isLt; simp [MAIDCompileState.addNode] at this; omega
+                have hk_inner : ((st.addNode und hund_deps).2.descAt ⟨nd'.val, by
+                    simp [MAIDCompileState.addNode]; omega⟩).kind = .decision p := hk
+                rcases Nat.lt_or_eq_of_le hbound with hlt | heq
+                · rw [MAIDCompileState.addNode_descAt_old st und hund_deps ⟨nd'.val, hlt⟩] at hk_inner
+                  have := hcon.decision ⟨nd'.val, hlt⟩ p hk_inner
+                  simp only [RevealState.addPublicNode]
+                  rw [if_neg (show nd'.val ≠ rs.nextId from by rw [hcon.sync]; omega)]
+                  exact this
+                · exfalso
+                  rw [show (⟨nd'.val, _⟩ : Fin _) = ⟨st.nextId, by simp [MAIDCompileState.addNode]⟩
+                      from Fin.ext heq] at hk_inner
+                  rw [MAIDCompileState.addNode_descAt_new st und hund_deps] at hk_inner
+                  simp [und, CompiledNode.kind] at hk_inner
+              nodeOf_lt := by
+                intro v nid hnid
+                simp only [RevealState.addPublicNode] at hnid
+                show nid < st.nextId + 1
+                exact Nat.lt_trans (hcon.nodeOf_lt v nid hnid) (Nat.lt_succ_self _)
+              unset := by
+                intro i hi
+                have hi' : st.nextId + 1 ≤ i := by
+                  simpa [MAIDCompileState.addNode] using hi
+                simp only [RevealState.addPublicNode]
+                rw [if_neg (show i ≠ rs.nextId from by rw [hcon.sync]; omega)]
+                exact hcon.unset i (by omega)
+            }
   | letExpr x e k ih =>
       simp only [computeReveals, MAIDCompileState.ofProg]
       exact ih hl hd _ _ _ ⟨hcon₀.sync, hcon₀.chance, hcon₀.decision, hcon₀.nodeOf_lt, hcon₀.unset⟩
