@@ -538,6 +538,107 @@ theorem envRespectsLookupDeps_const
     EnvRespectsLookupDeps st (fun _ => env) :=
   fun _ _ _ _ _ => rfl
 
+/-- What it means for two raw envs to match a compiled node at index `i`. -/
+def RawsMatchDescAt (st : MAIDCompileState Player L B)
+    (raw₁ raw₂ : RawNodeEnv L) (i : Nat) (hi : i < st.nextId) : Prop :=
+  match st.descAt ⟨i, hi⟩ with
+  | .chance τ _ _ _ | .decision τ _ _ _ _ _ =>
+    ∃ (v₁ v₂ : L.Val τ), raw₁ i = some ⟨τ, v₁⟩ ∧ raw₂ i = some ⟨τ, v₂⟩
+  | .utility _ _ _ => raw₁ i = none ∧ raw₂ i = none
+
+theorem RawsMatchDescAt_of_descAt_eq
+    {st₁ st₀ : MAIDCompileState Player L B}
+    {raw₁ raw₂ : RawNodeEnv L} {i : Nat}
+    {hi₁ : i < st₁.nextId} {hi₀ : i < st₀.nextId}
+    (hdesc : st₁.descAt ⟨i, hi₁⟩ = st₀.descAt ⟨i, hi₀⟩)
+    (h : RawsMatchDescAt st₁ raw₁ raw₂ i hi₁) :
+    RawsMatchDescAt st₀ raw₁ raw₂ i hi₀ := by
+  simp only [RawsMatchDescAt, ← hdesc]; exact h
+
+/-- Raw-level view determinacy: if two raws agree outside viewDeps and their
+views through ρ agree, they agree on viewDeps. With VegasMAID (`obsParents =
+parents`), this is trivially satisfied. -/
+def ViewDeterminesRaw (st : MAIDCompileState Player L B)
+    (Γ : VCtx Player L) (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ) : Prop :=
+  ∀ (who : Player) (raw₁ raw₂ : RawNodeEnv L),
+    (∀ i, st.nextId ≤ i → raw₁ i = raw₂ i) →
+    (∀ i, i ∉ st.viewDeps who Γ → i < st.nextId → raw₁ i = raw₂ i) →
+    (∀ i, i ∈ st.viewDeps who Γ → (hi : i < st.nextId) →
+      RawsMatchDescAt st raw₁ raw₂ i hi) →
+    projectViewEnv (P := Player) (L := L) who
+      (VEnv.eraseEnv (ρ raw₁)) =
+    projectViewEnv (P := Player) (L := L) who
+      (VEnv.eraseEnv (ρ raw₂)) →
+    ∀ i, i ∈ st.viewDeps who Γ → raw₁ i = raw₂ i
+
+/-- Hidden vars have singleton lookupDeps and ρ reads them via readVal. -/
+def EnvReadValAtDeps (st : MAIDCompileState Player L B)
+    (Γ : VCtx Player L) (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ) : Prop :=
+  ∀ (x : VarId) (who' : Player) (bt : L.Ty) (hx : VHasVar Γ x (.hidden who' bt)),
+    (st.lookupDeps x).Nonempty →
+    ∃ j, ∃ hj : j < st.nextId, st.lookupDeps x = {j} ∧
+      (match st.descAt ⟨j, hj⟩ with
+       | .chance τ _ _ _ | .decision τ _ _ _ _ _ => τ = bt
+       | .utility _ _ _ => True) ∧
+      ∀ raw, VEnv.get (ρ raw) hx = MAIDCompileState.readVal (B := B) raw bt j
+
+open MAID in
+theorem rawEnvOfCfg_rawsMatchDescAt
+    {st st₀ : MAIDCompileState Player L B}
+    {ps : Finset (Fin st.nextId)}
+    (cfg₁ cfg₂ : Cfg (fp := B.fintypePlayer) st.toStruct ps)
+    {i : Nat} (hilt : i < st.nextId) (hi₀ : i < st₀.nextId)
+    (hmem : (⟨i, hilt⟩ : Fin st.nextId) ∈ ps)
+    (hdesc : st.descAt ⟨i, hilt⟩ = st₀.descAt ⟨i, hi₀⟩) :
+    RawsMatchDescAt st₀ (st.rawEnvOfCfg cfg₁) (st.rawEnvOfCfg cfg₂) i hi₀ := by
+  letI := B.fintypePlayer
+  suffices ∀ (nd : CompiledNode Player L B) (v₁ v₂ : CompiledNode.valType nd)
+      (hraw₁ : st.rawEnvOfCfg cfg₁ i = MAIDCompileState.taggedOfVal nd v₁)
+      (hraw₂ : st.rawEnvOfCfg cfg₂ i = MAIDCompileState.taggedOfVal nd v₂)
+      (hnd : nd = st₀.descAt ⟨i, hi₀⟩),
+      RawsMatchDescAt st₀ (st.rawEnvOfCfg cfg₁) (st.rawEnvOfCfg cfg₂) i hi₀ by
+    exact this (st.descAt ⟨i, hilt⟩) (cfg₁ ⟨⟨i, hilt⟩, hmem⟩) (cfg₂ ⟨⟨i, hilt⟩, hmem⟩)
+      (by unfold MAIDCompileState.rawEnvOfCfg; simp [hilt, hmem])
+      (by unfold MAIDCompileState.rawEnvOfCfg; simp [hilt, hmem])
+      hdesc
+  intro nd v₁ v₂ hraw₁ hraw₂ hnd; subst hnd
+  unfold RawsMatchDescAt; rw [hraw₁, hraw₂]
+  match st₀.descAt ⟨i, hi₀⟩, v₁, v₂ with
+  | .chance τ _ _ _, v₁, v₂ => exact ⟨v₁, v₂, rfl, rfl⟩
+  | .decision τ _ _ _ _ _, v₁, v₂ => exact ⟨v₁, v₂, rfl, rfl⟩
+  | .utility _ _ _, _, _ => exact ⟨rfl, rfl⟩
+
+/-- Cast cancellation for nodeDist: casting a PMF via descAt equality and
+binding with castValType gives the same as binding directly. -/
+theorem pmf_descAt_cast_bind_cancel
+    {st : MAIDCompileState Player L B} {nd : Fin st.nextId}
+    {c : CompiledNode Player L B} (hdesc : st.descAt nd = c)
+    (d : PMF (CompiledNode.valType c))
+    {γ : Type} (f : CompiledNode.valType c → PMF γ)
+    (hcast : PMF (CompiledNode.valType c) =
+      PMF (CompiledNode.valType (st.descAt nd))) :
+    (cast hcast d).bind (fun v => f (castValType hdesc v)) = d.bind f := by
+  subst hdesc; rfl
+
+/-- evalStep bind distributes over left bind. -/
+theorem foldl_evalStep_bind_left [Fintype Player] {n : Nat}
+    {S : MAID.Struct Player n} (sem : MAID.Sem S) (pol : MAID.Policy S)
+    (nodes : List (Fin n)) {β : Type} (μ : PMF β)
+    (g : β → PMF (MAID.TAssign S)) :
+    List.foldl (MAID.evalStep S sem pol) (μ.bind g) nodes =
+      μ.bind (fun v => List.foldl (MAID.evalStep S sem pol) (g v) nodes) := by
+  induction nodes generalizing g with
+  | nil => simp
+  | cons nd rest ih =>
+    simp only [List.foldl_cons, MAID.evalStep]
+    rw [show (μ.bind g).bind (fun a =>
+          (MAID.nodeDist S sem pol nd a).bind (fun v =>
+            PMF.pure (MAID.updateAssign a nd v))) =
+        μ.bind (fun v => (g v).bind (fun a =>
+          (MAID.nodeDist S sem pol nd a).bind (fun v' =>
+            PMF.pure (MAID.updateAssign a nd v')))) from PMF.bind_bind _ _ _]
+    exact ih _
+
 /-! ## PMF native outcome distribution -/
 
 /-- PMF-level native outcome distribution: like `outcomeDistBehavioralPMF` but
