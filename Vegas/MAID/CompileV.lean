@@ -312,7 +312,7 @@ private theorem revealConsistent_addNode'
   nodeOf_lt := by
     intro v nid hnid
     simp only [RevealState.addPublicNode] at hnid
-    show nid < st.nextId + 1
+    change nid < st.nextId + 1
     exact Nat.lt_trans (hcon.nodeOf_lt v nid hnid) (Nat.lt_succ_self _)
   unset := by
     intro i hi
@@ -370,7 +370,7 @@ private theorem revealConsistent_addChance'
       rw [hnid1]
       by_cases hv : v = x
       · subst hv; simp at hnid; have := hcon.sync; omega
-      · simp [hv] at hnid
+      · simp only [hv, ite_false] at hnid
         exact Nat.lt_trans (hcon.nodeOf_lt v nid hnid) (Nat.lt_succ_self _)
     unset := by
       intro i hi
@@ -405,7 +405,7 @@ private theorem revealConsistent_addDecision'
         rw [show (⟨nd'.val, _⟩ : Fin (st.addNode nd hnd).2.nextId) =
             ⟨st.nextId, by simp [MAIDCompileState.addNode]⟩ from Fin.ext heq] at hk_inner
         rw [MAIDCompileState.addNode_descAt_new st nd hnd, hkind] at hk_inner
-        simp [CompiledNode.kind] at hk_inner
+        simp at hk_inner
     decision := by
       intro nd' p hk
       have hbound : nd'.val ≤ st.nextId := by rw [hnid1] at nd'; omega
@@ -424,7 +424,7 @@ private theorem revealConsistent_addDecision'
       rw [hnid1]
       by_cases hv : v = x
       · subst hv; simp at hnid; have := hcon.sync; omega
-      · simp [hv] at hnid
+      · simp only [hv, ite_false] at hnid
         exact Nat.lt_trans (hcon.nodeOf_lt v nid hnid) (Nat.lt_succ_self _)
     unset := by
       intro i hi
@@ -470,19 +470,22 @@ private theorem revealConsistent_reveal'
       · rw [if_neg heq]; exact h
     · exact h
   · intro v nid hnid
-    show nid < st.nextId
+    change nid < st.nextId
     simp only [RevealState.aliasVar] at hnid
     cases hx_eq : rs.nodeOf x with
     | none =>
-        simp [hx_eq] at hnid
+        simp only [hx_eq] at hnid
         by_cases hv : v = y
         · subst hv; simp at hnid
-        · simp [hv] at hnid; exact hcon.nodeOf_lt v nid hnid
+        · simp only [hv, ite_false] at hnid; exact hcon.nodeOf_lt v nid hnid
     | some nid' =>
-        simp [hx_eq] at hnid
+        simp only [hx_eq] at hnid
         by_cases hv : v = y
-        · subst hv; simp at hnid; subst hnid; exact hcon.nodeOf_lt x nid' hx_eq
-        · simp [hv] at hnid; exact hcon.nodeOf_lt v nid hnid
+        · subst hv
+          simp only [↓reduceIte, Option.some.injEq] at hnid
+          subst hnid
+          exact hcon.nodeOf_lt x nid' hx_eq
+        · simp only [hv, ite_false] at hnid; exact hcon.nodeOf_lt v nid hnid
   · intro i hi
     rw [hav_nid] at hi
     simp only [RevealState.aliasVar]
@@ -527,7 +530,9 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
           simp only [MAIDCompileState.addUtilityNodes, List.foldl_cons]
           let und : CompiledNode Player L B := .utility who deps (ufn who)
           have hund_deps : ∀ d ∈ und.parents ∪ und.obsParents, d < st.nextId := by
-            intro d hd'; simp [und, CompiledNode.parents, CompiledNode.obsParents] at hd'
+            intro d hd'
+            simp only [CompiledNode.parents, CompiledNode.obsParents, Finset.union_idempotent,
+              und] at hd'
             exact hdeps d hd'
           exact ih_ret deps ufn (st.addNode und hund_deps).2 rs.addPublicNode
             (fun d hd => Nat.lt_trans (hdeps d hd) (Nat.lt_succ_self _))
@@ -540,7 +545,8 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
                 have hk_inner : ((st.addNode und hund_deps).2.descAt ⟨nd'.val, by
                     simp [MAIDCompileState.addNode]; omega⟩).kind = .chance := hk
                 rcases Nat.lt_or_eq_of_le hbound with hlt | heq
-                · rw [MAIDCompileState.addNode_descAt_old st und hund_deps ⟨nd'.val, hlt⟩] at hk_inner
+                · rw [MAIDCompileState.addNode_descAt_old
+                    st und hund_deps ⟨nd'.val, hlt⟩] at hk_inner
                   have := hcon.chance ⟨nd'.val, hlt⟩ hk_inner
                   simp only [RevealState.addPublicNode]
                   rw [if_neg (show nd'.val ≠ rs.nextId from by rw [hcon.sync]; omega)]
@@ -557,7 +563,8 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
                 have hk_inner : ((st.addNode und hund_deps).2.descAt ⟨nd'.val, by
                     simp [MAIDCompileState.addNode]; omega⟩).kind = .decision p := hk
                 rcases Nat.lt_or_eq_of_le hbound with hlt | heq
-                · rw [MAIDCompileState.addNode_descAt_old st und hund_deps ⟨nd'.val, hlt⟩] at hk_inner
+                · rw [MAIDCompileState.addNode_descAt_old
+                    st und hund_deps ⟨nd'.val, hlt⟩] at hk_inner
                   have := hcon.decision ⟨nd'.val, hlt⟩ p hk_inner
                   simp only [RevealState.addPublicNode]
                   rw [if_neg (show nd'.val ≠ rs.nextId from by rw [hcon.sync]; omega)]
@@ -570,7 +577,7 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
               nodeOf_lt := by
                 intro v nid hnid
                 simp only [RevealState.addPublicNode] at hnid
-                show nid < st.nextId + 1
+                change nid < st.nextId + 1
                 exact Nat.lt_trans (hcon.nodeOf_lt v nid hnid) (Nat.lt_succ_self _)
               unset := by
                 intro i hi
@@ -594,7 +601,9 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
       have hcnd_kind : cnd.kind = .chance := rfl
       -- The deps proof from the compiler
       have hcnd_deps : ∀ d ∈ cnd.parents ∪ cnd.obsParents, d < st₀.nextId := by
-        intro d hd'; simp [cnd, CompiledNode.parents, CompiledNode.obsParents] at hd'
+        intro d hd'
+        simp only [CompiledNode.parents, CompiledNode.obsParents, Finset.union_idempotent,
+          cnd] at hd'
         exact st₀.depsOfVars_lt _ d hd'
       have hdeps : ∀ d ∈ ({st₀.nextId} : Finset Nat), d < st₀.nextId + 1 := by
         intro d hd'; simp at hd'; omega
@@ -639,7 +648,7 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
           rw [hnid1]
           by_cases hv : v = x
           · subst hv; simp at hnid; have := hcon₀.sync; omega
-          · simp [hv] at hnid
+          · simp only [hv, ↓reduceIte] at hnid
             exact Nat.lt_trans (hcon₀.nodeOf_lt v nid hnid) (Nat.lt_succ_self _)
         unset := by
           intro i hi
@@ -652,17 +661,21 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
       simp only [computeReveals, MAIDCompileState.ofProg]
       apply ih (hd := hd)
       let dnd : CompiledNode Player L B :=
-        .decision b who (allValues B b) (allValues_ne_nil B b) (allValues_nodup B b) (st₀.viewDeps who Γ')
+        .decision b who (allValues B b) (allValues_ne_nil B b)
+          (allValues_nodup B b) (st₀.viewDeps who Γ')
       have hdnd_kind : dnd.kind = .decision who := rfl
       have hdnd_deps : ∀ d ∈ dnd.parents ∪ dnd.obsParents, d < st₀.nextId := by
-        intro d hd'; simp [dnd, CompiledNode.parents, CompiledNode.obsParents] at hd'
+        intro d hd'
+        simp only [CompiledNode.parents, CompiledNode.obsParents, Finset.union_idempotent,
+          dnd] at hd'
         exact st₀.depsOfVars_lt _ d hd'
       have hdeps : ∀ d ∈ ({st₀.nextId} : Finset Nat), d < st₀.nextId + 1 := by
         intro d hd'; simp at hd'; omega
       change RevealConsistent
         ((st₀.addNode dnd hdnd_deps).2.addVar x (.hidden who b) {st₀.nextId} hdeps)
         (rs₀.addPrivateNode.bindVar x rs₀.nextId)
-      have hnid1 : ((st₀.addNode dnd hdnd_deps).2.addVar x (.hidden who b) {st₀.nextId} hdeps).nextId
+      have hnid1 : ((st₀.addNode dnd hdnd_deps).2.addVar x
+        (.hidden who b) {st₀.nextId} hdeps).nextId
           = st₀.nextId + 1 := by simp [MAIDCompileState.addNode, MAIDCompileState.addVar]
       exact {
         sync := by simp [RevealState.addPrivateNode, RevealState.bindVar, hnid1, hcon₀.sync]
@@ -697,7 +710,7 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
           rw [hnid1]
           by_cases hv : v = x
           · subst hv; simp at hnid; have := hcon₀.sync; omega
-          · simp [hv] at hnid
+          · simp only [hv, ite_false] at hnid
             exact Nat.lt_trans (hcon₀.nodeOf_lt v nid hnid) (Nat.lt_succ_self _)
         unset := by
           intro i hi
@@ -736,27 +749,33 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
           · rw [if_neg heq]; exact h
         · exact h
       · intro v nid hnid
-        show nid < st₀.nextId
+        change nid < st₀.nextId
         simp only [RevealState.aliasVar] at hnid
         cases hx_eq : rs₀.nodeOf x with
         | none =>
-            simp [hx_eq] at hnid
+            simp only [hx_eq, Option.ite_none_left_eq_some] at hnid
             by_cases hv : v = y
             · subst hv; simp at hnid
-            · simp [hv] at hnid; exact hcon₀.nodeOf_lt v nid hnid
+            · simp only [hv, not_false_eq_true, true_and] at hnid
+              exact hcon₀.nodeOf_lt v nid hnid
         | some nid' =>
-            simp [hx_eq] at hnid
+            simp only [hx_eq] at hnid
             by_cases hv : v = y
-            · subst hv; simp at hnid; subst hnid
+            · subst hv
+              simp only [reduceIte, Option.some.injEq] at hnid
+              subst hnid
               exact hcon₀.nodeOf_lt x nid' hx_eq
-            · simp [hv] at hnid; exact hcon₀.nodeOf_lt v nid hnid
+            · simp only [hv, reduceIte] at hnid
+              exact hcon₀.nodeOf_lt v nid hnid
       · -- unset
         intro i hi
         simp only [RevealState.aliasVar, MAIDCompileState.addVar] at hi ⊢
         cases hx_eq : rs₀.nodeOf x with
-        | none => simp [hx_eq]; exact hcon₀.unset i hi
+        | none =>
+            simp only
+            exact hcon₀.unset i hi
         | some nid' =>
-            simp [hx_eq]
+            simp only
             rw [if_neg (show i ≠ nid' from by
               have := hcon₀.nodeOf_lt x nid' hx_eq; omega)]
             exact hcon₀.unset i hi
@@ -787,12 +806,14 @@ private theorem hprev_transfer_addNode
     (hp : ∀ (d : Fin st.nextId) (pw : Player),
       (st.descAt d).kind = .decision pw →
       ∀ (i : Nat) (hi : i ∈ (st.descAt d).parents),
-        rs.revealTime i ≤ ↑d.val ∨ (st.descAt ⟨i, Nat.lt_trans (st.descAt_parent_lt d hi) d.2⟩).kind = .decision pw) :
+        rs.revealTime i ≤ ↑d.val ∨
+          (st.descAt ⟨i, Nat.lt_trans (st.descAt_parent_lt d hi) d.2⟩).kind = .decision pw) :
     ∀ (d : Fin (st.addNode nd hnd).2.nextId) (pw : Player),
       ((st.addNode nd hnd).2.descAt d).kind = .decision pw →
       ∀ (i : Nat) (hi : i ∈ ((st.addNode nd hnd).2.descAt d).parents),
         rs.addPublicNode.revealTime i ≤ ↑d.val ∨
-          ((st.addNode nd hnd).2.descAt ⟨i, Nat.lt_trans ((st.addNode nd hnd).2.descAt_parent_lt d hi) d.2⟩).kind =
+          ((st.addNode nd hnd).2.descAt
+              ⟨i, Nat.lt_trans ((st.addNode nd hnd).2.descAt_parent_lt d hi) d.2⟩).kind =
             .decision pw := by
   intro d' pw' hk' i hi'
   have hbound : d'.val ≤ st.nextId := by
@@ -802,7 +823,9 @@ private theorem hprev_transfer_addNode
   rcases Nat.lt_or_eq_of_le hbound with hlt | heq
   · rw [MAIDCompileState.addNode_descAt_old st nd hnd ⟨d'.val, hlt⟩] at hk_inner
     have hi_inner : i ∈ (st.descAt ⟨d'.val, hlt⟩).parents := by
-      have : i ∈ ((st.addNode nd hnd).2.descAt ⟨d'.val, by simp [MAIDCompileState.addNode]; omega⟩).parents := hi'
+      have : i ∈ ((st.addNode nd hnd).2.descAt ⟨d'.val, by
+        simp [MAIDCompileState.addNode]
+        omega⟩).parents := hi'
       rwa [MAIDCompileState.addNode_descAt_old st nd hnd ⟨d'.val, hlt⟩] at this
     rcases hp ⟨d'.val, hlt⟩ pw' hk_inner i hi_inner with h | h
     · left; simp only [RevealState.addPublicNode]
@@ -810,7 +833,7 @@ private theorem hprev_transfer_addNode
         rw [hcon.sync]; have := st.descAt_parent_lt ⟨d'.val, hlt⟩ hi_inner; omega)]
       exact h
     · right
-      show ((st.addNode nd hnd).2.descAt ⟨i, _⟩).kind = _
+      change ((st.addNode nd hnd).2.descAt ⟨i, _⟩).kind = _
       rw [MAIDCompileState.addNode_descAt_old st nd hnd
         ⟨i, by have := st.descAt_parent_lt ⟨d'.val, hlt⟩ hi_inner; omega⟩]
       exact h
@@ -840,7 +863,8 @@ private theorem varVisible_addVar_pub
     (hdeps_sub : deps ⊆ st.pubCtxDeps Γ) :
     VarVisible ((x, .pub b) :: Γ) (st.addVar x (.pub b) deps hdeps) rs := by
   intro who y σ hy i hi
-  unfold viewVCtx at hy; simp [canSee] at hy
+  unfold viewVCtx at hy
+  simp only [canSee, reduceIte, List.mem_cons, Prod.mk.injEq] at hy
   rcases hy with ⟨rfl, rfl⟩ | hy
   · rw [st.lookupDeps_addVar_eq_self_of_fresh y _ _ _ (fun hm => hfresh_x (hvars y hm))] at hi
     have hi_pub := hdeps_sub hi
@@ -848,7 +872,8 @@ private theorem varVisible_addVar_pub
     obtain ⟨z, hz_mem, hz_dep⟩ := (mem_depsOfVars_iff st _ i).mp hi_pub
     have hz_view := erasePubVCtx_map_fst_sub_viewVCtx (Γ := Γ) (who := who) z hz_mem
     obtain ⟨⟨z', σ'⟩, hzs_mem, hzs_fst⟩ := List.mem_map.mp hz_view
-    simp at hzs_fst; subst hzs_fst
+    simp only at hzs_fst
+    subst hzs_fst
     exact hvar who z' σ' hzs_mem i hz_dep
   · rw [st.lookupDeps_addVar_eq_of_ne x _ _ _ (by
       intro heq; subst heq
@@ -875,7 +900,8 @@ private theorem varVisible_addNode_chance_addVar
   · subst heq
     rw [(st.addNode nd hnd).2.lookupDeps_addVar_eq_self_of_fresh y _ _ _
       (fun hm => hfresh_x ((st.VarsSubCtx_addNode hvars nd hnd) y hm))] at hi
-    simp at hi; subst hi
+    simp only [Finset.mem_singleton] at hi
+    subst hi
     left; simp only [RevealState.addPublicNode, RevealState.bindVar]
     rw [if_pos hcon.sync.symm, hnid]
     exact_mod_cast (show rs.nextId ≤ st.nextId + 1 by have := hcon.sync; omega)
@@ -894,7 +920,9 @@ private theorem varVisible_addNode_chance_addVar
       rw [hnid]
       exact le_trans h (WithTop.coe_le_coe.mpr (Nat.le_succ _))
     · right
-      show ((st.addNode nd hnd).2.descAt ⟨i, by simp [MAIDCompileState.addNode]; omega⟩).kind = _
+      change ((st.addNode nd hnd).2.descAt ⟨i, by
+        simp [MAIDCompileState.addNode]
+        omega⟩).kind = _
       rw [MAIDCompileState.addNode_descAt_old st nd hnd ⟨i, hilt⟩]; exact h
 
 /-- VarVisible extension for addNode(.decision)+addVar (commit case).
@@ -920,13 +948,17 @@ private theorem varVisible_addNode_decision_addVar
     · subst heq
       rw [(st.addNode nd hnd).2.lookupDeps_addVar_eq_self_of_fresh y _ _ _
         (fun hm => _hfresh_x ((st.VarsSubCtx_addNode _hvars nd hnd) y hm))] at hi
-      simp at hi; subst hi
+      simp only [Finset.mem_singleton] at hi
+      subst hi
       right
-      show ((st.addNode nd hnd).2.descAt ⟨st.nextId, by simp [MAIDCompileState.addNode]⟩).kind = _
+      change ((st.addNode nd hnd).2.descAt
+        ⟨st.nextId, by simp [MAIDCompileState.addNode]⟩).kind = _
       rw [MAIDCompileState.addNode_descAt_new st nd hnd]; exact _hnd_kind
     · rw [(st.addNode nd hnd).2.lookupDeps_addVar_eq_of_ne x _ _ _ heq] at hi
       have hy' : (y, σ) ∈ viewVCtx p Γ := by
-        unfold viewVCtx at hy; simp [canSee] at hy; rcases hy with ⟨rfl, _⟩ | hy
+        unfold viewVCtx at hy
+        simp only [canSee, decide_true, ↓reduceIte, List.mem_cons, Prod.mk.injEq] at hy
+        rcases hy with ⟨rfl, _⟩ | hy
         · exact absurd rfl heq
         · exact hy
       have hilt : i < st.nextId := st.lookupDeps_lt y i hi
@@ -934,11 +966,14 @@ private theorem varVisible_addNode_decision_addVar
       · left; simp only [RevealState.addPrivateNode, RevealState.bindVar]
         rw [hnid]; exact le_trans h (WithTop.coe_le_coe.mpr (Nat.le_succ _))
       · right
-        show ((st.addNode nd hnd).2.descAt ⟨i, by simp [MAIDCompileState.addNode]; omega⟩).kind = _
+        change ((st.addNode nd hnd).2.descAt
+          ⟨i, by simp [MAIDCompileState.addNode]; omega⟩).kind = _
         rw [MAIDCompileState.addNode_descAt_old st nd hnd ⟨i, hilt⟩]; exact h
   · -- p ≠ who: x not visible
     have hy' : (y, σ) ∈ viewVCtx p Γ := by
-      unfold viewVCtx at hy; simp [canSee, hp] at hy; exact hy
+      unfold viewVCtx at hy
+      simp only [canSee, hp, decide_false, Bool.false_eq_true, reduceIte] at hy
+      exact hy
     have hne : y ≠ x := by
       intro heq; subst heq
       exact _hfresh_x (viewVCtx_map_fst_sub (p := p) (Γ := Γ)
@@ -949,7 +984,7 @@ private theorem varVisible_addNode_decision_addVar
     · left; simp only [RevealState.addPrivateNode, RevealState.bindVar]
       rw [hnid]; exact le_trans h (WithTop.coe_le_coe.mpr (Nat.le_succ _))
     · right
-      show ((st.addNode nd hnd).2.descAt ⟨i, by simp [MAIDCompileState.addNode]; omega⟩).kind = _
+      change ((st.addNode nd hnd).2.descAt ⟨i, by simp [MAIDCompileState.addNode]; omega⟩).kind = _
       rw [MAIDCompileState.addNode_descAt_old st nd hnd ⟨i, hilt⟩]; exact h
 
 /-- VarVisible extension for reveal: copies x's deps to new pub var y. -/
@@ -968,7 +1003,8 @@ private theorem varVisible_reveal
         | some nid => { rs with revealTime := fun i =>
             if i = nid then (min (↑rs.nextId) (rs.revealTime i)) else rs.revealTime i }
         | none => rs).aliasVar y x) := by
-  have hnid_eq : (st.addVar y (.pub b) (st.lookupDeps x) (st.lookupDeps_lt x)).nextId = st.nextId := rfl
+  have hnid_eq : (st.addVar y (.pub b) (st.lookupDeps x)
+    (st.lookupDeps_lt x)).nextId = st.nextId := rfl
   intro p z σ hz i hi
   by_cases heq : z = y
   · -- z = y: deps = lookupDeps x
@@ -979,10 +1015,12 @@ private theorem varVisible_reveal
     left; simp only [RevealState.aliasVar]; rw [hnid]
     -- goal: revealTime through match(some nid) at nid ≤ ↑addVar.nextId
     simp only [hnid_eq, ite_true]
-    exact le_trans (min_le_left _ _) (by exact_mod_cast (show rs.nextId ≤ st.nextId by have := hcon.sync; omega))
+    exact le_trans (min_le_left _ _) (by exact_mod_cast
+      (show rs.nextId ≤ st.nextId by have := hcon.sync; omega))
   · rw [st.lookupDeps_addVar_eq_of_ne y _ _ _ heq] at hi
     have hz' : (z, σ) ∈ viewVCtx p Γ := by
-      unfold viewVCtx at hz; simp [canSee] at hz
+      unfold viewVCtx at hz
+      simp only [canSee, ↓reduceIte, List.mem_cons, Prod.mk.injEq] at hz
       rcases hz with ⟨rfl, _⟩ | hz
       · exact absurd rfl heq
       · exact hz
@@ -1041,13 +1079,16 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
           (hp : ∀ (d : Fin st.nextId) (pw : Player),
             (st.descAt d).kind = .decision pw →
             ∀ (i : Nat) (hi : i ∈ (st.descAt d).parents),
-              rs.revealTime i ≤ ↑d.val ∨ (st.descAt ⟨i, Nat.lt_trans (st.descAt_parent_lt d hi) d.2⟩).kind = .decision pw),
+              rs.revealTime i ≤ ↑d.val ∨
+                (st.descAt ⟨i, Nat.lt_trans (st.descAt_parent_lt d hi) d.2⟩).kind = .decision pw),
           ∀ (d : Fin (st.addUtilityNodes deps hdeps ufn players).nextId) (p : Player),
             ((st.addUtilityNodes deps hdeps ufn players).descAt d).kind = .decision p →
             ∀ (i : Nat) (hi : i ∈ ((st.addUtilityNodes deps hdeps ufn players).descAt d).parents),
               (players.foldl (fun rs' _ => rs'.addPublicNode) rs).revealTime i ≤ ↑d.val ∨
                 ∃ q, ((st.addUtilityNodes deps hdeps ufn players).descAt
-                  ⟨i, Nat.lt_trans ((st.addUtilityNodes deps hdeps ufn players).descAt_parent_lt d hi) d.2⟩).kind =
+                  ⟨i, Nat.lt_trans
+                      ((st.addUtilityNodes deps hdeps ufn players).descAt_parent_lt
+                        d hi) d.2⟩).kind =
                     .decision q ∧ q = p by
         exact this _ _ _ st₀ rs₀ _ hcon₀ hprev
       intro players
@@ -1058,7 +1099,9 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
           simp only [MAIDCompileState.addUtilityNodes, List.foldl_cons]
           let und : CompiledNode Player L B := .utility pw deps (ufn pw)
           have hund_deps : ∀ d ∈ und.parents ∪ und.obsParents, d < st.nextId := by
-            intro d hd'; simp [und, CompiledNode.parents, CompiledNode.obsParents] at hd'
+            intro d hd'
+            simp only [CompiledNode.parents, CompiledNode.obsParents, Finset.union_idempotent,
+              und] at hd'
             exact hdeps d hd'
           exact ih deps ufn _ _ (fun d hd => Nat.lt_trans (hdeps d hd) (Nat.lt_succ_self _))
             (revealConsistent_addNode' hcon und
@@ -1071,10 +1114,11 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
                     simp [MAIDCompileState.addNode]; omega⟩).kind = .decision pw' := hk'
                 rcases Nat.lt_or_eq_of_le hbound with hlt | heq
                 · -- old decision node
-                  rw [MAIDCompileState.addNode_descAt_old st und hund_deps ⟨d'.val, hlt⟩] at hk_inner
+                  rw [MAIDCompileState.addNode_descAt_old
+                    st und hund_deps ⟨d'.val, hlt⟩] at hk_inner
                   have hi_inner : i ∈ (st.descAt ⟨d'.val, hlt⟩).parents := by
-                    have := hi'; rw [MAIDCompileState.addNode_descAt_old st und hund_deps ⟨d'.val, hlt⟩] at this
-                    exact this
+                    rw [MAIDCompileState.addNode_descAt_old st und hund_deps ⟨d'.val, hlt⟩] at hi'
+                    exact hi'
                   rcases hp ⟨d'.val, hlt⟩ pw' hk_inner i hi_inner with h | h
                   · left
                     simp only [RevealState.addPublicNode]
@@ -1084,7 +1128,7 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
                       omega)]
                     exact h
                   · right
-                    show ((st.addNode und hund_deps).2.descAt ⟨i, _⟩).kind = _
+                    change ((st.addNode und hund_deps).2.descAt ⟨i, _⟩).kind = _
                     rw [MAIDCompileState.addNode_descAt_old st und hund_deps
                       ⟨i, by have := st.descAt_parent_lt ⟨d'.val, hlt⟩ hi_inner; omega⟩]
                     exact h
@@ -1118,14 +1162,17 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
         .chance τ.base (st₀.ctxDeps Γ') (fun raw => L.evalDist D' (VEnv.eraseDistEnv τ m (ρ raw)))
           (fun raw => hd.1 (ρ raw))
       have hcnd_deps : ∀ d ∈ cnd.parents ∪ cnd.obsParents, d < st₀.nextId := by
-        intro d hd'; simp [cnd, CompiledNode.parents, CompiledNode.obsParents] at hd'
+        intro d hd'
+        simp only [CompiledNode.parents, CompiledNode.obsParents, Finset.union_idempotent,
+          cnd] at hd'
         exact st₀.depsOfVars_lt _ d hd'
       have hdeps : ∀ d ∈ ({st₀.nextId} : Finset Nat), d < st₀.nextId + 1 := by
         intro d hd'; simp at hd'; omega
       exact ih hl hd.2 hfresh.2 _ _ _
         (revealConsistent_addChance' hcon₀ cnd
           (by intro ⟨_, h⟩; simp [cnd, CompiledNode.kind] at h) hcnd_deps x τ hdeps)
-        ((st₀.addNode cnd hcnd_deps).2.VarsSubCtx_addVar (st₀.VarsSubCtx_addNode hvars cnd hcnd_deps)
+        ((st₀.addNode cnd hcnd_deps).2.VarsSubCtx_addVar
+            (st₀.VarsSubCtx_addNode hvars cnd hcnd_deps)
           x _ _ _ hfresh.1)
         (hprev_transfer_addNode hcon₀ cnd
           (by intro ⟨_, h⟩; simp [cnd, CompiledNode.kind] at h) hcnd_deps hprev)
@@ -1135,11 +1182,13 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
             intro z nid hnid
             simp only [RevealState.addPublicNode, RevealState.bindVar] at hnid
             by_cases hz : z = x
-            · subst hz; simp at hnid; subst hnid
+            · subst hz
+              simp only [↓reduceIte, Option.some.injEq] at hnid
+              subst hnid
               rw [(st₀.addNode cnd hcnd_deps).2.lookupDeps_addVar_eq_self_of_fresh z _ _ _
                 (fun hm => hfresh.1 ((st₀.VarsSubCtx_addNode hvars cnd hcnd_deps) z hm))]
               rw [hcon₀.sync]
-            · simp [hz] at hnid
+            · simp only [hz, reduceIte] at hnid
               rw [(st₀.addNode cnd hcnd_deps).2.lookupDeps_addVar_eq_of_ne x _ _ _ hz]
               exact hdt z nid hnid)
         (by -- hhn: hidden vars have nodeOf; new var x: bindVar sets it
@@ -1150,14 +1199,17 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
             | there hv' =>
                 by_cases hz : z = x
                 · subst hz; simp
-                · simp [hz]; exact hhn z who' b' hv')
+                · simp only [hz, ↓reduceIte, ne_eq]
+                  exact hhn z who' b' hv')
         (by -- hnsc: x in new context; old vars via hnsc
             intro z nid hnid
             simp only [RevealState.addPublicNode, RevealState.bindVar] at hnid
             simp only [List.map_cons, List.mem_cons]
             by_cases hz : z = x
             · left; exact hz
-            · right; simp [hz] at hnid; exact hnsc z nid hnid)
+            · right
+              simp only [hz, reduceIte] at hnid
+              exact hnsc z nid hnid)
   | commit x who R k ih =>
       -- THE key case: new decision node + IH for continuation.
       -- New node's parents = viewDeps who Γ'. By hvar₀, each dep has
@@ -1166,34 +1218,47 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
       rename_i Γ' b
       simp only [computeReveals, MAIDCompileState.ofProg]
       let dnd : CompiledNode Player L B :=
-        .decision b who (allValues B b) (allValues_ne_nil B b) (allValues_nodup B b) (st₀.viewDeps who Γ')
+        .decision b who (allValues B b) (allValues_ne_nil B b)
+          (allValues_nodup B b) (st₀.viewDeps who Γ')
       have hdnd_deps : ∀ d ∈ dnd.parents ∪ dnd.obsParents, d < st₀.nextId := by
-        intro d hd'; simp [dnd, CompiledNode.parents, CompiledNode.obsParents] at hd'
+        intro d hd'
+        simp only [CompiledNode.parents, CompiledNode.obsParents, Finset.union_idempotent,
+          dnd] at hd'
         exact st₀.depsOfVars_lt _ d hd'
       have hdeps : ∀ d ∈ ({st₀.nextId} : Finset Nat), d < st₀.nextId + 1 := by
         intro d hd'; simp at hd'; omega
       exact ih hl.2 hd hfresh.2 _ _ _
         (revealConsistent_addDecision' hcon₀ dnd rfl hdnd_deps x (.hidden who b) hdeps)
-        ((st₀.addNode dnd hdnd_deps).2.VarsSubCtx_addVar (st₀.VarsSubCtx_addNode hvars dnd hdnd_deps)
+        ((st₀.addNode dnd hdnd_deps).2.VarsSubCtx_addVar
+          (st₀.VarsSubCtx_addNode hvars dnd hdnd_deps)
           x _ _ _ hfresh.1)
         (by -- hprev: old decisions + NEW decision
             intro d' pw' hk' i hi'
             have hbound : d'.val ≤ st₀.nextId := by
-              have := d'.isLt; simp [MAIDCompileState.addNode, MAIDCompileState.addVar] at this; omega
+              have := d'.isLt
+              simp [MAIDCompileState.addNode, MAIDCompileState.addVar] at this
+              omega
             rcases Nat.lt_or_eq_of_le hbound with hlt | heq
             · -- OLD decision node
               have hk_old : (st₀.descAt ⟨d'.val, hlt⟩).kind = .decision pw' := by
-                rw [← MAIDCompileState.addNode_descAt_old st₀ dnd hdnd_deps ⟨d'.val, hlt⟩]; exact hk'
+                rw [← MAIDCompileState.addNode_descAt_old st₀ dnd hdnd_deps ⟨d'.val, hlt⟩]
+                exact hk'
               have hi_old : i ∈ (st₀.descAt ⟨d'.val, hlt⟩).parents := by
-                rw [← MAIDCompileState.addNode_descAt_old st₀ dnd hdnd_deps ⟨d'.val, hlt⟩]; exact hi'
-              have hilt : i < st₀.nextId := Nat.lt_trans (st₀.descAt_parent_lt ⟨d'.val, hlt⟩ hi_old) (by omega)
+                rw [← MAIDCompileState.addNode_descAt_old st₀ dnd hdnd_deps ⟨d'.val, hlt⟩]
+                exact hi'
+              have hilt : i < st₀.nextId := Nat.lt_trans (st₀.descAt_parent_lt ⟨d'.val, hlt⟩ hi_old)
+                (by omega)
               rcases hprev ⟨d'.val, hlt⟩ pw' hk_old i hi_old with h | h
-              · left; simp only [RevealState.addPrivateNode, RevealState.bindVar]; exact h
+              · left
+                simp only [RevealState.addPrivateNode, RevealState.bindVar]; exact h
               · right
-                have : ((st₀.addNode dnd hdnd_deps).2.addVar x (.hidden who b) {st₀.nextId} hdeps).descAt
-                    ⟨i, by simp [MAIDCompileState.addNode, MAIDCompileState.addVar]; omega⟩ =
+                have : ((st₀.addNode dnd hdnd_deps).2.addVar x (.hidden who b)
+                      {st₀.nextId} hdeps).descAt
+                    ⟨i, by
+                      simp [MAIDCompileState.addNode, MAIDCompileState.addVar]
+                      omega⟩ =
                     st₀.descAt ⟨i, hilt⟩ := by
-                  show (st₀.addNode dnd hdnd_deps).2.descAt ⟨i, _⟩ = _
+                  change (st₀.addNode dnd hdnd_deps).2.descAt ⟨i, _⟩ = _
                   exact MAIDCompileState.addNode_descAt_old st₀ dnd hdnd_deps ⟨i, hilt⟩
                 rw [this]; exact h
             · -- NEW decision: convert d' → st₀.nextId, extract pw'=who and parents=viewDeps
@@ -1203,32 +1268,38 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
               -- Convert via show + hdesc_new
               have hpw : pw' = who := by
                 have : dnd.kind = .decision pw' := by
-                  have h1 := hk'; rw [show d' = (⟨st₀.nextId, by
-                    simp [MAIDCompileState.addNode, MAIDCompileState.addVar]⟩ : Fin _) from Fin.ext heq] at h1
+                  have h1 := hk'
+                  rw [show d' = ⟨
+                        st₀.nextId,
+                        by simp [MAIDCompileState.addNode, MAIDCompileState.addVar]⟩
+                      from Fin.ext heq] at h1
                   change ((st₀.addNode dnd hdnd_deps).2.descAt ⟨st₀.nextId, _⟩).kind = _ at h1
                   rw [hdesc_new] at h1; exact h1
                 simp only [dnd, CompiledNode.kind, NodeKind.decision.injEq] at this; exact this.symm
               subst hpw
               have hi_dnd : i ∈ dnd.parents := by
                 have h1 := hi'; rw [show d' = (⟨st₀.nextId, by
-                  simp [MAIDCompileState.addNode, MAIDCompileState.addVar]⟩ : Fin _) from Fin.ext heq] at h1
+                  simp only [MAIDCompileState.addVar, MAIDCompileState.addNode,
+                    lt_add_iff_pos_right, zero_lt_one]⟩ : Fin _) from Fin.ext heq] at h1
                 change i ∈ ((st₀.addNode dnd hdnd_deps).2.descAt ⟨st₀.nextId, _⟩).parents at h1
                 rw [hdesc_new] at h1; exact h1
               have hi_vd : i ∈ st₀.viewDeps pw' Γ' := by
-                simp [dnd, CompiledNode.parents] at hi_dnd; exact hi_dnd
+                simp only [CompiledNode.parents, dnd] at hi_dnd; exact hi_dnd
               rw [MAIDCompileState.viewDeps] at hi_vd
               obtain ⟨y, hy_mem, hy_dep⟩ := (mem_depsOfVars_iff st₀ _ i).mp hi_vd
               obtain ⟨⟨y', σ⟩, hys_mem, hys_fst⟩ := List.mem_map.mp hy_mem
-              simp at hys_fst; subst hys_fst
+              simp only at hys_fst
+              subst hys_fst
               rcases hvar₀ pw' y' σ hys_mem i hy_dep with h | h
               · left; simp only [RevealState.addPrivateNode, RevealState.bindVar]
                 exact le_trans h (by rw [heq])
               · right
                 have hilt : i < st₀.nextId := st₀.depsOfVars_lt _ i hi_vd
-                have : ((st₀.addNode dnd hdnd_deps).2.addVar x (.hidden pw' b) {st₀.nextId} hdeps).descAt
+                have : ((st₀.addNode dnd hdnd_deps).2.addVar x
+                  (.hidden pw' b) {st₀.nextId} hdeps).descAt
                     ⟨i, by simp [MAIDCompileState.addNode, MAIDCompileState.addVar]; omega⟩ =
                     st₀.descAt ⟨i, hilt⟩ := by
-                  show (st₀.addNode dnd hdnd_deps).2.descAt ⟨i, _⟩ = _
+                  change (st₀.addNode dnd hdnd_deps).2.descAt ⟨i, _⟩ = _
                   exact MAIDCompileState.addNode_descAt_old st₀ dnd hdnd_deps ⟨i, hilt⟩
                 rw [this]; exact h)
         (varVisible_addNode_decision_addVar st₀ rs₀ hcon₀ dnd who
@@ -1236,11 +1307,13 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
         (by intro z nid hnid
             simp only [RevealState.addPrivateNode, RevealState.bindVar] at hnid
             by_cases hz : z = x
-            · subst hz; simp at hnid; subst hnid
+            · subst hz
+              simp only [↓reduceIte, Option.some.injEq] at hnid
+              subst hnid
               rw [(st₀.addNode dnd hdnd_deps).2.lookupDeps_addVar_eq_self_of_fresh z _ _ _
                 (fun hm => hfresh.1 ((st₀.VarsSubCtx_addNode hvars dnd hdnd_deps) z hm))]
               rw [hcon₀.sync]
-            · simp [hz] at hnid
+            · simp only [hz, ite_false] at hnid
               rw [(st₀.addNode dnd hdnd_deps).2.lookupDeps_addVar_eq_of_ne x _ _ _ hz]
               exact hdt z nid hnid)
         (by intro z who' b' hv
@@ -1250,13 +1323,13 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
             | there hv' =>
                 by_cases hz : z = x
                 · subst hz; simp
-                · simp [hz]; exact hhn z who' b' hv')
+                · simp only [hz, ite_false]; exact hhn z who' b' hv')
         (by intro z nid hnid
             simp only [RevealState.addPrivateNode, RevealState.bindVar] at hnid
             simp only [List.map_cons, List.mem_cons]
             by_cases hz : z = x
             · left; exact hz
-            · right; simp [hz] at hnid; exact hnsc z nid hnid)
+            · right; simp only [hz, ite_false] at hnid; exact hnsc z nid hnid)
   | reveal y who x hx k ih =>
       simp only [computeReveals, MAIDCompileState.ofProg]
       exact ih hl hd hfresh.2 _ _ _
@@ -1279,11 +1352,12 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
             intro z nid hnid
             simp only [RevealState.aliasVar] at hnid
             by_cases hz : z = y
-            · subst hz; simp at hnid
+            · subst hz
+              simp only [reduceIte] at hnid
               rw [st₀.lookupDeps_addVar_eq_self_of_fresh z _ _ _
                 (fun hm => hfresh.1 (hvars z hm))]
               split at hnid <;> exact hdt x nid hnid
-            · simp [hz] at hnid
+            · simp only [hz, ite_false] at hnid
               rw [st₀.lookupDeps_addVar_eq_of_ne y _ _ _ hz]
               split at hnid <;> exact hdt z nid hnid)
         (by -- hhn: y is pub (not hidden); old vars: aliasVar only changes y's nodeOf
@@ -1294,25 +1368,28 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
                 by_cases hz : z = y
                 · -- z = y: nodeOf through aliasVar+match = nodeOf x
                   subst hz
-                  show ((match rs₀.nodeOf x with
-                    | some nid => { rs₀ with revealTime := _ } | none => rs₀).aliasVar z x).nodeOf z ≠ none
+                  change ((match rs₀.nodeOf x with
+                    | some nid => { rs₀ with revealTime := _ }
+                    | none => rs₀).aliasVar z x).nodeOf z ≠ none
                   simp only [RevealState.aliasVar]
-                  cases rs₀.nodeOf x <;> simp
+                  cases rs₀.nodeOf x <;> simp only [↓reduceIte, ne_eq]
                   · exact hhn x who _ hx
                   · exact hhn x who _ hx
                 · -- z ≠ y: same structure, use cases on rs₀.nodeOf x
                   cases rs₀.nodeOf x
                   · -- none: aliasVar.nodeOf z = if z=y then rs₀.nodeOf x else rs₀.nodeOf z
-                    simp only [RevealState.aliasVar]; rw [if_neg hz]; exact hhn z who' b' hv'
+                    simp only
+                    rw [if_neg hz]; exact hhn z who' b' hv'
                   · -- some nid: same
-                    simp only [RevealState.aliasVar]; rw [if_neg hz]; exact hhn z who' b' hv')
+                    simp only
+                    rw [if_neg hz]; exact hhn z who' b' hv')
         (by -- hnsc: y in new context; old vars via hnsc
             intro z nid hnid
             simp only [RevealState.aliasVar] at hnid
             simp only [List.map_cons, List.mem_cons]
             by_cases hz : z = y
             · left; exact hz
-            · right; simp [hz] at hnid; split at hnid <;> exact hnsc z nid hnid)
+            · right; simp only [hz, ite_false] at hnid; split at hnid <;> exact hnsc z nid hnid)
 
 /-- The main experimental compilation function: Vegas program → VegasMAID. -/
 noncomputable def compileVegasMAID
