@@ -754,9 +754,7 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
       exact ih hl hd hfresh.2 _ _ _
         ⟨hcon₀.sync, hcon₀.chance, hcon₀.decision, hcon₀.nodeOf_lt, hcon₀.unset⟩
         hprev (by sorry) -- VarVisible for extended context
-  | sample x τ m D' k ih =>
-      -- sample: new node is chance (not decision). Old decision nodes preserved.
-      sorry
+  | sample x τ m D' k ih => sorry
   | commit x who R k ih =>
       -- THE key case: new decision node + IH for continuation.
       -- New node's parents = viewDeps who Γ'. By hvar₀, each dep has
