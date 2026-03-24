@@ -1751,6 +1751,27 @@ theorem taggedOfVal_chance_cast
   subst hc; rfl
 
 open MAID in
+/-- rawEnvOfCfg gives none at indices not in the support set. -/
+theorem MAIDCompileState.rawEnvOfCfg_not_mem
+    (st : MAIDCompileState Player L B)
+    {ps : Finset (Fin st.nextId)}
+    (cfg : @Cfg Player _ B.fintypePlayer _ st.toStruct ps)
+    (i : Nat) (hi : i < st.nextId)
+    (hmem : (⟨i, hi⟩ : Fin st.nextId) ∉ ps) :
+    st.rawEnvOfCfg cfg i = none := by
+  simp [rawEnvOfCfg, hi, hmem]
+
+open MAID in
+/-- rawEnvOfCfg gives none at indices ≥ nextId. -/
+theorem MAIDCompileState.rawEnvOfCfg_ge_nextId
+    (st : MAIDCompileState Player L B)
+    {ps : Finset (Fin st.nextId)}
+    (cfg : @Cfg Player _ B.fintypePlayer _ st.toStruct ps)
+    (i : Nat) (hi : ¬(i < st.nextId)) :
+    st.rawEnvOfCfg cfg i = none := by
+  simp [rawEnvOfCfg, hi]
+
+open MAID in
 theorem taggedOfVal_decision_cast
     {c : CompiledNode Player L B}
     {τ₀ : L.Ty} {who₀ : Player} {acts₀ : List (L.Val τ₀)}

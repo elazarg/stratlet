@@ -803,8 +803,28 @@ private theorem pmfFoldBridge
                 rw [st.mem_toStruct_obsParents_iff nd0 hj_lt] at hj_mem
                 simp [hdesc0, CompiledNode.obsParents] at hj_mem; exact hj_mem
               exact hρ_readers p raw₁ raw₂
-                (fun i hi => by sorry) -- rawEnvOfCfg none for i ≥ st₀.nextId
-                (fun i hi_not hi_lt => by sorry) -- rawEnvOfCfg none for i ∉ obs
+                (fun i hi => by
+                  show raw₁ i = raw₂ i
+                  by_cases hilt : i < st.nextId
+                  · have hmem : (⟨i, hilt⟩ : Fin st.nextId) ∉ st.toStruct.obsParents nd0 := by
+                      intro hm
+                      have hi_obs : i ∈ obs := by
+                        rw [st.mem_toStruct_obsParents_iff nd0 hilt] at hm
+                        simp [hdesc0, CompiledNode.obsParents] at hm; exact hm
+                      exact absurd (hndeps i (Finset.mem_union_right _ hi_obs)) (by omega)
+                    simp [raw₁, raw₂, st.rawEnvOfCfg_not_mem _ i hilt hmem]
+                  · simp [raw₁, raw₂, st.rawEnvOfCfg_ge_nextId _ i hilt])
+                (fun i hi_not hi_lt => by
+                  show raw₁ i = raw₂ i
+                  have hilt : i < st.nextId := by
+                    calc i < st₀.nextId := hi_lt
+                    _ < st₁.nextId := by simp [st₁, stNode, MAIDCompileState.addVar, MAIDCompileState.addNode]
+                    _ ≤ st.nextId := MAIDCompileState.ofProg_nextId_le B k hl.2 hd ρ' st₁
+                  have hmem : (⟨i, hilt⟩ : Fin st.nextId) ∉ st.toStruct.obsParents nd0 := by
+                    intro hm; exact hi_not (by
+                      rw [st.mem_toStruct_obsParents_iff nd0 hilt] at hm
+                      simp [hdesc0, CompiledNode.obsParents] at hm; exact hm)
+                  simp [raw₁, raw₂, st.rawEnvOfCfg_not_mem _ i hilt hmem])
                 hview_eq j hj_obs
             · -- j ∉ obsParents: both rawEnvOfCfg give none at j
               show raw₁ j = raw₂ j
