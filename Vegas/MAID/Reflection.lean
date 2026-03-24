@@ -411,7 +411,8 @@ private theorem pmfFoldBridge
           projectViewEnv who (VEnv.eraseEnv (ρ (st₁.rawEnvOfCfg cfg₂))) :=
         Vegas.projectViewEnv_cons_eq hview
       -- viewDeps subset: st₁.viewDeps who ((x, .pub b) :: Γ') = st₀.viewDeps who Γ'
-      have hps_old : ∀ i ∈ ps, i.val ∈ st₀.viewDeps who Γ' := by sorry
+      have hps_old : ∀ i ∈ ps, i.val ∈ st₀.viewDeps who Γ' := by
+        sorry -- viewDeps subset: st₁.viewDeps who Γ₁ = st₀.viewDeps who Γ'
       exact hρ_readers who hps_old cfg₁ cfg₂ hview_old
     exact ih hl hd hfresh.2 ρ' st₁
       (st₀.VarsSubCtx_letExpr_step hvars x hxΓ) hρ'_deps hρ'_var hρ'_readers pol a₀
@@ -785,7 +786,8 @@ private theorem pmfFoldBridge
     have hρ'_readers : CfgDeterminedByView st₁ ((y, .pub b) :: Γ') ρ' := by
       intro who ps hps cfg₁ cfg₂ hview
       have hview_old := Vegas.projectViewEnv_cons_eq hview
-      have hps_old : ∀ i ∈ ps, i.val ∈ st₀.viewDeps who Γ' := by sorry
+      have hps_old : ∀ i ∈ ps, i.val ∈ st₀.viewDeps who Γ' := by
+        sorry -- viewDeps subset: st₁.viewDeps who Γ₁ = st₀.viewDeps who Γ'
       exact hρ_readers who hps_old cfg₁ cfg₂ hview_old
     exact ih hl hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers pol a₀
 
