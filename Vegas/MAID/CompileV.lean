@@ -946,7 +946,23 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
         (by -- hprev: old decisions via hprev_transfer pattern + NEW decision via hvar₀
             sorry)
         (by sorry) -- VarVisible for extended context
-  | reveal y who x hx k ih => sorry
+  | reveal y who x hx k ih =>
+      simp only [computeReveals, MAIDCompileState.ofProg]
+      exact ih hl hd hfresh.2 _ _ _
+        (revealConsistent_reveal' hcon₀ y x _ _ _)
+        (by -- hprev: addVar doesn't change descAt, reveal only decreases revealTime
+            intro d pw hk i hi
+            rcases hprev d pw hk i hi with h | h
+            · left; exact le_trans (by
+                simp only [RevealState.aliasVar]
+                split
+                · rename_i nid hx_eq; simp only
+                  by_cases heq : i = nid
+                  · rw [if_pos heq]; exact min_le_right _ _
+                  · rw [if_neg heq]
+                · exact le_refl _) h
+            · right; exact h)
+        (by sorry) -- VarVisible for extended context
 
 /-- The main experimental compilation function: Vegas program → VegasMAID. -/
 noncomputable def compileVegasMAID
