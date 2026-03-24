@@ -777,10 +777,16 @@ private theorem pmfFoldBridge
       -- Resolve the ∃ cfg branch with the witness from hViewEq
       -- Split the kernel's if-then-else
       split_ifs with h_exists
-      · -- ∃ holds: kernel returns ⋯ ▸ pol p ⟨d, Classical.choose h_exists⟩
-        -- Need: (1) ViewDeterminesRaw to show Classical.choose = projCfg a₀ (obsParents nd0)
-        --       (2) cast cancel: (d.bind (F ∘ castValType)) = (hval ▸ d).bind F
-        --       (3) DecisionNode/Infoset structure matching (nd0 = ⟨st₀.nextId, _⟩, hk = hkind)
+      · -- Show Classical.choose h_exists = projCfg a₀ (obsParents nd0)
+        -- via ViewDeterminesRaw → rawEnvOfCfg agreement → rawEnvOfCfg_injective
+        have hcfg_eq : Classical.choose h_exists =
+            MAID.projCfg a₀ (st.toStruct.obsParents nd0) := by
+          -- Both cfgs produce the same ρ view (from h_exists + hViewEq)
+          have hchoose_view := Classical.choose_spec h_exists
+          -- rawEnvOfCfg agreement from ρ view agreement + ViewDeterminesRaw st₀
+          -- (ρ is insensitive to index id, so rawEnvOfCfg at old indices determines ρ view)
+          sorry
+        -- With cfg equality, the pol values match. Cast cancel for the rest.
         sorry
       · exfalso; apply h_exists; exact ⟨_, hViewEq⟩
     · -- utility: contradiction
