@@ -114,7 +114,113 @@ noncomputable def extractOutcomeV
   fun a => extractOutcomeAux B p (fun _ => env) 0
     (rawOfTAssignV B p env hl hd hfresh hpub a)
 
-/-! ## Policy translation (sorry'd) -/
+/-! ## Policy translation -/
+
+/-- Translate a behavioral profile into a MAID policy.
+Mirrors `translateStrategy` from Correctness.lean but is self-contained
+(does not import Correctness). -/
+private noncomputable def translateStrategyV
+    (B : MAIDBackend Player L) :
+    {Γ : VCtx Player L} →
+      (p : VegasCore Player L Γ) →
+      (hl : Legal p) → (hd : NormalizedDists p) →
+      (ρ : RawNodeEnv L → VEnv L Γ) →
+      (st₀ : MAIDCompileState Player L B) →
+      ProgramBehavioralProfile p →
+      MAID.Policy (fp := B.fintypePlayer)
+        (MAIDCompileState.ofProg B p hl hd ρ st₀).toStruct
+  | _Γ, .ret _payoffs, _hl, _hd, _ρ, _st, _β => by
+      letI := B.fintypePlayer
+      intro _p ⟨d, cfg⟩
+      exact PMF.pure default
+  | _Γ, .letExpr (b := b) x e k, hl, hd, ρ, st, β =>
+      translateStrategyV B k hl hd
+        (fun raw =>
+          let env := ρ raw
+          VEnv.cons (τ := .pub b) (L.eval e (VEnv.erasePubEnv env)) env)
+        (st.addVar x (.pub b) (st.pubCtxDeps _Γ) (st.depsOfVars_lt _))
+        β
+  | _Γ, .sample x τ m D' k, hl, hd, ρ, st, β =>
+      let deps := st.ctxDeps _Γ
+      let id := st.nextId
+      let cpdFDist : RawNodeEnv L → FDist (L.Val τ.base) := fun raw =>
+        let env := ρ raw
+        L.evalDist D' (VEnv.eraseDistEnv τ m env)
+      let cpdNorm : ∀ raw, FDist.totalWeight (cpdFDist raw) = 1 :=
+        fun raw => hd.1 _
+      let res := st.addNode (.chance τ.base deps cpdFDist cpdNorm) (by
+        intro d hd'
+        have hd'' : d ∈ deps := by
+          simpa [CompiledNode.parents, CompiledNode.obsParents] using hd'
+        exact st.depsOfVars_lt _ d hd'')
+      let st' := res.2
+      translateStrategyV B k hl hd.2
+        (fun raw =>
+          let env := ρ raw
+          let v := MAIDCompileState.readVal (B := B) raw τ.base id
+          VEnv.cons v env)
+        (st'.addVar x τ ({id}) (by
+          intro d hd'
+          have hdid : d = id := by simpa using hd'
+          subst d; exact Nat.lt_succ_self _))
+        β
+  | Γ, .commit (b := b) x who R k, hl, hd, ρ, st, β => by
+      letI := B.fintypePlayer
+      let obs := st.viewDeps who Γ
+      let acts := allValues B b
+      have hacts : acts ≠ [] := allValues_ne_nil B b
+      have hnodup : acts.Nodup := allValues_nodup B b
+      let id := st.nextId
+      let res := st.addNode
+        (.decision b who acts hacts hnodup obs) (by
+        intro d hd'
+        have hd'' : d ∈ obs := by
+          simpa [CompiledNode.parents, CompiledNode.obsParents] using hd'
+        exact st.depsOfVars_lt _ d hd'')
+      let st' := res.2
+      let ρ' : RawNodeEnv L → VEnv L ((x, .hidden who b) :: Γ) :=
+        fun raw =>
+          let env := ρ raw
+          let v := MAIDCompileState.readVal (B := B) raw b id
+          VEnv.cons (τ := .hidden who b) v env
+      let st₁ := st'.addVar x (.hidden who b) ({id}) (by
+          intro d hd'
+          have hdid : d = id := by simpa using hd'
+          subst d; exact Nat.lt_succ_self _)
+      let pol_rest := translateStrategyV B k hl.2 hd ρ' st₁
+        (ProgramBehavioralProfile.tail β)
+      let κ := ProgramBehavioralStrategy.headKernel (β who)
+      intro p ⟨d, cfg⟩
+      let st_final := MAIDCompileState.ofProg B k hl.2 hd ρ' st₁
+      by_cases hd_eq : d.1.val = id
+      · have hid_lt_st₁ : id < st₁.nextId := by
+          simp [st₁, st', res, id, MAIDCompileState.addVar, MAIDCompileState.addNode]
+        have hdesc0 : st₁.descAt ⟨id, hid_lt_st₁⟩ =
+            .decision b who acts hacts hnodup obs := by
+          simp only [st₁, MAIDCompileState.addVar, st', res]
+          exact st.addNode_descAt_new (.decision b who acts hacts hnodup obs) _
+        have hid_lt : id < st_final.nextId :=
+          Nat.lt_of_lt_of_le hid_lt_st₁
+            (MAIDCompileState.ofProg_nextId_le B k hl.2 hd ρ' st₁)
+        have hdesc : st_final.descAt d.1 = .decision b who acts hacts hnodup obs := by
+          have h := MAIDCompileState.ofProg_descAt_old B k hl.2 hd ρ' st₁ id hid_lt_st₁
+          conv_lhs => rw [show d.1 = ⟨id, hid_lt⟩ from Fin.ext hd_eq]
+          exact h.trans hdesc0
+        change PMF (CompiledNode.valType (st_final.descAt d.1))
+        rw [hdesc]; change PMF (L.Val b)
+        exact FDist.toPMF
+          (κ (projectViewEnv who
+            (VEnv.eraseEnv (ρ (st_final.rawEnvOfCfg cfg)))))
+          (ProgramBehavioralStrategy.headKernel_normalized (β who) _)
+      · exact pol_rest p ⟨d, cfg⟩
+  | _, .reveal (b := b) y who x hx k, hl, hd, ρ, st, β =>
+      translateStrategyV B k hl hd
+        (fun raw =>
+          let env := ρ raw
+          let v : L.Val b := VEnv.get env hx
+          VEnv.cons (τ := .pub b) v env)
+        (st.addVar y (.pub b) (st.lookupDeps x) (st.lookupDeps_lt x))
+        β
 
 /-- Translate a Vegas behavioral profile to a MAID policy. -/
 noncomputable def compiledPolicyV
@@ -125,8 +231,8 @@ noncomputable def compiledPolicyV
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
     (β : ProgramBehavioralProfile p) :
     Policy (fp := B.fintypePlayer)
-      (compiledStruct B p env hl hd hfresh hpub) := by
-  sorry
+      (compiledStruct B p env hl hd hfresh hpub) :=
+  translateStrategyV B p hl hd (fun _ => env) .empty β
 
 /-- Reflect a MAID policy to a Vegas PMF behavioral profile. -/
 noncomputable def reflectPolicyV
