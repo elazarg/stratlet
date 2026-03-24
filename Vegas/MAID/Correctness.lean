@@ -1551,7 +1551,7 @@ omit [DecidableEq Player] in
       simpa [VEnv.eraseEnv] using
         (ih (env := fun a b h => env a b (VHasVar.there h)))
 
-private theorem mem_viewVCtx_map_fst_of_visible
+theorem mem_viewVCtx_map_fst_of_visible
     {Γ : VCtx Player L} {who : Player} {x : VarId}
     (hx : x ∈ visibleVars (L := L) who Γ) :
     x ∈ (viewVCtx who Γ).map Prod.fst := by

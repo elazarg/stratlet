@@ -134,10 +134,8 @@ theorem projectViewEnv_cons_eq
   -- (converse of projectViewEnv_eq_of_obsEq — needs viewVCtx/HasVar infrastructure)
   have hobs_ext : ObsEq (L := L) (Γ := (x, τ) :: Γ) who
       (VEnv.eraseEnv (VEnv.cons v₁ env₁)) (VEnv.eraseEnv (VEnv.cons v₂ env₂)) := by
-    -- From projectViewEnv eq, extract ObsEq using HasVar uniqueness (hnodup).
-    -- For each visible y' with hy' : HasVar (eraseVCtx Γ_ext) y' σ, the
-    -- projectViewEnv at y' uses hy'' = toErased(ofViewVCtx(toVHasVar h_view)).
-    -- By HasVar.eq_of_nodup, hy' = hy'', so env values agree.
+    -- Uses HasVar uniqueness (hnodup) + eraseVCtx_map_fst to relate
+    -- the HasVar proof from projectViewEnv to the one from ObsEq.
     sorry
   -- Step 2: ObsEq for (x,τ)::Γ restricted to old vars → ObsEq for Γ
   have hobs : ObsEq (L := L) (Γ := Γ) who (VEnv.eraseEnv env₁) (VEnv.eraseEnv env₂) := by
