@@ -115,4 +115,23 @@ theorem projectViewEnv_eq_of_obsEq
     (VHasVar.toErased (Player := P) (L := L) (VHasVar.ofViewVCtx (p := who) hv))
     (view_member_visible (L := L) hv)
 
+/-- If the views through `VEnv.cons v₁ env₁` and `VEnv.cons v₂ env₂` agree,
+then the views through `env₁` and `env₂` agree (on old variables). -/
+theorem projectViewEnv_cons_eq
+    {who : P} {Γ : VCtx P L} {x : VarId} {τ : BindTy P L}
+    {env₁ env₂ : VEnv (Player := P) L Γ}
+    {v₁ v₂ : L.Val τ.base}
+    (h : projectViewEnv (P := P) (L := L) who
+        (VEnv.eraseEnv (VEnv.cons (L := L) (x := x) (τ := τ) v₁ env₁)) =
+      projectViewEnv (P := P) (L := L) who
+        (VEnv.eraseEnv (VEnv.cons (L := L) (x := x) (τ := τ) v₂ env₂))) :
+    projectViewEnv (P := P) (L := L) who
+        (VEnv.eraseEnv env₁) =
+      projectViewEnv (P := P) (L := L) who
+        (VEnv.eraseEnv env₂) := by
+  -- Each visible variable in Γ is also visible in (x, τ) :: Γ via .there.
+  -- The eraseEnv of VEnv.cons at .there equals eraseEnv of the tail.
+  -- Extracting from h at each old variable gives the result.
+  sorry
+
 end Vegas

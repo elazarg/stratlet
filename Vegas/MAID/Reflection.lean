@@ -408,10 +408,8 @@ private theorem pmfFoldBridge
       -- projectViewEnv who (eraseEnv (ρ' raw)) at old variables = projectViewEnv who (eraseEnv (ρ raw))
       have hview_old : projectViewEnv (P := P) (L := L) who
           (VEnv.eraseEnv (ρ (st₁.rawEnvOfCfg cfg₁))) =
-          projectViewEnv who (VEnv.eraseEnv (ρ (st₁.rawEnvOfCfg cfg₂))) := by
-        -- Needs: projectViewEnv_cons_tail lemma (view of VEnv.cons v env
-        -- restricted to old vars = view of env)
-        sorry
+          projectViewEnv who (VEnv.eraseEnv (ρ (st₁.rawEnvOfCfg cfg₂))) :=
+        Vegas.projectViewEnv_cons_eq hview
       -- viewDeps subset: st₁.viewDeps who ((x, .pub b) :: Γ') = st₀.viewDeps who Γ'
       have hps_old : ∀ i ∈ ps, i.val ∈ st₀.viewDeps who Γ' := by sorry
       exact hρ_readers who hps_old cfg₁ cfg₂ hview_old
@@ -784,7 +782,11 @@ private theorem pmfFoldBridge
             simpa [st₁, st₀.lookupDeps_addVar_eq_of_ne y (.pub b) (st₀.lookupDeps x)
               (st₀.lookupDeps_lt x) hzy] using hj
           simpa [ρ', VEnv.get, VEnv.cons_get_there] using hρ_var hz' j hj' raw tv
-    have hρ'_readers : CfgDeterminedByView st₁ ((y, .pub b) :: Γ') ρ' := by sorry
+    have hρ'_readers : CfgDeterminedByView st₁ ((y, .pub b) :: Γ') ρ' := by
+      intro who ps hps cfg₁ cfg₂ hview
+      have hview_old := Vegas.projectViewEnv_cons_eq hview
+      have hps_old : ∀ i ∈ ps, i.val ∈ st₀.viewDeps who Γ' := by sorry
+      exact hρ_readers who hps_old cfg₁ cfg₂ hview_old
     exact ih hl hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers pol a₀
 
 /-- Semantic correctness of `reflectPolicy`: the PMF behavioral profile
