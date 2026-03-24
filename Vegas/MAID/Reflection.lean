@@ -337,6 +337,14 @@ private theorem rawEnvOfCfg_rawsMatchDescAt
   | .decision τ _ _ _ _ _, v₁, v₂ => exact ⟨v₁, v₂, rfl, rfl⟩
   | .utility _ _ _, _, _ => exact ⟨rfl, rfl⟩
 
+/-- For variables with singleton lookupDeps, ρ reads via readVal at the correct type.
+This is needed for the reveal case of ViewDeterminesRaw. -/
+private def EnvReadValAtDeps (st : MAIDCompileState P L B)
+    (Γ : VCtx P L) (ρ : RawNodeEnv L → VEnv L Γ) : Prop :=
+  ∀ (x : VarId) (σ : BindTy P L) (hx : VHasVar Γ x σ) (j : Nat),
+    st.lookupDeps x = {j} → j < st.nextId →
+    ∀ raw, VEnv.get (ρ raw) hx = MAIDCompileState.readVal (B := B) raw σ.base j
+
 private theorem pmfFoldBridge
     (B : MAIDBackend P L)
     {Γ : VCtx P L}
@@ -349,6 +357,7 @@ private theorem pmfFoldBridge
     (hρ_deps : ∀ j, j ∉ (st₀.ctxDeps Γ : Finset Nat) → InsensitiveTo ρ j)
     (hρ_var : EnvRespectsLookupDeps st₀ ρ)
     (hρ_readers : ViewDeterminesRaw st₀ Γ ρ)
+    (hρ_readval : EnvReadValAtDeps st₀ Γ ρ)
     (hnodup : (Γ.map Prod.fst).Nodup) :
     letI := B.fintypePlayer
     let st := MAIDCompileState.ofProg B p hl hd ρ st₀
@@ -478,6 +487,7 @@ private theorem pmfFoldBridge
       · rwa [hVD] at hi
     exact ih hl hd hfresh.2 ρ' st₁
       (st₀.VarsSubCtx_letExpr_step hvars x hxΓ) hρ'_deps hρ'_var hρ'_readers
+      (sorry : EnvReadValAtDeps _ _ ρ')
       (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩) pol a₀
   | sample x τ m D' k ih =>
     rename_i Γ'
@@ -683,6 +693,7 @@ private theorem pmfFoldBridge
           · exact hview_old
           · rwa [hVD] at hi
       exact ih hl hd.2 hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers
+        (sorry : EnvReadValAtDeps _ _ ρ')
         (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩) pol _
     -- Rewrite inner fold using IH
     simp_rw [hinner]
@@ -951,6 +962,7 @@ private theorem pmfFoldBridge
           · exact hview_old
           · rwa [hVD] at hi
       exact ih hl.2 hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers
+        (sorry : EnvReadValAtDeps _ _ ρ')
         (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩) pol _
     -- Use IH to rewrite inner fold
     simp_rw [hinner]
@@ -1050,10 +1062,10 @@ private theorem pmfFoldBridge
             simp only [raw₁, raw₂, MAIDCompileState.rawEnvOfCfg, hj_lt, dite_false]
         -- With cfg equality, unify both sides
         rw [hcfg_eq]
-        -- Cast cancel: two issues remain:
-        -- 1. PMF cast: d.bind (f ∘ castValType) = (hdesc0 ▸ d).bind f (proven: cast_eq below)
-        -- 2. Profile: reflectPolicyAux ... = ProgramBehavioralProfilePMF.tail (...)
-        --    (definitionally equal but syntactically different)
+        -- Cast cancel: both sides are equal after eliminating hdesc0.
+        -- Blocked by toStruct.Val opacity — ▸/subst can't see through it.
+        -- The proof needs: d.bind (f ∘ castValType) = (cast d).bind f
+        -- which is pmf_descAt_cast_bind_cancel, plus profile definitional equality.
         sorry
       · exfalso; apply h_exists; exact ⟨_, hViewEq⟩
     · -- utility: contradiction
@@ -1105,6 +1117,7 @@ private theorem pmfFoldBridge
       -- TODO: This case needs either a structural lemma or reformulation.
       sorry
     exact ih hl hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers
+      (sorry : EnvReadValAtDeps _ _ ρ')
       (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩) pol a₀
 
 /-- Semantic correctness of `reflectPolicy`: the PMF behavioral profile
@@ -1143,6 +1156,8 @@ theorem reflectPolicy_outcomeDistBehavioralPMF_eq
         have := MAIDCompileState.depsOfVars_lt MAIDCompileState.empty
           ((viewVCtx who Γ).map Prod.fst) i hi
         simp [MAIDCompileState.empty] at this))
+    (fun x σ hx j hld hjlt raw => by
+      simp [MAIDCompileState.empty] at hjlt)
     hnodup_ctx pol (MAID.defaultAssign st.toStruct)
   -- Step 3: Connect to outcomeDistBehavioralPMF via nativeOutcomeDistPMF_eq
   have hnative := nativeOutcomeDistPMF_eq B p hd
