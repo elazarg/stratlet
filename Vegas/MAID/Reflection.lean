@@ -704,9 +704,11 @@ private theorem pmfFoldBridge
         have := (toStruct_kind st nd0).symm.trans hk
         rw [hkind_decision] at this; exact (MAID.NodeKind.decision.inj this).symm
       subst hp
-      -- LHS: (pol p ⟨d, projCfg a₀ (obsParents nd0)⟩).bind (fun v => ... castValType hdesc0 v ...)
-      -- RHS: (hval ▸ pol p ⟨d', Classical.choose h⟩).bind (fun v => ... v ...)
-      -- Close via cfg_eq_of_view_eq (obs-config injectivity) + cast cancel
+      -- The core step: show Classical.choose picks projCfg a₀ (obsParents nd0).
+      -- This requires obs-config injectivity (sensitivity of ρ to obs-parent
+      -- indices). Proved: hViewEq shows projCfg a₀ is a witness; uniqueness
+      -- needs the reader-variable invariant (see ephemeral/MAID_COMPILER_SPEC.md).
+      -- For now, sorry the cfg equality and close the rest structurally.
       sorry
     · -- utility: contradiction
       rename_i hk; rw [toStruct_kind] at hk; rw [hkind_decision] at hk; exact absurd hk (by simp)

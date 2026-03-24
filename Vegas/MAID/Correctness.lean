@@ -1759,36 +1759,6 @@ theorem MAIDCompileState.rawEnvOfCfg_injective
   exact taggedOfVal_injective this
 
 open MAID in
-/-- Obs-config injectivity: if two configurations on `obsParents` produce the
-same view through `ρ`, they must be equal. Uses `rawEnvOfCfg_injective` after
-showing the raw environments agree via `projectViewEnv_eq_of_lookupDeps` converse. -/
-theorem MAIDCompileState.cfg_eq_of_view_eq
-    (st : MAIDCompileState Player L B)
-    {Γ : VCtx Player L}
-    (ρ : RawNodeEnv L → VEnv L Γ)
-    (hρ_var : EnvRespectsLookupDeps st ρ)
-    (who : Player)
-    {ps : Finset (Fin st.nextId)}
-    (hps : ∀ i ∈ ps, i.val ∈ st.viewDeps who Γ)
-    (cfg₁ cfg₂ : @Cfg Player _ B.fintypePlayer _ st.toStruct ps)
-    (hview : projectViewEnv (P := Player) (L := L) who
-        (VEnv.eraseEnv (ρ (st.rawEnvOfCfg cfg₁))) =
-      projectViewEnv (P := Player) (L := L) who
-        (VEnv.eraseEnv (ρ (st.rawEnvOfCfg cfg₂)))) :
-    cfg₁ = cfg₂ := by
-  letI := B.fintypePlayer
-  -- Both rawEnvOfCfg are none outside ps, and agree outside ps.
-  -- Show they also agree on ps (then rawEnvOfCfg_injective closes).
-  apply st.rawEnvOfCfg_injective cfg₁ cfg₂
-  -- Show raw environments agree pointwise
-  -- Key: both rawEnvOfCfg agree outside viewDeps (both none there),
-  -- and ρ is insensitive to non-viewDeps. Since views equal, ρ gives same
-  -- result for both raws. Then for each variable with singleton lookupDeps,
-  -- the raw values at that index must agree.
-  -- Approach: show rawEnvOfCfg cfg₁ = rawEnvOfCfg cfg₂ using view eq
-  -- For now, use sorry as the formal proof requires tracing the compilation structure
-  sorry
-
 open MAID in
 private theorem compiledNodeFDist_chance_bind_eq
     {β : Type} [DecidableEq β]
