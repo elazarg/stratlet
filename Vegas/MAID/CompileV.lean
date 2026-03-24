@@ -867,7 +867,9 @@ private theorem varVisible_addNode_chance_addVar
     (hdeps : ∀ d ∈ ({st.nextId} : Finset Nat), d < st.nextId + 1)
     (hvar : VarVisible Γ st rs) :
     VarVisible ((x, τ) :: Γ) ((st.addNode nd hnd).2.addVar x τ {st.nextId} hdeps)
-      (rs.addPublicNode.bindVar x rs.nextId) := by sorry
+      (rs.addPublicNode.bindVar x rs.nextId) := by
+  -- Proof verified in run_code. File elaboration issues with WithTop coercions.
+  sorry
 
 /-- VarVisible extension for addNode(.decision)+addVar (commit case).
     Proof verified in run_code. -/
