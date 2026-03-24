@@ -926,7 +926,8 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
       exact ih hl hd hfresh.2 _ _ _
         ⟨hcon₀.sync, hcon₀.chance, hcon₀.decision, hcon₀.nodeOf_lt, hcon₀.unset⟩
         (st₀.VarsSubCtx_addVar hvars x _ _ _ hfresh.1) hprev (by
-          -- VarVisible: viewVCtx cons unfold + lookupDeps_addVar for y=x vs y≠x
+          -- VarVisible: y=x → pubCtxDeps (all public via erasePubVCtx ⊆ viewVCtx)
+          --             y≠x → lookupDeps unchanged (lookupDeps_addVar_eq_of_ne) → hvar₀
           sorry)
   | sample x τ m D' k ih =>
       rename_i Γ'
