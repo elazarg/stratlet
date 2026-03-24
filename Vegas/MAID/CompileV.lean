@@ -224,6 +224,51 @@ noncomputable def toVegasMAID
       rcases Finset.mem_image.mp hi with ⟨⟨j, hj⟩, _, rfl⟩
       exact hvisible d p hkind j hj }
 
+/-! ## revealTime monotonicity -/
+
+/-- `computeReveals` never increases `revealTime` at indices < nextId.
+    (At index nextId, addPublicNode sets it to ↑nextId which is ≤ ⊤ = unset.) -/
+theorem computeReveals_revealTime_le (B : MAIDBackend Player L)
+    {Γ : VCtx Player L}
+    (p : VegasCore Player L Γ)
+    (rs : RevealState) (i : Nat) (hi : i < rs.nextId) :
+    (computeReveals B p rs).revealTime i ≤ rs.revealTime i := by
+  induction p generalizing rs with
+  | ret =>
+      simp only [computeReveals]
+      letI := B.fintypePlayer
+      generalize (Finset.univ (α := Player)).toList = players
+      induction players generalizing rs with
+      | nil => simp
+      | cons _ rest ih =>
+          simp only [List.foldl_cons]
+          exact le_trans (ih _ (by simp [RevealState.addPublicNode]; omega)) (by
+            simp only [RevealState.addPublicNode]
+            rw [if_neg (show i ≠ rs.nextId from by omega)])
+  | letExpr _ _ k ih => exact ih rs hi
+  | sample x _ _ _ k ih =>
+      simp only [computeReveals]
+      exact le_trans (ih _ (by simp [RevealState.addPublicNode, RevealState.bindVar]; omega)) (by
+        simp only [RevealState.addPublicNode, RevealState.bindVar]
+        rw [if_neg (show i ≠ rs.nextId from by omega)])
+  | commit x _ _ k ih =>
+      simp only [computeReveals]
+      exact le_trans (ih _ (by simp [RevealState.addPrivateNode, RevealState.bindVar]; omega)) (by
+        simp [RevealState.addPrivateNode, RevealState.bindVar])
+  | reveal y _ x _ k ih =>
+      simp only [computeReveals]
+      exact le_trans (ih _ (by
+        simp only [RevealState.aliasVar]
+        cases rs.nodeOf x <;> simp [hi])) (by
+        simp only [RevealState.aliasVar]
+        cases rs.nodeOf x with
+        | none => exact le_refl _
+        | some nid =>
+            simp only
+            by_cases h : i = nid
+            · rw [if_pos h]; exact min_le_right _ _
+            · rw [if_neg h])
+
 /-! ## Reusable lemmas for addNode consistency -/
 
 /-- RevealConsistent preserved by addNode(.chance) + addVar + addPublicNode + bindVar. -/
