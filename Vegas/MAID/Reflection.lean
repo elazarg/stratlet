@@ -356,8 +356,22 @@ private theorem pmfFoldBridge
           simpa [ρ', VEnv.get, VEnv.cons_get_there] using hρ_var hy' j hj' raw tv
     exact ih hl hd hfresh.2 ρ' st₁
       (st₀.VarsSubCtx_letExpr_step hvars x hxΓ) hρ'_deps hρ'_var pol a₀
-  | sample x τ m D' k ih => sorry
-  | commit x who R k ih => sorry
+  | sample x τ m D' k ih =>
+    -- One chance node at st₀.nextId, then continuation's nodes.
+    -- The fold peels off the chance node step, which samples from the
+    -- compiled distribution. By IH, the remaining fold matches nativeOutcomeDistPMF.
+    -- Key: nodeDist at the compiled chance node = (L.evalDist D' ...).toPMF,
+    -- and rawOfTAssign (updateAssign a₀ nd₀ v) = raw₀.extend id ⟨τ.base, v⟩.
+    sorry
+  | commit x who R k ih =>
+    -- One decision node at st₀.nextId, then continuation's nodes.
+    -- The fold peels off the decision node step, which applies
+    -- pol who ⟨d, projCfg a₀ (obsParents d)⟩.
+    -- The reflected kernel uses Classical.choose to recover cfg from view.
+    -- By obs-config injectivity (now correct after pubCtxDeps fix),
+    -- Classical.choose picks projCfg a₀ (obsParents d), matching the fold.
+    -- Then IH handles the continuation.
+    sorry
   | reveal y who' x hx k ih =>
     rename_i Γ' b
     intro pol a₀
