@@ -567,6 +567,31 @@ theorem envRespectsLookupDeps_const
     EnvRespectsLookupDeps st (fun _ => env) :=
   fun _ _ _ _ _ => rfl
 
+/-- If `j ∉ pubCtxDeps`, evaluating a public expression via `ρ` is insensitive to `j`. -/
+theorem eval_pubExpr_insensitive_of_pubCtxDeps
+    (st : MAIDCompileState Player L B)
+    {Γ : VCtx Player L}
+    (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ)
+    (hρ_var : EnvRespectsLookupDeps st ρ)
+    {τ : L.Ty}
+    (e : L.Expr (erasePubVCtx Γ) τ)
+    (j : Nat)
+    (hj : j ∉ st.pubCtxDeps Γ) :
+    InsensitiveTo (fun raw => L.eval e (VEnv.erasePubEnv (ρ raw))) j := by
+  sorry
+
+/-- If `j ∉ viewDeps who`, the projected view through `ρ` is insensitive to `j`. -/
+theorem projectViewEnv_insensitive_of_viewDeps
+    (st : MAIDCompileState Player L B)
+    {Γ : VCtx Player L}
+    (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ)
+    (hρ_var : EnvRespectsLookupDeps st ρ)
+    (who : Player)
+    (j : Nat)
+    (hj : j ∉ st.viewDeps who Γ) :
+    InsensitiveTo (fun raw => projectViewEnv who (VEnv.eraseEnv (ρ raw))) j := by
+  sorry
+
 /-- What it means for two raw envs to match a compiled node at index `i`. -/
 def RawsMatchDescAt (st : MAIDCompileState Player L B)
     (raw₁ raw₂ : RawNodeEnv L) (i : Nat) (hi : i < st.nextId) : Prop :=
@@ -647,6 +672,16 @@ theorem pmf_descAt_cast_bind_cancel
     (hcast : PMF (CompiledNode.valType c) =
       PMF (CompiledNode.valType (st.descAt nd))) :
     (cast hcast d).bind (fun v => f (castValType hdesc v)) = d.bind f := by
+  subst hdesc; rfl
+
+/-- Variant of `pmf_descAt_cast_bind_cancel` starting from a PMF over the struct
+Val type rather than requiring an explicit `cast`. -/
+theorem pmf_bind_castValType
+    {st : MAIDCompileState Player L B} {nd : Fin st.nextId}
+    {c : CompiledNode Player L B} (hdesc : st.descAt nd = c)
+    (d : PMF (CompiledNode.valType (st.descAt nd)))
+    {γ : Type} (f : CompiledNode.valType c → PMF γ) :
+    d.bind (fun v => f (castValType hdesc v)) = (hdesc ▸ d).bind f := by
   subst hdesc; rfl
 
 /-- evalStep bind distributes over left bind. -/
