@@ -259,11 +259,50 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
         exact st₀.depsOfVars_lt _ d hd'
       have hdeps : ∀ d ∈ ({st₀.nextId} : Finset Nat), d < st₀.nextId + 1 := by
         intro d hd'; simp at hd'; omega
-      -- The goal should be definitionally equal to:
-      show RevealConsistent
+      change RevealConsistent
         ((st₀.addNode cnd hcnd_deps).2.addVar x τ {st₀.nextId} hdeps)
         (rs₀.addPublicNode.bindVar x rs₀.nextId)
-      sorry
+      have hnid1 : ((st₀.addNode cnd hcnd_deps).2.addVar x τ {st₀.nextId} hdeps).nextId
+          = st₀.nextId + 1 := by simp [MAIDCompileState.addNode, MAIDCompileState.addVar]
+      exact {
+        sync := by simp [RevealState.addPublicNode, RevealState.bindVar, hnid1, hcon₀.sync]
+        chance := by
+          intro nd' hk
+          have hbound : nd'.val ≤ st₀.nextId := by rw [hnid1] at nd'; omega
+          have hk_inner : ((st₀.addNode cnd hcnd_deps).2.descAt ⟨nd'.val, by
+              simp [MAIDCompileState.addNode]; omega⟩).kind = .chance := hk
+          rcases Nat.lt_or_eq_of_le hbound with hlt | heq
+          · rw [MAIDCompileState.addNode_descAt_old st₀ cnd hcnd_deps ⟨nd'.val, hlt⟩] at hk_inner
+            have := hcon₀.chance ⟨nd'.val, hlt⟩ hk_inner
+            simp only [RevealState.addPublicNode, RevealState.bindVar]
+            rw [if_neg (show nd'.val ≠ rs₀.nextId from by rw [hcon₀.sync]; omega)]; exact this
+          · simp only [RevealState.addPublicNode, RevealState.bindVar]
+            rw [if_pos (show nd'.val = rs₀.nextId from by rw [hcon₀.sync]; omega)]
+            simp [hcon₀.sync, heq]
+        decision := by
+          intro nd' p hk
+          have hbound : nd'.val ≤ st₀.nextId := by rw [hnid1] at nd'; omega
+          have hk_inner : ((st₀.addNode cnd hcnd_deps).2.descAt ⟨nd'.val, by
+              simp [MAIDCompileState.addNode]; omega⟩).kind = .decision p := hk
+          rcases Nat.lt_or_eq_of_le hbound with hlt | heq
+          · rw [MAIDCompileState.addNode_descAt_old st₀ cnd hcnd_deps ⟨nd'.val, hlt⟩] at hk_inner
+            have := hcon₀.decision ⟨nd'.val, hlt⟩ p hk_inner
+            simp only [RevealState.addPublicNode, RevealState.bindVar]
+            rw [if_neg (show nd'.val ≠ rs₀.nextId from by rw [hcon₀.sync]; omega)]; exact this
+          · exfalso
+            rw [show (⟨nd'.val, _⟩ : Fin (st₀.addNode cnd hcnd_deps).2.nextId) =
+                ⟨st₀.nextId, by simp [MAIDCompileState.addNode]⟩ from Fin.ext heq] at hk_inner
+            rw [MAIDCompileState.addNode_descAt_new st₀ cnd hcnd_deps] at hk_inner
+            simp [cnd, CompiledNode.kind] at hk_inner
+        nodeOf_lt := by
+          intro v nid hnid
+          simp only [RevealState.addPublicNode, RevealState.bindVar] at hnid
+          rw [hnid1]
+          by_cases hv : v = x
+          · subst hv; simp at hnid; have := hcon₀.sync; omega
+          · simp [hv] at hnid
+            exact Nat.lt_trans (hcon₀.nodeOf_lt v nid hnid) (Nat.lt_succ_self _)
+      }
   | commit x who R k ih =>
       simp only [computeReveals, MAIDCompileState.ofProg]
       apply ih (hd := hd)
