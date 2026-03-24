@@ -344,10 +344,7 @@ private def EnvReadValAtDeps (st : MAIDCompileState P L B)
     (Γ : VCtx P L) (ρ : RawNodeEnv L → VEnv L Γ) : Prop :=
   ∀ (x : VarId) (who' : P) (b : L.Ty) (hx : VHasVar Γ x (.hidden who' b)),
     (st.lookupDeps x).Nonempty →
-    ∃ j, st.lookupDeps x = {j} ∧ (hjlt : j < st.nextId) ∧
-      (match st.descAt ⟨j, hjlt⟩ with
-       | .chance τ _ _ _ | .decision τ _ _ _ _ _ => τ = b
-       | .utility _ _ _ => True) ∧
+    ∃ j, st.lookupDeps x = {j} ∧ j < st.nextId ∧
       ∀ raw, VEnv.get (ρ raw) hx = MAIDCompileState.readVal (B := B) raw b j
 
 private theorem pmfFoldBridge
