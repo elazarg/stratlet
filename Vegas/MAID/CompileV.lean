@@ -509,6 +509,24 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
         rs.revealTime i ≤ ↑d.val ∨
           (∃ q, (st.descAt ⟨i, Nat.lt_trans (st.descAt_parent_lt d hi) d.2⟩).kind =
             .decision q ∧ q = p) := by
+  -- The core invariant: visible variable deps point to visible nodes.
+  -- This is the `obs_has_reader` equivalent from MAID_COMPILER_SPEC.md.
+  -- Requires induction on VegasCore threading a `hvar` hypothesis about
+  -- the relationship between viewVCtx, lookupDeps, and revealTime.
+  --
+  -- At each `commit who`, the new decision node's parents = viewDeps who Γ'.
+  -- hvar ensures these are either public (revealTime ≤ nextId) or same-player
+  -- decisions. For old decision nodes, addNode preserves descAt and revealTime
+  -- can only decrease (making the "public" condition easier to satisfy).
+  --
+  -- Each program construct maintains hvar:
+  -- - letExpr: new pub variable has public deps (from pubCtxDeps)
+  -- - sample: new variable has deps = {id} where id is a chance node (public)
+  -- - commit: new variable has deps = {id} where id is a decision of `who`
+  --           (visible to `who` as own decision)
+  -- - reveal: new pub variable copies deps of the revealed variable;
+  --           the revealed variable was hidden for some player, now public
+  -- - ret: no new variables
   sorry
 
 /-- The main experimental compilation function: Vegas program → VegasMAID. -/
