@@ -95,11 +95,11 @@ private theorem MAIDCompileState.DecisionMonotone_addUtilityNodes
   have old₁ : d₁.val < st.nextId := by
     by_contra hge; push_neg at hge
     have ⟨w, hw⟩ := addUtilityNodes_all_utility st deps hdeps ufn players d₁ hge
-    simp only [toStruct_kind] at hw; rw [hw] at hk₁; exact nomatch hk₁
+    rw [hw] at hk₁; exact nomatch hk₁
   have old₂ : d₂.val < st.nextId := by
     by_contra hge; push_neg at hge
     have ⟨w, hw⟩ := addUtilityNodes_all_utility st deps hdeps ufn players d₂ hge
-    simp only [toStruct_kind] at hw; rw [hw] at hk₂; exact nomatch hk₂
+    rw [hw] at hk₂; exact nomatch hk₂
   -- Rewrite descAt to old state using descAt_old + Fin casting
   have h₁ : (st.addUtilityNodes deps hdeps ufn players).descAt d₁ =
       st.descAt ⟨d₁.val, old₁⟩ := by

@@ -345,4 +345,206 @@ theorem MAIDCompileState.VarsSubCtx_addNode_addVar_singleton_step
   exact ((st.addNode nd hndeps).2).VarsSubCtx_addVar
     (st.VarsSubCtx_addNode hvars nd hndeps) x τ _ _ hfreshΓ
 
+/-! ## ofProg monotonicity and preservation -/
+
+/-- `addUtilityNodes` increases `nextId` by the number of players. -/
+theorem MAIDCompileState.addUtilityNodes_nextId
+    (st : MAIDCompileState Player L B) (deps hdeps ufn)
+    (players : List Player) :
+    (st.addUtilityNodes deps hdeps ufn players).nextId =
+      st.nextId + players.length := by
+  induction players generalizing st with
+  | nil => simp [addUtilityNodes]
+  | cons who rest ih =>
+    simp only [addUtilityNodes, List.length_cons]
+    rw [ih]; simp [addNode]; omega
+
+/-- `addUtilityNodes` preserves `descAt` for old nodes. -/
+theorem MAIDCompileState.addUtilityNodes_descAt_old
+    (st : MAIDCompileState Player L B)
+    (deps : Finset Nat) (hdeps : ∀ d ∈ deps, d < st.nextId)
+    (ufn : Player → RawNodeEnv L → ℝ) (players : List Player)
+    (j : Nat) (hj : j < st.nextId) :
+    let stf := st.addUtilityNodes deps hdeps ufn players
+    (stf.descAt ⟨j, Nat.lt_of_lt_of_le hj (by
+      rw [addUtilityNodes_nextId]; omega)⟩) =
+    st.descAt ⟨j, hj⟩ := by
+  induction players generalizing st with
+  | nil => rfl
+  | cons who rest ih =>
+    simp only [addUtilityNodes]
+    rw [ih]; exact addNode_descAt_old st _ _ ⟨j, hj⟩
+
+/-- All nodes added by `addUtilityNodes` are utility nodes. -/
+theorem MAIDCompileState.addUtilityNodes_all_utility
+    (st : MAIDCompileState Player L B)
+    (deps : Finset Nat) (hdeps : ∀ d ∈ deps, d < st.nextId)
+    (ufn : Player → RawNodeEnv L → ℝ) (players : List Player)
+    (i : Fin (st.addUtilityNodes deps hdeps ufn players).nextId)
+    (hi : st.nextId ≤ i.val) :
+    ∃ who, ((st.addUtilityNodes deps hdeps ufn players).descAt i).kind =
+      NodeKind.utility who := by
+  induction players generalizing st with
+  | nil =>
+    simp only [MAIDCompileState.addUtilityNodes] at i ⊢
+    exact absurd i.isLt (by omega)
+  | cons who rest ih =>
+    simp only [MAIDCompileState.addUtilityNodes] at i ⊢
+    by_cases heq : i.val = st.nextId
+    · have hutdeps : ∀ d ∈ (CompiledNode.utility (B := B) who deps
+          (ufn who)).parents ∪
+          (CompiledNode.utility (B := B) who deps
+            (ufn who)).obsParents, d < st.nextId := by
+        intro d hd'
+        rcases Finset.mem_union.mp hd' with h | h <;>
+          simpa [CompiledNode.parents, CompiledNode.obsParents]
+            using hdeps d h
+      have hj_lt : i.val <
+          (st.addNode (.utility who deps (ufn who))
+            hutdeps).2.nextId := by
+        simp [MAIDCompileState.addNode]; omega
+      have hdesc :
+          ((st.addNode (.utility who deps (ufn who))
+            hutdeps).2.addUtilityNodes deps _ ufn rest).descAt
+            ⟨i.val, i.isLt⟩ =
+          .utility who deps (ufn who) := by
+        rw [addUtilityNodes_descAt_old _ _ _ _ rest i.val hj_lt]
+        rw [show (⟨i.val, hj_lt⟩ : Fin _) =
+          ⟨st.nextId, Nat.lt_succ_self _⟩ from Fin.ext heq]
+        exact st.addNode_descAt_new _ _
+      exact ⟨who, by
+        rw [show i = ⟨i.val, i.isLt⟩ from Fin.ext rfl]
+        simp only [hdesc]; rfl⟩
+    · have hutdeps : ∀ d ∈ (CompiledNode.utility (B := B) who deps
+          (ufn who)).parents ∪
+          (CompiledNode.utility (B := B) who deps
+            (ufn who)).obsParents, d < st.nextId := by
+        intro d hd'
+        rcases Finset.mem_union.mp hd' with h | h <;>
+          simpa [CompiledNode.parents, CompiledNode.obsParents]
+            using hdeps d h
+      exact ih (st.addNode (.utility who deps (ufn who))
+        hutdeps).2 _ ⟨i.val, i.isLt⟩
+        (by simp [MAIDCompileState.addNode]; omega)
+
+/-- `ofProg` only increases `nextId`. -/
+theorem MAIDCompileState.ofProg_nextId_le
+    (B : MAIDBackend Player L) {Γ : VCtx Player L}
+    (p : VegasCore Player L Γ) (hl hd)
+    (ρ : RawNodeEnv L → VEnv L Γ)
+    (st₀ : MAIDCompileState Player L B) :
+    st₀.nextId ≤
+      (MAIDCompileState.ofProg B p hl hd ρ st₀).nextId := by
+  induction p generalizing st₀ with
+  | ret u =>
+    letI := B.fintypePlayer; simp only [MAIDCompileState.ofProg]
+    rw [MAIDCompileState.addUtilityNodes_nextId]; omega
+  | letExpr x e k ih =>
+    exact ih hl hd
+      (fun raw => VEnv.cons (L.eval e
+        (VEnv.erasePubEnv (ρ raw))) (ρ raw))
+      (st₀.addVar _ _ _ _)
+  | sample x τ m D' k ih =>
+    refine le_trans (Nat.le_succ _) ?_
+    exact ih hl hd.2
+      (fun raw => VEnv.cons
+        (MAIDCompileState.readVal (B := B) raw τ.base
+          st₀.nextId) (ρ raw))
+      ((st₀.addNode _ _).2.addVar _ _ _ _)
+  | commit x who R k ih =>
+    rename_i Γ' b
+    refine le_trans (Nat.le_succ _) ?_
+    exact ih hl.2 hd
+      (fun raw => VEnv.cons
+        (MAIDCompileState.readVal (B := B) raw b
+          st₀.nextId) (ρ raw))
+      ((st₀.addNode _ _).2.addVar _ _ _ _)
+  | reveal y who x hx k ih =>
+    exact ih hl hd
+      (fun raw =>
+        let env := ρ raw
+        let v : L.Val _ := VEnv.get env hx
+        VEnv.cons (τ := .pub _) v env)
+      (st₀.addVar _ _ _ _)
+
+/-- `ofProg` preserves `descAt` for nodes below the initial `nextId`. -/
+theorem MAIDCompileState.ofProg_descAt_old
+    (B : MAIDBackend Player L) {Γ : VCtx Player L}
+    (p : VegasCore Player L Γ) (hl hd)
+    (ρ : RawNodeEnv L → VEnv L Γ)
+    (st₀ : MAIDCompileState Player L B)
+    (j : Nat) (hj : j < st₀.nextId) :
+    let st := MAIDCompileState.ofProg B p hl hd ρ st₀
+    (st.descAt ⟨j, Nat.lt_of_lt_of_le hj
+      (ofProg_nextId_le B p hl hd ρ st₀)⟩) =
+    st₀.descAt ⟨j, hj⟩ := by
+  induction p generalizing st₀ with
+  | ret u =>
+    simp only [MAIDCompileState.ofProg]
+    exact addUtilityNodes_descAt_old st₀ _ _ _ _ j hj
+  | letExpr x e k ih =>
+    simp only [MAIDCompileState.ofProg]
+    exact ih hl hd _ (st₀.addVar _ _ _ _) hj
+  | sample x τ m D' k ih =>
+    change (MAIDCompileState.ofProg B k hl hd.2 _ _).descAt
+      ⟨j, _⟩ = _
+    rw [ih hl hd.2 _ _ (Nat.lt_succ_of_lt hj)]
+    simp only [MAIDCompileState.descAt,
+      MAIDCompileState.addVar, MAIDCompileState.addNode]
+    congr 1
+    rw [List.getElem_append_left (by
+      rw [st₀.nodes_length_eq_nextId]; exact hj)]
+  | commit x who R k ih =>
+    change (MAIDCompileState.ofProg B k hl.2 hd _ _).descAt
+      ⟨j, _⟩ = _
+    rw [ih hl.2 hd _ _ (Nat.lt_succ_of_lt hj)]
+    simp only [MAIDCompileState.descAt,
+      MAIDCompileState.addVar, MAIDCompileState.addNode]
+    congr 1
+    rw [List.getElem_append_left (by
+      rw [st₀.nodes_length_eq_nextId]; exact hj)]
+  | reveal y who x hx k ih =>
+    simp only [MAIDCompileState.ofProg]
+    exact ih hl hd _ (st₀.addVar _ _ _ _) hj
+
+-- ────────────────────────────────────────────────
+-- toStruct structural lemmas
+-- ────────────────────────────────────────────────
+
+@[simp] theorem toStruct_kind (st : MAIDCompileState Player L B) (nd : Fin st.nextId) :
+    st.toStruct.kind (fp := B.fintypePlayer) nd = (st.descAt nd).kind := rfl
+
+theorem MAIDCompileState.mem_toStruct_parents_iff
+    (st : MAIDCompileState Player L B)
+    (nd : Fin st.nextId)
+    {i : Nat} (hi : i < st.nextId) :
+    (⟨i, hi⟩ : Fin st.nextId) ∈ st.toStruct.parents (fp := B.fintypePlayer) nd ↔
+      i ∈ (st.descAt nd).parents := by
+  constructor
+  · intro h
+    rcases Finset.mem_image.mp h with ⟨d, hd, hEq⟩
+    have hval : d.1 = i := by
+      simpa using congrArg Fin.val hEq
+    simpa [hval] using d.2
+  · intro h
+    refine Finset.mem_image.mpr ?_
+    refine ⟨⟨i, h⟩, by simp, ?_⟩
+    exact Fin.ext rfl
+
+theorem MAIDCompileState.mem_toStruct_obsParents_iff
+    (st : MAIDCompileState Player L B)
+    (nd : Fin st.nextId)
+    {i : Nat} (hi : i < st.nextId) :
+    (⟨i, hi⟩ : Fin st.nextId) ∈ st.toStruct.obsParents (fp := B.fintypePlayer) nd
+       ↔ i ∈ (st.descAt nd).obsParents := by
+  constructor
+  · intro h
+    rcases Finset.mem_image.mp h with ⟨d, hd, hEq⟩
+    have hval : d.1 = i := by simpa using congrArg Fin.val hEq
+    simpa [hval] using d.2
+  · intro h
+    refine Finset.mem_image.mpr ?_
+    refine ⟨⟨i, h⟩, by simp, ?_⟩
+    exact Fin.ext rfl
+
 end Vegas
