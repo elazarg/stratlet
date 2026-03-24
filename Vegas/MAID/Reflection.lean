@@ -833,10 +833,9 @@ private theorem pmfFoldBridge
             simp only [raw₁, raw₂, MAIDCompileState.rawEnvOfCfg, hj_lt, dite_false]
         -- With cfg equality, unify both sides
         rw [hcfg_eq]
-        -- Now both sides use projCfg a₀ (obsParents nd0).
-        -- LHS: (pol p ⟨⟨nd0, _⟩, projCfg ...⟩).bind (fun a => F (castValType hdesc0 a))
-        -- RHS: (hval ▸ pol p ⟨⟨⟨st₀.nextId, _⟩, _⟩, projCfg ...⟩).bind (fun v => F' v)
-        -- ⟨nd0, _⟩ = ⟨⟨st₀.nextId, _⟩, _⟩ and the cast + castValType cancel
+        -- Both sides use projCfg. Need cast cancel + DecisionNode matching.
+        -- The LHS has castValType hdesc0 in the bind; the RHS has ⋯ ▸ on the PMF.
+        -- These cancel via pmf_descAt_cast_bind_cancel.symm.
         sorry
       · exfalso; apply h_exists; exact ⟨_, hViewEq⟩
     · -- utility: contradiction
