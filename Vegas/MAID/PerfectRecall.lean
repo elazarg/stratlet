@@ -165,20 +165,12 @@ private theorem MAIDCompileState.DecisionMonotone_addNode_addVar_nonDec
     have heq : d.val = st.nextId := by
       have := d.isLt; simp [MAIDCompileState.addVar, MAIDCompileState.addNode] at this; omega
     have hdesc : ((st.addNode nd hndeps).2.addVar x τ _ hdeps).descAt d = nd := by
-      change ((st.nodes ++ [(st.nextId, nd)])[d.val]'(by
-        simp [MAIDCompileState.addNode, MAIDCompileState.addVar, st.nodes_length_eq_nextId]
-        omega)).2 = nd
-      rw [List.getElem_append_right (by rw [st.nodes_length_eq_nextId]; omega)]
-      simp [st.nodes_length_eq_nextId, heq]
+      simp [MAIDCompileState.addVar, MAIDCompileState.addNode, heq]
     rw [hdesc] at hkd; exact absurd hkd (fun h => hnotDec who h)
   have old₁ := old d₁ hk₁; have old₂ := old d₂ hk₂
   have hdesc (d : Fin _) (hold : d.val < st.nextId) :
       ((st.addNode nd hndeps).2.addVar x τ _ hdeps).descAt d = st.descAt ⟨d.val, hold⟩ := by
-    change ((st.nodes ++ [(st.nextId, nd)])[d.val]'(by
-      simp [MAIDCompileState.addNode, MAIDCompileState.addVar, st.nodes_length_eq_nextId]
-      omega)).2 = (st.nodes[d.val]'(by rw [st.nodes_length_eq_nextId]; exact hold)).2
-    congr 1
-    exact List.getElem_append_left (by rw [st.nodes_length_eq_nextId]; exact hold)
+    simp [MAIDCompileState.addVar, MAIDCompileState.addNode, show d.val < st.nextId from hold]
   rw [hdesc d₁ old₁] at hk₁ ⊢; rw [hdesc d₂ old₂] at hk₂ ⊢
   exact hmon who ⟨d₁.val, old₁⟩ ⟨d₂.val, old₂⟩ hk₁ hk₂ hlt
 
@@ -201,21 +193,12 @@ private theorem MAIDCompileState.DecisionVisible_addNode_addVar_cons
     have heq : d.val = st.nextId := by
       have := d.isLt; simp [MAIDCompileState.addVar, MAIDCompileState.addNode] at this; omega
     have hdesc : ((st.addNode nd hndeps).2.addVar x τ _ hdeps).descAt d = nd := by
-      change ((st.nodes ++ [(st.nextId, nd)])[d.val]'(by
-        simp [MAIDCompileState.addNode, MAIDCompileState.addVar,
-          st.nodes_length_eq_nextId]; omega)).2 = nd
-      rw [List.getElem_append_right (by rw [st.nodes_length_eq_nextId]; omega)]
-      simp [st.nodes_length_eq_nextId, heq]
+      simp [MAIDCompileState.addVar, MAIDCompileState.addNode, heq]
     rw [hdesc] at hkd; exact absurd hkd (fun h => hnotDec who h)
   -- Reduce descAt to old state
   have hdesc : ((st.addNode nd hndeps).2.addVar x τ _ hdeps).descAt d =
       st.descAt ⟨d.val, hold⟩ := by
-    change ((st.nodes ++ [(st.nextId, nd)])[d.val]'(by
-      simp [MAIDCompileState.addNode, MAIDCompileState.addVar,
-        st.nodes_length_eq_nextId]; omega)).2 =
-      (st.nodes[d.val]'(by rw [st.nodes_length_eq_nextId]; exact hold)).2
-    congr 1
-    exact List.getElem_append_left (by rw [st.nodes_length_eq_nextId]; exact hold)
+    simp [MAIDCompileState.addVar, MAIDCompileState.addNode, show d.val < st.nextId from hold]
   rw [hdesc] at hkd ⊢
   obtain ⟨hmem, hsub⟩ := hvis who ⟨d.val, hold⟩ hkd
   -- viewDeps monotonicity: st.viewDeps ⊆ new viewDeps (addNode preserves, addVar+cons grows)
@@ -251,12 +234,7 @@ private theorem MAIDCompileState.descAt_addNode_addVar
     (hold : d.val < st.nextId) :
     ((st.addNode nd hndeps).2.addVar x τ {st.nextId} hdeps).descAt d =
       st.descAt ⟨d.val, hold⟩ := by
-  change ((st.nodes ++ [(st.nextId, nd)])[d.val]'(by
-    simp [MAIDCompileState.addNode, MAIDCompileState.addVar,
-      st.nodes_length_eq_nextId]; omega)).2 =
-    (st.nodes[d.val]'(by rw [st.nodes_length_eq_nextId]; exact hold)).2
-  congr 1
-  exact List.getElem_append_left (by rw [st.nodes_length_eq_nextId]; exact hold)
+  simp [MAIDCompileState.addVar, MAIDCompileState.addNode, show d.val < st.nextId from hold]
 
 private theorem MAIDCompileState.descAt_addNode_addVar_new
     (st : MAIDCompileState P L B)
@@ -267,11 +245,7 @@ private theorem MAIDCompileState.descAt_addNode_addVar_new
     (d : Fin ((st.addNode nd hndeps).2.addVar x τ {st.nextId} hdeps).nextId)
     (heq : d.val = st.nextId) :
     ((st.addNode nd hndeps).2.addVar x τ {st.nextId} hdeps).descAt d = nd := by
-  change ((st.nodes ++ [(st.nextId, nd)])[d.val]'(by
-    simp [MAIDCompileState.addNode, MAIDCompileState.addVar,
-      st.nodes_length_eq_nextId]; omega)).2 = nd
-  rw [List.getElem_append_right (by rw [st.nodes_length_eq_nextId]; omega)]
-  simp [st.nodes_length_eq_nextId, heq]
+  simp [MAIDCompileState.addVar, MAIDCompileState.addNode, heq]
 
 private theorem MAIDCompileState.val_lt_or_eq_of_addNode_addVar
     (st : MAIDCompileState P L B)

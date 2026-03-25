@@ -489,20 +489,12 @@ theorem MAIDCompileState.ofProg_descAt_old
     change (MAIDCompileState.ofProg B k hl hd.2 _ _).descAt
       ⟨j, _⟩ = _
     rw [ih hl hd.2 _ _ (Nat.lt_succ_of_lt hj)]
-    simp only [MAIDCompileState.descAt,
-      MAIDCompileState.addVar, MAIDCompileState.addNode]
-    congr 1
-    rw [List.getElem_append_left (by
-      rw [st₀.nodes_length_eq_nextId]; exact hj)]
+    simp [MAIDCompileState.addVar, MAIDCompileState.addNode, hj]
   | commit x who R k ih =>
     change (MAIDCompileState.ofProg B k hl.2 hd _ _).descAt
       ⟨j, _⟩ = _
     rw [ih hl.2 hd _ _ (Nat.lt_succ_of_lt hj)]
-    simp only [MAIDCompileState.descAt,
-      MAIDCompileState.addVar, MAIDCompileState.addNode]
-    congr 1
-    rw [List.getElem_append_left (by
-      rw [st₀.nodes_length_eq_nextId]; exact hj)]
+    simp [MAIDCompileState.addVar, MAIDCompileState.addNode, hj]
   | reveal y who x hx k ih =>
     simp only [MAIDCompileState.ofProg]
     exact ih hl hd _ (st₀.addVar _ _ _ _) hj
