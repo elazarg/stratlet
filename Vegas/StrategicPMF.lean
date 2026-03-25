@@ -201,6 +201,32 @@ noncomputable def outcomeDistBehavioralPMF :
       outcomeDistBehavioralPMF k hd (fun w => match σ w with | .reveal tail => tail)
         (VEnv.cons (Player := P) (L := L) (x := y) (τ := .pub b) v env)
 
+/-- At a commit node, `outcomeDistBehavioralPMF` depends only on `headKernel` at
+the current view and the tail's outcome distribution. -/
+theorem outcomeDistBehavioralPMF_commit_congr
+    {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
+    {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+    {k : VegasCore P L ((x, .hidden who b) :: Γ)}
+    (hd : NormalizedDists (.commit x who R k))
+    (σ₁ σ₂ : ProgramBehavioralProfilePMF (P := P) (L := L) (.commit x who R k))
+    (env : VEnv (Player := P) L Γ)
+    (hkernel :
+      ProgramBehavioralStrategyPMF.headKernel (P := P) (L := L) (σ₁ who)
+        (projectViewEnv (P := P) (L := L) who (VEnv.eraseEnv env)) =
+      ProgramBehavioralStrategyPMF.headKernel (P := P) (L := L) (σ₂ who)
+        (projectViewEnv (P := P) (L := L) who (VEnv.eraseEnv env)))
+    (htail : ∀ v,
+      outcomeDistBehavioralPMF k hd
+        (ProgramBehavioralProfilePMF.tail (P := P) (L := L) σ₁)
+        (VEnv.cons (Player := P) (L := L) (x := x) (τ := .hidden who b) v env) =
+      outcomeDistBehavioralPMF k hd
+        (ProgramBehavioralProfilePMF.tail (P := P) (L := L) σ₂)
+        (VEnv.cons (Player := P) (L := L) (x := x) (τ := .hidden who b) v env)) :
+    outcomeDistBehavioralPMF (.commit x who R k) hd σ₁ env =
+      outcomeDistBehavioralPMF (.commit x who R k) hd σ₂ env := by
+  simp only [outcomeDistBehavioralPMF]
+  rw [hkernel]; congr 1; funext v; exact htail v
+
 /-! ## Pure → PMF behavioral lift -/
 
 namespace ProgramPureProfile
