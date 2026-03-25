@@ -1200,7 +1200,9 @@ private theorem outcomeDistRoundtripV
       simp only [MAID.pureToPolicy, MAID.pureToPlayerStrategy]
       -- compilePureProfileAuxV at node st₀.nextId returns κ (projectViewEnv ...)
       simp only [compilePureProfileAuxV]
-      sorry -- cast algebra: compilePureProfileAuxV gives κ view, cast cancels
+      -- Cast algebra: the outer ▸ on PMF and inner ▸ on Val cancel because
+      -- st_final.toStruct.Val nd0 = L.Val b (via hdesc0 + CompiledNode.valType)
+      sorry
     · -- Tail agreement by IH
       intro v
       let nd : CompiledNode Player L B :=
