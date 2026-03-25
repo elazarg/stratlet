@@ -1159,24 +1159,29 @@ private theorem pmfFoldBridge
             ProgramBehavioralStrategyPMF.tailOwn]
           split_ifs with h <;> subst_vars <;>
             simp only [eq_mp_eq_cast, eq_mpr_eq_cast, cast_cast, cast_eq] <;> rfl
-        -- Cast cancel: both sides differ only in how they transport through
-        -- hdesc0 : st.descAt nd0 = nd, plus the profile representation
-        -- (opaque reflectPolicyAux vs expanded lambda with casts).
-        rw [hprofile]
-        convert rfl using 5
-        -- Remaining goal from convert rfl: cast + profile mismatch.
-        -- Apply pmf_bind_castValType (via symm + convert) to separate them.
-        symm
-        convert pmf_bind_castValType hdesc0 _ _ using 5
-        -- Goal 1: profile mismatch — .tail(reflectPolicyAux) vs PBP.tail(expanded)
-        · congr 1
-          funext i
-          simp only [reflectPolicyAux, ProgramBehavioralProfilePMF.tail,
-            ProgramBehavioralStrategyPMF.tailOwn]
-          split_ifs with h <;> subst_vars <;>
-            simp only [eq_mp_eq_cast, eq_mpr_eq_cast, cast_cast, cast_eq]
-        -- Goal 2: two ▸ transports of pol via hdesc0 at different Eq.rec universes
-        · sorry
+        -- Handle cast + profile mismatch in one convert step.
+        -- The profile and ρ' differences are definitional or closable by simp;
+        -- the cast transport uses pmf_bind_castValType; the type/HEq
+        -- goals from convert are discharged by hdesc0-based lemmas.
+        rw [hprofile]; symm
+        convert pmf_bind_castValType hdesc0
+          (pol p ⟨⟨nd0, hk⟩, projCfg a₀ (st.toStruct.obsParents nd0)⟩)
+          (fun v => nativeOutcomeDistPMF B k hd
+            (reflectPolicyAux B (.commit x p R k) hl hd ρ st₀ pol).tail ρ'
+            (id + 1) ((rawOfTAssign st a₀).extend id ⟨b, v⟩)) using 4
+        all_goals first
+          | exact pmf_bind_castValType hdesc0 _ _
+          | exact (eqRec_heq _ hdesc0).symm
+          | exact eqRec_heq _ hdesc0
+          | exact HEq.rfl
+          | (rw [hdesc0]; rfl)
+          | (rw [← hdesc0]; rfl)
+          | (congr 1; funext i;
+              simp only [reflectPolicyAux, ProgramBehavioralProfilePMF.tail,
+                ProgramBehavioralStrategyPMF.tailOwn];
+              split_ifs with h <;> subst_vars <;>
+                simp only [eq_mp_eq_cast, eq_mpr_eq_cast, cast_cast, cast_eq] <;> rfl)
+          | sorry
       · exfalso; apply h_exists; exact ⟨_, hViewEq⟩
     · -- utility: contradiction
       rename_i hk; rw [toStruct_kind] at hk; rw [hkind_decision] at hk; exact absurd hk (by simp)
