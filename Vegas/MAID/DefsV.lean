@@ -523,10 +523,154 @@ theorem readVal_tagged_eq {raw₁ raw₂ : RawNodeEnv L}
 def InsensitiveTo (f : RawNodeEnv L → α) (nid : Nat) : Prop :=
   ∀ raw (tv : RawTaggedVal L), f (raw.extend nid tv) = f raw
 
+theorem InsensitiveTo.eq_of_eq_off [Nonempty (RawTaggedVal L)]
+    {f : RawNodeEnv L → α} {k : Nat}
+    (hins : InsensitiveTo f k)
+    {raw₁ raw₂ : RawNodeEnv L}
+    (hoff : ∀ i, i ≠ k → raw₁ i = raw₂ i) :
+    f raw₁ = f raw₂ := by
+  obtain ⟨tv⟩ := ‹Nonempty (RawTaggedVal L)›
+  calc f raw₁ = f (raw₁.extend k tv) := (hins raw₁ tv).symm
+    _ = f (raw₂.extend k tv) := by
+        congr 1; funext i; simp only [RawNodeEnv.extend]
+        split <;> [rfl; exact hoff i (by assumption)]
+    _ = f raw₂ := hins raw₂ tv
+
+theorem InsensitiveTo.eq_of_agree_off_list [Nonempty (RawTaggedVal L)]
+    {f : RawNodeEnv L → α}
+    (ks : List Nat)
+    (hins : ∀ k ∈ ks, InsensitiveTo f k)
+    {raw₁ raw₂ : RawNodeEnv L}
+    (hagree : ∀ i, i ∉ ks → raw₁ i = raw₂ i) :
+    f raw₁ = f raw₂ := by
+  induction ks generalizing raw₁ with
+  | nil => exact congrArg f (funext fun i => hagree i List.not_mem_nil)
+  | cons k ks ih =>
+    let raw_mid : RawNodeEnv L := fun i => if i = k then raw₂ i else raw₁ i
+    have h1 : f raw₁ = f raw_mid :=
+      InsensitiveTo.eq_of_eq_off (hins k (.head ks))
+        (fun i hne => right_eq_ite_iff.mpr fun a ↦ hagree i fun a_1 ↦ hne a)
+    have h2 : f raw_mid = f raw₂ :=
+      @ih (fun k' hk' => hins k' (.tail k hk')) raw_mid
+        (fun i hi => by
+          change (if i = k then raw₂ i else raw₁ i) = raw₂ i
+          split
+          · rfl
+          · next hne => exact hagree i (fun hmem => hi (List.mem_of_ne_of_mem hne hmem)))
+    exact h1.trans h2
+
+/-- rawOfTAssign update at a node with known tagged value = extend. -/
+theorem rawOfTAssign_updateAssign_of_tagged
+    (st : MAIDCompileState Player L B)
+    (a : TAssign (fp := B.fintypePlayer) st.toStruct)
+    (nd : Fin st.nextId)
+    (v : Struct.Val (fp := B.fintypePlayer) st.toStruct nd)
+    (tv : RawTaggedVal L)
+    (htag : MAIDCompileState.taggedOfVal (st.descAt nd) v = some tv) :
+    rawOfTAssign st (updateAssign (fp := B.fintypePlayer) a nd v) =
+      (rawOfTAssign st a).extend nd.val tv := by
+  funext i
+  by_cases hi : i < st.nextId
+  · by_cases hEq : (⟨i, hi⟩ : Fin st.nextId) = nd
+    · have hival : i = nd.val := by simpa using congrArg Fin.val hEq
+      subst hival; simp [rawOfTAssign, RawNodeEnv.extend, hi, updateAssign, htag]
+    · have hne : i ≠ nd.val := fun hival => hEq (Fin.ext hival)
+      simp [rawOfTAssign, RawNodeEnv.extend, hi, updateAssign, hEq, hne]
+  · have hne : i ≠ nd.val := fun hEq => hi (hEq.symm ▸ nd.isLt)
+    simp [rawOfTAssign, RawNodeEnv.extend, hi, hne]
+
+/-- rawEnvOfCfg gives none at indices not in the support set. -/
+theorem rawEnvOfCfg_not_mem
+    (st : MAIDCompileState Player L B)
+    {ps : Finset (Fin st.nextId)}
+    (cfg : Cfg (fp := B.fintypePlayer) st.toStruct ps)
+    (i : Nat) (hi : i < st.nextId)
+    (hmem : (⟨i, hi⟩ : Fin st.nextId) ∉ ps) :
+    st.rawEnvOfCfg cfg i = none := by
+  simp [MAIDCompileState.rawEnvOfCfg, hi, hmem]
+
+/-- rawEnvOfCfg gives none at indices ≥ nextId. -/
+theorem rawEnvOfCfg_ge_nextId
+    (st : MAIDCompileState Player L B)
+    {ps : Finset (Fin st.nextId)}
+    (cfg : Cfg (fp := B.fintypePlayer) st.toStruct ps)
+    (i : Nat) (hi : ¬(i < st.nextId)) :
+    st.rawEnvOfCfg cfg i = none := by
+  simp [MAIDCompileState.rawEnvOfCfg, hi]
+
+/-- rawEnvOfCfg of projCfg selects from rawOfTAssign at deps. -/
+theorem rawEnvOfCfg_proj_eq_select
+    (st : MAIDCompileState Player L B)
+    (a : TAssign (fp := B.fintypePlayer) st.toStruct)
+    (ps : Finset (Fin st.nextId))
+    (deps : Finset Nat)
+    (hps : ∀ i (hi : i < st.nextId), ((⟨i, hi⟩ : Fin st.nextId) ∈ ps ↔ i ∈ deps)) :
+    st.rawEnvOfCfg (projCfg (fp := B.fintypePlayer) a ps) =
+      fun i => if i < st.nextId then
+        if i ∈ deps then rawOfTAssign st a i else none else none := by
+  funext i
+  by_cases hi : i < st.nextId
+  · have hps' := hps i hi
+    by_cases hmem : (⟨i, hi⟩ : Fin st.nextId) ∈ ps
+    · simp [MAIDCompileState.rawEnvOfCfg, projCfg, rawOfTAssign, hi, hmem, (hps').mp hmem]
+    · simp [MAIDCompileState.rawEnvOfCfg, projCfg, hi, hmem,
+        show i ∉ deps from fun h => hmem ((hps').mpr h)]
+  · simp [MAIDCompileState.rawEnvOfCfg, hi]
+
+/-- If f is insensitive to all indices outside deps, then f applied to
+the selected raw (deps only) equals f applied to the full rawOfTAssign. -/
+theorem eq_on_ctxDeps_rawOfTAssign
+    (st : MAIDCompileState Player L B)
+    {deps : Finset Nat} {f : RawNodeEnv L → α}
+    (hf : ∀ j, j ∉ deps → InsensitiveTo f j)
+    (a : TAssign (fp := B.fintypePlayer) st.toStruct) :
+    let rawSel : RawNodeEnv L := fun i =>
+      if i < st.nextId then
+        if i ∈ deps then rawOfTAssign st a i else none else none
+    f rawSel = f (rawOfTAssign st a) := by
+  intro rawSel
+  let ks : List Nat := (List.range st.nextId).filter (· ∉ deps)
+  have hclear : rawSel = fun i => if i ∈ ks then none else rawOfTAssign st a i := by
+    funext i
+    by_cases hi : i < st.nextId
+    · have hmem : i ∈ ks ↔ i ∉ deps := by unfold ks; simp [hi]
+      by_cases hdep : i ∈ deps
+      · simp [rawSel, hi, hdep, hmem]
+      · simp [rawSel, hi, hdep, hmem]
+    · simp [rawSel, hi, ks, rawOfTAssign]
+  rw [hclear]
+  haveI : Nonempty (RawTaggedVal L) :=
+    let ⟨v⟩ := B.toMAIDValuation.nonemptyVal L.bool; ⟨⟨L.bool, v⟩⟩
+  apply InsensitiveTo.eq_of_agree_off_list ks
+  · intro k hk; apply hf k
+    have hk' : k ∈ (List.range st.nextId).filter (fun j => j ∉ deps) := by simpa [ks] using hk
+    simpa using (List.mem_filter.mp hk').2
+  · intro i hi; simp [hi]
+
 /-- Cast between CompiledNode value types along a description equality. -/
 def castValType {c c' : CompiledNode Player L B}
     (hc : c = c') (v : CompiledNode.valType c) : CompiledNode.valType c' :=
   hc ▸ v
+
+theorem taggedOfVal_chance_cast
+    {c : CompiledNode Player L B}
+    {τ₀ : L.Ty} {deps₀ : Finset Nat}
+    {cpd₀ : RawNodeEnv L → FDist (L.Val τ₀)}
+    {hn₀ : ∀ raw, FDist.totalWeight (cpd₀ raw) = 1}
+    (hc : c = .chance τ₀ deps₀ cpd₀ hn₀)
+    (v : CompiledNode.valType c) :
+    MAIDCompileState.taggedOfVal c v = some ⟨τ₀, castValType hc v⟩ := by
+  subst hc; rfl
+
+theorem taggedOfVal_decision_cast
+    {c : CompiledNode Player L B}
+    {τ₀ : L.Ty} {who₀ : Player} {acts₀ : List (L.Val τ₀)}
+    {hacts₀ : acts₀ ≠ []} {hnodup₀ : acts₀.Nodup}
+    {obs₀ : Finset Nat}
+    (hc : c = .decision τ₀ who₀ acts₀ hacts₀ hnodup₀ obs₀)
+    (v : CompiledNode.valType c) :
+    MAIDCompileState.taggedOfVal c v = some ⟨τ₀, castValType hc v⟩ := by
+  subst hc; rfl
 
 /-- Updating a total assignment at a utility node doesn't change `rawOfTAssign`. -/
 theorem rawOfTAssign_updateAssign_utility

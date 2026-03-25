@@ -273,6 +273,16 @@ private theorem pmf_descAt_cast_bind_cancel
     (cast hcast d).bind (fun v => f (castValType hdesc v)) = d.bind f := by
   subst hdesc; rfl
 
+/-- Variant: starting from a PMF over the struct Val type, binding with
+`f ∘ castValType` equals transporting the PMF then binding directly. -/
+private theorem pmf_bind_castValType [Fintype P]
+    {st : MAIDCompileState P L B} {nd : Fin st.nextId}
+    {c : CompiledNode P L B} (hdesc : st.descAt nd = c)
+    (d : PMF (CompiledNode.valType (st.descAt nd)))
+    {γ : Type} (f : CompiledNode.valType c → PMF γ) :
+    d.bind (fun v => f (castValType hdesc v)) = (hdesc ▸ d).bind f := by
+  subst hdesc; rfl
+
 /-- What it means for two raw environments to match a compiled node at index i:
 for chance/decision nodes, both raws store the correct type; for utility, both none. -/
 private def RawsMatchDescAt (st : MAIDCompileState P L B)
@@ -1149,18 +1159,24 @@ private theorem pmfFoldBridge
             ProgramBehavioralStrategyPMF.tailOwn]
           split_ifs with h <;> subst_vars <;>
             simp only [eq_mp_eq_cast, eq_mpr_eq_cast, cast_cast, cast_eq] <;> rfl
-        -- Use convert to handle cast + profile mismatch, creating manageable subgoals
+        -- Cast cancel: both sides differ only in how they transport through
+        -- hdesc0 : st.descAt nd0 = nd, plus the profile representation
+        -- (opaque reflectPolicyAux vs expanded lambda with casts).
         rw [hprofile]
-        convert rfl using 2
-        convert (pmf_descAt_cast_bind_cancel hdesc0 _
-          (fun v => nativeOutcomeDistPMF B k hd
-            (reflectPolicyAux B (.commit x p R k) hl hd ρ st₀ pol).tail ρ'
-            (id + 1) ((rawOfTAssign st a₀).extend id ⟨b, v⟩))
-          (congrArg PMF (congrArg CompiledNode.valType hdesc0.symm))).symm using 1
-        all_goals first
-          | exact hk
-          | exact pol p ⟨⟨nd0, _⟩, projCfg a₀ (st.toStruct.obsParents nd0)⟩
-          | sorry
+        convert rfl using 5
+        -- Remaining goal from convert rfl: cast + profile mismatch.
+        -- Apply pmf_bind_castValType (via symm + convert) to separate them.
+        symm
+        convert pmf_bind_castValType hdesc0 _ _ using 5
+        -- Goal 1: profile mismatch — .tail(reflectPolicyAux) vs PBP.tail(expanded)
+        · congr 1
+          funext i
+          simp only [reflectPolicyAux, ProgramBehavioralProfilePMF.tail,
+            ProgramBehavioralStrategyPMF.tailOwn]
+          split_ifs with h <;> subst_vars <;>
+            simp only [eq_mp_eq_cast, eq_mpr_eq_cast, cast_cast, cast_eq]
+        -- Goal 2: two ▸ transports of pol via hdesc0 at different Eq.rec universes
+        · sorry
       · exfalso; apply h_exists; exact ⟨_, hViewEq⟩
     · -- utility: contradiction
       rename_i hk; rw [toStruct_kind] at hk; rw [hkind_decision] at hk; exact absurd hk (by simp)

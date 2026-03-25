@@ -251,10 +251,17 @@ private theorem pmfFoldBridgeV
         (by simp [st₁, stNode, id, MAIDCompileState.addVar, MAIDCompileState.addNode])
       rw [hdesc1]
       simpa [st₁, stNode] using st₀.addNode_descAt_new nd hndeps
-    -- sorry'd: ρ at projCfg = ρ at rawOfTAssign (needs rawEnvOfCfg_proj_eq_select + eq_on_ctxDeps)
     have hρeq :
         ρ (st.rawEnvOfCfg (MAID.projCfg a₀ (st.toStruct.parents nd0))) =
-          ρ (rawOfTAssign st a₀) := by sorry
+          ρ (rawOfTAssign st a₀) := by
+      have hrawP : st.rawEnvOfCfg (MAID.projCfg a₀ (st.toStruct.parents nd0)) =
+          fun i => if i < st.nextId then
+            if i ∈ deps then rawOfTAssign st a₀ i else none else none := by
+        apply rawEnvOfCfg_proj_eq_select st a₀ (st.toStruct.parents nd0) deps
+        intro i hi
+        simp only [st.mem_toStruct_parents_iff nd0 hi, hdesc0, nd, CompiledNode.parents]
+      rw [hrawP]
+      simpa [deps] using (eq_on_ctxDeps_rawOfTAssign st (deps := deps) hρ_deps a₀)
     -- Peel off the chance node from the fold
     change PMF.map (fun a => extractOutcomeAux B (.sample x τ m D' k) ρ st₀.nextId (rawOfTAssign st a))
       (List.foldl (evalStep st.toStruct st.toSem pol) (PMF.pure a₀)
@@ -282,9 +289,9 @@ private theorem pmfFoldBridgeV
       exact ih hl hd.2 hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers
         hρ'_readval (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩) pol _
     simp_rw [hinner]
-    -- sorry'd: rawOfTAssign update → extend (needs rawOfTAssign_updateAssign_of_tagged)
     have hraw : ∀ v, rawOfTAssign st (updateAssign a₀ nd0 v) =
-        (rawOfTAssign st a₀).extend id ⟨τ.base, castValType hdesc0 v⟩ := by sorry
+        (rawOfTAssign st a₀).extend id ⟨τ.base, castValType hdesc0 v⟩ :=
+      fun v => rawOfTAssign_updateAssign_of_tagged st a₀ nd0 v _ (taggedOfVal_chance_cast hdesc0 v)
     simp_rw [hraw]
     -- Unfold nodeDist and connect CPDs
     simp only [nodeDist]
@@ -396,13 +403,27 @@ private theorem pmfFoldBridgeV
       have hdesc1 := MAIDCompileState.ofProg_descAt_old B k hl.2 hd ρ' st₁ id
         (by simp [st₁, stNode, id, MAIDCompileState.addVar, MAIDCompileState.addNode])
       rw [hdesc1]; simpa [st₁, stNode] using st₀.addNode_descAt_new nd hndeps
-    -- View equivalence (where VegasMAID obsParents = parents helps)
+    -- View equivalence — with VegasMAID, obsParents = parents
     have hViewEq :
         projectViewEnv (P := Player) (L := L) who_commit
           (VEnv.eraseEnv (ρ (st.rawEnvOfCfg
             (MAID.projCfg a₀ (st.toStruct.obsParents nd0))))) =
         projectViewEnv (P := Player) (L := L) who_commit
-          (VEnv.eraseEnv (ρ (rawOfTAssign st a₀))) := by sorry
+          (VEnv.eraseEnv (ρ (rawOfTAssign st a₀))) := by
+      have hrawO : st.rawEnvOfCfg (MAID.projCfg a₀ (st.toStruct.obsParents nd0)) =
+          fun i => if i < st.nextId then
+            if i ∈ obs then rawOfTAssign st a₀ i else none else none := by
+        apply rawEnvOfCfg_proj_eq_select st a₀ (st.toStruct.obsParents nd0) obs
+        intro i hi
+        simp only [st.mem_toStruct_obsParents_iff nd0 hi, hdesc0, nd, CompiledNode.obsParents]
+      rw [hrawO]
+      simpa [obs] using
+        (eq_on_ctxDeps_rawOfTAssign st (deps := obs)
+          (f := fun raw => projectViewEnv who_commit (VEnv.eraseEnv (ρ raw)))
+          (fun j hj =>
+            projectViewEnv_insensitive_of_viewDeps st₀ ρ hρ_var who_commit j
+              (by simpa [obs] using hj))
+          a₀)
     -- Peel off the decision node from the fold
     change PMF.map (fun a => extractOutcomeAux B (.commit x who_commit R k) ρ st₀.nextId (rawOfTAssign st a))
       (List.foldl (evalStep st.toStruct st.toSem pol) (PMF.pure a₀)
@@ -430,9 +451,9 @@ private theorem pmfFoldBridgeV
       exact ih hl.2 hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var hρ'_readers
         hρ'_readval (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩) pol _
     simp_rw [hinner]
-    -- Cast rawOfTAssign update to extend (sorry'd)
     have hraw : ∀ v, rawOfTAssign st (updateAssign a₀ nd0 v) =
-        (rawOfTAssign st a₀).extend id ⟨b, castValType hdesc0 v⟩ := by sorry
+        (rawOfTAssign st a₀).extend id ⟨b, castValType hdesc0 v⟩ :=
+      fun v => rawOfTAssign_updateAssign_of_tagged st a₀ nd0 v _ (taggedOfVal_decision_cast hdesc0 v)
     simp_rw [hraw]
     -- Unfold nodeDist at decision node
     simp only [nodeDist]
