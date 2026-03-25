@@ -117,7 +117,7 @@ theorem maid_kuhn_rhs_eq_vegas_mixedV
     (pmfPi μ).bind (fun π =>
       PMF.map extract (frontierEval S sem (pureToPolicy
         (fun who => compilePureStrategyV B p env hl hd hfresh hpub who (π who))))) := by
-    sorry -- pmfPi_map_bind: (pmfPi (σ.map f)).bind g = (pmfPi σ).bind (g ∘ (fun π i => f i (π i)))
+    exact pmfPi_map_bind μ (fun who => compilePureStrategyV B p env hl hd hfresh hpub who) _
   rw [hpi]; congr 1; funext π
   -- For each fixed π, relate compiled strategy to compilePureProfileV
   rw [← compilePureProfileV_eq_mk B p env hl hd hfresh hpub π]
