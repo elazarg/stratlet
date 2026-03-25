@@ -961,8 +961,10 @@ private theorem outcomeDistRoundtripV
     (p : VegasCore Player L Γ) :
     letI := B.fintypePlayer
     ∀ (hl : Legal p) (hd : NormalizedDists p)
+      (hfresh : FreshBindings p)
       (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ)
       (st₀ : MAIDCompileState Player L B)
+      (hvars : st₀.VarsSubCtx Γ)
       (π : ProgramPureProfile (P := Player) (L := L) p)
       (pol : MAID.Policy (MAIDCompileState.ofProg B p hl hd ρ st₀).toStruct)
       (env : VEnv (Player := Player) L Γ),
@@ -972,23 +974,29 @@ private theorem outcomeDistRoundtripV
         MAID.pureToPolicy (compilePureProfileAuxV B p hl hd ρ st₀ π) who I) →
     (∃ raw₀, ρ raw₀ = env) →
     (∀ j, j ∉ (st₀.ctxDeps Γ : Finset Nat) → InsensitiveTo ρ j) →
+    (Γ.map Prod.fst).Nodup →
     outcomeDistBehavioralPMF p hd
       (reflectPolicyAuxV B p hl hd ρ st₀ pol) env =
     outcomeDistBehavioralPMF p hd
       (ProgramPureProfile.toBehavioralPMF p π) env := by
   letI := B.fintypePlayer
   induction p with
-  | ret => intro _ _ _ _ _ _ _ _ _ _; rfl
+  | ret => intro _ _ _ _ _ _ _ _ _ _ _ _ _; rfl
   | letExpr x e k ih =>
-    intro hl hd ρ st π pol env hpol ⟨raw₀, hraw₀⟩ hρ_deps
+    intro hl hd hfresh ρ st hvars π pol env hpol ⟨raw₀, hraw₀⟩ hρ_deps hnodup
     simp only [outcomeDistBehavioralPMF, reflectPolicyAuxV,
       ProgramPureProfile.toBehavioralPMF]
-    exact ih hl hd _ _ π pol _ hpol ⟨raw₀, by simp [hraw₀]⟩ (fun j hj raw tv => by
-      -- ρ' raw = VEnv.cons (f (ρ raw)) (ρ raw), so InsensitiveTo ρ' j follows from InsensitiveTo ρ j
-      simp only; have hρj := hρ_deps j (fun h => hj (by
-        simp [MAIDCompileState.ctxDeps, MAIDCompileState.addVar, MAIDCompileState.depsOfVars]
-        sorry)) raw tv
-      simp [hρj])
+    have hxΓ : Fresh x _ := hfresh.1
+    exact ih hl hd hfresh.2 _ _ sorry π pol _ hpol
+      ⟨raw₀, by simp [hraw₀]⟩
+      (fun j hj raw tv => by
+        have hρj := hρ_deps j (fun h => hj (by
+          simp only [MAIDCompileState.ctxDeps] at h ⊢
+          simp only [MAIDCompileState.depsOfVars, List.map,
+            MAIDCompileState.depsOfVars_addVar_eq_of_fresh _ _ _ _ _ _ hxΓ] at h ⊢
+          exact Finset.mem_union_right _ h)) raw tv
+        simp [hρj])
+      (List.nodup_cons.mpr ⟨hxΓ, hnodup⟩)
   | sample x τ m D' k ih =>
     intro hl hd ρ st π pol env hpol ⟨raw₀, hraw₀⟩ hρ_deps
     simp only [outcomeDistBehavioralPMF, reflectPolicyAuxV,
