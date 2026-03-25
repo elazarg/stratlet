@@ -780,6 +780,7 @@ theorem vegasMAID_reverse_bridge
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
+    (hnodup : (Γ.map Prod.fst).Nodup)
     (pol : Policy (fp := B.fintypePlayer) (compiledStruct B p env hl hd hfresh hpub)) :
     let S := compiledStruct B p env hl hd hfresh hpub
     let sem := vegasMAIDSem B p env hl hd hfresh hpub
@@ -809,7 +810,7 @@ theorem vegasMAID_reverse_bridge
     (fun x who' bt hx hne => absurd hne (by
       simp [MAIDCompileState.empty, MAIDCompileState.lookupDeps,
         MAIDCompileState.lookupDepsAux, Finset.not_nonempty_empty]))
-    sorry -- hnodup: (Γ.map Prod.fst).Nodup — need FreshBindings or WF
+    hnodup
     pol (defaultAssign S)
   rw [show (MAIDCompileState.empty (B := B) (Player := Player) (L := L)).nextId = 0 from rfl,
     List.drop_zero] at hbridge

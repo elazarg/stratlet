@@ -128,6 +128,7 @@ theorem vegas_kuhn_mixed_to_behavioralV
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
+    (hnodup : (Γ.map Prod.fst).Nodup)
     (μ : ∀ who, PMF (ProgramPureStrategy who p)) :
     let _ : ∀ who, Fintype (ProgramPureStrategy who p) :=
       fun who => ProgramPureStrategy.instFintype LF who p
@@ -158,7 +159,7 @@ theorem vegas_kuhn_mixed_to_behavioralV
   -- Goal: outcomeDistBehavioralPMF p hd σ env = (pmfPi μ).bind (fun π => ...)
   -- From reverse bridge:
   --   PMF.map extract (frontierEval S sem pol) = outcomeDistBehavioralPMF p hd σ env
-  have hrev := vegasMAID_reverse_bridge B p env hl hd hfresh hpub pol
+  have hrev := vegasMAID_reverse_bridge B p env hl hd hfresh hpub hnodup pol
   -- From MAID Kuhn: frontierEval S sem pol = (pmfPi μ_maid).bind (...)
   -- So: PMF.map extract (frontierEval S sem pol) =
   --     (pmfPi μ_maid).bind (fun π_maid =>
