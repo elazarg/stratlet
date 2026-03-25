@@ -1022,18 +1022,16 @@ private theorem outcomeDistRoundtripV
           apply Finset.mem_union_left
           simp only [MAIDCompileState.addNode, MAIDCompileState.addVar,
             MAIDCompileState.lookupDeps]
-          rw [MAIDCompileState.lookupDepsAux_append_found]
-          · exact Finset.mem_singleton_self _
-          · rfl
-        show VEnv.cons (MAIDCompileState.readVal (B := B) (raw.extend j tv) _ st.nextId) (ρ (raw.extend j tv)) =
-          VEnv.cons (MAIDCompileState.readVal (B := B) raw _ st.nextId) (ρ raw)
-        simp only [MAIDCompileState.readVal, RawNodeEnv.extend, show (j == st.nextId) = false from by
-          simp [hne]]
-        exact congrArg _ (hρ_deps j (fun h => hj (by
-          simp only [MAIDCompileState.ctxDeps, MAIDCompileState.depsOfVars, List.map] at h ⊢
-          rw [MAIDCompileState.depsOfVars_addVar_eq_of_fresh _ _ _ _ _ _ hxΓ,
-            MAIDCompileState.depsOfVars_addNode_eq]
-          exact Finset.mem_union_right _ h)) raw tv))
+          rw [lookupDepsAux_append_singleton_eq_self_of_fresh _ _ _ _
+            (show x ∉ st.vars.map Prod.fst from fun hmem => hxΓ (hvars x hmem))]
+          exact Finset.mem_singleton_self _
+        exact VEnv.cons_ext
+          (readVal_extend_ne raw j st.nextId tv τ.base (Ne.symm hne))
+          (hρ_deps j (fun h => hj (by
+            simp only [MAIDCompileState.ctxDeps, MAIDCompileState.depsOfVars, List.map] at h ⊢
+            rw [MAIDCompileState.depsOfVars_addVar_eq_of_fresh _ _ _ _ _ _ hxΓ,
+              MAIDCompileState.depsOfVars_addNode_eq]
+            exact Finset.mem_union_right _ h)) raw tv))
       (List.nodup_cons.mpr ⟨hfresh.1, hnodup⟩)
   | reveal y who x hx k ih =>
     intro hl hd hfresh ρ st hvars π pol env hpol ⟨raw₀, hraw₀⟩ hρ_deps hnodup
@@ -1112,11 +1110,26 @@ private theorem outcomeDistRoundtripV
             rw [hρ_deps st₀.nextId (by intro h; exact absurd (st₀.depsOfVars_lt _ _ h) (by omega))
               raw₀ ⟨b, v⟩, hraw₀]]⟩
         (fun j hj raw tv => by
-          simp only [ρ', VEnv.cons, MAIDCompileState.readVal, RawNodeEnv.extend]
           have hne : j ≠ st₀.nextId := by
-            intro heq; subst heq; sorry
-          simp [hne]
-          exact hρ_deps j (by sorry) raw tv)
+            intro heq; subst heq; apply hj
+            simp only [st₁, MAIDCompileState.ctxDeps, MAIDCompileState.depsOfVars, List.map,
+              MAIDCompileState.addNode, MAIDCompileState.addVar]
+            apply Finset.mem_union_left
+            simp only [MAIDCompileState.addNode, MAIDCompileState.addVar,
+              MAIDCompileState.lookupDeps]
+            rw [lookupDepsAux_append_singleton_eq_self_of_fresh _ _ _ _
+              (show x ∉ st₀.vars.map Prod.fst from fun hmem => hfresh.1 (hvars x hmem))]
+            exact Finset.mem_singleton_self _
+          show ρ' (raw.extend j tv) = ρ' raw
+          simp only [ρ']
+          exact VEnv.cons_ext
+            (readVal_extend_ne raw j st₀.nextId tv b (Ne.symm hne))
+            (hρ_deps j (fun h => hj (by
+              simp only [st₁, MAIDCompileState.ctxDeps, MAIDCompileState.depsOfVars,
+                List.map] at h ⊢
+              rw [MAIDCompileState.depsOfVars_addVar_eq_of_fresh _ _ _ _ _ _ hfresh.1,
+                MAIDCompileState.depsOfVars_addNode_eq]
+              exact Finset.mem_union_right _ h)) raw tv))
         (List.nodup_cons.mpr ⟨hfresh.1, hnodup⟩)
 
 theorem vegasMAID_pure_bridge
