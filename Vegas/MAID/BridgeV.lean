@@ -983,7 +983,12 @@ private theorem outcomeDistRoundtripV
     intro hl hd ρ st π pol env hpol ⟨raw₀, hraw₀⟩ hρ_deps
     simp only [outcomeDistBehavioralPMF, reflectPolicyAuxV,
       ProgramPureProfile.toBehavioralPMF]
-    exact ih hl hd _ _ π pol _ hpol ⟨raw₀, by simp [hraw₀]⟩ sorry
+    exact ih hl hd _ _ π pol _ hpol ⟨raw₀, by simp [hraw₀]⟩ (fun j hj raw tv => by
+      -- ρ' raw = VEnv.cons (f (ρ raw)) (ρ raw), so InsensitiveTo ρ' j follows from InsensitiveTo ρ j
+      simp only; have hρj := hρ_deps j (fun h => hj (by
+        simp [MAIDCompileState.ctxDeps, MAIDCompileState.addVar, MAIDCompileState.depsOfVars]
+        sorry)) raw tv
+      simp [hρj])
   | sample x τ m D' k ih =>
     intro hl hd ρ st π pol env hpol ⟨raw₀, hraw₀⟩ hρ_deps
     simp only [outcomeDistBehavioralPMF, reflectPolicyAuxV,
