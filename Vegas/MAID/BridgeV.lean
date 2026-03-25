@@ -1058,9 +1058,33 @@ private theorem outcomeDistRoundtripV
             (by intro h; exact absurd (st.depsOfVars_lt _ _ h) (by omega))
             raw₀ ⟨_, v⟩, hraw₀]],
       by -- typing propagation (sample)
-        sorry,
+        intro j hj
+        have hst₁_id : st₁.nextId = st.nextId + 1 := by
+          simp [st₁, stNode, MAIDCompileState.addVar, MAIDCompileState.addNode]
+        by_cases hjid : j = st.nextId
+        · subst hjid
+          have hdesc_new : st₁.descAt ⟨st.nextId, hj⟩ = nd := by
+            simp [st₁, stNode, MAIDCompileState.addVar, MAIDCompileState.addNode]
+          refine ⟨cast (by rw [hdesc_new]; rfl) v, ?_⟩
+          simp only [RawNodeEnv.extend, ↓reduceIte]
+          revert hdesc_new; generalize st₁.descAt ⟨st.nextId, hj⟩ = c
+          intro hc; subst hc
+          simp [nd, MAIDCompileState.taggedOfVal, cast_eq]
+        · have hj' : j < st.nextId := by rw [hst₁_id] at hj; omega
+          obtain ⟨w, hw⟩ := hraw_typed j hj'
+          have hdj : st₁.descAt ⟨j, hj⟩ = st.descAt ⟨j, hj'⟩ := by
+            simp [st₁, stNode, MAIDCompileState.addVar, MAIDCompileState.addNode, hj']
+          exact ⟨cast (by rw [hdj]) w, by
+            simp only [RawNodeEnv.extend, hjid, ↓reduceIte]
+            rw [hw]; revert hdj; generalize st₁.descAt ⟨j, hj⟩ = c
+            intro hdj; subst hdj; simp [cast_eq]⟩,
       by -- hi propagation (sample)
-        sorry⟩
+        intro j hj
+        have hst₁_id : st₁.nextId = st.nextId + 1 := by
+          simp [st₁, stNode, MAIDCompileState.addVar, MAIDCompileState.addNode]
+        have hj_ge : j ≥ st.nextId + 1 := by rw [← hst₁_id]; exact hj
+        simp only [RawNodeEnv.extend, show ¬(j = st.nextId) from by omega, ↓reduceIte]
+        exact hraw_hi j (by omega)⟩
       (fun j hj raw tv => by
         have hne : j ≠ st.nextId := by
           intro heq; subst heq; apply hj
@@ -1251,11 +1275,11 @@ private theorem outcomeDistRoundtripV
       -- Rewrite pol via hpol
       have hge : nd0.val ≥ st₀.nextId := le_refl _
       rw [hpol who_commit ⟨⟨nd0, _⟩, Classical.choose hex⟩ hge]
-      -- pureToPolicy gives PMF.pure
-      simp only [MAID.pureToPolicy, MAID.pureToPlayerStrategy]
-      -- Remaining: Eq.rec on PMF through pureToPolicy + compilePureProfileAuxV
-      -- The types toStruct.Val nd0 and L.Val b are propositionally equal (via hdesc0)
-      -- but Eq.rec doesn't reduce. Needs a dedicated cast-through-PMF lemma.
+      simp only [MAID.pureToPolicy, MAID.pureToPlayerStrategy, compilePureProfileAuxV,
+        show (nd0 : Nat) = st₀.nextId from rfl, ↓reduceDIte, id]
+      -- Cast algebra: Eq.rec on PMF through compilePureProfileAuxV.
+      -- Types are propositionally equal (toStruct.Val nd0 = L.Val b via hdesc0)
+      -- but Eq.rec doesn't reduce. Needs Subtype.ext + generalize on descAt.
       sorry
     · -- Tail agreement by IH
       intro v
@@ -1309,7 +1333,34 @@ private theorem outcomeDistRoundtripV
             rw [hρ_deps st₀.nextId
               (by intro h; exact absurd (st₀.depsOfVars_lt _ _ h) (by omega))
               raw₀ ⟨b, v⟩, hraw₀]],
-        sorry, sorry⟩
+        by -- typing propagation (commit)
+          intro j hj
+          have hst₁_id : st₁.nextId = st₀.nextId + 1 := by
+            simp [st₁, MAIDCompileState.addVar, MAIDCompileState.addNode]
+          by_cases hjid : j = st₀.nextId
+          · subst hjid
+            have hdesc_new : st₁.descAt ⟨st₀.nextId, hj⟩ = nd := by
+              simp [st₁, MAIDCompileState.addVar, MAIDCompileState.addNode]
+            refine ⟨cast (by rw [hdesc_new]; rfl) v, ?_⟩
+            simp only [RawNodeEnv.extend, ↓reduceIte]
+            revert hdesc_new; generalize st₁.descAt ⟨st₀.nextId, hj⟩ = c
+            intro hc; subst hc
+            simp [nd, MAIDCompileState.taggedOfVal, cast_eq]
+          · have hj' : j < st₀.nextId := by rw [hst₁_id] at hj; omega
+            obtain ⟨w, hw⟩ := hraw_typed j hj'
+            have hdj : st₁.descAt ⟨j, hj⟩ = st₀.descAt ⟨j, hj'⟩ := by
+              simp [st₁, MAIDCompileState.addVar, MAIDCompileState.addNode, hj']
+            exact ⟨cast (by rw [hdj]) w, by
+              simp only [RawNodeEnv.extend, hjid, ↓reduceIte]
+              rw [hw]; revert hdj; generalize st₁.descAt ⟨j, hj⟩ = c
+              intro hdj; subst hdj; simp [cast_eq]⟩,
+        by -- hi propagation (commit)
+          intro j hj
+          have hst₁_id : st₁.nextId = st₀.nextId + 1 := by
+            simp [st₁, MAIDCompileState.addVar, MAIDCompileState.addNode]
+          have hj_ge : j ≥ st₀.nextId + 1 := by rw [← hst₁_id]; exact hj
+          simp only [RawNodeEnv.extend, show ¬(j = st₀.nextId) from by omega, ↓reduceIte]
+          exact hraw_hi j (by omega)⟩
         (fun j hj raw tv => by
           have hne : j ≠ st₀.nextId := by
             intro heq; subst heq; apply hj
@@ -1329,7 +1380,31 @@ private theorem outcomeDistRoundtripV
               rw [MAIDCompileState.depsOfVars_addVar_eq_of_fresh _ _ _ _ _ _ hfresh.1,
                 MAIDCompileState.depsOfVars_addNode_eq]
               exact Finset.mem_union_right _ h)) raw tv))
-        (by sorry) -- EnvRespectsLookupDeps commit propagation
+        (by
+          intro y σ hy j hj raw tv
+          cases hy with
+          | here =>
+              have hlookup : (stNode.addVar x (.hidden who_commit b) {st₀.nextId} (by
+                  intro d hd₁; simp only [Finset.mem_singleton] at hd₁; subst hd₁
+                  exact Nat.lt_succ_self _)).lookupDeps x = ({st₀.nextId} : Finset Nat) := by
+                exact stNode.lookupDeps_addVar_eq_self_of_fresh x _ {st₀.nextId}
+                  (by intro d hd₁; simp only [Finset.mem_singleton] at hd₁; subst hd₁
+                      exact Nat.lt_succ_self _)
+                  (by simpa [stNode, MAIDCompileState.addNode] using hxvars)
+              have hjid : j ≠ st₀.nextId := by
+                intro heq; apply hj; rw [hlookup]; exact heq ▸ Finset.mem_singleton_self _
+              simpa [VEnv.get, readVal_extend_ne, hjid] using
+                (readVal_extend_ne (B := B) raw j st₀.nextId tv b hjid.symm)
+          | there hy' =>
+              have hxy : y ≠ x := fun hEq => hfresh.1 (hEq.symm ▸ hy'.mem_map_fst)
+              have h1 := stNode.lookupDeps_addVar_eq_of_ne x (.hidden who_commit b)
+                {st₀.nextId}
+                (by intro d hd₁; simp only [Finset.mem_singleton] at hd₁; subst hd₁
+                    exact Nat.lt_succ_self _) hxy
+              have h2 := st₀.lookupDeps_addNode nd hndeps y
+              have hj' : j ∉ st₀.lookupDeps y :=
+                fun hmem => hj (h1.symm ▸ h2.symm ▸ hmem)
+              simpa [VEnv.get, VEnv.cons_get_there] using hρ_var hy' j hj' raw tv)
         (List.nodup_cons.mpr ⟨hfresh.1, hnodup⟩)
 
 theorem vegasMAID_pure_bridge
