@@ -44,7 +44,8 @@ private theorem pmfFoldBridgeV
       (a₀ : TAssign (fp := B.fintypePlayer) st.toStruct),
       PMF.map (fun a => extractOutcomeAux B p ρ st₀.nextId (rawOfTAssign st a))
         ((List.finRange st.nextId).drop st₀.nextId |>.foldl
-          (evalStep (fp := B.fintypePlayer) st.toStruct (MAIDCompileState.toSem st) pol) (PMF.pure a₀)) =
+          (evalStep (fp := B.fintypePlayer) st.toStruct
+            (MAIDCompileState.toSem st) pol) (PMF.pure a₀)) =
       nativeOutcomeDistPMFV B p hd
         (reflectPolicyAuxV B p hl hd ρ st₀ pol)
         ρ st₀.nextId (rawOfTAssign st a₀) := by
@@ -1032,9 +1033,14 @@ private theorem outcomeDistRoundtripV
           exact Ne.symm (Nat.ne_of_lt hge)
         simp only [toStruct_kind, hne, ↓reduceDIte]
         exact ((fun a ↦ a) ∘ fun a ↦ a) rfl
-      -- Tail of reflected profile at commit = reflectPolicyAuxV at k (by unfolding tail)
-      -- Tail of toBehavioralPMF at commit = toBehavioralPMF at k (by tail_toBehavioralPMF)
-      sorry
+      have h1 : (reflectPolicyAuxV B (.commit x who_commit R k) hl hd ρ st₀ pol).tail =
+          reflectPolicyAuxV B k hl.2 hd ρ' st₁ pol := by
+        funext w; simp only [ProgramBehavioralProfilePMF.tail, reflectPolicyAuxV]
+        by_cases hw : who_commit = w
+        · subst hw; simp [ProgramBehavioralStrategyPMF.tailOwn, dif_pos rfl]; rfl
+        · simp [hw, dif_neg hw]; rfl
+      rw [h1, ProgramPureProfile.tail_toBehavioralPMF]
+      exact ih hl.2 hd ρ' st₁ (ProgramPureProfile.tail π) pol _ hst₁_le
 
 theorem vegasMAID_pure_bridge
     (B : MAIDBackend Player L) {Γ : VCtx Player L}
