@@ -252,13 +252,13 @@ noncomputable def reflectPolicyAuxV
     MAID.Policy (fp := B.fintypePlayer)
       (MAIDCompileState.ofProg B p hl hd ρ st₀).toStruct →
     ProgramBehavioralProfilePMF p
-  | _, .ret _, _, _, _, _, _ => fun _ => PUnit.unit
+  | _, .ret _, _, _, _, _, _ => fun _ => .ret
   | _, .letExpr (b := b) x e k, hl, hd, ρ, st, pol =>
-      reflectPolicyAuxV B k hl hd
+      fun i => .letExpr (reflectPolicyAuxV B k hl hd
         (fun raw => VEnv.cons (τ := .pub b) (L.eval e (VEnv.erasePubEnv (ρ raw))) (ρ raw))
-        (st.addVar x (.pub b) (st.pubCtxDeps _) (st.depsOfVars_lt _)) pol
+        (st.addVar x (.pub b) (st.pubCtxDeps _) (st.depsOfVars_lt _)) pol i)
   | _, .sample x τ m D' k, hl, hd, ρ, st, pol =>
-      reflectPolicyAuxV B k hl hd.2 _ _ pol
+      fun i => .sample (reflectPolicyAuxV B k hl hd.2 _ _ pol i)
   | Γ, .commit (b := b) x who R k, hl, hd, ρ, st, pol =>
       letI := B.fintypePlayer
       let st_final := MAIDCompileState.ofProg B (.commit x who R k) hl hd ρ st
@@ -309,12 +309,10 @@ noncomputable def reflectPolicyAuxV
       fun i => by
         by_cases h : who = i
         · subst h
-          simpa [ProgramBehavioralStrategyPMF] using
-            (kernel, reflectPolicyAuxV B k hl.2 hd _ _ pol who)
-        · simpa [ProgramBehavioralStrategyPMF, h] using
-            reflectPolicyAuxV B k hl.2 hd _ _ pol i
+          exact .commitOwn kernel (reflectPolicyAuxV B k hl.2 hd _ _ pol who)
+        · exact .commitOther h (reflectPolicyAuxV B k hl.2 hd _ _ pol i)
   | _, .reveal (b := b) y who x hx k, hl, hd, ρ, st, pol =>
-      reflectPolicyAuxV B k hl hd _ _ pol
+      fun i => .reveal (reflectPolicyAuxV B k hl hd _ _ pol i)
 
 /-- Reflect a MAID policy to a Vegas PMF behavioral profile. -/
 noncomputable def reflectPolicyV
@@ -1007,14 +1005,14 @@ noncomputable def nativeOutcomeDistPMFV
   | .ret u, _, _ => fun ρ _ raw =>
       PMF.pure (evalPayoffs u (ρ raw))
   | .letExpr (b := b) x e k, hd, σ => fun ρ nextId raw =>
-      nativeOutcomeDistPMFV B k hd σ
+      nativeOutcomeDistPMFV B k hd (fun w => match σ w with | .letExpr tail => tail)
         (fun raw => VEnv.cons (L := L) (x := x) (τ := .pub b)
           (L.eval e (VEnv.erasePubEnv (ρ raw))) (ρ raw))
         nextId raw
   | .sample x τ _m D' k, hd, σ => fun ρ nextId raw =>
       ((L.evalDist D' (VEnv.eraseDistEnv τ _ (ρ raw))).toPMF (hd.1 _)).bind
         (fun v =>
-          nativeOutcomeDistPMFV B k hd.2 σ
+          nativeOutcomeDistPMFV B k hd.2 (fun w => match σ w with | .sample tail => tail)
             (fun raw => VEnv.cons (L := L) (x := x) (τ := τ)
               (MAIDCompileState.readVal (B := B) raw τ.base nextId) (ρ raw))
             (nextId + 1) (raw.extend nextId ⟨τ.base, v⟩))
@@ -1028,7 +1026,7 @@ noncomputable def nativeOutcomeDistPMFV
               (MAIDCompileState.readVal (B := B) raw b nextId) (ρ raw))
             (nextId + 1) (raw.extend nextId ⟨b, v⟩))
   | .reveal (b := b) y _who _x hx k, hd, σ => fun ρ nextId raw =>
-      nativeOutcomeDistPMFV B k hd σ
+      nativeOutcomeDistPMFV B k hd (fun w => match σ w with | .reveal tail => tail)
         (fun raw =>
           let v : L.Val b := VEnv.get (L := L) (ρ raw) hx
           VEnv.cons (L := L) (x := y) (τ := .pub b) v (ρ raw))
@@ -1053,7 +1051,7 @@ theorem nativeOutcomeDistPMFV_eq
     intro raw; simp only [nativeOutcomeDistPMFV, outcomeDistBehavioralPMF]
   | letExpr x e k ih =>
     intro raw; simp only [nativeOutcomeDistPMFV, outcomeDistBehavioralPMF]
-    exact ih hd σ _ nextId
+    exact ih hd (fun w => match σ w with | .letExpr tail => tail) _ nextId
       (fun nid hn raw tv => VEnv.cons_ext
         (congrArg (L.eval e) (congrArg VEnv.erasePubEnv (hρ nid hn raw tv)))
         (hρ nid hn raw tv))
@@ -1068,7 +1066,7 @@ theorem nativeOutcomeDistPMFV_eq
       exact VEnv.cons_ext
         (readVal_extend_ne raw nid' nextId tv τ.base (by omega))
         (hρ nid' (by omega) raw tv)
-    rw [ih hd.2 σ _ (nextId + 1) hρ']
+    rw [ih hd.2 (fun w => match σ w with | .sample tail => tail) _ (nextId + 1) hρ']
     congr 1
     exact VEnv.cons_ext (readVal_extend_self (B := B) raw nextId τ.base v)
       (hρ nextId (le_refl _) raw ⟨τ.base, v⟩)
@@ -1088,7 +1086,7 @@ theorem nativeOutcomeDistPMFV_eq
       (hρ nextId (le_refl _) raw ⟨b, v⟩)
   | reveal y who x hx k ih =>
     intro raw; simp only [nativeOutcomeDistPMFV, outcomeDistBehavioralPMF]
-    exact ih hd σ _ nextId
+    exact ih hd (fun w => match σ w with | .reveal tail => tail) _ nextId
       (fun nid hn raw tv =>
         VEnv.cons_ext (τ := .pub _)
           (congrArg (VEnv.get (L := L) · hx) (hρ nid hn raw tv))

@@ -77,18 +77,36 @@ end ProgramBehavioralKernelPMF
 
 /-- Player-`who` PMF behavioral strategies for the fixed program `p`: one
 PMF choice rule for each commit site of `p` owned by `who`. -/
-def ProgramBehavioralStrategyPMF (who : P) :
-    {Γ : VCtx P L} → VegasCore P L Γ → Type
-  | _, .ret _ => PUnit
-  | _, .letExpr _ _ k => ProgramBehavioralStrategyPMF who k
-  | _, .sample _ _ _ _ k => ProgramBehavioralStrategyPMF who k
-  | Γ, .commit _ owner (b := b) _ k =>
-      if owner = who then
-        ProgramBehavioralKernelPMF (P := P) (L := L) who Γ b ×
-          ProgramBehavioralStrategyPMF who k
-      else
-        ProgramBehavioralStrategyPMF who k
-  | _, .reveal _ _ _ _ k => ProgramBehavioralStrategyPMF who k
+inductive ProgramBehavioralStrategyPMF (who : P) :
+    {Γ : VCtx P L} → VegasCore P L Γ → Type where
+  | ret {Γ : VCtx P L} {u} :
+      ProgramBehavioralStrategyPMF who (.ret (Γ := Γ) u)
+  | letExpr {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {e : L.Expr (erasePubVCtx Γ) b} {k : VegasCore P L ((x, .pub b) :: Γ)} :
+      ProgramBehavioralStrategyPMF who k →
+      ProgramBehavioralStrategyPMF who (.letExpr x e k)
+  | sample {Γ : VCtx P L} {x : VarId} {τ : BindTy P L} {m : SampleMode τ}
+      {D' : L.DistExpr (eraseVCtx (distVCtx τ m Γ)) τ.base}
+      {k : VegasCore P L ((x, τ) :: Γ)} :
+      ProgramBehavioralStrategyPMF who k →
+      ProgramBehavioralStrategyPMF who (.sample x τ m D' k)
+  | commitOwn {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+      {k : VegasCore P L ((x, .hidden who b) :: Γ)} :
+      ProgramBehavioralKernelPMF (P := P) (L := L) who Γ b →
+      ProgramBehavioralStrategyPMF who k →
+      ProgramBehavioralStrategyPMF who (.commit x who R k)
+  | commitOther {Γ : VCtx P L} {x : VarId} {owner : P} {b : L.Ty}
+      {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+      {k : VegasCore P L ((x, .hidden owner b) :: Γ)}
+      (h : owner ≠ who) :
+      ProgramBehavioralStrategyPMF who k →
+      ProgramBehavioralStrategyPMF who (.commit x owner R k)
+  | reveal {Γ : VCtx P L} {y : VarId} {owner : P} {x : VarId} {b : L.Ty}
+      {hx : VHasVar (L := L) Γ x (.hidden owner b)}
+      {k : VegasCore P L ((y, .pub b) :: Γ)} :
+      ProgramBehavioralStrategyPMF who k →
+      ProgramBehavioralStrategyPMF who (.reveal y owner x hx k)
 
 /-- Joint PMF behavioral strategy profile for the fixed program `p`. -/
 abbrev ProgramBehavioralProfilePMF {Γ : VCtx P L} (p : VegasCore P L Γ) : Type :=
@@ -102,11 +120,9 @@ def headKernel
     {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
     {k : VegasCore P L ((x, .hidden who b) :: Γ)}
     (σ : ProgramBehavioralStrategyPMF (P := P) (L := L) who (.commit x who R k)) :
-    ViewEnv (P := P) (L := L) who Γ → PMF (L.Val b) := by
-  let σ' : ProgramBehavioralKernelPMF (P := P) (L := L) who Γ b ×
-      ProgramBehavioralStrategyPMF (P := P) (L := L) who k := by
-    simpa [ProgramBehavioralStrategyPMF] using σ
-  exact σ'.1.run
+    ViewEnv (P := P) (L := L) who Γ → PMF (L.Val b) :=
+  match σ with
+  | .commitOwn kern _ => kern.run
 
 /-- Drop the head commit-site choice rule from the acting player's strategy. -/
 def tailOwn
@@ -114,11 +130,9 @@ def tailOwn
     {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
     {k : VegasCore P L ((x, .hidden who b) :: Γ)}
     (σ : ProgramBehavioralStrategyPMF (P := P) (L := L) who (.commit x who R k)) :
-    ProgramBehavioralStrategyPMF (P := P) (L := L) who k := by
-  let σ' : ProgramBehavioralKernelPMF (P := P) (L := L) who Γ b ×
-      ProgramBehavioralStrategyPMF (P := P) (L := L) who k := by
-    simpa [ProgramBehavioralStrategyPMF] using σ
-  exact σ'.2
+    ProgramBehavioralStrategyPMF (P := P) (L := L) who k :=
+  match σ with
+  | .commitOwn _ tail => tail
 
 @[simp] theorem headKernel_mk
     {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
@@ -126,9 +140,7 @@ def tailOwn
     {k : VegasCore P L ((x, .hidden who b) :: Γ)}
     (kern : ProgramBehavioralKernelPMF (P := P) (L := L) who Γ b)
     (tail : ProgramBehavioralStrategyPMF (P := P) (L := L) who k) :
-    headKernel (R := R) (show ProgramBehavioralStrategyPMF who (.commit x who R k) from
-      by simpa [ProgramBehavioralStrategyPMF] using (kern, tail)) = kern.run := by
-  simp [headKernel, ProgramBehavioralStrategyPMF]
+    headKernel (R := R) (.commitOwn kern tail) = kern.run := rfl
 
 end ProgramBehavioralStrategyPMF
 
@@ -141,12 +153,13 @@ def tail
     {k : VegasCore P L ((x, .hidden who b) :: Γ)}
     (σ : ProgramBehavioralProfilePMF (P := P) (L := L) (.commit x who R k)) :
     ProgramBehavioralProfilePMF (P := P) (L := L) k :=
-  fun i =>
-    by
-      by_cases h : who = i
-      · subst h
-        exact ProgramBehavioralStrategyPMF.tailOwn (P := P) (L := L) (σ who)
-      · simpa [ProgramBehavioralStrategyPMF, h] using σ i
+  fun i => by
+    by_cases h : who = i
+    · subst h
+      exact ProgramBehavioralStrategyPMF.tailOwn (P := P) (L := L) (σ who)
+    · exact match σ i with
+      | .commitOther _ tail => tail
+      | .commitOwn _ tail => tail
 
 end ProgramBehavioralProfilePMF
 
@@ -165,13 +178,14 @@ noncomputable def outcomeDistBehavioralPMF :
   | _, .ret payoffs, _, _, env =>
       PMF.pure (evalPayoffs payoffs env)
   | _, .letExpr x e k, hd, σ, env =>
-      outcomeDistBehavioralPMF k hd σ <|
+      outcomeDistBehavioralPMF k hd (fun w => match σ w with | .letExpr tail => tail) <|
         VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _)
           (L.eval e (VEnv.erasePubEnv env)) env
   | _, .sample x τ m D' k, hd, σ, env =>
       ((L.evalDist D' (VEnv.eraseDistEnv τ m env)).toPMF (hd.1 env)).bind
         (fun v =>
-          outcomeDistBehavioralPMF k hd.2 σ
+          outcomeDistBehavioralPMF k hd.2
+            (fun w => match σ w with | .sample tail => tail)
             (VEnv.cons (Player := P) (L := L) (x := x) (τ := τ) v env))
   | _, .commit x who (b := b) _ k, hd, σ, env =>
       (ProgramBehavioralStrategyPMF.headKernel (P := P) (L := L) (σ who)
@@ -183,7 +197,7 @@ noncomputable def outcomeDistBehavioralPMF :
               (τ := .hidden who b) v env))
   | _, .reveal y _who _x (b := b) hx k, hd, σ, env =>
       let v : L.Val b := VEnv.get (Player := P) (L := L) env hx
-      outcomeDistBehavioralPMF k hd σ
+      outcomeDistBehavioralPMF k hd (fun w => match σ w with | .reveal tail => tail)
         (VEnv.cons (Player := P) (L := L) (x := y) (τ := .pub b) v env)
 
 /-! ## Pure → PMF behavioral lift -/
@@ -196,21 +210,19 @@ noncomputable def toBehavioralPMF :
       (p : VegasCore P L Γ) →
       ProgramPureProfile (P := P) (L := L) p →
       ProgramBehavioralProfilePMF (P := P) (L := L) p
-  | _, .ret _, _ => fun _ => PUnit.unit
-  | _, .letExpr _ _ k, σ => toBehavioralPMF k σ
-  | _, .sample _ _ _ _ k, σ => toBehavioralPMF k σ
-  | _, .commit _ who R k, σ =>
+  | _, .ret _, _ => fun _ => .ret
+  | _, .letExpr _ _ k, σ => fun w => .letExpr (toBehavioralPMF k σ w)
+  | _, .sample _ _ _ _ k, σ => fun w => .sample (toBehavioralPMF k σ w)
+  | _, .commit _ who _R k, σ =>
       fun i =>
-        by
-          by_cases h : who = i
-          · subst h
-            simpa [ProgramBehavioralStrategyPMF] using
-              (ProgramBehavioralKernelPMF.ofPure (P := P) (L := L)
-                (ProgramPureStrategy.headKernel (P := P) (L := L) (σ who)),
-               toBehavioralPMF k (tail (P := P) (L := L) σ) who)
-          · simpa [ProgramBehavioralStrategyPMF, h] using
-              toBehavioralPMF k (tail (P := P) (L := L) σ) i
-  | _, .reveal _ _ _ _ k, σ => toBehavioralPMF k σ
+        if h : who = i then
+          h ▸ .commitOwn
+            (ProgramBehavioralKernelPMF.ofPure (P := P) (L := L)
+              (ProgramPureStrategy.headKernel (P := P) (L := L) (σ who)))
+            (toBehavioralPMF k (tail (P := P) (L := L) σ) who)
+        else
+          .commitOther h (toBehavioralPMF k (tail (P := P) (L := L) σ) i)
+  | _, .reveal _ _ _ _ k, σ => fun w => .reveal (toBehavioralPMF k σ w)
 
 @[simp] theorem tail_toBehavioralPMF
     {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
@@ -239,25 +251,22 @@ noncomputable def toPMFProfile :
       (p : VegasCore P L Γ) →
       ProgramBehavioralProfile (P := P) (L := L) p →
       ProgramBehavioralProfilePMF (P := P) (L := L) p
-  | _, .ret _, _ => fun _ => PUnit.unit
-  | _, .letExpr _ _ k, σ => toPMFProfile k σ
-  | _, .sample _ _ _ _ k, σ => toPMFProfile k σ
+  | _, .ret _, _ => fun _ => .ret
+  | _, .letExpr _ _ k, σ => fun w => .letExpr (toPMFProfile k σ w)
+  | _, .sample _ _ _ _ k, σ => fun w => .sample (toPMFProfile k σ w)
   | _, .commit _ who R k, σ =>
-      fun i =>
-        by
-          by_cases h : who = i
-          · subst h
-            -- Extract the FDist kernel and convert to PMF
-            let σ_who := σ who
-            let σ_pair : ProgramBehavioralKernel (P := P) (L := L) who _ _ ×
-                ProgramBehavioralStrategy (P := P) (L := L) who k := by
-              simpa [ProgramBehavioralStrategy] using σ_who
-            simpa [ProgramBehavioralStrategyPMF] using
-              (ProgramBehavioralKernelPMF.ofFDist (P := P) (L := L) σ_pair.1,
-               toPMFProfile k (ProgramBehavioralProfile.tail (P := P) (L := L) σ) who)
-          · simpa [ProgramBehavioralStrategyPMF, h] using
-              toPMFProfile k (ProgramBehavioralProfile.tail (P := P) (L := L) σ) i
-  | _, .reveal _ _ _ _ k, σ => toPMFProfile k σ
+      fun i => by
+        by_cases h : who = i
+        · subst h
+          let σ_pair : ProgramBehavioralKernel (P := P) (L := L) who _ _ ×
+              ProgramBehavioralStrategy (P := P) (L := L) who k := by
+            simpa [ProgramBehavioralStrategy] using σ who
+          exact .commitOwn
+            (ProgramBehavioralKernelPMF.ofFDist (P := P) (L := L) σ_pair.1)
+            (toPMFProfile k (ProgramBehavioralProfile.tail (P := P) (L := L) σ) who)
+        · exact .commitOther h
+            (toPMFProfile k (ProgramBehavioralProfile.tail (P := P) (L := L) σ) i)
+  | _, .reveal _ _ _ _ k, σ => fun w => .reveal (toPMFProfile k σ w)
 
 @[simp] theorem tail_toPMFProfile
     {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
