@@ -1168,11 +1168,14 @@ private theorem pmfFoldBridge
           (fun v => nativeOutcomeDistPMF B k hd
             (reflectPolicyAux B (.commit x p R k) hl hd ρ st₀ pol).tail ρ'
             (id + 1) ((rawOfTAssign st a₀).extend id ⟨b, v⟩)) using 5
-        -- Sub-goal 1: type equality (st.descAt nd0).valType = L.Val b
-        · simp [hdesc0]
-        -- Sub-goal 2: Eq.rec universe mismatch ⋯ ▸ pol p ... = hdesc0 ▸ pol p ...
-        -- Both transport pol p via hdesc0 but with Eq.rec at different universe levels.
+        -- Sub-goal 1: Eq.rec universe mismatch ⋯ ▸ pol p ... = hdesc0 ▸ pol p ...
         · sorry
+        -- Sub-goal 2: profile (fun i ↦ ...) = reflectPolicyAux B (.commit ...) ...
+        · funext i
+          simp only [reflectPolicyAux, ProgramBehavioralProfilePMF.tail,
+            ProgramBehavioralStrategyPMF.tailOwn]
+          split_ifs with h <;> subst_vars <;>
+            simp only [eq_mp_eq_cast, eq_mpr_eq_cast, cast_cast, cast_eq] <;> rfl
       · exfalso; apply h_exists; exact ⟨_, hViewEq⟩
     · -- utility: contradiction
       rename_i hk; rw [toStruct_kind] at hk; rw [hkind_decision] at hk; exact absurd hk (by simp)
