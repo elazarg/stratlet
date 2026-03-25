@@ -1168,13 +1168,9 @@ private theorem pmfFoldBridge
           (fun v => nativeOutcomeDistPMF B k hd
             (reflectPolicyAux B (.commit x p R k) hl hd ρ st₀ pol).tail ρ'
             (id + 1) ((rawOfTAssign st a₀).extend id ⟨b, v⟩)) using 5
-        -- Sub-goal 1: ⋯ ▸ pol p ... = hdesc0 ▸ pol p ...
-        -- Two Eq.rec at different universe levels ({1,2} vs {1,1}) on PMF.
-        -- After DFunLike.coe_injective + ext, the pointwise goal
-        -- ⇑(Eq.rec.{1,2} μ h) x = ⇑(Eq.rec.{1,1} μ h) x
-        -- doesn't reduce because Lean's kernel distinguishes universe levels.
+        -- Sub-goal 1: Eq.rec.{1,2} vs Eq.rec.{1,1} on PMF — kernel distinction
         · sorry
-        -- Sub-goal 2: profile (fun i ↦ ...) = reflectPolicyAux B (.commit ...) ...
+        -- Sub-goal 2: profile (expanded lambda = opaque reflectPolicyAux)
         · funext i
           simp only [reflectPolicyAux, ProgramBehavioralProfilePMF.tail,
             ProgramBehavioralStrategyPMF.tailOwn]
