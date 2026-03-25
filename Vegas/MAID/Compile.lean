@@ -147,11 +147,10 @@ structure MAIDCompileState (Player : Type) [DecidableEq Player] (L : IExpr)
     (B : MAIDBackend Player L)
     where
   nextId : Nat
-  nodes : List (Nat × CompiledNode Player L B)
+  descAt : Fin nextId → CompiledNode Player L B
   vars : List (MAIDVarEntry Player L)
-  ids_range : nodes.map Prod.fst = List.range nextId
   nodeDeps_lt :
-    ∀ e ∈ nodes, ∀ d ∈ e.2.parents ∪ e.2.obsParents, d < e.1
+    ∀ (i : Fin nextId), ∀ d ∈ (descAt i).parents ∪ (descAt i).obsParents, d < i.val
   varDeps_lt :
     ∀ e ∈ vars, ∀ d ∈ e.2.2, d < nextId
 
@@ -163,15 +162,10 @@ local instance : Fintype Player := B.fintypePlayer
 
 def empty : MAIDCompileState Player L B where
   nextId := 0
-  nodes := []
+  descAt := Fin.elim0
   vars := []
-  ids_range := rfl
-  nodeDeps_lt := by
-    intro e he
-    cases he
-  varDeps_lt := by
-    intro e he
-    cases he
+  nodeDeps_lt := fun i => Fin.elim0 i
+  varDeps_lt := by intro e he; cases he
 
 def lookupDepsAux : List (MAIDVarEntry Player L) → VarId → Finset Nat
   | [], _ => ∅
@@ -273,9 +267,8 @@ def addVar (st : MAIDCompileState Player L B) (x : VarId) (τ : BindTy Player L)
     (deps : Finset Nat) (hdeps : ∀ d ∈ deps, d < st.nextId) :
     MAIDCompileState Player L B where
   nextId := st.nextId
-  nodes := st.nodes
+  descAt := st.descAt
   vars := st.vars ++ [(x, τ, deps)]
-  ids_range := st.ids_range
   nodeDeps_lt := st.nodeDeps_lt
   varDeps_lt := by
     intro e he d hd
@@ -287,19 +280,21 @@ def addVar (st : MAIDCompileState Player L B) (x : VarId) (τ : BindTy Player L)
 def addNode (st : MAIDCompileState Player L B) (nd : CompiledNode Player L B)
     (hdeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId) :
     Nat × MAIDCompileState Player L B :=
-  let id := st.nextId
-  (id,
+  (st.nextId,
     { nextId := st.nextId + 1
-      nodes := st.nodes ++ [(id, nd)]
+      descAt := fun i =>
+        if h : i.val < st.nextId then st.descAt ⟨i.val, h⟩
+        else nd
       vars := st.vars
-      ids_range := by
-        simp [id, st.ids_range, List.range_succ]
       nodeDeps_lt := by
-        intro e he d hd
-        simp only [List.mem_append, List.mem_singleton] at he
-        rcases he with he | rfl
-        · exact st.nodeDeps_lt e he d hd
-        · simpa [id] using hdeps d hd
+        intro ⟨i, hi⟩ d hd
+        simp only at hd ⊢
+        by_cases h : i < st.nextId
+        · simp only [h, ↓reduceDIte] at hd
+          exact st.nodeDeps_lt ⟨i, h⟩ d hd
+        · simp only [h, ↓reduceDIte] at hd
+          have : i = st.nextId := by omega
+          subst this; exact hdeps d hd
       varDeps_lt := by
         intro e he d hd
         exact Nat.lt_trans (st.varDeps_lt e he d hd) (Nat.lt_succ_self _) })
@@ -336,50 +331,15 @@ def addUtilityNodes (st : MAIDCompileState Player L B)
         ufn
         rest
 
-theorem nodes_length_eq_nextId (st : MAIDCompileState Player L B) :
-    st.nodes.length = st.nextId := by
-  simpa using congrArg List.length st.ids_range
-
-theorem index_lt_nodes (st : MAIDCompileState Player L B) (i : Fin st.nextId) :
-    i.1 < st.nodes.length := by
-  exact Nat.lt_of_lt_of_eq i.2 (st.nodes_length_eq_nextId.symm)
-
-theorem get_id_eq (st : MAIDCompileState Player L B) (i : Fin st.nextId) :
-    (st.nodes[i.1]'(st.index_lt_nodes i)).1 = i.1 := by
-  calc
-    (st.nodes[i.1]'(st.index_lt_nodes i)).1
-        = (st.nodes.map Prod.fst)[i.1]'(by
-            simpa [List.length_map] using st.index_lt_nodes i) := by
-            simp
-    _ = (List.range st.nextId)[i.1]'(by
-          exact Nat.lt_of_lt_of_eq i.2 (List.length_range (n := st.nextId)).symm) := by
-          simp [st.ids_range]
-    _ = i.1 := by
-          simp
-
-noncomputable def descAt (st : MAIDCompileState Player L B) (i : Fin st.nextId) :
-    CompiledNode Player L B :=
-  (st.nodes[i.1]'(st.index_lt_nodes i)).2
-
 theorem descAt_parent_lt (st : MAIDCompileState Player L B) (i : Fin st.nextId)
     {d : Nat} (hd : d ∈ (st.descAt i).parents) :
-    d < i.1 := by
-  let e := st.nodes[i.1]'(st.index_lt_nodes i)
-  have he : e ∈ st.nodes := List.mem_iff_getElem.mpr
-    ⟨i.1, st.index_lt_nodes i, rfl⟩
-  have hid : e.1 = i.1 := st.get_id_eq i
-  have hdep := st.nodeDeps_lt e he d (Finset.mem_union.mpr (.inl hd))
-  simpa [descAt, e, hid] using hdep
+    d < i.1 :=
+  st.nodeDeps_lt i d (Finset.mem_union.mpr (.inl hd))
 
 theorem descAt_obs_lt (st : MAIDCompileState Player L B) (i : Fin st.nextId)
     {d : Nat} (hd : d ∈ (st.descAt i).obsParents) :
-    d < i.1 := by
-  let e := st.nodes[i.1]'(st.index_lt_nodes i)
-  have he : e ∈ st.nodes := List.mem_iff_getElem.mpr
-    ⟨i.1, st.index_lt_nodes i, rfl⟩
-  have hid : e.1 = i.1 := st.get_id_eq i
-  have hdep := st.nodeDeps_lt e he d (Finset.mem_union.mpr (.inr hd))
-  simpa [descAt, e, hid] using hdep
+    d < i.1 :=
+  st.nodeDeps_lt i d (Finset.mem_union.mpr (.inr hd))
 
 /-- `descAt` for the newly added node returns that node. -/
 theorem addNode_descAt_new
@@ -388,11 +348,7 @@ theorem addNode_descAt_new
     (hdeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId) :
     (st.addNode nd hdeps).2.descAt
       ⟨st.nextId, Nat.lt_succ_self _⟩ = nd := by
-  simp only [descAt, addNode]
-  change ((st.nodes ++ [(st.nextId, nd)])[st.nextId]'(by
-    simp [st.nodes_length_eq_nextId])).2 = nd
-  rw [List.getElem_append_right (by simp [st.nodes_length_eq_nextId])]
-  simp [st.nodes_length_eq_nextId]
+  simp [addNode]
 
 /-- `descAt` for old nodes is unchanged by `addNode`. -/
 theorem addNode_descAt_old
@@ -402,12 +358,7 @@ theorem addNode_descAt_old
     (i : Fin st.nextId) :
     (st.addNode nd hdeps).2.descAt
       ⟨i.val, Nat.lt_succ_of_lt i.isLt⟩ = st.descAt i := by
-  simp only [descAt, addNode]
-  change ((st.nodes ++ [(st.nextId, nd)])[i.val]'(by
-    simp [st.nodes_length_eq_nextId])).2 =
-    (st.nodes[i.val]'(st.index_lt_nodes i)).2
-  congr 1
-  rw [List.getElem_append_left]
+  simp [addNode, show i.val < st.nextId from i.isLt]
 
 noncomputable def readVal (raw : RawNodeEnv L) (τ : L.Ty) (id : Nat) : L.Val τ :=
   match raw id with
