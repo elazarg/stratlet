@@ -1168,7 +1168,10 @@ private theorem pmfFoldBridge
           (fun v => nativeOutcomeDistPMF B k hd
             (reflectPolicyAux B (.commit x p R k) hl hd ρ st₀ pol).tail ρ'
             (id + 1) ((rawOfTAssign st a₀).extend id ⟨b, v⟩)) using 5
-        -- Sub-goal 1: Eq.rec.{1,2} vs Eq.rec.{1,1} on PMF — kernel distinction
+        -- Sub-goal 1: two ▸ transports of pol via hdesc0.
+        -- Make nd a free variable so subst hdesc0 eliminates the cast.
+        -- Fix: replace `let nd := ...` with `generalize ... = nd` at line 816,
+        -- then `subst hdesc0; rfl` works here. Requires fixing downstream simpa [nd, ...].
         · sorry
         -- Sub-goal 2: profile (expanded lambda = opaque reflectPolicyAux)
         · funext i
