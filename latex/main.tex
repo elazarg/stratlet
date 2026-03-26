@@ -972,23 +972,24 @@ A \emph{compiled node} is one of:
       a chance node of type~$\tau$ with parent set and conditional distribution
       $\mathit{cpd} : \mathrm{RawNodeEnv} \to \FDist{L.\Val(\tau)}$,
       together with a normalization proof.
-      Immediately public (reveal time = node index).
 \item $\mathit{decision}(\tau, i, \mathit{parents})$:
       a decision node owned by player~$i$. The parent set equals the
       observation parents---the player observes everything the node depends on.
-      Private at creation; the reveal time records when (if ever) the value
-      becomes public via a subsequent $\Reveal$.
 \item $\mathit{utility}(i, \mathit{parents}, u)$:
       a utility node for player~$i$ with real-valued function
       $u : \mathrm{RawNodeEnv} \to \mathbb{R}$.
 \end{itemize}
 \end{definition}
 
-Each node also carries a \emph{reveal time}: the program point at which
-it becomes publicly observable. The compiler maintains a reveal-time schedule
-alongside the node-emission state, and proves a \emph{factored-observation
-invariant}: every parent of a decision node is either already public (reveal
-time $\le$ the decision's index) or is that player's own earlier decision.
+\noindent
+The defining property of the compiled MAID is that observation parents equal
+data-dependency parents for all nodes. To prove this, the compiler maintains
+an auxiliary \emph{reveal-time schedule}---a mapping from node indices to the
+program point at which they become publicly observable---alongside the
+node-emission state. This schedule is not part of the compiled MAID; it is a
+proof device used to establish the factored-observation invariant: every parent
+of a decision node is either already public (reveal time $\le$ the decision's
+index) or is that player's own earlier decision.
 
 
 \subsection{Compilation Strategy}
@@ -1015,21 +1016,14 @@ configurations.}\label{fig:compilation}
 \end{figure}
 
 \noindent
-The compiler maintains two parallel states:
-\begin{enumerate}[nosep]
-\item A \emph{node state} tracking emitted nodes, their types, and a mapping
-      from Vegas variable identifiers to MAID node indices and dependency sets.
-\item A \emph{reveal state} tracking when each node becomes publicly observable.
-      Chance nodes are immediately public; decision nodes start private; the
-      $\Reveal$ construct lowers a node's reveal time to the current program
-      point.
-\end{enumerate}
-For $\Let$ and $\Reveal$, the compiler records the dependency information
-needed to reconstruct the corresponding environment entries from MAID parent
+The compiler walks the program top-to-bottom, maintaining a state that tracks
+emitted nodes, their types, and a mapping from Vegas variable identifiers to
+MAID node indices and dependency sets. For $\Let$ and $\Reveal$, no MAID node
+is emitted; the compiler records the dependency information needed to
+reconstruct the corresponding environment entries from MAID parent
 configurations when evaluating downstream node functions. The key challenge is
 ensuring that decision node observation parents exactly match the player's view
-$\Gamma\!\!\downarrow_i$, and that reveal times are consistent with the
-node kinds (chance nodes public, decision nodes private until revealed).
+$\Gamma\!\!\downarrow_i$.
 
 \paragraph{Example: compiled MAIDs.}
 For Matching Pennies, the compiler emits four nodes
