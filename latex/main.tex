@@ -465,11 +465,6 @@ predicates are defined by structural recursion on~$p$:
 \item $\NormOn(\sigma, p)$: At every commit site, for every erased environment
       $\rho$, $\sum_{v} \sigma(i, x, R)(\rho)(v) = 1$. Used together with
       $\NormDists$ for normalization.
-
-\item $\DistinctActs(p)$: compiled decision nodes have duplicate-free action
-      lists. Used by the MAID correctness theorem (\Cref{thm:maid}); holds
-      trivially in the core language, where committed types determine the
-      action space.
 \end{itemize}
 \end{definition}
 
@@ -1005,9 +1000,10 @@ if another player's decision is a parent of this decision node, it must be
 visible to the deciding player; since it belongs to a different player, it
 must be public, meaning it was either a chance node (always public) or was
 previously revealed. DAG acyclicity prevents circular dependencies. The
-resulting program satisfies all standing assumptions: guards are trivially
-$\mathit{true}$ (so $\Legal$ holds), and SSA freshness follows from
-topological ordering.
+resulting program satisfies the standing assumptions: since MAIDs have no
+action restrictions, the construction uses trivially-$\mathit{true}$ guards
+(which satisfy $\Legal$, since every value passes the guard), and SSA
+freshness follows from topological ordering.
 
 Together with the compilation correctness theorem (\Cref{sec:maid-correct}),
 this gives a precise characterization: Vegas programs capture exactly the
@@ -1109,7 +1105,7 @@ Combining the compilation correctness bridges with perfect recall yields a
 Kuhn-style result for Vegas programs.
 
 \begin{theorem}[Vegas Kuhn Theorem]\label{thm:kuhn}
-Let $p$ be a Vegas program satisfying the standing assumptions.
+Let $p$ be a Vegas program satisfying the standing assumptions (\Cref{def:standing}).
 For every product mixture $\mu$ over pure strategy profiles (one independent
 distribution per player over that player's pure strategies), there exists a
 behavioral strategy profile $\sigma$ such that:
