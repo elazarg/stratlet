@@ -636,6 +636,147 @@ private theorem bridgeInv_letExpr
       β pol _ hpol
       ⟨raw₀, by simp [hraw₀], hraw_typed, hraw_hi⟩
 
+private theorem bridgeInv_reveal
+    (B : MAIDBackend Player L)
+    {Γ' : VCtx Player L} {y x : VarId} {who : Player} {b : L.Ty}
+    (hx : VHasVar (L := L) Γ' x (.hidden who b))
+    (k : VegasCore Player L ((y, .pub b) :: Γ'))
+    (ih : ∀ (hl : Legal k) (hd : NormalizedDists k) (hfresh : FreshBindings k)
+      (ρ : RawNodeEnv L → VEnv (Player := Player) L ((y, .pub b) :: Γ'))
+      (st₀ : MAIDCompileState Player L B)
+      (hvars : st₀.VarsSubCtx ((y, .pub b) :: Γ'))
+      (hρ_deps : ∀ j, j ∉ (st₀.ctxDeps ((y, .pub b) :: Γ') : Finset Nat) → InsensitiveTo ρ j)
+      (hρ_var : EnvRespectsLookupDeps st₀ ρ)
+      (hnodup : (((y, .pub b) :: Γ').map Prod.fst).Nodup),
+      BridgeInv B k hl hd hfresh ρ st₀ hvars hρ_deps hρ_var hnodup)
+    (hl : Legal (.reveal y who x hx k)) (hd : NormalizedDists (.reveal y who x hx k))
+    (hfresh : FreshBindings (.reveal y who x hx k))
+    (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ')
+    (st₀ : MAIDCompileState Player L B)
+    (hvars : st₀.VarsSubCtx Γ')
+    (hρ_deps : ∀ j, j ∉ (st₀.ctxDeps Γ' : Finset Nat) → InsensitiveTo ρ j)
+    (hρ_var : EnvRespectsLookupDeps st₀ ρ)
+    (hnodup : (Γ'.map Prod.fst).Nodup) :
+    BridgeInv B (.reveal y who x hx k) hl hd hfresh ρ st₀ hvars hρ_deps hρ_var hnodup := by
+  letI := B.fintypePlayer
+  refine ⟨?_, ?_⟩
+  · intro hρ_readers hρ_readval pol a₀
+    have hyΓ : Fresh y Γ' := hfresh.1
+    have hyvars : y ∉ st₀.vars.map Prod.fst := fun hymem => hyΓ (hvars y hymem)
+    let ρ' : RawNodeEnv L → VEnv (Player := Player) L ((y, .pub b) :: Γ') :=
+      fun raw =>
+        let v := VEnv.get (L := L) (ρ raw) hx
+        VEnv.cons (L := L) (x := y) (τ := .pub b) v (ρ raw)
+    let st₁ := st₀.addVar y (.pub b) (st₀.lookupDeps x) (st₀.lookupDeps_lt x)
+    have hvars₁ : st₁.VarsSubCtx ((y, .pub b) :: Γ') := by
+      simpa [st₁] using st₀.VarsSubCtx_addVar hvars y _ _ _ hyΓ
+    have hctx₁ : st₁.ctxDeps ((y, .pub b) :: Γ') = st₀.ctxDeps Γ' := by
+      simpa [st₁] using st₀.ctxDeps_reveal_step y who x hx hyΓ hyvars
+    have hρ'_deps : ∀ j, j ∉ st₁.ctxDeps ((y, .pub b) :: Γ') → InsensitiveTo ρ' j := by
+      intro j hj raw tv
+      have hj' : j ∉ st₀.ctxDeps Γ' := by simpa [hctx₁] using hj
+      have hρj := hρ_deps j hj' raw tv
+      simp only [ρ', hρj]
+    have hρ'_var : EnvRespectsLookupDeps st₁ ρ' := by
+      intro z σ hz j hj raw tv
+      cases hz with
+      | here =>
+          have hj' : j ∉ st₀.lookupDeps x := by
+            simpa [st₁, st₀.lookupDeps_addVar_eq_self_of_fresh y (.pub b) (st₀.lookupDeps x)
+              (st₀.lookupDeps_lt x) hyvars] using hj
+          simpa [ρ', VEnv.get] using hρ_var hx j hj' raw tv
+      | there hz' =>
+          have hzy : z ≠ y := fun hEq => hyΓ (hEq.symm ▸ hz'.mem_map_fst)
+          have hj' : j ∉ st₀.lookupDeps z := by
+            simpa [st₁, st₀.lookupDeps_addVar_eq_of_ne y (.pub b) (st₀.lookupDeps x)
+              (st₀.lookupDeps_lt x) hzy] using hj
+          simpa [ρ', VEnv.get, VEnv.cons_get_there] using hρ_var hz' j hj' raw tv
+    have hρ'_readers : ViewDeterminesRaw st₁ ((y, .pub b) :: Γ') ρ' := by
+      intro who' raw₁ raw₂ hout hnot_vd htyped hview i hi
+      have hview_old := projectViewEnv_cons_eq
+        (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩) hview
+      have hy_not_view : y ∉ (viewVCtx who' Γ').map Prod.fst := fun hmem =>
+        hyΓ (viewVCtx_map_fst_sub hmem)
+      have hVD : st₁.viewDeps who' ((y, .pub b) :: Γ') =
+          st₀.lookupDeps x ∪ st₀.viewDeps who' Γ' := by
+        unfold MAIDCompileState.viewDeps
+        simp only [viewVCtx, canSee, ite_true, List.map_cons, MAIDCompileState.depsOfVars]
+        rw [st₀.lookupDeps_addVar_eq_self_of_fresh y (.pub b) (st₀.lookupDeps x)
+            (st₀.lookupDeps_lt x) hyvars,
+          st₀.depsOfVars_addVar_eq_of_not_mem y (.pub b) _ _ _ hy_not_view]
+      have hhead := projectViewEnv_cons_head_eq
+        (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩) (by simp [canSee]) hview
+      have hraw_lookup_eq : ∀ j ∈ st₀.lookupDeps x, raw₁ j = raw₂ j := by
+        intro j hj_mem
+        rcases hρ_readval x who _ hx ⟨j, hj_mem⟩ with
+          ⟨k, hklt, hsingleton, hdescAt_type, hreadval⟩
+        have hjk : j = k := Finset.mem_singleton.mp (hsingleton ▸ hj_mem)
+        subst hjk
+        rw [hreadval raw₁, hreadval raw₂] at hhead
+        have hj_vd := hVD ▸ Finset.mem_union_left _ hj_mem
+        have htyped_j := htyped j hj_vd (by simp only [MAIDCompileState.addVar, st₁]; exact hklt)
+        simp only [RawsMatchDescAt,
+          show st₁.descAt ⟨j, _⟩ = st₀.descAt ⟨j, hklt⟩ from rfl] at htyped_j
+        revert htyped_j hdescAt_type
+        match st₀.descAt ⟨j, hklt⟩ with
+        | .chance τ _ _ _ | .decision τ _ _ _ _ _ =>
+            intro hτb ⟨v₁, v₂, hraw₁, hraw₂⟩
+            subst hτb
+            exact readVal_tagged_eq hraw₁ hraw₂ hhead
+        | .utility _ _ _ =>
+            intro _ ⟨h₁, h₂⟩
+            rw [h₁, h₂]
+      rw [hVD] at hi
+      rcases Finset.mem_union.mp hi with hi_lookup | hi_old
+      · exact hraw_lookup_eq i hi_lookup
+      · apply hρ_readers who' raw₁ raw₂
+        · intro j hj
+          exact hout j (by simp only [st₁, MAIDCompileState.addVar] at hj ⊢; exact hj)
+        · intro j hj hjlt
+          by_cases hj_lookup : j ∈ st₀.lookupDeps x
+          · exact hraw_lookup_eq j hj_lookup
+          · exact hnot_vd j (fun hmem => by
+              rw [hVD] at hmem
+              rcases Finset.mem_union.mp hmem with h | h
+              · exact hj_lookup h
+              · exact hj h) (by simp only [st₁, MAIDCompileState.addVar]; exact hjlt)
+        · intro j hj hjlt
+          exact htyped j (by rw [hVD]; exact Finset.mem_union_right _ hj)
+            (by simp only [st₁, MAIDCompileState.addVar]; exact hjlt)
+        · exact hview_old
+        · exact hi_old
+    exact (ih hl hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var
+      (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩)).fold_eq
+      hρ'_readers
+      (fun z who_z bz hz hne_z => by
+        cases hz with
+        | there hy' =>
+          have hne : z ≠ y := fun h => hyΓ (h.symm ▸ hy'.mem_map_fst)
+          have hld_eq : st₁.lookupDeps z = st₀.lookupDeps z := by
+            simp [st₁, st₀.lookupDeps_addVar_eq_of_ne y (.pub _) _ _ hne]
+          have hne_z' : (st₀.lookupDeps z).Nonempty := by rwa [← hld_eq]
+          rcases hρ_readval z who_z bz hy' hne_z' with ⟨j, hjlt, hj_sing, hdesc_j, hget⟩
+          exact ⟨j, hjlt, by rwa [hld_eq], hdesc_j,
+            fun raw => by simpa [ρ', VEnv.get, VEnv.cons_get_there] using hget raw⟩)
+      pol a₀
+  · intro β pol env hpol ⟨raw₀, hraw₀, hraw_typed, hraw_hi⟩
+    simp only [outcomeDistBehavioralPMF, reflectPolicyAuxV,
+      ProgramBehavioralProfile.toPMFProfile]
+    have hyΓ : Fresh y _ := hfresh.1
+    have hyvars : y ∉ st₀.vars.map Prod.fst := fun hmem => hyΓ (hvars y hmem)
+    exact (ih hl hd hfresh.2 _ _
+      (st₀.VarsSubCtx_addVar hvars y (.pub _) _ _ hyΓ)
+      (fun j hj raw tv => by
+        have hρj := hρ_deps j (fun h => hj (by
+          simp only [MAIDCompileState.ctxDeps] at h ⊢
+          simp only [MAIDCompileState.depsOfVars, List.map,
+            MAIDCompileState.depsOfVars_addVar_eq_of_fresh _ _ _ _ _ _ hyΓ] at h ⊢
+          exact Finset.mem_union_right _ h)) raw tv
+        simp [hρj])
+      (envRespectsLookupDeps_reveal st₀ ρ hρ_var hx hyΓ hyvars)
+      (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩)).behavioral_eq
+      β pol _ hpol ⟨raw₀, by simp [hraw₀], hraw_typed, hraw_hi⟩
+
 private theorem bridgeInv
     (B : MAIDBackend Player L)
     {Γ : VCtx Player L}
@@ -979,124 +1120,7 @@ private theorem bridgeInv
                   hraw_typed hraw_hi ⟨τ.base, v⟩
                   ⟨v, by simp [nd, MAIDCompileState.taggedOfVal]⟩).2⟩⟩
   | reveal y who x hx k ih =>
-      rename_i Γ' b
-      refine ⟨?_, ?_⟩
-      · intro hρ_readers hρ_readval pol a₀
-        have hyΓ : Fresh y Γ' := hfresh.1
-        have hyvars : y ∉ st₀.vars.map Prod.fst := fun hymem => hyΓ (hvars y hymem)
-        let ρ' : RawNodeEnv L → VEnv (Player := Player) L ((y, .pub b) :: Γ') :=
-          fun raw =>
-            let v := VEnv.get (L := L) (ρ raw) hx
-            VEnv.cons (L := L) (x := y) (τ := .pub b) v (ρ raw)
-        let st₁ := st₀.addVar y (.pub b) (st₀.lookupDeps x) (st₀.lookupDeps_lt x)
-        have hvars₁ : st₁.VarsSubCtx ((y, .pub b) :: Γ') := by
-          simpa [st₁] using st₀.VarsSubCtx_addVar hvars y _ _ _ hyΓ
-        have hctx₁ : st₁.ctxDeps ((y, .pub b) :: Γ') = st₀.ctxDeps Γ' := by
-          simpa [st₁] using st₀.ctxDeps_reveal_step y who x hx hyΓ hyvars
-        have hρ'_deps : ∀ j, j ∉ st₁.ctxDeps ((y, .pub b) :: Γ') → InsensitiveTo ρ' j := by
-          intro j hj raw tv
-          have hj' : j ∉ st₀.ctxDeps Γ' := by simpa [hctx₁] using hj
-          have hρj := hρ_deps j hj' raw tv
-          simp only [ρ', hρj]
-        have hρ'_var : EnvRespectsLookupDeps st₁ ρ' := by
-          intro z σ hz j hj raw tv
-          cases hz with
-          | here =>
-              have hj' : j ∉ st₀.lookupDeps x := by
-                simpa [st₁, st₀.lookupDeps_addVar_eq_self_of_fresh y (.pub b) (st₀.lookupDeps x)
-                  (st₀.lookupDeps_lt x) hyvars] using hj
-              simpa [ρ', VEnv.get] using hρ_var hx j hj' raw tv
-          | there hz' =>
-              have hzy : z ≠ y := fun hEq => hyΓ (hEq.symm ▸ hz'.mem_map_fst)
-              have hj' : j ∉ st₀.lookupDeps z := by
-                simpa [st₁, st₀.lookupDeps_addVar_eq_of_ne y (.pub b) (st₀.lookupDeps x)
-                  (st₀.lookupDeps_lt x) hzy] using hj
-              simpa [ρ', VEnv.get, VEnv.cons_get_there] using hρ_var hz' j hj' raw tv
-        have hρ'_readers : ViewDeterminesRaw st₁ ((y, .pub b) :: Γ') ρ' := by
-          intro who' raw₁ raw₂ hout hnot_vd htyped hview i hi
-          have hview_old := projectViewEnv_cons_eq
-            (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩) hview
-          have hy_not_view : y ∉ (viewVCtx who' Γ').map Prod.fst := fun hmem =>
-            hyΓ (viewVCtx_map_fst_sub hmem)
-          have hVD : st₁.viewDeps who' ((y, .pub b) :: Γ') =
-              st₀.lookupDeps x ∪ st₀.viewDeps who' Γ' := by
-            unfold MAIDCompileState.viewDeps
-            simp only [viewVCtx, canSee, ite_true, List.map_cons, MAIDCompileState.depsOfVars]
-            rw [st₀.lookupDeps_addVar_eq_self_of_fresh y (.pub b) (st₀.lookupDeps x)
-                (st₀.lookupDeps_lt x) hyvars,
-              st₀.depsOfVars_addVar_eq_of_not_mem y (.pub b) _ _ _ hy_not_view]
-          have hhead := projectViewEnv_cons_head_eq
-            (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩) (by simp [canSee]) hview
-          have hraw_lookup_eq : ∀ j ∈ st₀.lookupDeps x, raw₁ j = raw₂ j := by
-            intro j hj_mem
-            rcases hρ_readval x who _ hx ⟨j, hj_mem⟩ with
-              ⟨k, hklt, hsingleton, hdescAt_type, hreadval⟩
-            have hjk : j = k := Finset.mem_singleton.mp (hsingleton ▸ hj_mem)
-            subst hjk
-            rw [hreadval raw₁, hreadval raw₂] at hhead
-            have hj_vd := hVD ▸ Finset.mem_union_left _ hj_mem
-            have htyped_j := htyped j hj_vd (by simp only [MAIDCompileState.addVar, st₁]; exact hklt)
-            simp only [RawsMatchDescAt,
-              show st₁.descAt ⟨j, _⟩ = st₀.descAt ⟨j, hklt⟩ from rfl] at htyped_j
-            revert htyped_j hdescAt_type
-            match st₀.descAt ⟨j, hklt⟩ with
-            | .chance τ _ _ _ | .decision τ _ _ _ _ _ =>
-                intro hτb ⟨v₁, v₂, hraw₁, hraw₂⟩
-                subst hτb
-                exact readVal_tagged_eq hraw₁ hraw₂ hhead
-            | .utility _ _ _ =>
-                intro _ ⟨h₁, h₂⟩
-                rw [h₁, h₂]
-          rw [hVD] at hi
-          rcases Finset.mem_union.mp hi with hi_lookup | hi_old
-          · exact hraw_lookup_eq i hi_lookup
-          · apply hρ_readers who' raw₁ raw₂
-            · intro j hj
-              exact hout j (by simp only [st₁, MAIDCompileState.addVar] at hj ⊢; exact hj)
-            · intro j hj hjlt
-              by_cases hj_lookup : j ∈ st₀.lookupDeps x
-              · exact hraw_lookup_eq j hj_lookup
-              · exact hnot_vd j (fun hmem => by
-                  rw [hVD] at hmem
-                  rcases Finset.mem_union.mp hmem with h | h
-                  · exact hj_lookup h
-                  · exact hj h) (by simp only [st₁, MAIDCompileState.addVar]; exact hjlt)
-            · intro j hj hjlt
-              exact htyped j (by rw [hVD]; exact Finset.mem_union_right _ hj)
-                (by simp only [st₁, MAIDCompileState.addVar]; exact hjlt)
-            · exact hview_old
-            · exact hi_old
-        exact (ih hl hd hfresh.2 ρ' st₁ hvars₁ hρ'_deps hρ'_var
-          (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩)).fold_eq
-          hρ'_readers
-          (fun z who_z bz hz hne_z => by
-            cases hz with
-            | there hy' =>
-              have hne : z ≠ y := fun h => hyΓ (h.symm ▸ hy'.mem_map_fst)
-              have hld_eq : st₁.lookupDeps z = st₀.lookupDeps z := by
-                simp [st₁, st₀.lookupDeps_addVar_eq_of_ne y (.pub _) _ _ hne]
-              have hne_z' : (st₀.lookupDeps z).Nonempty := by rwa [← hld_eq]
-              rcases hρ_readval z who_z bz hy' hne_z' with ⟨j, hjlt, hj_sing, hdesc_j, hget⟩
-              exact ⟨j, hjlt, by rwa [hld_eq], hdesc_j,
-                fun raw => by simpa [ρ', VEnv.get, VEnv.cons_get_there] using hget raw⟩)
-          pol a₀
-      · intro β pol env hpol ⟨raw₀, hraw₀, hraw_typed, hraw_hi⟩
-        simp only [outcomeDistBehavioralPMF, reflectPolicyAuxV,
-          ProgramBehavioralProfile.toPMFProfile]
-        have hyΓ : Fresh y _ := hfresh.1
-        have hyvars : y ∉ st₀.vars.map Prod.fst := fun hmem => hyΓ (hvars y hmem)
-        exact (ih hl hd hfresh.2 _ _
-          (st₀.VarsSubCtx_addVar hvars y (.pub _) _ _ hyΓ)
-          (fun j hj raw tv => by
-            have hρj := hρ_deps j (fun h => hj (by
-              simp only [MAIDCompileState.ctxDeps] at h ⊢
-              simp only [MAIDCompileState.depsOfVars, List.map,
-                MAIDCompileState.depsOfVars_addVar_eq_of_fresh _ _ _ _ _ _ hyΓ] at h ⊢
-              exact Finset.mem_union_right _ h)) raw tv
-            simp [hρj])
-          (envRespectsLookupDeps_reveal st₀ ρ hρ_var hx hyΓ hyvars)
-          (List.nodup_cons.mpr ⟨hyΓ, hnodup⟩)).behavioral_eq
-          β pol _ hpol ⟨raw₀, by simp [hraw₀], hraw_typed, hraw_hi⟩
+      exact bridgeInv_reveal B hx k ih hl hd hfresh ρ st₀ hvars hρ_deps hρ_var hnodup
   | commit x who_commit R k ih =>
       rename_i Γ' b
       refine ⟨?_, ?_⟩
