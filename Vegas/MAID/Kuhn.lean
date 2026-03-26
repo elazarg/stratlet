@@ -31,7 +31,7 @@ variable {Player : Type} [DecidableEq Player] {L : IExpr}
 private noncomputable def defaultPureStrategy
     (B : MAIDBackend Player L) :
     {Γ : VCtx Player L} → (p : VegasCore Player L Γ) →
-    (i : Player) → ProgramPureStrategy (P := Player) (L := L) i p
+    (i : Player) → ProgramPureStrategy i p
   | _, .ret _, _ => PUnit.unit
   | _, .letExpr _ _ k, i => defaultPureStrategy B k i
   | _, .sample _ _ _ _ k, i => defaultPureStrategy B k i
@@ -50,10 +50,10 @@ private noncomputable def defaultPureStrategy
 pure strategy. -/
 noncomputable def compilePureStrategyV
     (B : MAIDBackend Player L) {Γ : VCtx Player L}
-    (p : VegasCore Player L Γ) (env : VEnv (Player := Player) L Γ)
+    (p : VegasCore Player L Γ) (env : VEnv L Γ)
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
-    (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
+    (hpub : ∀ y who b, VHasVar Γ y (.hidden who b) → False)
     (who : Player)
     (s : ProgramPureStrategy who p) :
     PureStrategy (fp := B.fintypePlayer)
@@ -67,11 +67,11 @@ noncomputable def compilePureStrategyV
 into per-player compiled strategies. -/
 theorem compilePureProfileV_eq_mk
     (B : MAIDBackend Player L) {Γ : VCtx Player L}
-    (p : VegasCore Player L Γ) (env : VEnv (Player := Player) L Γ)
+    (p : VegasCore Player L Γ) (env : VEnv L Γ)
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
-    (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
-    (π : ProgramPureProfile (P := Player) (L := L) p) :
+    (hpub : ∀ y who b, VHasVar Γ y (.hidden who b) → False)
+    (π : ProgramPureProfile p) :
     compilePureProfileV B p env hl hd hfresh hpub π =
       fun who => compilePureStrategyV B p env hl hd hfresh hpub who (π who) := by
   funext who
@@ -89,10 +89,10 @@ theorem maid_kuhn_rhs_eq_vegas_mixedV
     (B : MAIDBackend Player L)
     (LF : FiniteValuation L)
     {Γ : VCtx Player L}
-    (p : VegasCore Player L Γ) (env : VEnv (Player := Player) L Γ)
+    (p : VegasCore Player L Γ) (env : VEnv L Γ)
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
-    (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
+    (hpub : ∀ y who b, VHasVar Γ y (.hidden who b) → False)
     (hnodup : (Γ.map Prod.fst).Nodup)
     (μ : ∀ who, PMF (ProgramPureStrategy who p)) :
     let _ : ∀ who, Fintype (ProgramPureStrategy who p) :=
@@ -138,7 +138,7 @@ theorem vegas_kuhn_mixed_to_behavioralV
     (p : VegasCore Player L Γ) (env : VEnv L Γ)
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
-    (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
+    (hpub : ∀ y who b, VHasVar Γ y (.hidden who b) → False)
     (hnodup : (Γ.map Prod.fst).Nodup)
     (μ : ∀ who, PMF (ProgramPureStrategy who p)) :
     let _ : ∀ who, Fintype (ProgramPureStrategy who p) :=

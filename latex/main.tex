@@ -10,7 +10,7 @@
 
 \begin{document}
 \maketitle
-
+ 
 \begin{abstract}
 We present \emph{Vegas}, a typed domain-specific calculus for expressing
 strategic games as programs. Vegas programs compose five constructs---return,
@@ -337,8 +337,13 @@ provides the context for payoff expressions.
 
 \subsection{Syntax}\label{sec:syntax}
 
-A Vegas program $\Gamma \vdash p$ in context $\Gamma$ is given by the
-grammar in \Cref{fig:grammar}.
+A Vegas program is a term $p$ in context $\Gamma$, written
+$\Gamma \vdash p$. The five constructs and their formation rules are shown in
+\Cref{fig:grammar}. The context annotations are \emph{intrinsic}: the
+definition is an inductive family indexed by the visibility context, so every
+well-formed term is well-scoped by construction. A surface syntax (such as the
+examples in \Cref{sec:overview}) can be parsed into this representation by
+straightforward elaboration.
 
 \begin{figure}[ht]
 \centering
@@ -366,7 +371,8 @@ p \;\;::=\;\;
       k : (y{:}\pub\;\tau) :: \Gamma \vdash p
 \end{align*}
 }}
-\caption{Vegas syntax. The sampling context $\mathit{ctx}_m(\Gamma)$ depends on
+\caption{Vegas formation rules. Each construct extends the context for its
+continuation~$k$. The sampling context $\mathit{ctx}_m(\Gamma)$ depends on
 the mode $m$: $\Gamma^{\pub}$ for public/private nature,
 $\lfloor \Gamma\!\!\downarrow_i \rfloor$ for player-private.}\label{fig:grammar}
 \end{figure}
