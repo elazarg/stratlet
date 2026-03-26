@@ -548,43 +548,19 @@ def toFlatView {Player : Type} [DecidableEq Player] {L : IExpr}
 
 end VEnv
 
-/-- Whether a value is sampled publicly by nature, privately by nature, or by
-the owning player. -/
-inductive SampleMode {Player : Type} {L : IExpr} :
-    BindTy Player L → Type where
-  | NaturePub {τ} : SampleMode (.pub τ)
-  | NaturePriv {owner τ} : SampleMode (.hidden owner τ)
-  | PlayerPriv {owner τ} : SampleMode (.hidden owner τ)
-
-/-- The context exposed to a distribution expression for a given sampling mode. -/
-abbrev distVCtx {Player : Type} [DecidableEq Player] {L : IExpr}
-    (τ : BindTy Player L) (m : SampleMode τ)
-    (Γ : VCtx Player L) : VCtx Player L :=
-  match τ, m with
-  | .pub _, .NaturePub => pubVCtx Γ
-  | .hidden _ _, .NaturePriv => pubVCtx Γ
-  | .hidden p _, .PlayerPriv => flattenVCtx (viewVCtx p Γ)
+/-- Sampling is public nature: distributions are evaluated in the public
+context and the sampled result is bound as a fresh public variable. -/
+abbrev sampleVCtx {Player : Type} {L : IExpr} (Γ : VCtx Player L) : VCtx Player L :=
+  pubVCtx Γ
 
 namespace VEnv
 
-/-- Project an environment to the visibility required for sampling in mode `m`. -/
-def projectDist {Player : Type} [DecidableEq Player] {L : IExpr}
+/-- Erase the public fragment of a VEnv for evaluating a sample distribution. -/
+def eraseSampleEnv {Player : Type} {L : IExpr}
     {Γ : VCtx Player L}
-    (τ : BindTy Player L) (m : SampleMode τ)
     (env : VEnv (Player := Player) L Γ) :
-    VEnv (Player := Player) L (distVCtx τ m Γ) :=
-  match τ, m with
-  | .pub _, .NaturePub => env.toPub
-  | .hidden _ _, .NaturePriv => env.toPub
-  | .hidden p _, .PlayerPriv => env.toFlatView p
-
-/-- Erase the distribution-projected VEnv to a plain Env. -/
-def eraseDistEnv {Player : Type} [DecidableEq Player] {L : IExpr}
-    {Γ : VCtx Player L}
-    (τ : BindTy Player L) (m : SampleMode τ)
-    (env : VEnv (Player := Player) L Γ) :
-    Env L.Val (eraseVCtx (distVCtx τ m Γ)) :=
-  VEnv.eraseEnv (VEnv.projectDist τ m env)
+    Env L.Val (erasePubVCtx Γ) :=
+  VEnv.erasePubEnv env
 
 end VEnv
 
@@ -621,9 +597,9 @@ inductive VegasCore (Player : Type) [DecidableEq Player] (L : IExpr) :
       (e : L.Expr (erasePubVCtx Γ) b)
       (k : VegasCore Player L ((x, .pub b) :: Γ)) :
       VegasCore Player L Γ
-  | sample {Γ} (x : VarId) (τ : BindTy Player L) (m : SampleMode τ)
-      (D' : L.DistExpr (eraseVCtx (distVCtx τ m Γ)) τ.base)
-      (k : VegasCore Player L ((x, τ) :: Γ)) :
+  | sample {Γ} (x : VarId) {b : L.Ty}
+      (D' : L.DistExpr (erasePubVCtx Γ) b)
+      (k : VegasCore Player L ((x, .pub b) :: Γ)) :
       VegasCore Player L Γ
   | commit {Γ} (x : VarId) (who : Player) {b : L.Ty}
       (R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool)

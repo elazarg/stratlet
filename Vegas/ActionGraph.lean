@@ -107,7 +107,7 @@ noncomputable def VegasCore.extractEvents {P : Type} [DecidableEq P] {L : IExpr}
   | .letExpr x e k =>
     { id := x, kind := .letExpr, deps := (L.exprDeps e).toList } ::
     extractEvents k
-  | .sample x _τ _m D' k =>
+  | .sample x D' k =>
     { id := x, kind := .sample, deps := (L.distDeps D').toList } ::
     extractEvents k
   | .commit x who _R k =>
@@ -259,13 +259,13 @@ noncomputable def VegasCore.nodeWeight {P : Type} [DecidableEq P]
   | _, .ret _, _, _ => 0
   | _, .letExpr x _ k, id, tv =>
       if x = id then 1 else nodeWeight σ pe k id tv
-  | Γ, .sample x τ m D' k, id, tv =>
+  | Γ, .sample (b := b) x D' k, id, tv =>
       if x = id then
-        match decEq tv.base τ.base with
+        match decEq tv.base b with
         | .isTrue h =>
-          match pe.toVEnv? (distVCtx τ m Γ) with
+          match pe.toEnv? (erasePubVCtx Γ) with
           | some denv =>
-            (L.evalDist D' (VEnv.eraseEnv denv)) (h ▸ tv.val)
+            (L.evalDist D' denv) (h ▸ tv.val)
           | none => 0
         | .isFalse _ => 0
       else nodeWeight σ pe k id tv
@@ -385,4 +385,3 @@ noncomputable def cgEvents : List EventNode :=
 end ActionGraphExamples
 
 end Vegas
-

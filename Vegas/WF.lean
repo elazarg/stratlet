@@ -27,7 +27,7 @@ def FreshBindings {P : Type} [DecidableEq P]
     {Γ : Vegas.VCtx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
   | Γ, .letExpr x _ k => Fresh x Γ ∧ FreshBindings k
-  | Γ, .sample x _ _ _ k => Fresh x Γ ∧ FreshBindings k
+  | Γ, .sample x _ k => Fresh x Γ ∧ FreshBindings k
   | Γ, .commit x _ _ k => Fresh x Γ ∧ FreshBindings k
   | Γ, .reveal y _ _ _ k => Fresh y Γ ∧ FreshBindings k
 
@@ -37,7 +37,7 @@ def decidableFreshBindings {P : Type} [DecidableEq P]
     {Γ : Vegas.VCtx P L} → (p : Vegas.VegasCore P L Γ) → Decidable (FreshBindings p)
   | _, .ret _ => .isTrue trivial
   | _, .letExpr _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableFreshBindings k)
-  | _, .sample _ _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableFreshBindings k)
+  | _, .sample _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableFreshBindings k)
   | _, .commit _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableFreshBindings k)
   | _, .reveal _ _ _ _ k => @instDecidableAnd _ _ (inferInstance) (decidableFreshBindings k)
 
@@ -54,7 +54,7 @@ def RevealComplete {P : Type} [DecidableEq P]
     {Γ : Vegas.VCtx P L} → List VarId → Vegas.VegasCore P L Γ → Prop
   | _, pending, .ret _ => pending = []
   | _, pending, .letExpr _ _ k => RevealComplete pending k
-  | _, pending, .sample _ _ _ _ k => RevealComplete pending k
+  | _, pending, .sample _ _ k => RevealComplete pending k
   | _, pending, .commit x _ _ k => RevealComplete (x :: pending) k
   | _, pending, .reveal _ _ x _ k =>
     x ∈ pending ∧ RevealComplete (pending.filter (· ≠ x)) k
@@ -69,7 +69,7 @@ def decidableRevealComplete {P : Type} [DecidableEq P]
     Decidable (RevealComplete pending p)
   | _, _, .ret _ => inferInstanceAs (Decidable (_ = []))
   | _, pending, .letExpr _ _ k => decidableRevealComplete pending k
-  | _, pending, .sample _ _ _ _ k => decidableRevealComplete pending k
+  | _, pending, .sample _ _ k => decidableRevealComplete pending k
   | _, pending, .commit x _ _ k => decidableRevealComplete (x :: pending) k
   | _, pending, .reveal _ _ x _ k =>
     @instDecidableAnd _ _ (inferInstance) (decidableRevealComplete (pending.filter (· ≠ x)) k)
@@ -172,7 +172,7 @@ def Legal {P : Type} [DecidableEq P]
     {Γ : Vegas.VCtx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
   | _, .letExpr _ _ k => Legal k
-  | _, .sample _ _ _ _ k => Legal k
+  | _, .sample _ _ k => Legal k
   | Γ, .commit _ _who (b := b) R k =>
     (∀ env : Env L.Val (Vegas.eraseVCtx Γ),
         ∃ a : L.Val b, Vegas.evalGuard (Player := P) (L := L) R a env = true) ∧
@@ -185,7 +185,7 @@ def FairPlayProfile {P : Type} [DecidableEq P]
     {Γ : Vegas.VCtx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
   | _, .letExpr _ _ k => FairPlayProfile σ k
-  | _, .sample _ _ _ _ k => FairPlayProfile σ k
+  | _, .sample _ _ k => FairPlayProfile σ k
   | _, .commit x who R k =>
     (∀ env, FDist.Supported (σ.commit who x R env)
       (fun a => Vegas.evalGuard (Player := P) (L := L) R a env = true)) ∧
@@ -195,10 +195,9 @@ def FairPlayProfile {P : Type} [DecidableEq P]
 namespace DistExpr
 
 abbrev Normalized {Γ : VCtxSimple} {b : BaseTy}
-    {τ : BindTySimple} {m : SampleMode τ}
-    (D : DistExpr (eraseVCtx (distVCtx τ m Γ)) b) : Prop :=
+    (D : DistExpr (erasePubVCtx Γ) b) : Prop :=
   ∀ env : VEnvSimple Γ,
-    FDist.totalWeight (evalDistExpr D (VEnv.eraseDistEnv τ m env)) = 1
+    FDist.totalWeight (evalDistExpr D (VEnv.eraseSampleEnv env)) = 1
 
 end DistExpr
 
@@ -208,8 +207,8 @@ def NormalizedDists {P : Type} [DecidableEq P]
     {Γ : Vegas.VCtx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
   | _, .letExpr _ _ k => NormalizedDists k
-  | _, .sample _ _ _ D' k =>
-    (∀ env, FDist.totalWeight (L.evalDist D' (VEnv.eraseDistEnv _ _ env)) = 1) ∧
+  | _, .sample _ D' k =>
+    (∀ env, FDist.totalWeight (L.evalDist D' (VEnv.eraseSampleEnv env)) = 1) ∧
     NormalizedDists k
   | _, .commit _ _ _ k => NormalizedDists k
   | _, .reveal _ _ _ _ k => NormalizedDists k
@@ -220,7 +219,7 @@ def OmniscientOperationalProfile.NormalizedOn {P : Type} [DecidableEq P]
     {Γ : Vegas.VCtx P L} → Vegas.VegasCore P L Γ → Prop
   | _, .ret _ => True
   | _, .letExpr _ _ k => σ.NormalizedOn k
-  | _, .sample _ _ _ _ k => σ.NormalizedOn k
+  | _, .sample _ _ k => σ.NormalizedOn k
   | _, .commit x who R k =>
     (∀ view, FDist.totalWeight (σ.commit who x R view) = 1) ∧ σ.NormalizedOn k
   | _, .reveal _ _ _ _ k => σ.NormalizedOn k

@@ -53,10 +53,10 @@ inductive Trace : (Γ : VCtx P L) → VegasCore P L Γ → Type where
       {e : L.Expr (erasePubVCtx Γ) b}
       {k : VegasCore P L ((x, .pub b) :: Γ)} :
       Trace ((x, .pub b) :: Γ) k → Trace Γ (.letExpr x e k)
-  | sample {Γ : VCtx P L} {x : VarId} {τ : BindTy P L} {m : SampleMode τ}
-      {D' : L.DistExpr (eraseVCtx (distVCtx τ m Γ)) τ.base}
-      {k : VegasCore P L ((x, τ) :: Γ)} :
-      L.Val τ.base → Trace ((x, τ) :: Γ) k → Trace Γ (.sample x τ m D' k)
+  | sample {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {D' : L.DistExpr (erasePubVCtx Γ) b}
+      {k : VegasCore P L ((x, .pub b) :: Γ)} :
+      L.Val b → Trace ((x, .pub b) :: Γ) k → Trace Γ (.sample x D' k)
   | commit {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
       {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
       {k : VegasCore P L ((x, .hidden who b) :: Γ)} :
@@ -83,7 +83,7 @@ noncomputable def traceOutcome :
       evalPayoffs payoffs env
   | _, .letExpr _ e k, env, .letExpr t =>
       traceOutcome k (VEnv.cons (L.eval e (VEnv.erasePubEnv env)) env) t
-  | _, .sample _ _ _ _ k, env, .sample v t =>
+  | _, .sample _ _ k, env, .sample v t =>
       traceOutcome k (VEnv.cons v env) t
   | _, .commit _ _ _ k, env, .commit v t =>
       traceOutcome k (VEnv.cons v env) t
@@ -103,8 +103,8 @@ noncomputable def traceWeight (σ : OmniscientOperationalProfile P L) :
   | _, .ret _, _, .ret => 1
   | _, .letExpr _ e k, env, .letExpr t =>
       traceWeight σ k (VEnv.cons (L.eval e (VEnv.erasePubEnv env)) env) t
-  | _, .sample _ τ m D' k, env, .sample v t =>
-      (L.evalDist D' (VEnv.eraseDistEnv τ m env)) v *
+  | _, .sample _ D' k, env, .sample v t =>
+      (L.evalDist D' (VEnv.eraseSampleEnv env)) v *
       traceWeight σ k (VEnv.cons v env) t
   | _, .commit x who R k, env, .commit v t =>
       (σ.commit who x R (VEnv.eraseEnv env)) v *
@@ -122,8 +122,8 @@ def Trace.legal : {Γ : VCtx P L} → (p : VegasCore P L Γ) →
   | _, .ret _, _, .ret => True
   | _, .letExpr _ e k, env, .letExpr t =>
       legal k (VEnv.cons (L.eval e (VEnv.erasePubEnv env)) env) t
-  | _, .sample _ τ m D' k, env, .sample v t =>
-      v ∈ (L.evalDist D' (VEnv.eraseDistEnv τ m env)).support ∧
+  | _, .sample _ D' k, env, .sample v t =>
+      v ∈ (L.evalDist D' (VEnv.eraseSampleEnv env)).support ∧
       legal k (VEnv.cons v env) t
   | _, .commit _ _who R k, env, .commit v t =>
       evalGuard R v (VEnv.eraseEnv env) = true ∧
@@ -150,14 +150,14 @@ inductive CanReach : {Γ : VCtx P L} → VegasCore P L Γ →
       {oc : Outcome P} :
       CanReach k (VEnv.cons (L.eval e (VEnv.erasePubEnv env)) env) oc →
       CanReach (.letExpr x e k) env oc
-  | sample {Γ : VCtx P L} {x : VarId} {τ : BindTy P L} {m : SampleMode τ}
-      {D' : L.DistExpr (eraseVCtx (distVCtx τ m Γ)) τ.base}
-      {k : VegasCore P L ((x, τ) :: Γ)}
+  | sample {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {D' : L.DistExpr (erasePubVCtx Γ) b}
+      {k : VegasCore P L ((x, .pub b) :: Γ)}
       {env : VEnv (Player := P) L Γ} {oc : Outcome P}
-      (v : L.Val τ.base)
-      (hsupp : v ∈ (L.evalDist D' (VEnv.eraseDistEnv τ m env)).support) :
+      (v : L.Val b)
+      (hsupp : v ∈ (L.evalDist D' (VEnv.eraseSampleEnv env)).support) :
       CanReach k (VEnv.cons v env) oc →
-      CanReach (.sample x τ m D' k) env oc
+      CanReach (.sample x D' k) env oc
   | commit {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
       {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
       {k : VegasCore P L ((x, .hidden who b) :: Γ)}
@@ -189,14 +189,14 @@ inductive Reach (σ : OmniscientOperationalProfile P L) :
       {env : VEnv (Player := P) L Γ} {oc : Outcome P} :
       Reach σ k (VEnv.cons (L.eval e (VEnv.erasePubEnv env)) env) oc →
       Reach σ (.letExpr x e k) env oc
-  | sample {Γ : VCtx P L} {x : VarId} {τ : BindTy P L} {m : SampleMode τ}
-      {D' : L.DistExpr (eraseVCtx (distVCtx τ m Γ)) τ.base}
-      {k : VegasCore P L ((x, τ) :: Γ)}
+  | sample {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {D' : L.DistExpr (erasePubVCtx Γ) b}
+      {k : VegasCore P L ((x, .pub b) :: Γ)}
       {env : VEnv (Player := P) L Γ} {oc : Outcome P}
-      (v : L.Val τ.base)
-      (hsupp : v ∈ (L.evalDist D' (VEnv.eraseDistEnv τ m env)).support) :
+      (v : L.Val b)
+      (hsupp : v ∈ (L.evalDist D' (VEnv.eraseSampleEnv env)).support) :
       Reach σ k (VEnv.cons v env) oc →
-      Reach σ (.sample x τ m D' k) env oc
+      Reach σ (.sample x D' k) env oc
   | commit {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
       {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
       {k : VegasCore P L ((x, .hidden who b) :: Γ)}
@@ -284,7 +284,7 @@ theorem reach_iff_outcomeDist_support {Γ : VCtx P L} (σ : OmniscientOperationa
     simp only [outcomeDist]
     exact ⟨fun h => by cases h with | letExpr h => exact (ih _).mp h,
            fun h => .letExpr ((ih _).mpr h)⟩
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
     simp only [outcomeDist, FDist.mem_support_bind]
     constructor
     · intro h
@@ -314,9 +314,9 @@ noncomputable def traceWeightSum (σ : OmniscientOperationalProfile P L) :
       if oc = evalPayoffs u env then 1 else 0
   | _, .letExpr _ e k, env, oc =>
       traceWeightSum σ k (VEnv.cons (L.eval e (VEnv.erasePubEnv env)) env) oc
-  | _, .sample _ τ m D' k, env, oc =>
-      (L.evalDist D' (VEnv.eraseDistEnv τ m env)).support.sum fun v =>
-        (L.evalDist D' (VEnv.eraseDistEnv τ m env)) v *
+  | _, .sample _ D' k, env, oc =>
+      (L.evalDist D' (VEnv.eraseSampleEnv env)).support.sum fun v =>
+        (L.evalDist D' (VEnv.eraseSampleEnv env)) v *
         traceWeightSum σ k (VEnv.cons v env) oc
   | _, .commit x who R k, env, oc =>
       (σ.commit who x R (VEnv.eraseEnv env)).support.sum fun v =>
@@ -337,7 +337,7 @@ theorem adequacy_pointwise {Γ : VCtx P L} (σ : OmniscientOperationalProfile P 
   | letExpr x _ k ih =>
     simp only [outcomeDist, traceWeightSum]
     exact ih _
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
     simp only [outcomeDist, traceWeightSum, FDist.bind_apply]
     exact Finset.sum_congr rfl fun v _ => by rw [ih]
   | commit x who R k ih =>
@@ -355,8 +355,8 @@ noncomputable def traceDist (σ : OmniscientOperationalProfile P L) :
   | _, .letExpr _ e k, env =>
       (traceDist σ k (VEnv.cons (L.eval e (VEnv.erasePubEnv env)) env)).map
         (.letExpr ·)
-  | _, .sample _ τ m D' k, env =>
-      (L.evalDist D' (VEnv.eraseDistEnv τ m env)).bind fun v =>
+  | _, .sample _ D' k, env =>
+      (L.evalDist D' (VEnv.eraseSampleEnv env)).bind fun v =>
         (traceDist σ k (VEnv.cons v env)).map (.sample v ·)
   | _, .commit x who R k, env =>
       FDist.bind (σ.commit who x R (VEnv.eraseEnv env)) fun v =>
@@ -372,10 +372,10 @@ private theorem Trace.letExpr_injective {Γ : VCtx P L} {x : VarId} {b : L.Ty}
   fun _ _ h => Trace.letExpr.inj h
 
 private theorem Trace.sample_injective {Γ : VCtx P L} {x : VarId}
-    {τ : BindTy P L} {m : SampleMode τ}
-    {D' : L.DistExpr (eraseVCtx (distVCtx τ m Γ)) τ.base}
-    {k : VegasCore P L ((x, τ) :: Γ)} (v : L.Val τ.base) :
-    Function.Injective fun (t : Trace ((x, τ) :: Γ) k) =>
+    {b : L.Ty}
+    {D' : L.DistExpr (erasePubVCtx Γ) b}
+    {k : VegasCore P L ((x, .pub b) :: Γ)} (v : L.Val b) :
+    Function.Injective fun (t : Trace ((x, .pub b) :: Γ) k) =>
       Trace.sample (D' := D') v t :=
   fun _ _ h => (Trace.sample.inj h).2
 
@@ -409,7 +409,7 @@ theorem traceDist_apply (σ : OmniscientOperationalProfile P L) {Γ : VCtx P L}
       simp only [traceDist, traceWeight]
       rw [FDist.map_apply_injective _ _ _ Trace.letExpr_injective]
       exact ih _ t
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
     cases t with
     | sample v t =>
       simp only [traceDist, traceWeight]
@@ -454,7 +454,7 @@ theorem outcomeDist_eq_map_traceDist (σ : OmniscientOperationalProfile P L) {Γ
     simp [traceOutcome]
   | letExpr x e k ih =>
     simp only [outcomeDist, traceDist]; rw [ih, FDist.map_map]; congr 1
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
     simp only [outcomeDist, traceDist]; rw [FDist.bind_map]
     congr 1; ext v; rw [ih, FDist.map_map]; congr 1
   | commit x who R k ih =>
@@ -729,4 +729,3 @@ theorem outcomeDist_comm_reveal
   exact hk_eq (VEnv.get env hx₁) (VEnv.get env hx₂) env
 
 end Vegas
-

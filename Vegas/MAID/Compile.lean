@@ -259,24 +259,19 @@ namespace MAIDCompileState
 
 variable {B : MAIDBackend Player L}
 
-def sampleDeps (st : MAIDCompileState Player L B)
-    {Γ : VCtx Player L} (τ : BindTy Player L) (m : SampleMode τ) :
-    Finset Nat :=
-  st.depsOfVars ((distVCtx τ m Γ).map Prod.fst)
-
 def addVar (st : MAIDCompileState Player L B) (x : VarId) (τ : BindTy Player L)
-    (deps : Finset Nat) (hdeps : ∀ d ∈ deps, d < st.nextId) :
-    MAIDCompileState Player L B where
-  nextId := st.nextId
-  descAt := st.descAt
-  vars := st.vars ++ [(x, τ, deps)]
-  nodeDeps_lt := st.nodeDeps_lt
-  varDeps_lt := by
-    intro e he d hd
-    simp only [List.mem_append, List.mem_singleton] at he
-    rcases he with he | rfl
-    · exact st.varDeps_lt e he d hd
-    · exact hdeps d hd
+  (deps : Finset Nat) (hdeps : ∀ d ∈ deps, d < st.nextId) :
+  MAIDCompileState Player L B where
+nextId := st.nextId
+descAt := st.descAt
+vars := st.vars ++ [(x, τ, deps)]
+nodeDeps_lt := st.nodeDeps_lt
+varDeps_lt := by
+  intro e he d hd
+  simp only [List.mem_append, List.mem_singleton] at he
+  rcases he with he | rfl
+  · exact st.varDeps_lt e he d hd
+  · exact hdeps d hd
 
 def addNode (st : MAIDCompileState Player L B) (nd : CompiledNode Player L B)
     (hdeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId) :
@@ -391,15 +386,15 @@ noncomputable def ofProg
           let env := ρ raw
           VEnv.cons (τ := .pub b) (L.eval e (VEnv.erasePubEnv env)) env)
         (st.addVar x (.pub b) deps (st.depsOfVars_lt _))
-  | Γ, .sample x τ m D' k, hl, hd, ρ, st =>
+  | Γ, .sample (b := b) x D' k, hl, hd, ρ, st =>
       let deps := st.ctxDeps Γ
       let id := st.nextId
-      let cpdFDist : RawNodeEnv L → FDist (L.Val τ.base) := fun raw =>
+      let cpdFDist : RawNodeEnv L → FDist (L.Val b) := fun raw =>
         let env := ρ raw
-        L.evalDist D' (VEnv.eraseDistEnv τ m env)
+        L.evalDist D' (VEnv.eraseSampleEnv env)
       let cpdNorm : ∀ raw, FDist.totalWeight (cpdFDist raw) = 1 :=
         fun raw => hd.1 _
-      let res := st.addNode (.chance τ.base deps cpdFDist cpdNorm) (by
+      let res := st.addNode (.chance b deps cpdFDist cpdNorm) (by
         intro d hd'
         have hd'' : d ∈ deps := by
           simpa [CompiledNode.parents, CompiledNode.obsParents] using hd'
@@ -408,9 +403,9 @@ noncomputable def ofProg
       ofProg B k hl hd.2
         (fun raw =>
           let env := ρ raw
-          let v := MAIDCompileState.readVal (B := B) raw τ.base id
-          VEnv.cons v env)
-        (st'.addVar x τ ({id}) (by
+          let v := MAIDCompileState.readVal (B := B) raw b id
+          VEnv.cons (τ := .pub b) v env)
+        (st'.addVar x (.pub b) ({id}) (by
           intro d hd'
           have hdid : d = id := by
             simpa using hd'
@@ -633,7 +628,7 @@ noncomputable def computeReveals (B : MAIDBackend Player L) :
       (Finset.univ (α := Player)).toList.foldl (fun rs' _ => rs'.addPublicNode) rs
   | _, .letExpr _ _ k, rs =>
       computeReveals B k rs
-  | _, .sample x _ _ _ k, rs =>
+  | _, .sample x _ k, rs =>
       let id := rs.nextId
       let rs' := rs.addPublicNode.bindVar x id
       computeReveals B k rs'

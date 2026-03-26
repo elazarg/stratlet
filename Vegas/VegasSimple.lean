@@ -10,10 +10,9 @@ value and expression layer from `Vegas.ExprSimple`.
 
 namespace Vegas
 
-noncomputable def VEnvSimple.projectDist {Γ : VCtxSimple}
-    (τ : BindTySimple) (m : SampleMode τ)
-    (env : VEnvSimple Γ) : VEnvSimple (distVCtx τ m Γ) :=
-  Vegas.VEnv.projectDist (Player := Player) (L := simpleExpr) τ m env
+def VEnvSimple.eraseSampleEnv {Γ : VCtxSimple}
+    (env : VEnvSimple Γ) : Env simpleExpr.Val (erasePubVCtx Γ) :=
+  Vegas.VEnv.eraseSampleEnv (Player := Player) (L := simpleExpr) env
 
 /-- Per-player payoff expressions with no duplicate players.
     Convenience wrapper for constructing `ret` payloads. -/

@@ -346,7 +346,7 @@ private theorem MAIDCompileState.ofProg_preserves_decision_monotone'
     rcases hy with h | h
     · exact List.mem_cons_of_mem _ (hvs y h)
     · simp only [List.mem_cons, List.not_mem_nil, or_false] at h; subst h; exact List.Mem.head _
-  | sample _ _ _ _ k ih =>
+  | sample _ _ k ih =>
     refine ih hl hd.2 hfresh.2 _ _ ?_ ?_ ?_
     · exact DecisionMonotone_addNode_addVar_nonDec' st₀ _ _ _ _ _ hmon
         (fun who h => by simp [CompiledNode.kind] at h)

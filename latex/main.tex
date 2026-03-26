@@ -244,11 +244,12 @@ view-scoping judgment (\Cref{def:viewscoped}).
 
 \subsection{Nature and Sampling}
 
-\paragraph{Missing:} \textit{The calculus includes a $\Sample$ construct with
-three sampling modes---public nature, private nature, and player-private---that
-draw from distribution expressions and bind the result with appropriate
-visibility. A small example (e.g., Bayesian game with private types drawn from
-a prior) should be added here to complete the tour of language features.}
+The calculus includes a $\Sample$ construct for public chance moves. A sample
+draws from a distribution expression evaluated in the current public context
+and binds the result as a fresh public variable. This separates exogenous
+randomness from player choice: randomness is introduced by $\Sample$, while
+private information and strategic choice are introduced by $\Commit$ and later
+made public, if desired, by $\Reveal$.
 
 
 %% =====================================================================
@@ -358,9 +359,9 @@ p \;\;::=\;\;
     & \text{where } e : L.\Expr(\|\Gamma^{\pub}\|, \tau),\;
       k : (x{:}\pub\;\tau) :: \Gamma \vdash p \\
   \mid\;\;
-  & \Sample\;x : \beta \sim_m D \;\mathbf{in}\; k
-    & \text{where } D : L.\mathit{DistExpr}(\|\mathit{ctx}_m(\Gamma)\|, |\beta|),\;
-      k : (x{:}\beta) :: \Gamma \vdash p \\
+  & \Sample\;x : \tau \sim D \;\mathbf{in}\; k
+    & \text{where } D : L.\mathit{DistExpr}(\|\Gamma^{\pub}\|, \tau),\;
+      k : (x{:}\pub\;\tau) :: \Gamma \vdash p \\
   \mid\;\;
   & \Commit\;x\;\mathbf{by}\;i\;\mathbf{where}\;R\;\mathbf{in}\;k
     & \text{where } R : L.\Expr((x{:}\tau) :: \|\Gamma\|,\;\bool) \\
@@ -372,9 +373,8 @@ p \;\;::=\;\;
 \end{align*}
 }}
 \caption{Vegas formation rules. Each construct extends the context for its
-continuation~$k$. The sampling context $\mathit{ctx}_m(\Gamma)$ depends on
-the mode $m$: $\Gamma^{\pub}$ for public/private nature,
-$\lfloor \Gamma\!\!\downarrow_i \rfloor$ for player-private.}\label{fig:grammar}
+continuation~$k$. Sampling draws from a distribution over the current public
+context and binds the result as a fresh public variable.}\label{fig:grammar}
 \end{figure}
 
 \noindent
@@ -383,12 +383,8 @@ The five constructs operate as follows:
 \item $\Ret$: Terminate with per-player payoffs, each typed over
       $\|\Gamma^{\pub}\|$.
 \item $\Let$: Bind a deterministic expression to a fresh $\pub$ variable.
-\item $\Sample$: Draw from a distribution and bind the result.
-      The sampling \emph{mode} $m$ determines both the visibility of $x$ and the
-      context available to $D$: public nature ($x$ is $\pub$, $D$ sees
-      $\Gamma^{\pub}$), private nature ($x$ is $\hid$, $D$ sees
-      $\Gamma^{\pub}$), or player-private ($x$ is $\hid(i,\tau)$, $D$ sees
-      $\lfloor\Gamma\!\!\downarrow_i\rfloor$).
+\item $\Sample$: Draw from a distribution expression over the current public
+      context and bind the result as a fresh $\pub$ variable.
 \item $\Commit$: Player~$i$ chooses a value of type~$\tau$ subject
       to guard~$R$. In the raw core, the guard is typed over the full erased
       context; the separate view-scoping judgment requires its dependencies to
@@ -612,9 +608,9 @@ The denotational semantics is defined by structural recursion on programs
     & \text{if } p = \Ret\;\mathit{payoffs} \\[6pt]
   \densub{k}{\sigma}(\rho[x \mapsto L.\mathit{eval}(e, \rho^{\pub})])
     & \text{if } p = \Let\;x = e\;\mathbf{in}\;k \\[6pt]
-  L.\mathit{evalDist}(D, \rho_m) \bind
+  L.\mathit{evalDist}(D, \rho^{\pub}) \bind
     (\lambda v.\; \densub{k}{\sigma}(\rho[x \mapsto v]))
-    & \text{if } p = \Sample\;x \sim_m D\;\mathbf{in}\;k \\[6pt]
+    & \text{if } p = \Sample\;x \sim D\;\mathbf{in}\;k \\[6pt]
   \sigma(i,x,R)(\rho) \bind
     (\lambda v.\; \densub{k}{\sigma}(\rho[x \mapsto v]))
     & \text{if } p = \Commit\;x\;\cdot\;\mathbf{by}\;i\;\cdot\;\mathbf{in}\;k \\[6pt]
@@ -624,11 +620,10 @@ The denotational semantics is defined by structural recursion on programs
 \]
 }}
 \caption{Denotational semantics $\densub{p}{\sigma}(\rho) : \FDist{\Outcome}$.
-Here $\rho^{\pub}$ projects to public variables, $\rho_m$ projects according
-to sampling mode, and $\rho[x \mapsto v]$ extends the environment. For the
-game-theoretic strategy layer, operational kernels are obtained from
-view-indexed behavioral strategies by first projecting $\rho$ to the player's
-visible environment.}\label{fig:outcomedist}
+Here $\rho^{\pub}$ projects to public variables and $\rho[x \mapsto v]$
+extends the environment. For the game-theoretic strategy layer, operational
+kernels are obtained from view-indexed behavioral strategies by first
+projecting $\rho$ to the player's visible environment.}\label{fig:outcomedist}
 \end{figure}
 
 \noindent
@@ -670,7 +665,7 @@ Given a trace $t \in \Tr{p}$ and environment~$\rho$:
   1 & \text{if } t = t_{\mathit{ret}} \\
   \trweight{\sigma}(t', \rho') & \text{if } t = t_{\mathbf{let}}(t')
     \text{ or } t = t_{\mathbf{reveal}}(t') \\
-  D(\rho_m)(v) \cdot \trweight{\sigma}(t', \rho[x \mapsto v])
+  D(\rho^{\pub})(v) \cdot \trweight{\sigma}(t', \rho[x \mapsto v])
     & \text{if } t = t_{\mathbf{sample}}(v, t') \\
   \sigma(i,x,R)(\rho)(v)
     \cdot \trweight{\sigma}(t', \rho[x \mapsto v])
@@ -1111,13 +1106,14 @@ Combining the compilation correctness bridges with perfect recall yields a
 Kuhn-style result for Vegas programs.
 
 \begin{theorem}[Vegas Kuhn Theorem]\label{thm:kuhn}
-Let $p$ be a Vegas program satisfying the standing assumptions (\Cref{def:standing}).
+Let $p$ be a closed Vegas program, i.e.\ a program in the empty initial
+context, satisfying the standing assumptions (\Cref{def:standing}).
 For every product mixture $\mu$ over pure strategy profiles (one independent
 distribution per player over that player's pure strategies), there exists a
 behavioral strategy profile $\sigma$ such that:
 \[
-  \outcomeDist_{\sigma}(p, \rho) \;=\;
-  \mathbb{E}_{\pi \sim \mu}\bigl[\outcomeDist_{\pi}(p, \rho)\bigr]
+  \outcomeDist_{\sigma}(p, \emptyset) \;=\;
+  \mathbb{E}_{\pi \sim \mu}\bigl[\outcomeDist_{\pi}(p, \emptyset)\bigr]
 \]
 \end{theorem}
 

@@ -34,7 +34,7 @@ private noncomputable def defaultPureStrategy
     (i : Player) → ProgramPureStrategy i p
   | _, .ret _, _ => PUnit.unit
   | _, .letExpr _ _ k, i => defaultPureStrategy B k i
-  | _, .sample _ _ _ _ k, i => defaultPureStrategy B k i
+  | _, .sample _ _ k, i => defaultPureStrategy B k i
   | Γ, .commit (b := b) _ owner _ k, i => by
     by_cases h : owner = i
     · subst h

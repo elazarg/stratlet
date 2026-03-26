@@ -86,11 +86,11 @@ inductive ProgramBehavioralStrategyPMF (who : P) :
       {e : L.Expr (erasePubVCtx Γ) b} {k : VegasCore P L ((x, .pub b) :: Γ)} :
       ProgramBehavioralStrategyPMF who k →
       ProgramBehavioralStrategyPMF who (.letExpr x e k)
-  | sample {Γ : VCtx P L} {x : VarId} {τ : BindTy P L} {m : SampleMode τ}
-      {D' : L.DistExpr (eraseVCtx (distVCtx τ m Γ)) τ.base}
-      {k : VegasCore P L ((x, τ) :: Γ)} :
+  | sample {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {D' : L.DistExpr (erasePubVCtx Γ) b}
+      {k : VegasCore P L ((x, .pub b) :: Γ)} :
       ProgramBehavioralStrategyPMF who k →
-      ProgramBehavioralStrategyPMF who (.sample x τ m D' k)
+      ProgramBehavioralStrategyPMF who (.sample x D' k)
   | commitOwn {Γ : VCtx P L} {x : VarId} {b : L.Ty}
       {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
       {k : VegasCore P L ((x, .hidden who b) :: Γ)} :
@@ -182,12 +182,12 @@ noncomputable def outcomeDistBehavioralPMF :
       outcomeDistBehavioralPMF k hd (fun w => match σ w with | .letExpr tail => tail) <|
         VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _)
           (L.eval e (VEnv.erasePubEnv env)) env
-  | _, .sample x τ m D' k, hd, σ, env =>
-      ((L.evalDist D' (VEnv.eraseDistEnv τ m env)).toPMF (hd.1 env)).bind
+  | _, .sample x D' k, hd, σ, env =>
+      ((L.evalDist D' (VEnv.eraseSampleEnv env)).toPMF (hd.1 env)).bind
         (fun v =>
           outcomeDistBehavioralPMF k hd.2
             (fun w => match σ w with | .sample tail => tail)
-            (VEnv.cons (Player := P) (L := L) (x := x) (τ := τ) v env))
+            (VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _) v env))
   | _, .commit x who (b := b) _ k, hd, σ, env =>
       (ProgramBehavioralStrategyPMF.headKernel (P := P) (L := L) (σ who)
         (projectViewEnv (P := P) (L := L) who (VEnv.eraseEnv env))).bind
@@ -239,7 +239,7 @@ noncomputable def toBehavioralPMF :
       ProgramBehavioralProfilePMF (P := P) (L := L) p
   | _, .ret _, _ => fun _ => .ret
   | _, .letExpr _ _ k, σ => fun w => .letExpr (toBehavioralPMF k σ w)
-  | _, .sample _ _ _ _ k, σ => fun w => .sample (toBehavioralPMF k σ w)
+  | _, .sample _ _ k, σ => fun w => ProgramBehavioralStrategyPMF.sample (toBehavioralPMF k σ w)
   | _, .commit _ who _R k, σ =>
       fun i =>
         if h : who = i then
@@ -280,7 +280,7 @@ noncomputable def toPMFProfile :
       ProgramBehavioralProfilePMF (P := P) (L := L) p
   | _, .ret _, _ => fun _ => .ret
   | _, .letExpr _ _ k, σ => fun w => .letExpr (toPMFProfile k σ w)
-  | _, .sample _ _ _ _ k, σ => fun w => .sample (toPMFProfile k σ w)
+  | _, .sample _ _ k, σ => fun w => ProgramBehavioralStrategyPMF.sample (toPMFProfile k σ w)
   | _, .commit _ who R k, σ =>
       fun i => by
         by_cases h : who = i
@@ -330,11 +330,11 @@ theorem outcomeDistBehavioralPMF_toBehavioralPMF_eq
   | letExpr x e k ih =>
       simpa [outcomeDistBehavioralPMF, outcomeDistPure,
         ProgramPureProfile.toBehavioralPMF] using ih σ _ hd
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
       simp only [outcomeDistBehavioralPMF, outcomeDistPure]
-      rw [FDist.toPMF_bind (L.evalDist D' (VEnv.eraseDistEnv τ m env))
+      rw [FDist.toPMF_bind (L.evalDist D' (VEnv.eraseSampleEnv env))
         (fun v => outcomeDistPure k σ (VEnv.cons (Player := P) (L := L)
-          (x := x) (τ := τ) v env))
+          (x := x) (τ := .pub _) v env))
         (hd.1 env)
         (fun v => outcomeDistPure_totalWeight_eq_one hd.2)]
       congr 1; funext v
@@ -380,11 +380,11 @@ theorem outcomeDistBehavioralPMF_toPMFProfile_eq
   | letExpr x e k ih =>
       simpa [outcomeDistBehavioralPMF, outcomeDistBehavioral,
         ProgramBehavioralProfile.toPMFProfile] using ih σ _ hd
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
       simp only [outcomeDistBehavioralPMF, outcomeDistBehavioral]
-      rw [FDist.toPMF_bind (L.evalDist D' (VEnv.eraseDistEnv τ m env))
+      rw [FDist.toPMF_bind (L.evalDist D' (VEnv.eraseSampleEnv env))
         (fun v => outcomeDistBehavioral k σ (VEnv.cons (Player := P) (L := L)
-          (x := x) (τ := τ) v env))
+          (x := x) (τ := .pub _) v env))
         (hd.1 env)
         (fun v => outcomeDistBehavioral_totalWeight_eq_one hd.2)]
       congr 1; funext v

@@ -89,10 +89,10 @@ noncomputable def extractOutcomeAux
       extractOutcomeAux B k
         (fun raw => VEnv.cons (L.eval e (VEnv.erasePubEnv (ρ raw))) (ρ raw))
         nextId
-  | _, .sample _x τ _m _D' k, ρ, nextId =>
+  | _, .sample (b := b) _x _D' k, ρ, nextId =>
       extractOutcomeAux B k
         (fun raw => VEnv.cons
-          (MAIDCompileState.readVal (B := B) raw τ.base nextId) (ρ raw))
+          (MAIDCompileState.readVal (B := B) raw b nextId) (ρ raw))
         (nextId + 1)
   | _, .commit (b := b) _x _who _R k, ρ, nextId =>
       extractOutcomeAux B k
@@ -144,15 +144,15 @@ noncomputable def translateStrategyV
           VEnv.cons (τ := .pub b) (L.eval e (VEnv.erasePubEnv env)) env)
         (st.addVar x (.pub b) (st.pubCtxDeps _Γ) (st.depsOfVars_lt _))
         β
-  | _Γ, .sample x τ m D' k, hl, hd, ρ, st, β =>
+  | _Γ, .sample (b := b) x D' k, hl, hd, ρ, st, β =>
       let deps := st.ctxDeps _Γ
       let id := st.nextId
-      let cpdFDist : RawNodeEnv L → FDist (L.Val τ.base) := fun raw =>
+      let cpdFDist : RawNodeEnv L → FDist (L.Val b) := fun raw =>
         let env := ρ raw
-        L.evalDist D' (VEnv.eraseDistEnv τ m env)
+        L.evalDist D' (VEnv.eraseSampleEnv env)
       let cpdNorm : ∀ raw, FDist.totalWeight (cpdFDist raw) = 1 :=
         fun raw => hd.1 _
-      let res := st.addNode (.chance τ.base deps cpdFDist cpdNorm) (by
+      let res := st.addNode (.chance b deps cpdFDist cpdNorm) (by
         intro d hd'
         have hd'' : d ∈ deps := by
           simpa [CompiledNode.parents, CompiledNode.obsParents] using hd'
@@ -161,9 +161,9 @@ noncomputable def translateStrategyV
       translateStrategyV B k hl hd.2
         (fun raw =>
           let env := ρ raw
-          let v := MAIDCompileState.readVal (B := B) raw τ.base id
-          VEnv.cons v env)
-        (st'.addVar x τ ({id}) (by
+          let v := MAIDCompileState.readVal (B := B) raw b id
+          VEnv.cons (τ := .pub b) v env)
+        (st'.addVar x (.pub b) ({id}) (by
           intro d hd'
           have hdid : d = id := by simpa using hd'
           subst d; exact Nat.lt_succ_self _))
@@ -255,8 +255,8 @@ noncomputable def reflectPolicyAuxV
       fun i => .letExpr (reflectPolicyAuxV B k hl hd
         (fun raw => VEnv.cons (τ := .pub b) (L.eval e (VEnv.erasePubEnv (ρ raw))) (ρ raw))
         (st.addVar x (.pub b) (st.pubCtxDeps _) (st.depsOfVars_lt _)) pol i)
-  | _, .sample x τ m D' k, hl, hd, ρ, st, pol =>
-      fun i => .sample (reflectPolicyAuxV B k hl hd.2 _ _ pol i)
+  | _, .sample x D' k, hl, hd, ρ, st, pol =>
+      fun i => ProgramBehavioralStrategyPMF.sample (reflectPolicyAuxV B k hl hd.2 _ _ pol i)
   | Γ, .commit (b := b) x who R k, hl, hd, ρ, st, pol =>
       letI := B.fintypePlayer
       let st_final := MAIDCompileState.ofProg B (.commit x who R k) hl hd ρ st
@@ -343,7 +343,7 @@ noncomputable def compilePureProfileAuxV
       compilePureProfileAuxV B k hl hd
         (fun raw => VEnv.cons (τ := .pub b) (L.eval e (VEnv.erasePubEnv (ρ raw))) (ρ raw))
         (st.addVar x (.pub b) (st.pubCtxDeps _) (st.depsOfVars_lt _)) π
-  | _, .sample x τ m D' k, hl, hd, ρ, st, π =>
+  | _, .sample x D' k, hl, hd, ρ, st, π =>
       compilePureProfileAuxV B k hl hd.2 _ _ π
   | Γ, .commit (b := b) x who R k, hl, hd, ρ, st, π => by
       letI := B.fintypePlayer
@@ -405,7 +405,7 @@ theorem compilePureProfileAuxV_player_indep
   induction p with
   | ret => intros; rfl
   | letExpr x e k ih => intro hl hd ρ st π₁ π₂ who h; exact ih hl hd _ _ π₁ π₂ who h
-  | sample x τ m D' k ih => intro hl hd ρ st π₁ π₂ who h; exact ih hl hd.2 _ _ π₁ π₂ who h
+  | sample x D' k ih => intro hl hd ρ st π₁ π₂ who h; exact ih hl hd.2 _ _ π₁ π₂ who h
   | reveal y who_r x_r hx k ih => intro hl hd ρ st π₁ π₂ who h; exact ih hl hd _ _ π₁ π₂ who h
   | commit x who_commit R k ih =>
     intro hl hd ρ st π₁ π₂ who h
@@ -971,28 +971,29 @@ theorem envRespectsLookupDeps_sample
     (st : MAIDCompileState Player L B)
     (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ')
     (hρ_var : EnvRespectsLookupDeps st ρ)
-    {x : VarId} {τ : BindTy Player L} {m : SampleMode τ}
-    (D' : L.DistExpr (eraseVCtx (distVCtx τ m Γ')) τ.base)
-    (hd : ∀ env, FDist.totalWeight (L.evalDist D' (VEnv.eraseDistEnv τ m env)) = 1)
+    {x : VarId} {b : L.Ty}
+    (D' : L.DistExpr (erasePubVCtx Γ') b)
+    (hd : ∀ env, FDist.totalWeight (L.evalDist D' (VEnv.eraseSampleEnv env)) = 1)
     (hxΓ : Fresh x Γ')
     (hxvars : x ∉ st.vars.map Prod.fst) :
-    let nd : CompiledNode Player L B := .chance τ.base (st.ctxDeps Γ')
-      (fun raw => L.evalDist D' (VEnv.eraseDistEnv τ m (ρ raw))) (fun raw => hd _)
+    let nd : CompiledNode Player L B := .chance b (st.ctxDeps Γ')
+      (fun raw => L.evalDist D' (VEnv.eraseSampleEnv (ρ raw))) (fun raw => hd _)
     let hndeps : ∀ d ∈ nd.parents ∪ nd.obsParents, d < st.nextId := by
       intro d hd'; rcases Finset.mem_union.mp hd' with h | h <;>
         simpa [CompiledNode.parents, CompiledNode.obsParents, nd] using st.depsOfVars_lt _ d h
     let stNode := (st.addNode nd hndeps).2
-    let st₁ := stNode.addVar x τ ({st.nextId}) (by
+    let st₁ := stNode.addVar x (.pub b) ({st.nextId}) (by
       intro d hd'; have := Finset.mem_singleton.mp hd'; subst d
       exact Nat.lt_succ_self _)
-    let ρ' : RawNodeEnv L → VEnv (Player := Player) L ((x, τ) :: Γ') :=
-      fun raw => VEnv.cons (MAIDCompileState.readVal (B := B) raw τ.base st.nextId) (ρ raw)
+    let ρ' : RawNodeEnv L → VEnv (Player := Player) L ((x, .pub b) :: Γ') :=
+      fun raw => VEnv.cons (τ := .pub b)
+        (MAIDCompileState.readVal (B := B) raw b st.nextId) (ρ raw)
     EnvRespectsLookupDeps st₁ ρ' := by
   intro nd hndeps stNode st₁ ρ' y σ hy j hj raw tv
   cases hy with
   | here =>
       have hlookup : st₁.lookupDeps x = ({st.nextId} : Finset Nat) := by
-        simpa [st₁] using stNode.lookupDeps_addVar_eq_self_of_fresh x τ {st.nextId}
+        simpa [st₁] using stNode.lookupDeps_addVar_eq_self_of_fresh x (.pub b) {st.nextId}
           (by
             intro d hd'
             have := Finset.mem_singleton.mp hd'
@@ -1003,11 +1004,11 @@ theorem envRespectsLookupDeps_sample
         simpa [Finset.mem_singleton] using
           (show j ∉ ({st.nextId} : Finset Nat) by simpa [hlookup] using hj)
       simpa [ρ', VEnv.get, readVal_extend_ne, hjid] using
-        (readVal_extend_ne (B := B) raw j st.nextId tv τ.base hjid.symm)
+        (readVal_extend_ne (B := B) raw j st.nextId tv b hjid.symm)
   | there hy' =>
       have hxy : y ≠ x := fun hEq => hxΓ (hEq.symm ▸ hy'.mem_map_fst)
       have hlookupVar : st₁.lookupDeps y = stNode.lookupDeps y := by
-        simpa [st₁] using stNode.lookupDeps_addVar_eq_of_ne x τ {st.nextId}
+        simpa [st₁] using stNode.lookupDeps_addVar_eq_of_ne x (.pub b) {st.nextId}
           (by
             intro d hd'
             have := Finset.mem_singleton.mp hd'
@@ -1279,13 +1280,13 @@ noncomputable def nativeOutcomeDistPMFV
         (fun raw => VEnv.cons (L := L) (x := x) (τ := .pub b)
           (L.eval e (VEnv.erasePubEnv (ρ raw))) (ρ raw))
         nextId raw
-  | .sample x τ _m D' k, hd, σ => fun ρ nextId raw =>
-      ((L.evalDist D' (VEnv.eraseDistEnv τ _ (ρ raw))).toPMF (hd.1 _)).bind
+  | .sample (b := b) x D' k, hd, σ => fun ρ nextId raw =>
+      ((L.evalDist D' (VEnv.eraseSampleEnv (ρ raw))).toPMF (hd.1 _)).bind
         (fun v =>
           nativeOutcomeDistPMFV B k hd.2 (fun w => match σ w with | .sample tail => tail)
-            (fun raw => VEnv.cons (L := L) (x := x) (τ := τ)
-              (MAIDCompileState.readVal (B := B) raw τ.base nextId) (ρ raw))
-            (nextId + 1) (raw.extend nextId ⟨τ.base, v⟩))
+            (fun raw => VEnv.cons (L := L) (x := x) (τ := .pub b)
+              (MAIDCompileState.readVal (B := B) raw b nextId) (ρ raw))
+            (nextId + 1) (raw.extend nextId ⟨b, v⟩))
   | .commit (b := b) x who _ k, hd, σ => fun ρ nextId raw =>
       let κ := ProgramBehavioralStrategyPMF.headKernel (P := Player) (L := L) (σ who)
       (κ (projectViewEnv who (VEnv.eraseEnv (ρ raw)))).bind
@@ -1326,20 +1327,21 @@ theorem nativeOutcomeDistPMFV_eq
         (congrArg (L.eval e) (congrArg VEnv.erasePubEnv (hρ nid hn raw tv)))
         (hρ nid hn raw tv))
       raw
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
+    rename_i Γ b
     intro raw; simp only [nativeOutcomeDistPMFV, outcomeDistBehavioralPMF]
     congr 1; funext v
     have hρ' : ∀ nid', nextId + 1 ≤ nid' → InsensitiveTo
-        (fun raw => VEnv.cons (L := L) (x := x) (τ := τ)
-          (MAIDCompileState.readVal (B := B) raw τ.base nextId) (ρ raw)) nid' := by
+        (fun raw => VEnv.cons (L := L) (x := x) (τ := .pub b)
+          (MAIDCompileState.readVal (B := B) raw b nextId) (ρ raw)) nid' := by
       intro nid' hn' raw tv
       exact VEnv.cons_ext
-        (readVal_extend_ne raw nid' nextId tv τ.base (by omega))
+        (readVal_extend_ne raw nid' nextId tv b (by omega))
         (hρ nid' (by omega) raw tv)
     rw [ih hd.2 (fun w => match σ w with | .sample tail => tail) _ (nextId + 1) hρ']
     congr 1
-    exact VEnv.cons_ext (readVal_extend_self (B := B) raw nextId τ.base v)
-      (hρ nextId (le_refl _) raw ⟨τ.base, v⟩)
+    exact VEnv.cons_ext (readVal_extend_self (B := B) raw nextId b v)
+      (hρ nextId (le_refl _) raw ⟨b, v⟩)
   | @commit _ x who b R k ih =>
     intro raw; simp only [nativeOutcomeDistPMFV, outcomeDistBehavioralPMF]
     congr 1; funext v

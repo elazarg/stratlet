@@ -453,11 +453,12 @@ theorem MAIDCompileState.ofProg_nextId_le
       (fun raw => VEnv.cons (L.eval e
         (VEnv.erasePubEnv (ρ raw))) (ρ raw))
       (st₀.addVar _ _ _ _)
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
+    rename_i Γ' b
     refine le_trans (Nat.le_succ _) ?_
     exact ih hl hd.2
       (fun raw => VEnv.cons
-        (MAIDCompileState.readVal (B := B) raw τ.base
+        (MAIDCompileState.readVal (B := B) raw b
           st₀.nextId) (ρ raw))
       ((st₀.addNode _ _).2.addVar _ _ _ _)
   | commit x who R k ih =>
@@ -494,7 +495,7 @@ theorem MAIDCompileState.ofProg_descAt_old
   | letExpr x e k ih =>
     simp only [MAIDCompileState.ofProg]
     exact ih hl hd _ (st₀.addVar _ _ _ _) hj
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
     change (MAIDCompileState.ofProg B k hl hd.2 _ _).descAt
       ⟨j, _⟩ = _
     rw [ih hl hd.2 _ _ (Nat.lt_succ_of_lt hj)]
@@ -589,7 +590,7 @@ theorem computeReveals_nextId_eq (B : MAIDBackend Player L)
       simp only [computeReveals, MAIDCompileState.ofProg]
       rw [foldl_addPublicNode_nextId, addUtilityNodes_nextId, hsync]
   | letExpr x e k ih => exact ih hl hd _ _ _ hsync
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
       simp only [computeReveals, MAIDCompileState.ofProg]
       apply ih (hd := hd.2)
       simp [RevealState.addPublicNode, RevealState.bindVar,
@@ -628,7 +629,7 @@ theorem computeReveals_revealTime_le (B : MAIDBackend Player L)
             simp only [RevealState.addPublicNode]
             rw [if_neg (show i ≠ rs.nextId from by omega)])
   | letExpr _ _ k ih => exact ih rs hi
-  | sample x _ _ _ k ih =>
+  | sample x _ k ih =>
       simp only [computeReveals]
       exact le_trans (ih _ (by simp [RevealState.addPublicNode, RevealState.bindVar]; omega)) (by
         simp only [RevealState.addPublicNode, RevealState.bindVar]
@@ -972,13 +973,14 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
   | letExpr x e k ih =>
       simp only [computeReveals, MAIDCompileState.ofProg]
       exact ih hl hd _ _ _ ⟨hcon₀.sync, hcon₀.chance, hcon₀.decision, hcon₀.nodeOf_lt, hcon₀.unset⟩
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
+      rename_i Γ' b
       rename_i Γ'
       simp only [computeReveals, MAIDCompileState.ofProg]
       apply ih (hd := hd.2)
       -- Extract the chance node being added
       let cnd : CompiledNode Player L B :=
-        .chance τ.base (st₀.ctxDeps Γ') (fun raw => L.evalDist D' (VEnv.eraseDistEnv τ m (ρ raw)))
+        .chance b (st₀.ctxDeps Γ') (fun raw => L.evalDist D' (VEnv.eraseSampleEnv (ρ raw)))
           (fun raw => hd.1 (ρ raw))
       have hcnd_kind : cnd.kind = .chance := rfl
       -- The deps proof from the compiler
@@ -990,9 +992,9 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
       have hdeps : ∀ d ∈ ({st₀.nextId} : Finset Nat), d < st₀.nextId + 1 := by
         intro d hd'; simp at hd'; omega
       change RevealConsistent
-        ((st₀.addNode cnd hcnd_deps).2.addVar x τ {st₀.nextId} hdeps)
+        ((st₀.addNode cnd hcnd_deps).2.addVar x (.pub b) {st₀.nextId} hdeps)
         (rs₀.addPublicNode.bindVar x rs₀.nextId)
-      have hnid1 : ((st₀.addNode cnd hcnd_deps).2.addVar x τ {st₀.nextId} hdeps).nextId
+      have hnid1 : ((st₀.addNode cnd hcnd_deps).2.addVar x (.pub b) {st₀.nextId} hdeps).nextId
           = st₀.nextId + 1 := by simp [MAIDCompileState.addNode, MAIDCompileState.addVar]
       exact {
         sync := by simp [RevealState.addPublicNode, RevealState.bindVar, hnid1, hcon₀.sync]
@@ -1527,11 +1529,12 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
             intro z nid hnid
             simp only [List.map_cons, List.mem_cons]
             right; exact hnsc z nid hnid)
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
+      rename_i Γ' b
       rename_i Γ'
       simp only [computeReveals, MAIDCompileState.ofProg]
       let cnd : CompiledNode Player L B :=
-        .chance τ.base (st₀.ctxDeps Γ') (fun raw => L.evalDist D' (VEnv.eraseDistEnv τ m (ρ raw)))
+        .chance b (st₀.ctxDeps Γ') (fun raw => L.evalDist D' (VEnv.eraseSampleEnv (ρ raw)))
           (fun raw => hd.1 (ρ raw))
       have hcnd_deps : ∀ d ∈ cnd.parents ∪ cnd.obsParents, d < st₀.nextId := by
         intro d hd'
@@ -1542,14 +1545,14 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
         intro d hd'; simp at hd'; omega
       exact ih hl hd.2 hfresh.2 _ _ _
         (revealConsistent_addChance' hcon₀ cnd
-          (by intro ⟨_, h⟩; simp [cnd, CompiledNode.kind] at h) hcnd_deps x τ hdeps)
+          (by intro ⟨_, h⟩; simp [cnd, CompiledNode.kind] at h) hcnd_deps x (.pub b) hdeps)
         ((st₀.addNode cnd hcnd_deps).2.VarsSubCtx_addVar
             (st₀.VarsSubCtx_addNode hvars cnd hcnd_deps)
           x _ _ _ hfresh.1)
         (hprev_transfer_addNode hcon₀ cnd
           (by intro ⟨_, h⟩; simp [cnd, CompiledNode.kind] at h) hcnd_deps hprev)
         (varVisible_addNode_chance_addVar st₀ rs₀ hcon₀ cnd
-          (by simp [cnd, CompiledNode.kind]) hcnd_deps x τ _ hvars hfresh.1 hdeps hvar₀)
+          (by simp [cnd, CompiledNode.kind]) hcnd_deps x (.pub b) _ hvars hfresh.1 hdeps hvar₀)
         (by -- hdt: x→{nextId}⊆{nextId}, y≠x → from hdt
             intro z nid hnid
             simp only [RevealState.addPublicNode, RevealState.bindVar] at hnid
@@ -1567,7 +1570,6 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
             intro z who' b' hv
             simp only [RevealState.addPublicNode, RevealState.bindVar]
             cases hv with
-            | here => simp -- z = x: nodeOf x = some nextId ≠ none
             | there hv' =>
                 by_cases hz : z = x
                 · subst hz; simp

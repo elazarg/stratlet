@@ -178,7 +178,7 @@ def ViewScoped :
     {Γ : VCtx P L} → VegasCore P L Γ → Prop
   | _, .ret payoffs => PayoffUsesOnlyPublic (P := P) (L := L) payoffs
   | _, .letExpr _ _ k => ViewScoped k
-  | _, .sample _ _ _ _ k => ViewScoped k
+  | _, .sample _ _ k => ViewScoped k
   | Γ, .commit x who R k =>
       GuardUsesOnly (L := L) (Γ := Γ) (x := x) (who := who) R ∧ ViewScoped k
   | _, .reveal _ _ _ _ k => ViewScoped k
@@ -200,7 +200,7 @@ def OmniscientOperationalProfileRespectsObservation (σ : OmniscientOperationalP
     {Γ : VCtx P L} → VegasCore P L Γ → Prop
   | _, .ret _ => True
   | _, .letExpr _ _ k => OmniscientOperationalProfileRespectsObservation σ k
-  | _, .sample _ _ _ _ k => OmniscientOperationalProfileRespectsObservation σ k
+  | _, .sample _ _ k => OmniscientOperationalProfileRespectsObservation σ k
   | Γ, .commit x who R k =>
       KernelRespectsObservation (L := L) (Γ := Γ) (who := who) (σ.commit who x R) ∧
       OmniscientOperationalProfileRespectsObservation σ k

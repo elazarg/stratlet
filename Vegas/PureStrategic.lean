@@ -21,11 +21,11 @@ variable {P : Type} [DecidableEq P] {L : IExpr}
 
 /-- Player-`who` pure strategies for the fixed program `p`: one deterministic
 choice rule for each commit site of `p` owned by `who`. -/
-def ProgramPureStrategy (who : P) :
+  def ProgramPureStrategy (who : P) :
     {Γ : VCtx P L} → VegasCore P L Γ → Type
   | _, .ret _ => PUnit
   | _, .letExpr _ _ k => ProgramPureStrategy who k
-  | _, .sample _ _ _ _ k => ProgramPureStrategy who k
+  | _, .sample _ _ k => ProgramPureStrategy who k
   | Γ, .commit _ owner (b := b) _ k =>
       if owner = who then
         PureKernel (P := P) (L := L) who Γ b × ProgramPureStrategy who k
@@ -69,7 +69,7 @@ noncomputable instance instFintype
       Fintype (ProgramPureStrategy (P := P) (L := L) who p)
   | _, .ret _ => inferInstanceAs (Fintype PUnit)
   | _, .letExpr _ _ k => instFintype LF who k
-  | _, .sample _ _ _ _ k => instFintype LF who k
+  | _, .sample _ _ k => instFintype LF who k
   | Γ, .commit _ owner (b := b) _ k =>
       match decEq owner who with
       | isTrue h =>
@@ -162,7 +162,7 @@ noncomputable def toBehavioral :
       ProgramBehavioralProfile (P := P) (L := L) p
   | _, .ret _, _ => fun _ => PUnit.unit
   | _, .letExpr _ _ k, σ => toBehavioral k σ
-  | _, .sample _ _ _ _ k, σ => toBehavioral k σ
+  | _, .sample _ _ k, σ => toBehavioral k σ
   | _, .commit _ who R k, σ =>
       fun i =>
         by
@@ -205,12 +205,12 @@ noncomputable def outcomeDistPure :
       outcomeDistPure k σ <|
         VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _)
           (L.eval e (VEnv.erasePubEnv env)) env
-  | _, .sample x τ m D' k, σ, env =>
+  | _, .sample x D' k, σ, env =>
       FDist.bind
-        (L.evalDist D' (VEnv.eraseDistEnv τ m env))
+        (L.evalDist D' (VEnv.eraseSampleEnv env))
         (fun v =>
           outcomeDistPure k σ
-            (VEnv.cons (Player := P) (L := L) (x := x) (τ := τ) v env))
+            (VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _) v env))
   | _, .commit x who (b := b) _ k, σ, env =>
       let s := ProgramPureStrategy.headKernel (P := P) (L := L) (σ who)
       let v := s (projectViewEnv (P := P) (L := L) who (VEnv.eraseEnv env))
@@ -233,7 +233,7 @@ theorem outcomeDistPure_totalWeight_eq_one
       simp [outcomeDistPure, FDist.totalWeight_pure]
   | letExpr x e k ih =>
       exact ih hd
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
       simp only [outcomeDistPure]
       exact FDist.totalWeight_bind_of_normalized (hd.1 _) (fun _ _ => ih hd.2)
   | commit x who R k ih =>
@@ -256,7 +256,7 @@ theorem outcomeDistBehavioral_toBehavioral_eq_outcomeDistPure
   | letExpr x e k ih =>
       simpa [outcomeDistBehavioral, outcomeDistPure, ProgramPureProfile.toBehavioral] using
         ih σ _
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
       simp only [outcomeDistBehavioral, outcomeDistPure]
       congr
       funext v

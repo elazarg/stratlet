@@ -26,7 +26,7 @@ def ProgramBehavioralStrategy (who : P) :
     {Γ : VCtx P L} → VegasCore P L Γ → Type
   | _, .ret _ => PUnit
   | _, .letExpr _ _ k => ProgramBehavioralStrategy who k
-  | _, .sample _ _ _ _ k => ProgramBehavioralStrategy who k
+  | _, .sample _ _ k => ProgramBehavioralStrategy who k
   | Γ, .commit _ owner (b := b) _ k =>
       if owner = who then
         ProgramBehavioralKernel (P := P) (L := L) who Γ b × ProgramBehavioralStrategy who k
@@ -111,12 +111,12 @@ noncomputable def outcomeDistBehavioral :
       outcomeDistBehavioral k σ <|
         VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _)
           (L.eval e (VEnv.erasePubEnv env)) env
-  | _, .sample x τ m D' k, σ, env =>
+  | _, .sample x D' k, σ, env =>
       FDist.bind
-        (L.evalDist D' (VEnv.eraseDistEnv τ m env))
+        (L.evalDist D' (VEnv.eraseSampleEnv env))
         (fun v =>
           outcomeDistBehavioral k σ
-            (VEnv.cons (Player := P) (L := L) (x := x) (τ := τ) v env))
+            (VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _) v env))
   | _, .commit x who (b := b) _ k, σ, env =>
       let κ := ProgramBehavioralStrategy.headKernel (P := P) (L := L) (σ who)
       FDist.bind
@@ -141,7 +141,7 @@ theorem outcomeDistBehavioral_totalWeight_eq_one
       simp [outcomeDistBehavioral, FDist.totalWeight_pure]
   | letExpr x e k ih =>
       exact ih hd
-  | sample x τ m D' k ih =>
+  | sample x D' k ih =>
       simp only [outcomeDistBehavioral]
       exact FDist.totalWeight_bind_of_normalized (hd.1 _) (fun _ _ => ih hd.2)
   | commit x who R k ih =>
