@@ -1,7 +1,5 @@
 /.lake
 .env
 CLAUDE.md
-lsp/daemon.log
-lsp/__pycache__/
 .claude/settings.local.json
 ephemeral/

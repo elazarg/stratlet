@@ -574,7 +574,7 @@ private theorem bridgeInv_ret_behavioral
     (_hρ_deps : ∀ j, j ∉ (st₀.ctxDeps Γ : Finset Nat) → InsensitiveTo ρ j)
     (_hρ_var : EnvRespectsLookupDeps st₀ ρ)
     (_hnodup : (Γ.map Prod.fst).Nodup) :
-    ∀ (β : ProgramBehavioralProfile (P := Player) (L := L) (.ret u))
+    ∀ (β : ProgramBehavioralProfile (.ret u))
       (pol : Policy (fp := B.fintypePlayer)
         (MAIDCompileState.ofProg B (.ret u) hl hd ρ st₀).toStruct)
       (env : VEnv L Γ),

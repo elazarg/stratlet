@@ -4,8 +4,6 @@ import GameTheory.Languages.MAID.Prefix
 /-!
 # Factored-Observation MAID (VegasMAID)
 
-**Status: experimental — not actively used yet.**
-
 A `VegasMAID` is a restricted MAID where the information structure is
 *factored*: every node's value is either fully public or private to exactly
 one player. There is no partial sharing ("A sees it but B doesn't, even

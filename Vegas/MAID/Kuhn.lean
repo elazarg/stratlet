@@ -1,7 +1,7 @@
-import Vegas.MAID.Bridge
-import Vegas.MAID.PerfectRecall
-import GameTheory.Languages.MAID.Kuhn
 import Math.PMFProduct
+import GameTheory.Languages.MAID.Kuhn
+import Vegas.MAID.PerfectRecall
+import Vegas.MAID.Bridge
 
 /-!
 # Vegas Kuhn Theorem via VegasMAID
