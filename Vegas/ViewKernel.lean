@@ -21,17 +21,17 @@ abbrev ViewEnv (who : P) (Γ : VCtx P L) : Type :=
 
 /-- A deterministic choice rule indexed by a player's actual view. -/
 abbrev PureKernel (who : P) (Γ : VCtx P L) (b : L.Ty) : Type :=
-  ViewEnv (P := P) (L := L) who Γ → L.Val b
+  ViewEnv who Γ → L.Val b
 
 /-- A behavioral choice rule indexed by a player's actual view. -/
 abbrev BehavioralKernel (who : P) (Γ : VCtx P L) (b : L.Ty) : Type :=
-  ViewEnv (P := P) (L := L) who Γ → FDist (L.Val b)
+  ViewEnv who Γ → FDist (L.Val b)
 
 private theorem visibleVars_cons_of_canSee_true
     {who : P} {y : VarId} {σ : BindTy P L} {Γ : VCtx P L}
     (hsee : canSee who σ = true) :
-    visibleVars (L := L) who ((y, σ) :: Γ) =
-      insert y (visibleVars (L := L) who Γ) := by
+    visibleVars who ((y, σ) :: Γ) =
+      insert y (visibleVars who Γ) := by
   cases σ with
   | pub b =>
       simp [visibleVars]
@@ -43,8 +43,8 @@ private theorem visibleVars_cons_of_canSee_true
 private theorem visibleVars_cons_of_canSee_false
     {who : P} {y : VarId} {σ : BindTy P L} {Γ : VCtx P L}
     (hsee : canSee who σ = false) :
-    visibleVars (L := L) who ((y, σ) :: Γ) =
-      visibleVars (L := L) who Γ := by
+    visibleVars who ((y, σ) :: Γ) =
+      visibleVars who Γ := by
   cases σ with
   | pub b =>
       simp [canSee] at hsee
@@ -56,7 +56,7 @@ private theorem visibleVars_cons_of_canSee_false
 private theorem mem_visibleVars_of_view_member
     {who : P} {Γ : VCtx P L} {x : VarId} :
     x ∈ (viewVCtx who Γ).map Prod.fst →
-      x ∈ visibleVars (L := L) who Γ := by
+      x ∈ visibleVars who Γ := by
   induction Γ with
   | nil =>
       intro hx
@@ -71,21 +71,21 @@ private theorem mem_visibleVars_of_view_member
         rw [hview] at hx
         simp only [List.map, List.mem_cons] at hx
         rcases hx with rfl | htl
-        · rw [visibleVars_cons_of_canSee_true (L := L) hsee]
+        · rw [visibleVars_cons_of_canSee_true hsee]
           exact Finset.mem_insert_self _ _
-        · rw [visibleVars_cons_of_canSee_true (L := L) hsee]
+        · rw [visibleVars_cons_of_canSee_true hsee]
           exact Finset.mem_insert_of_mem (ih htl)
       | false =>
         intro hx
         have hview : viewVCtx who ((y, σ) :: tl) = viewVCtx who tl := by
           simp [viewVCtx, hsee]
         rw [hview] at hx
-        rw [visibleVars_cons_of_canSee_false (L := L) hsee]
+        rw [visibleVars_cons_of_canSee_false hsee]
         exact ih hx
 
 private theorem mem_viewVCtx_map_fst_of_visible
     {who : P} {Γ : VCtx P L} {y : VarId}
-    (hx : y ∈ visibleVars (L := L) who Γ) :
+    (hx : y ∈ visibleVars who Γ) :
     y ∈ (viewVCtx who Γ).map Prod.fst := by
   induction Γ with
   | nil => simp [visibleVars] at hx
@@ -111,20 +111,20 @@ private theorem mem_viewVCtx_map_fst_of_visible
 
 private theorem view_member_visible
     {who : P} {Γ : VCtx P L} {x : VarId} {τ : BindTy P L}
-    (h : VHasVar (L := L) (viewVCtx who Γ) x τ) :
-    x ∈ visibleVars (L := L) who Γ :=
-  mem_visibleVars_of_view_member (L := L) (VHasVar.mem_map_fst h)
+    (h : VHasVar (viewVCtx who Γ) x τ) :
+    x ∈ visibleVars who Γ :=
+  mem_visibleVars_of_view_member (VHasVar.mem_map_fst h)
 
 /-- Project a full erased environment to the visible erased environment for
 player `who`. Defined recursively on the context for clean reduction. -/
 noncomputable def projectViewEnv (who : P) {Γ : VCtx P L}
     (env : Env L.Val (eraseVCtx Γ)) :
-    ViewEnv (P := P) (L := L) who Γ := by
+    ViewEnv who Γ := by
   intro x τ h
-  rcases HasVar.toVHasVar (Player := P) (L := L) (Γ := viewVCtx who Γ) h with
+  rcases HasVar.toVHasVar (Γ := viewVCtx who Γ) h with
     ⟨σ, hv, ⟨hτ⟩⟩
   cases hτ
-  exact env _ _ (VHasVar.toErased (Player := P) (L := L) (VHasVar.ofViewVCtx (p := who) hv))
+  exact env _ _ (VHasVar.toErased (VHasVar.ofViewVCtx (p := who) hv))
 
 /-- `projectViewEnv` at a specific view variable equals some env lookup at the
 corresponding erased variable. The specific HasVar proof comes from the
@@ -141,39 +141,39 @@ theorem projectViewEnv_apply {who : P} {Γ : VCtx P L}
 theorem projectViewEnv_eq_of_obsEq
     {who : P} {Γ : VCtx P L}
     {ρ₁ ρ₂ : Env L.Val (eraseVCtx Γ)}
-    (hobs : ObsEq (L := L) (Γ := Γ) who ρ₁ ρ₂) :
-    projectViewEnv (P := P) (L := L) who ρ₁ =
-      projectViewEnv (P := P) (L := L) who ρ₂ := by
+    (hobs : ObsEq (Γ := Γ) who ρ₁ ρ₂) :
+    projectViewEnv who ρ₁ =
+      projectViewEnv who ρ₂ := by
   funext x τ h
   dsimp [projectViewEnv]
-  rcases HasVar.toVHasVar (Player := P) (L := L) (Γ := viewVCtx who Γ) h with
+  rcases HasVar.toVHasVar (Γ := viewVCtx who Γ) h with
     ⟨σ, hv, ⟨hτ⟩⟩
   cases hτ
   exact hobs x σ.base
-    (VHasVar.toErased (Player := P) (L := L) (VHasVar.ofViewVCtx (p := who) hv))
-    (view_member_visible (L := L) hv)
+    (VHasVar.toErased (VHasVar.ofViewVCtx (p := who) hv))
+    (view_member_visible hv)
 
 /-- If the views through `VEnv.cons v₁ env₁` and `VEnv.cons v₂ env₂` agree,
 then the views through `env₁` and `env₂` agree (on old variables). -/
 theorem projectViewEnv_cons_eq
     {who : P} {Γ : VCtx P L} {x : VarId} {τ : BindTy P L}
-    {env₁ env₂ : VEnv (Player := P) L Γ}
+    {env₁ env₂ : VEnv L Γ}
     {v₁ v₂ : L.Val τ.base}
     (hnodup : (((x, τ) :: Γ).map Prod.fst).Nodup)
-    (h : projectViewEnv (P := P) (L := L) who
-        (VEnv.eraseEnv (VEnv.cons (L := L) (x := x) (τ := τ) v₁ env₁)) =
-      projectViewEnv (P := P) (L := L) who
-        (VEnv.eraseEnv (VEnv.cons (L := L) (x := x) (τ := τ) v₂ env₂))) :
-    projectViewEnv (P := P) (L := L) who
+    (h : projectViewEnv who
+        (VEnv.eraseEnv (VEnv.cons (x := x) v₁ env₁)) =
+      projectViewEnv who
+        (VEnv.eraseEnv (VEnv.cons (x := x) v₂ env₂))) :
+    projectViewEnv who
         (VEnv.eraseEnv env₁) =
-      projectViewEnv (P := P) (L := L) who
+      projectViewEnv who
         (VEnv.eraseEnv env₂) := by
   -- Step 1: projectViewEnv eq → ObsEq for extended context
   -- (converse of projectViewEnv_eq_of_obsEq — needs viewVCtx/HasVar infrastructure)
   -- nodup of erased context names (from hnodup + eraseVCtx preserves names)
   have hnodup_e : ((eraseVCtx ((x, τ) :: Γ)).map Prod.fst).Nodup := by
     rwa [eraseVCtx_map_fst]
-  have hobs_ext : ObsEq (L := L) (Γ := (x, τ) :: Γ) who
+  have hobs_ext : ObsEq (Γ := (x, τ) :: Γ) who
       (VEnv.eraseEnv (VEnv.cons v₁ env₁)) (VEnv.eraseEnv (VEnv.cons v₂ env₂)) := by
     intro y' σ₀ hy' hvis'
     -- y' is visible → construct HasVar in eraseVCtx(viewVCtx) via Classical
@@ -183,7 +183,6 @@ theorem projectViewEnv_cons_eq
     have hmem_view := mem_viewVCtx_map_fst_of_visible hvis'
     rw [← eraseVCtx_map_fst] at hmem_view
     rcases List.mem_map.mp hmem_view with ⟨⟨y_name, σ_b⟩, h_mem_e, hfst⟩
-    simp only [Prod.fst] at hfst
     -- y_name = y' (from hfst), σ_b is the erased type in viewVCtx
     have h_view : HasVar (eraseVCtx (viewVCtx who ((x, τ) :: Γ))) y' σ_b := by
       rw [← hfst]; exact HasVar.ofMem h_mem_e
@@ -203,9 +202,9 @@ theorem projectViewEnv_cons_eq
     conv_rhs => rw [HasVar.eq_of_nodup hnodup_e hy_v₁ hy_v₂]
     exact h_pt
   -- Step 2: ObsEq for (x,τ)::Γ restricted to old vars → ObsEq for Γ
-  have hobs : ObsEq (L := L) (Γ := Γ) who (VEnv.eraseEnv env₁) (VEnv.eraseEnv env₂) := by
+  have hobs : ObsEq (Γ := Γ) who (VEnv.eraseEnv env₁) (VEnv.eraseEnv env₂) := by
     intro y' σ₀ hy' hvis'
-    have hvis_ext : y' ∈ visibleVars (L := L) who ((x, τ) :: Γ) := by
+    have hvis_ext : y' ∈ visibleVars who ((x, τ) :: Γ) := by
       cases τ with
       | pub b => simp [visibleVars, hvis']
       | hidden owner b =>
@@ -220,14 +219,14 @@ theorem projectViewEnv_cons_eq
 `VEnv.cons v₂ env₂` agree, then `v₁ = v₂`. -/
 theorem projectViewEnv_cons_head_eq
     {who : P} {Γ : VCtx P L} {x : VarId} {τ : BindTy P L}
-    {env₁ env₂ : VEnv (Player := P) L Γ}
+    {env₁ env₂ : VEnv L Γ}
     {v₁ v₂ : L.Val τ.base}
     (hnodup : (((x, τ) :: Γ).map Prod.fst).Nodup)
     (hsee : canSee who τ = true)
-    (h : projectViewEnv (P := P) (L := L) who
-        (VEnv.eraseEnv (VEnv.cons (L := L) (x := x) (τ := τ) v₁ env₁)) =
-      projectViewEnv (P := P) (L := L) who
-        (VEnv.eraseEnv (VEnv.cons (L := L) (x := x) (τ := τ) v₂ env₂))) :
+    (h : projectViewEnv who
+        (VEnv.eraseEnv (VEnv.cons (x := x) v₁ env₁)) =
+      projectViewEnv who
+        (VEnv.eraseEnv (VEnv.cons (x := x) v₂ env₂))) :
     v₁ = v₂ := by
   have hvm : viewVCtx who ((x, τ) :: Γ) = (x, τ) :: viewVCtx who Γ := by
     simp [viewVCtx, hsee]
