@@ -985,6 +985,36 @@ $\Reveal\;y\;\mathbf{from}\;x$ & \emph{(none)} & Updates visibility; no MAID nod
 \caption{Vegas-to-MAID compilation.}\label{fig:compilation}
 \end{figure}
 
+\paragraph{Completeness (not mechanized).}
+The compilation is also complete over factored-observation MAIDs, in the
+following sense: every factored-observation MAID whose node functions are
+expressible in~$L$ can be represented as a Vegas program that compiles to an
+equivalent MAID.
+
+The construction proceeds by topological sort. Process each node in order:
+\begin{itemize}[nosep]
+\item \emph{Chance node} $\to$ $\Sample$ with the node's CPD as the
+      distribution expression.
+\item \emph{Decision node} for player~$i$ $\to$ first emit $\Reveal$ for every
+      unrevealed decision of a \emph{different} player that appears among this
+      node's parents, then $\Commit$ with guard $\mathit{true}$.
+\item \emph{Utility nodes} $\to$ $\Ret$ with the corresponding payoff functions.
+\end{itemize}
+The factored-observation invariant ensures the reveals are well-scheduled:
+if another player's decision is a parent of this decision node, it must be
+visible to the deciding player; since it belongs to a different player, it
+must be public, meaning it was either a chance node (always public) or was
+previously revealed. DAG acyclicity prevents circular dependencies. The
+resulting program satisfies all standing assumptions: guards are trivially
+$\mathit{true}$ (so $\Legal$ holds), and SSA freshness follows from
+topological ordering.
+
+Together with the compilation correctness theorem (\Cref{sec:maid-correct}),
+this gives a precise characterization: Vegas programs capture exactly the
+factored-observation MAIDs (up to expressiveness of~$L$). We have not
+mechanized this direction; the formal development covers only the
+compilation from Vegas to MAIDs.
+
 \paragraph{Example: compiled MAIDs.}
 For Matching Pennies, the compiler emits four nodes
 (\Cref{fig:maid-mp}):
