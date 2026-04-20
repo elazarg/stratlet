@@ -822,32 +822,6 @@ theorem VEnv.eraseEnv_toErased_eq :
   | _ :: _, env, _, _, .there hx =>
       eraseEnv_toErased_eq (fun a b h => env a b (.there h)) hx
 
-theorem mem_viewVCtx_map_fst_of_visible
-    {Γ : VCtx Player L} {who : Player} {x : VarId}
-    (hx : x ∈ visibleVars (L := L) who Γ) :
-    x ∈ (viewVCtx who Γ).map Prod.fst := by
-  induction Γ with
-  | nil => simp [visibleVars] at hx
-  | cons hd tl ih =>
-    obtain ⟨y, σ⟩ := hd
-    cases σ with
-    | pub υ =>
-      simp only [visibleVars] at hx
-      rcases Finset.mem_insert.mp hx with rfl | hx
-      · simp [viewVCtx, canSee]
-      · have := ih hx; simp [viewVCtx, canSee, this]
-    | hidden owner υ =>
-      by_cases hown : who = owner
-      · subst hown
-        simp only [visibleVars, ite_true] at hx
-        simp only [viewVCtx, canSee]
-        rcases Finset.mem_insert.mp hx with rfl | hx
-        · exact List.mem_cons_self ..
-        · exact List.mem_cons_of_mem _ (ih hx)
-      · simp only [visibleVars, hown, ite_false] at hx
-        simp only [viewVCtx, canSee, hown]
-        exact ih hx
-
 /-- If `j ∉ viewDeps who`, the projected view through `ρ` is insensitive to `j`. -/
 theorem projectViewEnv_insensitive_of_viewDeps
     (st : MAIDCompileState Player L B)

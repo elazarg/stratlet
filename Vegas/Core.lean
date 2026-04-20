@@ -61,8 +61,8 @@ inductive HasVar {Ty : Type} : Ctx Ty → VarId → Ty → Type where
 def Env {Ty : Type} (Val : Ty → Type) : Ctx Ty → Type :=
   fun Γ => ∀ x τ, HasVar Γ x τ → Val τ
 
-/-- If `x ∉ Γ.map fst`, then `HasVar Γ x τ` is empty. -/
-theorem HasVar.not_mem_of_fresh {Ty : Type} {Γ : Ctx Ty} {x : VarId} {τ : Ty}
+/-- A `HasVar` proof witnesses that `x` appears in the context's name list. -/
+theorem HasVar.mem_map_fst {Ty : Type} {Γ : Ctx Ty} {x : VarId} {τ : Ty}
     (h : HasVar Γ x τ) : x ∈ Γ.map Prod.fst := by
   induction h with
   | here => simp
@@ -79,12 +79,12 @@ theorem HasVar.eq_of_nodup {Ty : Type} {Γ : Ctx Ty} {x : VarId} {τ : Ty}
     | here => rfl
     | @there _ _ _ _ σ' h₂' =>
       have hnd := List.nodup_cons.mp hnodup
-      exact absurd h₂'.not_mem_of_fresh hnd.1
+      exact absurd h₂'.mem_map_fst hnd.1
   | @there Γ' y z σ σ' h₁' ih =>
     cases h₂ with
     | @here =>
       have hnd := List.nodup_cons.mp hnodup
-      exact absurd h₁'.not_mem_of_fresh hnd.1
+      exact absurd h₁'.mem_map_fst hnd.1
     | @there _ _ _ _ _ h₂' =>
       have hnd := List.nodup_cons.mp hnodup
       exact congrArg HasVar.there (ih hnd.2 h₂')
@@ -99,11 +99,11 @@ theorem HasVar.type_unique {Ty : Type} {Γ : Ctx Ty} {x : VarId} {τ₁ τ₂ : 
     cases h₂ with
     | here => rfl
     | there h₂' =>
-      exact absurd h₂'.not_mem_of_fresh (List.nodup_cons.mp hnodup).1
+      exact absurd h₂'.mem_map_fst (List.nodup_cons.mp hnodup).1
   | there h₁' ih =>
     cases h₂ with
     | here =>
-      exact absurd h₁'.not_mem_of_fresh (List.nodup_cons.mp hnodup).1
+      exact absurd h₁'.mem_map_fst (List.nodup_cons.mp hnodup).1
     | there h₂' =>
       exact ih (List.nodup_cons.mp hnodup).2 h₂'
 

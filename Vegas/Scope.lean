@@ -85,6 +85,33 @@ theorem mem_visibleVars_map_fst
           · intro hx
             exact List.mem_cons_of_mem _ (ih (by simpa [visibleVars, hown] using hx))
 
+/-- Every visible variable also appears in the projected view's name list. -/
+theorem mem_viewVCtx_map_fst_of_visible
+    {who : P} {Γ : VCtx P L} {x : VarId}
+    (hx : x ∈ visibleVars (L := L) who Γ) :
+    x ∈ (viewVCtx who Γ).map Prod.fst := by
+  induction Γ with
+  | nil => simp [visibleVars] at hx
+  | cons hd tl ih =>
+    obtain ⟨z, σ⟩ := hd
+    cases σ with
+    | pub υ =>
+      simp only [visibleVars] at hx
+      rcases Finset.mem_insert.mp hx with rfl | hx
+      · simp [viewVCtx, canSee]
+      · have := ih hx; simp [viewVCtx, canSee, this]
+    | hidden owner υ =>
+      by_cases hown : who = owner
+      · subst hown
+        simp only [visibleVars, ite_true] at hx
+        simp only [viewVCtx, canSee]
+        rcases Finset.mem_insert.mp hx with rfl | hx
+        · exact List.mem_cons_self ..
+        · exact List.mem_cons_of_mem _ (ih hx)
+      · simp only [visibleVars, hown, ite_false] at hx
+        simp only [viewVCtx, canSee, hown]
+        exact ih hx
+
 /-- Erasing visibility annotations preserves the variable-name projection. -/
 theorem eraseVCtx_map_fst {P : Type} {L : IExpr} {Γ : VCtx P L} :
     (eraseVCtx Γ).map Prod.fst = Γ.map Prod.fst := by
@@ -120,15 +147,6 @@ theorem ObsEq.trans {Γ : VCtx P L} {who : P}
   intro x τ hx hmem
   exact Eq.trans (h₁₂ x τ hx hmem) (h₂₃ x τ hx hmem)
 
-/-- Plain-context membership implies name membership in the context's variable
-    projection. -/
-theorem HasVar.mem_map_fst {Γ : Ctx L.Ty} {x : VarId} {τ : L.Ty} :
-    HasVar Γ x τ → x ∈ Γ.map Prod.fst := by
-  intro h
-  induction h with
-  | here => simp
-  | there _ ih => exact List.mem_cons_of_mem _ ih
-
 /-- If two erased environments agree on `S`, then extending both with the same
     fresh variable/value yields agreement on `insert x S`. -/
 theorem AgreesOn.cons_insert_of_fresh
@@ -146,7 +164,7 @@ theorem AgreesOn.cons_insert_of_fresh
         intro hyx
         apply hfresh
         rw [← eraseVCtx_map_fst (P := P) (L := L) (Γ := Γ)]
-        simpa [hyx] using HasVar.mem_map_fst (L := L) hy'
+        simpa [hyx] using HasVar.mem_map_fst hy'
       have hmemS : y ∈ S := by
         rcases Finset.mem_insert.mp hmem with rfl | hs
         · exact False.elim (hne rfl)

@@ -83,32 +83,6 @@ private theorem mem_visibleVars_of_view_member
         rw [visibleVars_cons_of_canSee_false hsee]
         exact ih hx
 
-private theorem mem_viewVCtx_map_fst_of_visible
-    {who : P} {Γ : VCtx P L} {y : VarId}
-    (hx : y ∈ visibleVars who Γ) :
-    y ∈ (viewVCtx who Γ).map Prod.fst := by
-  induction Γ with
-  | nil => simp [visibleVars] at hx
-  | cons hd tl ih =>
-    obtain ⟨z, σ⟩ := hd
-    cases σ with
-    | pub υ =>
-      simp only [visibleVars] at hx
-      rcases Finset.mem_insert.mp hx with rfl | hx
-      · simp [viewVCtx, canSee]
-      · have := ih hx; simp [viewVCtx, canSee, this]
-    | hidden owner υ =>
-      by_cases hown : who = owner
-      · subst hown
-        simp only [visibleVars, ite_true] at hx
-        simp only [viewVCtx, canSee]
-        rcases Finset.mem_insert.mp hx with rfl | hx
-        · exact List.mem_cons_self ..
-        · exact List.mem_cons_of_mem _ (ih hx)
-      · simp only [visibleVars, hown, ite_false] at hx
-        simp only [viewVCtx, canSee, hown]
-        exact ih hx
-
 private theorem view_member_visible
     {who : P} {Γ : VCtx P L} {x : VarId} {τ : BindTy P L}
     (h : VHasVar (viewVCtx who Γ) x τ) :

@@ -1325,6 +1325,40 @@ de~Bruijn encoding. This keeps the surface syntax readable while still
 providing the uniqueness properties needed by the MAID compilation: the
 SSA structure maps directly to the resulting DAG.
 
+A third decision concerns where the view-scoping discipline lives. The
+obvious alternative to the current design would be to type a commit guard
+intrinsically over the committing player's view: $R : L.\Expr((x{:}\tau) ::
+\|\Gamma\!\!\downarrow_i\|, \bool)$. We choose instead to type guards over
+the full erased context $\|\Gamma\|$ and enforce the view restriction by a
+separate predicate (\Cref{def:viewscoped}). Three considerations motivate
+this:
+\begin{itemize}[nosep]
+\item \emph{Player-agnostic syntax.} With the wide typing the
+      \texttt{commit} constructor takes $i$ as an ordinary argument, but
+      the guard's expression \emph{type} does not mention $i$. As a result
+      \leanref{VegasCore} remains indexed by $\VCtx$ alone, and the same syntactic
+      guard is reusable across players. With the narrow typing, swapping
+      the committing player would change the guard's type and propagate a
+      dependent rewrite through the continuation.
+\item \emph{Evaluator independence.} Semantic functions ($\outcomeDist$
+      and friends) consume erased environments produced by
+      \leanref{eraseEnv} and pass them directly to the guard. View
+      machinery (the \leanref{projectViewEnv} projection) appears only at
+      the strategic layer, where behavioural kernels are projected to the
+      committer's view. The narrow typing would force every semantic file
+      to know about views at the guard call site as well.
+\item \emph{Extrinsic over intrinsic.} The same pattern recurs throughout
+      Vegas: properties that are universal sit in types, while properties
+      that are obligations on a particular term sit in separate
+      predicates. $\NormDists$, $\NormOn$, fair play
+      (\Cref{def:admissible}), $\Legal$, $\RevealComplete$, and
+      view-scoping are all extrinsic predicates rather than refinement
+      types, and all are decidable on concrete programs by
+      \texttt{decide}. Making the view discipline extrinsic keeps it
+      consistent with this house style and lets it be discharged the same
+      way as the other well-formedness obligations.
+\end{itemize}
+
 
 %% =====================================================================
 \section{Related Work}\label{sec:related}
