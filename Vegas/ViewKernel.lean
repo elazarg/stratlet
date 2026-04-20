@@ -87,7 +87,7 @@ private theorem view_member_visible
     {who : P} {Γ : VCtx P L} {x : VarId} {τ : BindTy P L}
     (h : VHasVar (viewVCtx who Γ) x τ) :
     x ∈ visibleVars who Γ :=
-  mem_visibleVars_of_view_member (VHasVar.mem_map_fst h)
+  mem_visibleVars_of_view_member (HasVar.mem_map_fst h)
 
 /-- Project a full erased environment to the visible erased environment for
 player `who`. Defined recursively on the context for clean reduction. -/

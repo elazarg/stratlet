@@ -243,7 +243,7 @@ theorem initPartialEnv_consistent {P : Type} {L : IExpr}
         intro heq; subst heq
         have hnd : (x :: Γ'.map Prod.fst).Nodup := hwf
         rw [List.nodup_cons] at hnd
-        exact absurd (VHasVar.mem_map_fst h') hnd.1
+        exact absurd (HasVar.mem_map_fst h') hnd.1
       rw [PartialEnv.set_get_diff _ _ _ _ hne]
       have hnd : (x' :: Γ'.map Prod.fst).Nodup := hwf
       rw [List.nodup_cons] at hnd

@@ -290,63 +290,23 @@ end BindTy
 abbrev VCtx (Player : Type) (L : IExpr) : Type :=
   List (VarId × BindTy Player L)
 
-/-- Typed membership in a visibility-tagged context. -/
-inductive VHasVar {Player : Type} {L : IExpr} :
-    VCtx Player L → VarId → BindTy Player L → Type where
-  | here {Γ x τ} : VHasVar ((x, τ) :: Γ) x τ
-  | there {Γ x y τ τ'} : VHasVar Γ x τ → VHasVar ((y, τ') :: Γ) x τ
+/-- Typed membership in a visibility-tagged context. Definitionally
+`HasVar Γ x τ` specialized to `Ctx (BindTy Player L)`; the abbreviation
+preserves the readable name and the dot-notation namespace. -/
+abbrev VHasVar {Player : Type} {L : IExpr}
+    (Γ : VCtx Player L) (x : VarId) (τ : BindTy Player L) : Type :=
+  HasVar Γ x τ
 
-/-- A `VHasVar` proof witnesses that `x` appears in the visibility context's
-name list. -/
-theorem VHasVar.mem_map_fst {Player : Type} {L : IExpr}
-    {Γ : VCtx Player L} {x : VarId} {τ : BindTy Player L} :
-    VHasVar Γ x τ → x ∈ Γ.map Prod.fst := by
-  intro h; induction h with
-  | here => simp
-  | there _ ih => exact List.mem_cons_of_mem _ ih
+/-- The "head" position in a visibility context. -/
+abbrev VHasVar.here {Player : Type} {L : IExpr} {Γ : VCtx Player L}
+    {x : VarId} {τ : BindTy Player L} : VHasVar ((x, τ) :: Γ) x τ :=
+  HasVar.here
 
-/-- In a context with unique names, `VHasVar` is a subsingleton: any two
-proofs of `VHasVar Γ x τ` are equal. The visibility-aware analogue of
-`HasVar.eq_of_nodup`. -/
-theorem VHasVar.eq_of_nodup {Player : Type} {L : IExpr}
-    {Γ : VCtx Player L} {x : VarId} {τ : BindTy Player L}
-    (hnodup : (Γ.map Prod.fst).Nodup)
-    (h₁ h₂ : VHasVar Γ x τ) : h₁ = h₂ := by
-  induction h₁ with
-  | @here Γ' y σ =>
-    cases h₂ with
-    | here => rfl
-    | @there _ _ _ _ σ' h₂' =>
-      have hnd := List.nodup_cons.mp hnodup
-      exact absurd h₂'.mem_map_fst hnd.1
-  | @there Γ' y z σ σ' h₁' ih =>
-    cases h₂ with
-    | @here =>
-      have hnd := List.nodup_cons.mp hnodup
-      exact absurd h₁'.mem_map_fst hnd.1
-    | @there _ _ _ _ _ h₂' =>
-      have hnd := List.nodup_cons.mp hnodup
-      exact congrArg VHasVar.there (ih hnd.2 h₂')
-
-/-- In a context with unique names, `VHasVar` determines the binding type:
-two proofs `VHasVar Γ x τ₁` and `VHasVar Γ x τ₂` force `τ₁ = τ₂`. The
-visibility-aware analogue of `HasVar.type_unique`. -/
-theorem VHasVar.type_unique {Player : Type} {L : IExpr}
-    {Γ : VCtx Player L} {x : VarId} {τ₁ τ₂ : BindTy Player L}
-    (hnodup : (Γ.map Prod.fst).Nodup)
-    (h₁ : VHasVar Γ x τ₁) (h₂ : VHasVar Γ x τ₂) : τ₁ = τ₂ := by
-  induction h₁ with
-  | here =>
-    cases h₂ with
-    | here => rfl
-    | there h₂' =>
-      exact absurd h₂'.mem_map_fst (List.nodup_cons.mp hnodup).1
-  | there h₁' ih =>
-    cases h₂ with
-    | here =>
-      exact absurd h₁'.mem_map_fst (List.nodup_cons.mp hnodup).1
-    | there h₂' =>
-      exact ih (List.nodup_cons.mp hnodup).2 h₂'
+/-- Skip past a context entry to a position deeper in. -/
+abbrev VHasVar.there {Player : Type} {L : IExpr} {Γ : VCtx Player L}
+    {x y : VarId} {τ τ' : BindTy Player L}
+    (h : VHasVar Γ x τ) : VHasVar ((y, τ') :: Γ) x τ :=
+  HasVar.there h
 
 /-- Runtime environments for visibility-tagged contexts. -/
 def VEnv {Player : Type} (L : IExpr) : VCtx Player L → Type :=
@@ -398,7 +358,7 @@ theorem get_eq_of_nodup {Player : Type} {L : IExpr} {Γ : VCtx Player L}
     (hnodup : (Γ.map Prod.fst).Nodup)
     (env : VEnv L Γ) (h₁ h₂ : VHasVar Γ x τ) :
     env.get h₁ = env.get h₂ := by
-  rw [VHasVar.eq_of_nodup hnodup h₁ h₂]
+  rw [HasVar.eq_of_nodup hnodup h₁ h₂]
 
 end VEnv
 
