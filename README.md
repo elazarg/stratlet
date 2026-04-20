@@ -1,9 +1,8 @@
-# StratLet
+# VegasCore
 
-A Lean 4 formalization providing formal semantics for games expressed as programs.
+A Lean 4 formalization providing formal semantics for the [VEGAS](https://github.com/elazarg/VEGAS) game specification language. VegasCore defines a layered calculus for strategic computation and compiles game specifications to [Multi-Agent Influence Diagrams (MAIDs)](https://github.com/elazarg/GameTheory), from which extensive-form games can be derived via the GameTheory library's MAID-to-EFG bridge.
 
-The repository now has one mainline implementation and one clearly secondary
-exploration tree:
+The repository has one mainline implementation and one secondary exploration tree:
 
 - `Vegas/` is the mainline language and backend stack.
 - `Explorations/` preserves older design explorations, but is not the primary
@@ -17,14 +16,13 @@ Games are expressed as programs where:
 - Players make **strategic choices** from available actions, restricted by **Views** (observable projections of the environment)
 - Outcomes may be **probabilistic** (sampling from finite-support weighted distributions)
 - **Strategy profiles** determine how players choose actions at each decision point
-- Additional conditioning constructs such as `observe` remain planned rather than part of the current core surface
 
 The mainline `Vegas/` tree is organized around:
 
 1. **Core / ExprSimple / VegasSimple** -- the generic interface and current concrete instantiation
-3. **BigStep / TraceSemantics / ActionGraph** -- the main semantic presentations and graph IR
-4. **Strategic / MAID** -- the strategic semantics and the main backend stack
-5. **GameTheory** -- the external submodule providing MAID and general game-theory infrastructure
+2. **BigStep / TraceSemantics / ActionGraph** -- the main semantic presentations and graph IR
+3. **Strategic / MAID** -- the strategic semantics and the main backend stack
+4. **GameTheory** -- the external submodule providing MAID and general game-theory infrastructure
 
 ## Project Structure
 
@@ -83,6 +81,6 @@ lake build
 ## Status
 
 This is research work exploring formal foundations for expressing games as
-programs. The mainline repository is now MAID-first. Direct Vegas -> EFG support
-is no longer part of the mainline layout; if EFG is needed, the intended route
-is through the `GameTheory` MAID -> EFG bridge.
+programs. The mainline repository is MAID-first: game specifications compile to
+MAID representations, from which extensive-form games (EFG) can be derived via
+the `GameTheory` library's MAID -> EFG bridge.
