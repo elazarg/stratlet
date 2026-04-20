@@ -116,10 +116,13 @@ theorem Env.get_eq_of_nodup {Ty : Type} {Val : Ty → Type} {Γ : Ctx Ty}
     env x τ h₁ = env x τ h₂ := by
   rw [HasVar.eq_of_nodup hnodup h₁ h₂]
 
-/-- Construct a `HasVar` from list membership. -/
-noncomputable def HasVar.ofMem {Ty : Type} {Γ : Ctx Ty} {x : VarId} {τ : Ty}
-    (h : (x, τ) ∈ Γ) : HasVar Γ x τ := by
-  classical
+/-- Construct a `HasVar` from list membership. Recurses on the context and
+case-splits on entry equality at each step, so `[DecidableEq Ty]` is needed
+to extract computational data from the `Prop`-valued membership proof. The
+sole in-tree call site has `Ty = L.Ty` for `L : IExpr`, where `decEqTy` is
+already an instance. -/
+def HasVar.ofMem {Ty : Type} [DecidableEq Ty] {Γ : Ctx Ty}
+    {x : VarId} {τ : Ty} (h : (x, τ) ∈ Γ) : HasVar Γ x τ := by
   induction Γ with
   | nil => exact absurd h (by simp)
   | cons a Γ' ih =>
