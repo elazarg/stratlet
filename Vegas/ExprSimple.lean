@@ -421,15 +421,6 @@ abbrev toPub {Γ : VCtxSimple} (env : VEnvSimple Γ) :
     VEnvSimple (Vegas.pubVCtx Γ) :=
   Vegas.VEnv.toPub env
 
-noncomputable abbrev toFlat {Γ : VCtxSimple} (env : VEnvSimple Γ) :
-    VEnvSimple (Vegas.flattenVCtx Γ) :=
-  Vegas.VEnv.toFlat env
-
-noncomputable abbrev toFlatView (p : Player) {Γ : VCtxSimple}
-    (env : VEnvSimple Γ) :
-    VEnvSimple (Vegas.flattenVCtx (Vegas.viewVCtx p Γ)) :=
-  Vegas.VEnv.toFlatView p env
-
 end VEnvSimple
 
 namespace VHasVarSimple
@@ -442,22 +433,6 @@ abbrev ofViewVCtx {p : Player} {Γ : VCtxSimple} {x : VarId}
 abbrev ofPubVCtx {Γ : VCtxSimple} {x : VarId} {τ : BindTySimple} :
     VHasVarSimple (Vegas.pubVCtx Γ) x τ → VHasVarSimple Γ x τ :=
   Vegas.VHasVar.ofPubVCtx
-
-abbrev ofPubToView {p : Player} {Γ : VCtxSimple} {x : VarId}
-    {τ : BindTySimple} :
-    VHasVarSimple (Vegas.pubVCtx Γ) x τ →
-      VHasVarSimple (Vegas.viewVCtx p Γ) x τ :=
-  Vegas.VHasVar.ofPubToView (p := p)
-
-abbrev toFlatten {Γ : VCtxSimple} {x : VarId} {τ : BindTySimple} :
-    VHasVarSimple Γ x τ →
-      VHasVarSimple (Vegas.flattenVCtx Γ) x (.pub τ.base) :=
-  Vegas.VHasVar.toFlatten
-
-abbrev unflatten {Γ : VCtxSimple} {x : VarId} {b : BaseTy} :
-    VHasVarSimple (Vegas.flattenVCtx Γ) x (.pub b) →
-      (τ : BindTySimple) × VHasVarSimple Γ x τ × PLift (τ.base = b) :=
-  Vegas.VHasVar.unflatten
 
 end VHasVarSimple
 

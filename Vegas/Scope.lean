@@ -166,12 +166,6 @@ def GuardUsesOnly
     (R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool) : Prop :=
   L.exprDeps R ⊆ insert x (visibleVars (L := L) who Γ)
 
-/-- Player-private distributions are still intrinsically scoped by their
-    syntax. This predicate exists to keep the extrinsic scoping story uniform. -/
-def PrivateDistUsesOnly
-    {Γ : VCtx P L} {who : P} {b : L.Ty}
-    (_D : L.DistExpr (eraseVCtx (flattenVCtx (viewVCtx who Γ))) b) : Prop := True
-
 /-- Recursive visibility-scoping judgment for raw Vegas programs. The only
     nontrivial new obligation after the guard refactor is at commit nodes. -/
 def ViewScoped :

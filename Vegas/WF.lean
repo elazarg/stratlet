@@ -155,17 +155,6 @@ theorem Fresh_viewVCtx {P : Type} [DecidableEq P] {L : IExpr}
     (hfresh : Fresh x Γ) : Fresh x (viewVCtx p Γ) :=
   fun hmem => hfresh (viewVCtx_map_fst_sub hmem)
 
-theorem Fresh_flattenVCtx {P : Type} {L : IExpr}
-    {x : VarId} {Γ : VCtx P L}
-    (hfresh : Fresh x Γ) : Fresh x (flattenVCtx Γ) := by
-  unfold Fresh at *; rwa [flattenVCtx_map_fst]
-
-theorem WFCtx_flattenVCtx {P : Type} {L : IExpr}
-    {Γ : VCtx P L}
-    (hwf : WFCtx Γ) : WFCtx (flattenVCtx Γ) := by
-  unfold WFCtx at *; rwa [flattenVCtx_map_fst]
-
-
 def Legal {P : Type} [DecidableEq P]
     {L : Vegas.IExpr}
 :

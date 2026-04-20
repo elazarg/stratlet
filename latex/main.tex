@@ -303,8 +303,6 @@ $\Gamma\!\!\downarrow_i$ &
   and $(x, \hid(i, \tau))$, drop $(x, \hid(j, \tau))$ for $j \ne i$. \\
 $\Gamma^{\pub}$ &
   Keep only $\pub$ bindings. \\
-$\lfloor\Gamma\rfloor$ &
-  Replace every $\hid(i,\tau)$ with $\pub\;\tau$. \\
 $\|\Gamma\|$ &
   Erase visibility annotations: $(x, \beta) \mapsto (x, |\beta|)$.
   Produces a plain context over $L.\Ty$. \\
@@ -396,6 +394,21 @@ The five constructs operate as follows:
       reveal models open play, while deferring the reveal models sealed
       commitment.
 \end{itemize}
+
+\paragraph{Two erased contexts.}
+The grammar uses two distinct erasures: $\|\Gamma^{\pub}\|$ for $\Let$,
+$\Sample$, and payoffs, and $\|\Gamma\|$ for commit guards. This is a
+deliberate design commitment: nature, deterministic computation, and final
+payoffs depend only on public state, while strategic choices may depend on
+hidden state. The typing thus prevents public computation from "peeking" at
+secrets while still letting committers condition on what they know. At
+evaluation time the split materializes as two distinct environment types
+(\Cref{sec:semantics}): public-only environments are passed to $\Let$,
+$\Sample$, and payoff expressions; full erased environments are passed to
+commit guards and operational kernels. The narrower constraint that a commit
+guard depends only on the \emph{committing player's} view --- not on hidden
+state owned by others --- is enforced semantically by view scoping
+(\Cref{def:viewscoped}), which keeps the commit syntax player-agnostic.
 
 
 \subsection{Well-Formedness}\label{sec:wf}
@@ -723,7 +736,12 @@ projecting $\rho$ to the player's visible environment.}\label{fig:outcomedist}
 
 \noindent
 The outcome type $\Outcome = \Players \to_{\mathrm{fin}} \mathbb{Z}$ is a
-finitely-supported map from players to integer payoffs.
+finitely-supported map from players to integer payoffs. The
+finitely-supported representation is load-bearing: it provides the additive
+structure used to aggregate per-player contributions in $\mathit{evalPayoffs}$
+--- each per-player payoff expression contributes a singleton, and the
+outcome is their sum --- and the decidable equality required for
+$\FDist{\Outcome}$ to be well-typed.
 Weights multiply along paths: if a sample distribution assigns weight~$w$ to a
 value and the profile kernel assigns weight~$w'$ to a choice, the combined
 weight is $w \cdot w'$.
@@ -1286,6 +1304,14 @@ The metatheory is proved once for any $L$. A concrete instantiation with
 integers, Booleans, arithmetic, equality, and conditionals
 (\leanref{simpleExpr}) is used for examples and testing.
 
+Finiteness is deliberately \emph{not} part of $\leanref{IExpr}$. A separate
+bundle $\leanref{FiniteValuation}$ adds $\mathrm{Fintype}\,(L.\Val(\tau))$
+for backends that require it (MAID compilation, the Vegas Kuhn theorem, and
+pure-strategy enumeration). A language with infinite-valued types still
+instantiates $\leanref{IExpr}$ and exercises the full denotational, trace,
+strategic-behavioral, and equilibrium-wrapper metatheory; only the
+finite-enumeration backends are out of reach.
+
 \paragraph{Design decisions.}
 The choice of $\FDist{}$ over Mathlib's $\PMF{}$ as the primary
 distribution type is discussed in \Cref{sec:fdist}; in short, it lets
@@ -1356,12 +1382,17 @@ path to MAIDs preserves outcome distributions. The entire development is
 mechanized in Lean~4.
 
 \paragraph{Limitations.}
-The current calculus is restricted to finite types (all $L.\Val(\tau)$ are
-finite), which excludes games with continuous action spaces. The commit-reveal
-model assumes perfect recall---a player's view grows monotonically as the
-program executes, and there is no construct for forgetting. The expression
-language interface requires explicit dependency tracking with soundness
-proofs, which adds friction to defining new expression languages.
+MAID compilation, the Vegas Kuhn theorem, and pure-strategy enumeration
+require all $L.\Val(\tau)$ to be finite (\leanref{FiniteValuation}); games
+with continuous action spaces are therefore out of reach for those backends.
+The denotational and trace semantics, the strategic bridge, the
+behavioral-strategic semantics, and the equilibrium wrapper layer are not
+subject to this restriction and apply to any expression language~$L$. The
+commit-reveal model assumes perfect recall---a player's view grows
+monotonically as the program executes, and there is no construct for
+forgetting. The expression language interface requires explicit dependency
+tracking with soundness proofs, which adds friction to defining new
+expression languages.
 
 \paragraph{Future directions.}
 Extending Vegas with richer expression languages (continuous distributions,
