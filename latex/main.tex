@@ -578,19 +578,114 @@ intermediate semantics proved equal to $\outcomeDist$.}\label{fig:layers}
 \end{figure}
 
 
-\subsection{Weighted Distributions}
+\subsection{Weighted Distributions}\label{sec:fdist}
 
-The type $\FDist{\alpha}$ denotes finitely-supported functions
-$\alpha \to \NNQ$ (nonnegative rationals). This is a weighted distribution
-monad with:
+The Vegas semantics is parameterized by a single distribution type. Rather
+than work directly in Mathlib's measure-theoretic $\PMF{}$, we use a
+dedicated finitely-supported, sub-probability layer that we call
+$\FDist{\alpha}$.
+
+\paragraph{Type.}
+$\FDist{\alpha}$ is the type of finitely-supported functions
+$\alpha \to_{\mathrm{fin}} \NNQ$: a finite set
+$\mathrm{support}(d) \subseteq \alpha$ together with a nonnegative-rational
+weight at each support point. Total mass is unconstrained:
+$\mathrm{totalWeight}(d) = \sum_{x} d(x)$ ranges over $[0, \infty)$, and
+the everywhere-zero distribution $\mathbf{0} \in \FDist{\alpha}$ is a
+value of the type. Probability distributions are the special case
+$\mathrm{totalWeight}(d) = 1$; normalization is tracked as a separate
+invariant rather than baked into the type
+(\leanref{totalWeight}, \Cref{thm:norm}).
+
+\paragraph{Why sub-probability and not $\PMF{}$.}
+Vegas programs build their outcome distribution monadically: each
+$\Sample$ or $\Commit$ binds against the continuation. With $\PMF{}$,
+every intermediate term in this construction would have to be paired with
+a normalization proof, even though only the final outcome distribution is
+consumed normalized. With $\FDist{}$, normalization is discharged once at
+the top (\Cref{thm:norm}) by a single inductive lemma
+(\leanref{totalWeight\_bind\_of\_normalized}), and the algebraic
+manipulations in between---associativity, commutativity, support
+reasoning---carry no side conditions. Rational-valued weights additionally
+make distributions decidably equal and computationally usable, which the
+MAID compiler relies on when emitting concrete chance-node CPDs
+(\Cref{sec:maid}).
+
+\paragraph{Operations.}
+$\FDist{}$ is a commutative sub-probability monad. The defining operations
+are
 \begin{itemize}[nosep]
-\item $\mathrm{pure}(a)(x) = \begin{cases} 1 & \text{if } x = a \\ 0 & \text{otherwise}\end{cases}$
-\item $(d \bind f)(y) = \sum_{x} d(x) \cdot f(x)(y)$
-\item $\mathrm{totalWeight}(d) = \sum_{x} d(x)$
-\item $\mathrm{support}(d) = \{x \mid d(x) \ne 0\}$
+\item $\mathrm{pure}(a) \in \FDist{\alpha}$, the Dirac mass at~$a$:
+      $\mathrm{pure}(a)(x) = [x = a]$.
+\item $\mathrm{bind} : \FDist{\alpha} \times (\alpha \to \FDist{\beta})
+      \to \FDist{\beta}$, with
+      $(d \bind f)(y) =
+        \sum_{x \in \mathrm{support}(d)} d(x) \cdot f(x)(y)$.
+\item $\mathrm{map} : (\alpha \to \beta) \times \FDist{\alpha}
+      \to \FDist{\beta}$, the pushforward; collisions add.
+\item $\mathrm{ofList} : \mathrm{List}(\alpha \times \NNQ) \to \FDist{\alpha}$,
+      the canonical builder of concrete distributions; duplicate keys
+      add. This is the only constructor of distributions from data; every
+      other distribution in the system arises from $\mathrm{pure}$,
+      $\mathrm{bind}$, $\mathrm{map}$, or a user-supplied kernel.
+\item $\mathrm{Supported}(d, P) \;:=\; \forall x \in \mathrm{support}(d).\;
+      P(x)$, expressing ``every value with positive weight satisfies $P$''
+      --- used, for instance, in the fair-play condition
+      (\Cref{def:admissible}) to require that committed actions satisfy
+      their guard.
 \end{itemize}
-When $\mathrm{totalWeight}(d) = 1$, the distribution can be promoted to a
-probability mass function $\PMF{\alpha}$.
+
+\paragraph{Algebraic laws.}
+The three monad laws are mechanized
+(\leanref{pure\_bind}, \leanref{bind\_pure}, \leanref{bind\_assoc}).
+The pushforward is functorial (\leanref{map\_pure}, \leanref{map\_map})
+and fuses with $\mathrm{bind}$ (\leanref{bind\_map}). Most importantly,
+$\mathrm{bind}$ commutes across independent distributions
+(\leanref{bind\_comm}):
+\[
+  d_1 \bind \bigl(\lambda x_1.\; d_2 \bind
+    (\lambda x_2.\; f(x_1, x_2))\bigr)
+  \;=\;
+  d_2 \bind \bigl(\lambda x_2.\; d_1 \bind
+    (\lambda x_1.\; f(x_1, x_2))\bigr).
+\]
+This is the algebraic substrate for the program-level commutation
+results of \Cref{sec:tracesem}: two adjacent commits with independent
+strategies produce the same outcome distribution regardless of order
+(\leanref{outcomeDist\_comm\_commit}). Without commutativity at the
+distribution layer, the corresponding program-level theorem would
+have to be proved by ad-hoc support manipulation.
+
+\paragraph{Bridge to $\PMF{}$.}
+A normalized $\FDist{}$ is promoted to a Mathlib $\PMF{}$ via
+$\mathrm{toPMF} : \{d : \FDist{\alpha} \mid \mathrm{totalWeight}(d) = 1\}
+\to \PMF{\alpha}$ (\leanref{toPMF}), which casts each rational weight
+through the chain $\NNQ \hookrightarrow \mathbb{R}_{\ge 0}
+\hookrightarrow \overline{\mathbb{R}}_{\ge 0}$. The promotion is a
+monad homomorphism: it commutes with $\mathrm{pure}$, $\mathrm{bind}$,
+and $\mathrm{map}$ (\leanref{toPMF\_pure}, \leanref{toPMF\_bind},
+\leanref{toPMF\_map}), so reasoning carried out in $\FDist{}$ transports
+to $\PMF{}$ at the bridge.
+
+The expectation lemma
+\[
+  \mathbb{E}_{x \sim d.\mathrm{toPMF}}\bigl[\,f(x)\,\bigr]
+  \;=\;
+  \sum_{x \in \mathrm{support}(d)} d(x) \cdot f(x)
+\]
+(\leanref{expect\_toPMF\_eq\_sum}) reduces $\PMF{}$-expectations to
+finite rational sums. It is what makes the EU-preservation theorem
+(\Cref{thm:eu}) discharge to concrete arithmetic, and is the reason a
+verified Nash equilibrium of a Vegas program can be checked by
+elementary computation rather than by measure-theoretic integration.
+
+The bridge is one-way. $\FDist{} \to \PMF{}$ requires only a
+normalization proof, while $\PMF{} \to \FDist{}$ does not exist in
+general --- a $\PMF{}$ may have irrational or infinite-support
+weights. This asymmetry forces a parallel PMF-valued strategy
+hierarchy in the mechanization, used as the target of the Vegas Kuhn
+theorem (\Cref{sec:kuhn}), whose conclusion produces real-valued
+behavioral strategies that cannot be represented in $\FDist{}$.
 
 
 \subsection{Denotational Semantics}\label{sec:densem}
@@ -1153,7 +1248,7 @@ Vegas semantics (denotational, trace) & 3 & ${\sim}870$ \\
 Vegas strategic bridge \& equilibrium & 2 & ${\sim}150$ \\
 Vegas MAID compilation, bridges \& Kuhn & 8 & ${\sim}6{,}300$ \\
 Vegas examples & 1 & ${\sim}250$ \\
-FDist library & 1 & ${\sim}400$ \\
+FDist library & 1 & ${\sim}420$ \\
 Supporting expression language & 2 & ${\sim}580$ \\
 Action graph & 1 & ${\sim}390$ \\
 \midrule
@@ -1192,18 +1287,17 @@ integers, Booleans, arithmetic, equality, and conditionals
 (\leanref{simpleExpr}) is used for examples and testing.
 
 \paragraph{Design decisions.}
-\begin{itemize}[nosep]
-\item \emph{FDist vs PMF.} We use $\FDist{\alpha} = \alpha \to_{\mathrm{fin}} \NNQ$
-      (finitely-supported nonneg-rational functions) as the primary distribution
-      type, rather than Mathlib's $\PMF{}$. This avoids carrying normalization
-      proofs through intermediate computations; normalization is established once
-      at the end (\Cref{thm:norm}) and used to promote to $\PMF{}$ when needed.
+The choice of $\FDist{}$ over Mathlib's $\PMF{}$ as the primary
+distribution type is discussed in \Cref{sec:fdist}; in short, it lets
+normalization be a separately-tracked invariant rather than a side
+condition on every intermediate term, and keeps the rational arithmetic
+needed by the MAID backend within the type.
 
-\item \emph{SSA via Fresh.} Well-formedness is a simple ``fresh identifier in
-      context'' check rather than a full de~Bruijn encoding. This keeps the
-      syntax readable while still providing the uniqueness properties needed for
-      the MAID compilation (SSA structure maps directly to a DAG).
-\end{itemize}
+A second decision worth noting is the use of an SSA-style ``fresh
+identifier in context'' well-formedness check rather than a full
+de~Bruijn encoding. This keeps the surface syntax readable while still
+providing the uniqueness properties needed by the MAID compilation: the
+SSA structure maps directly to the resulting DAG.
 
 
 %% =====================================================================
