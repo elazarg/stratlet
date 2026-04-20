@@ -77,7 +77,7 @@ noncomputable instance instDecidableEqTrace
     Mirrors the structure of `outcomeDist` but follows a single deterministic
     path — no weighting, no distribution binding. -/
 noncomputable def traceOutcome :
-    {Γ : VCtx P L} → (p : VegasCore P L Γ) → VEnv (Player := P) L Γ →
+    {Γ : VCtx P L} → (p : VegasCore P L Γ) → VEnv L Γ →
       Trace Γ p → Outcome P
   | _, .ret payoffs, env, .ret =>
       evalPayoffs payoffs env
@@ -98,7 +98,7 @@ noncomputable def traceOutcome :
     - At each `commit` site: the profile's strategy weight for the chosen value
     - At `letExpr`/`reveal`/`ret`: weight 1 (deterministic) -/
 noncomputable def traceWeight (σ : OmniscientOperationalProfile P L) :
-    {Γ : VCtx P L} → (p : VegasCore P L Γ) → VEnv (Player := P) L Γ →
+    {Γ : VCtx P L} → (p : VegasCore P L Γ) → VEnv L Γ →
       Trace Γ p → ℚ≥0
   | _, .ret _, _, .ret => 1
   | _, .letExpr _ e k, env, .letExpr t =>
@@ -118,7 +118,7 @@ noncomputable def traceWeight (σ : OmniscientOperationalProfile P L) :
     every `sample` choice is in the
     distribution's support. -/
 def Trace.legal : {Γ : VCtx P L} → (p : VegasCore P L Γ) →
-    VEnv (Player := P) L Γ → Trace Γ p → Prop
+    VEnv L Γ → Trace Γ p → Prop
   | _, .ret _, _, .ret => True
   | _, .letExpr _ e k, env, .letExpr t =>
       legal k (VEnv.cons (L.eval e (VEnv.erasePubEnv env)) env) t
@@ -138,22 +138,22 @@ def Trace.legal : {Γ : VCtx P L} → (p : VegasCore P L Γ) →
     at sample sites. Characterizes the game's possible outcomes regardless
     of strategy. -/
 inductive CanReach : {Γ : VCtx P L} → VegasCore P L Γ →
-    VEnv (Player := P) L Γ → Outcome P → Prop where
+    VEnv L Γ → Outcome P → Prop where
   | ret {Γ : VCtx P L}
       {payoffs : List (P × L.Expr (erasePubVCtx Γ) L.int)}
-      {env : VEnv (Player := P) L Γ} :
+      {env : VEnv L Γ} :
       CanReach (.ret payoffs) env (evalPayoffs payoffs env)
   | letExpr {Γ : VCtx P L} {x : VarId} {b : L.Ty}
       {e : L.Expr (erasePubVCtx Γ) b}
       {k : VegasCore P L ((x, .pub b) :: Γ)}
-      {env : VEnv (Player := P) L Γ}
+      {env : VEnv L Γ}
       {oc : Outcome P} :
       CanReach k (VEnv.cons (L.eval e (VEnv.erasePubEnv env)) env) oc →
       CanReach (.letExpr x e k) env oc
   | sample {Γ : VCtx P L} {x : VarId} {b : L.Ty}
       {D' : L.DistExpr (erasePubVCtx Γ) b}
       {k : VegasCore P L ((x, .pub b) :: Γ)}
-      {env : VEnv (Player := P) L Γ} {oc : Outcome P}
+      {env : VEnv L Γ} {oc : Outcome P}
       (v : L.Val b)
       (hsupp : v ∈ (L.evalDist D' (VEnv.eraseSampleEnv env)).support) :
       CanReach k (VEnv.cons v env) oc →
@@ -161,14 +161,14 @@ inductive CanReach : {Γ : VCtx P L} → VegasCore P L Γ →
   | commit {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
       {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
       {k : VegasCore P L ((x, .hidden who b) :: Γ)}
-      {env : VEnv (Player := P) L Γ} {oc : Outcome P}
+      {env : VEnv L Γ} {oc : Outcome P}
       (v : L.Val b) (hR : evalGuard R v (VEnv.eraseEnv env) = true) :
       CanReach k (VEnv.cons v env) oc →
       CanReach (.commit x who R k) env oc
   | reveal {Γ : VCtx P L} {y : VarId} {who : P} {x : VarId} {b : L.Ty}
       {hx : VHasVar (L := L) Γ x (.hidden who b)}
       {k : VegasCore P L ((y, .pub b) :: Γ)}
-      {env : VEnv (Player := P) L Γ} {oc : Outcome P} :
+      {env : VEnv L Γ} {oc : Outcome P} :
       CanReach k (VEnv.cons (x := y) (τ := .pub b)
         (show L.Val b from VEnv.get env hx) env) oc →
       CanReach (.reveal y who x hx k) env oc
@@ -177,22 +177,22 @@ inductive CanReach : {Γ : VCtx P L} → VegasCore P L Γ →
     profile `σ`. Uses the profile's support at commit sites (not just legality)
     and the distribution's support at sample sites. -/
 inductive Reach (σ : OmniscientOperationalProfile P L) :
-    {Γ : VCtx P L} → VegasCore P L Γ → VEnv (Player := P) L Γ →
+    {Γ : VCtx P L} → VegasCore P L Γ → VEnv L Γ →
     Outcome P → Prop where
   | ret {Γ : VCtx P L}
       {payoffs : List (P × L.Expr (erasePubVCtx Γ) L.int)}
-      {env : VEnv (Player := P) L Γ} :
+      {env : VEnv L Γ} :
       Reach σ (.ret payoffs) env (evalPayoffs payoffs env)
   | letExpr {Γ : VCtx P L} {x : VarId} {b : L.Ty}
       {e : L.Expr (erasePubVCtx Γ) b}
       {k : VegasCore P L ((x, .pub b) :: Γ)}
-      {env : VEnv (Player := P) L Γ} {oc : Outcome P} :
+      {env : VEnv L Γ} {oc : Outcome P} :
       Reach σ k (VEnv.cons (L.eval e (VEnv.erasePubEnv env)) env) oc →
       Reach σ (.letExpr x e k) env oc
   | sample {Γ : VCtx P L} {x : VarId} {b : L.Ty}
       {D' : L.DistExpr (erasePubVCtx Γ) b}
       {k : VegasCore P L ((x, .pub b) :: Γ)}
-      {env : VEnv (Player := P) L Γ} {oc : Outcome P}
+      {env : VEnv L Γ} {oc : Outcome P}
       (v : L.Val b)
       (hsupp : v ∈ (L.evalDist D' (VEnv.eraseSampleEnv env)).support) :
       Reach σ k (VEnv.cons v env) oc →
@@ -200,7 +200,7 @@ inductive Reach (σ : OmniscientOperationalProfile P L) :
   | commit {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
       {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
       {k : VegasCore P L ((x, .hidden who b) :: Γ)}
-      {env : VEnv (Player := P) L Γ} {oc : Outcome P}
+      {env : VEnv L Γ} {oc : Outcome P}
       (v : L.Val b)
       (hsupp : v ∈ (σ.commit who x R (VEnv.eraseEnv env)).support) :
       Reach σ k (VEnv.cons v env) oc →
@@ -208,7 +208,7 @@ inductive Reach (σ : OmniscientOperationalProfile P L) :
   | reveal {Γ : VCtx P L} {y : VarId} {who : P} {x : VarId} {b : L.Ty}
       {hx : VHasVar (L := L) Γ x (.hidden who b)}
       {k : VegasCore P L ((y, .pub b) :: Γ)}
-      {env : VEnv (Player := P) L Γ} {oc : Outcome P} :
+      {env : VEnv L Γ} {oc : Outcome P} :
       Reach σ k (VEnv.cons (x := y) (τ := .pub b)
         (show L.Val b from VEnv.get env hx) env) oc →
       Reach σ (.reveal y who x hx k) env oc
@@ -216,7 +216,7 @@ inductive Reach (σ : OmniscientOperationalProfile P L) :
 
 /-- A legal trace witnesses reachability. -/
 theorem legal_trace_canReach {Γ : VCtx P L} {p : VegasCore P L Γ}
-    {env : VEnv (Player := P) L Γ}
+    {env : VEnv L Γ}
     (t : Trace Γ p) (hl : t.legal p env) :
     CanReach p env (traceOutcome p env t) := by
   induction t with
@@ -229,7 +229,7 @@ theorem legal_trace_canReach {Γ : VCtx P L} {p : VegasCore P L Γ}
 
 /-- A positive-weight trace witnesses profile-dependent reachability. -/
 theorem pos_weight_trace_reach {Γ : VCtx P L} {p : VegasCore P L Γ}
-    {env : VEnv (Player := P) L Γ}
+    {env : VEnv L Γ}
     (σ : OmniscientOperationalProfile P L) (t : Trace Γ p) (hw : traceWeight σ p env t ≠ 0) :
     Reach σ p env (traceOutcome p env t) := by
   induction t with
@@ -248,7 +248,7 @@ theorem pos_weight_trace_reach {Γ : VCtx P L} {p : VegasCore P L Γ}
 
 /-- Every reachable outcome has a witnessing trace. -/
 theorem canReach_has_trace {Γ : VCtx P L} {p : VegasCore P L Γ}
-    {env : VEnv (Player := P) L Γ} {oc : Outcome P}
+    {env : VEnv L Γ} {oc : Outcome P}
     (h : CanReach p env oc) :
     ∃ t : Trace Γ p, t.legal p env ∧ traceOutcome p env t = oc := by
   induction h with
@@ -272,7 +272,7 @@ theorem canReach_has_trace {Γ : VCtx P L} {p : VegasCore P L Γ}
 /-- **Support correctness**: an outcome is in the support of `outcomeDist`
     iff it is reachable under the profile. -/
 theorem reach_iff_outcomeDist_support {Γ : VCtx P L} (σ : OmniscientOperationalProfile P L)
-    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ) (oc : Outcome P) :
+    (p : VegasCore P L Γ) (env : VEnv L Γ) (oc : Outcome P) :
     Reach σ p env oc ↔ oc ∈ (outcomeDist σ p env).support := by
   induction p with
   | ret u =>
@@ -308,7 +308,7 @@ theorem reach_iff_outcomeDist_support {Γ : VCtx P L} (σ : OmniscientOperationa
 /-- The weighted count of traces producing outcome `oc`, computed as a nested
     sum over distribution supports by structural induction on `p`. -/
 noncomputable def traceWeightSum (σ : OmniscientOperationalProfile P L) :
-    {Γ : VCtx P L} → (p : VegasCore P L Γ) → VEnv (Player := P) L Γ →
+    {Γ : VCtx P L} → (p : VegasCore P L Γ) → VEnv L Γ →
       Outcome P → ℚ≥0
   | _, .ret u, env, oc =>
       if oc = evalPayoffs u env then 1 else 0
@@ -329,7 +329,7 @@ noncomputable def traceWeightSum (σ : OmniscientOperationalProfile P L) :
 /-- **Adequacy** (pointwise form): `outcomeDist σ p env` and `traceWeightSum σ p env`
     agree pointwise. -/
 theorem adequacy_pointwise {Γ : VCtx P L} (σ : OmniscientOperationalProfile P L)
-    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ) (oc : Outcome P) :
+    (p : VegasCore P L Γ) (env : VEnv L Γ) (oc : Outcome P) :
     (outcomeDist σ p env) oc = traceWeightSum σ p env oc := by
   induction p with
   | ret u =>
@@ -349,7 +349,7 @@ theorem adequacy_pointwise {Γ : VCtx P L} (σ : OmniscientOperationalProfile P 
 
 /-- The distribution on traces induced by profile `σ`. -/
 noncomputable def traceDist (σ : OmniscientOperationalProfile P L) :
-    {Γ : VCtx P L} → (p : VegasCore P L Γ) → VEnv (Player := P) L Γ →
+    {Γ : VCtx P L} → (p : VegasCore P L Γ) → VEnv L Γ →
       FDist (Trace Γ p)
   | _, .ret _, _ => FDist.pure .ret
   | _, .letExpr _ e k, env =>
@@ -396,7 +396,7 @@ private theorem Trace.reveal_injective {Γ : VCtx P L} {y : VarId} {who : P}
 
 /-- Each trace gets exactly its `traceWeight` as mass in `traceDist`. -/
 theorem traceDist_apply (σ : OmniscientOperationalProfile P L) {Γ : VCtx P L}
-    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
+    (p : VegasCore P L Γ) (env : VEnv L Γ)
     (t : Trace Γ p) :
     (traceDist σ p env) t = traceWeight σ p env t := by
   induction p with
@@ -446,7 +446,7 @@ theorem traceDist_apply (σ : OmniscientOperationalProfile P L) {Γ : VCtx P L}
 
 /-- The outcome distribution is the pushforward of the trace distribution. -/
 theorem outcomeDist_eq_map_traceDist (σ : OmniscientOperationalProfile P L) {Γ : VCtx P L}
-    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ) :
+    (p : VegasCore P L Γ) (env : VEnv L Γ) :
     outcomeDist σ p env = (traceDist σ p env).map (traceOutcome p env) := by
   induction p with
   | ret u =>
@@ -466,7 +466,7 @@ theorem outcomeDist_eq_map_traceDist (σ : OmniscientOperationalProfile P L) {Γ
 
 /-- Under an admissible profile, every positive-weight trace is legal. -/
 theorem admissible_pos_weight_legal {Γ : VCtx P L} {σ : OmniscientOperationalProfile P L}
-    {p : VegasCore P L Γ} {env : VEnv (Player := P) L Γ}
+    {p : VegasCore P L Γ} {env : VEnv L Γ}
     (hadm : FairPlayProfile σ p)
     (t : Trace Γ p) (hw : traceWeight σ p env t ≠ 0) :
     t.legal p env := by
@@ -486,7 +486,7 @@ theorem admissible_pos_weight_legal {Γ : VCtx P L} {σ : OmniscientOperationalP
 
 /-- Under an admissible profile, `Reach` implies `CanReach`. -/
 theorem admissible_reach_canReach {Γ : VCtx P L} {σ : OmniscientOperationalProfile P L}
-    {p : VegasCore P L Γ} {env : VEnv (Player := P) L Γ} {oc : Outcome P}
+    {p : VegasCore P L Γ} {env : VEnv L Γ} {oc : Outcome P}
     (hadm : FairPlayProfile σ p)
     (h : Reach σ p env oc) :
     CanReach p env oc := by
@@ -507,7 +507,7 @@ theorem admissible_reach_canReach {Γ : VCtx P L} {σ : OmniscientOperationalPro
     the full erased context, no guard transport is needed — only pointwise
     guard agreement and continuation commutation. -/
 theorem canReach_comm_commit
-    {Γ : VCtx P L} {env : VEnv (Player := P) L Γ} {oc : Outcome P}
+    {Γ : VCtx P L} {env : VEnv L Γ} {oc : Outcome P}
     {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
     {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx Γ) L.bool}
     {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
@@ -521,15 +521,15 @@ theorem canReach_comm_commit
     {k' : VegasCore P L
       ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
     (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ) (oc' : Outcome P),
+        (e : VEnv L Γ) (oc' : Outcome P),
       CanReach k (VEnv.cons v₂ (VEnv.cons v₁ e)) oc' ↔
       CanReach k' (VEnv.cons v₁ (VEnv.cons v₂ e)) oc')
     (hR₁ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ),
+        (e : VEnv L Γ),
       evalGuard R₁ v₁ (VEnv.eraseEnv e) =
       evalGuard R₁' v₁ (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₂ b₂) v₂ e)))
     (hR₂ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ),
+        (e : VEnv L Γ),
       evalGuard R₂ v₂ (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
       evalGuard R₂' v₂ (VEnv.eraseEnv e)) :
     CanReach
@@ -567,7 +567,7 @@ theorem canReach_comm_commit
     their continuations commute pointwise and their guards make the same
     legality decision on the corresponding erased environments. -/
 theorem canReach_comm_commit_main
-    {Γ : VCtx P L} {env : VEnv (Player := P) L Γ} {oc : Outcome P}
+    {Γ : VCtx P L} {env : VEnv L Γ} {oc : Outcome P}
     {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
     {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx Γ) L.bool}
     {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
@@ -581,15 +581,15 @@ theorem canReach_comm_commit_main
     {k' : VegasCore P L
       ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
     (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ) (oc' : Outcome P),
+        (e : VEnv L Γ) (oc' : Outcome P),
       CanReach k (VEnv.cons v₂ (VEnv.cons v₁ e)) oc' ↔
       CanReach k' (VEnv.cons v₁ (VEnv.cons v₂ e)) oc')
     (hR₁ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ),
+        (e : VEnv L Γ),
       evalGuard R₁ v₁ (VEnv.eraseEnv e) =
       evalGuard R₁' v₁ (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₂ b₂) v₂ e)))
     (hR₂ : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ),
+        (e : VEnv L Γ),
       evalGuard R₂ v₂ (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
       evalGuard R₂' v₂ (VEnv.eraseEnv e)) :
     CanReach
@@ -609,7 +609,7 @@ theorem canReach_comm_commit_main
     in `IExpr` supply the corresponding swapped guards. The continuation
     equivalence remains an explicit recursive hypothesis. -/
 theorem canReach_comm_commit_viewScoped
-    {Γ : VCtx P L} {env : VEnv (Player := P) L Γ} {oc : Outcome P}
+    {Γ : VCtx P L} {env : VEnv L Γ} {oc : Outcome P}
     {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
     {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx Γ) L.bool}
     {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
@@ -623,7 +623,7 @@ theorem canReach_comm_commit_viewScoped
     (hsc : ViewScoped (.commit x₁ who₁ R₁ (.commit x₂ who₂ R₂ k)))
     (hneq : who₂ ≠ who₁)
     (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ) (oc' : Outcome P),
+        (e : VEnv L Γ) (oc' : Outcome P),
       CanReach k (VEnv.cons v₂ (VEnv.cons v₁ e)) oc' ↔
       CanReach k' (VEnv.cons v₁ (VEnv.cons v₂ e)) oc') :
     let R₁' := extendAfterHeadExpr (L := L) (x := x₁) (y := x₂) (τ := b₁) (σ := b₂) R₁
@@ -666,7 +666,7 @@ theorem outcomeDist_comm_commit_algebraic
     now receive the full erased environment, independence is expressed
     directly as pointwise equality of strategy outputs. -/
 theorem outcomeDist_comm_commit
-    {Γ : VCtx P L} {σ : OmniscientOperationalProfile P L} {env : VEnv (Player := P) L Γ}
+    {Γ : VCtx P L} {σ : OmniscientOperationalProfile P L} {env : VEnv L Γ}
     {x₁ : VarId} {who₁ : P} {b₁ : L.Ty}
     {R₁ : L.Expr ((x₁, b₁) :: eraseVCtx Γ) L.bool}
     {x₂ : VarId} {who₂ : P} {b₂ : L.Ty}
@@ -680,14 +680,14 @@ theorem outcomeDist_comm_commit
     {k' : VegasCore P L
       ((x₁, .hidden who₁ b₁) :: (x₂, .hidden who₂ b₂) :: Γ)}
     (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ),
+        (e : VEnv L Γ),
       outcomeDist σ k (VEnv.cons v₂ (VEnv.cons v₁ e)) =
       outcomeDist σ k' (VEnv.cons v₁ (VEnv.cons v₂ e)))
-    (hσ₁ : ∀ (v₂ : L.Val b₂) (e : VEnv (Player := P) L Γ),
+    (hσ₁ : ∀ (v₂ : L.Val b₂) (e : VEnv L Γ),
       σ.commit who₁ x₁ R₁ (VEnv.eraseEnv e) =
       σ.commit who₁ x₁ R₁'
         (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₂ b₂) v₂ e)))
-    (hσ₂ : ∀ (v₁ : L.Val b₁) (e : VEnv (Player := P) L Γ),
+    (hσ₂ : ∀ (v₁ : L.Val b₁) (e : VEnv L Γ),
       σ.commit who₂ x₂ R₂
         (VEnv.eraseEnv (VEnv.cons (τ := .hidden who₁ b₁) v₁ e)) =
       σ.commit who₂ x₂ R₂' (VEnv.eraseEnv e)) :
@@ -708,7 +708,7 @@ theorem outcomeDist_comm_commit
 /-- Two adjacent reveals of distinct hidden variables produce the same
     outcome distribution regardless of order. -/
 theorem outcomeDist_comm_reveal
-    {Γ : VCtx P L} {σ : OmniscientOperationalProfile P L} {env : VEnv (Player := P) L Γ}
+    {Γ : VCtx P L} {σ : OmniscientOperationalProfile P L} {env : VEnv L Γ}
     {y₁ : VarId} {who₁ : P} {x₁ : VarId} {b₁ : L.Ty}
     {hx₁ : VHasVar (L := L) Γ x₁ (.hidden who₁ b₁)}
     {y₂ : VarId} {who₂ : P} {x₂ : VarId} {b₂ : L.Ty}
@@ -716,7 +716,7 @@ theorem outcomeDist_comm_reveal
     {k : VegasCore P L ((y₂, .pub b₂) :: (y₁, .pub b₁) :: Γ)}
     {k' : VegasCore P L ((y₁, .pub b₁) :: (y₂, .pub b₂) :: Γ)}
     (hk_eq : ∀ (v₁ : L.Val b₁) (v₂ : L.Val b₂)
-        (e : VEnv (Player := P) L Γ),
+        (e : VEnv L Γ),
       outcomeDist σ k (VEnv.cons v₂ (VEnv.cons v₁ e)) =
       outcomeDist σ k' (VEnv.cons v₁ (VEnv.cons v₂ e))) :
     outcomeDist σ
