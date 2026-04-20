@@ -381,6 +381,9 @@ The five constructs operate as follows:
 \item $\Ret$: Terminate with per-player payoffs, each typed over
       $\|\Gamma^{\pub}\|$.
 \item $\Let$: Bind a deterministic expression to a fresh $\pub$ variable.
+      Administrative rather than strategic: semantically
+      equivalent to a $\Sample$ at a point-mass distribution, but kept
+      distinct for modular reasons discussed in \Cref{sec:mechanization}.
 \item $\Sample$: Draw from a distribution expression over the current public
       context and bind the result as a fresh $\pub$ variable.
 \item $\Commit$: Player~$i$ chooses a value of type~$\tau$ subject
@@ -1358,6 +1361,38 @@ this:
       consistent with this house style and lets it be discharged the same
       way as the other well-formedness obligations.
 \end{itemize}
+
+A fourth decision is keeping $\Let$ as a distinct constructor rather than
+desugaring it to $\Sample$. Semantically, $\Let\;x = e\;\mathbf{in}\;k$ is
+equivalent to $\Sample\;x \sim \mathrm{Dirac}(e)\;\mathbf{in}\;k$: if the
+expression language exposed a point-mass lift $\mathrm{Dirac} :
+L.\Expr(\Delta,\tau) \to L.\mathit{DistExpr}(\Delta,\tau)$, $\FDist{}$'s
+left-identity law would collapse the two forms to the same outcome
+distribution. We keep $\Let$ because the equivalence would cost more than
+it saves:
+\begin{itemize}[nosep]
+\item \emph{Smaller interface.} Eliminating $\Let$ would require $L$ to
+      expose the point-mass lift (equivalently, a substitution operation
+      on expressions). $\leanref{IExpr}$ stays dimensioned to its actual
+      metatheory; $\Let$ does not need it.
+\item \emph{Linear term size.} A $\Let$ that names a large expression
+      referenced $n$ times downstream stays size-$O(1)$ in the binding.
+      Inlining would duplicate the expression into every reference site,
+      blowing up $\mathit{exprDeps}$ accounting and the emitted MAID graph.
+\item \emph{View-shape stability.} The public binding introduced by $\Let$
+      appears in every downstream view $\Gamma'\!\!\downarrow_i$. Erasing
+      it would remove the binding from the context, changing the types of
+      every behavioural kernel that observed it, and would require a
+      substitution/transport metatheorem to recover equivalent strategies.
+\item \emph{Reader intuition.} $\Let$ and $\Sample$ signal different
+      intent: one is administrative, the other introduces randomness. A
+      reader encountering $\Sample\;x \sim \mathrm{Dirac}(e)$ rightly asks
+      ``why is this random?'' when nothing stochastic is happening.
+\end{itemize}
+We therefore classify the five constructors as four \emph{protocol events}
+($\Ret$, $\Sample$, $\Commit$, $\Reveal$) plus one \emph{administrative}
+binding ($\Let$), even though only the former carry observable strategic
+content.
 
 
 %% =====================================================================

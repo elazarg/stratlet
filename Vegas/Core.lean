@@ -751,15 +751,59 @@ def evalGuard {Player : Type} [DecidableEq Player] {L : IExpr}
 
 /-- Generic Vegas-style protocol syntax over an expression language.
 
-A `VegasCore Player L Γ` is a typed program in context `Γ`. Five
-constructors cover all forms of Vegas computation: termination with
-payoffs, deterministic let-binding, public sampling, hidden commitment,
-and disclosure of a previously hidden value. The inductive is indexed by
-the visibility context, so every well-formed term is well-scoped by
-construction. Strategies do not appear here — the `commit` constructor
-holds only its guard, and the choice kernel is supplied separately by an
-`OmniscientOperationalProfile` (in `Vegas.Operational`). The same program
-can therefore be evaluated against many strategy profiles. -/
+A `VegasCore Player L Γ` is a typed program in context `Γ`. The inductive
+is indexed by the visibility context, so every well-formed term is
+well-scoped by construction. Strategies do not appear here — the `commit`
+constructor holds only its guard, and the choice kernel is supplied
+separately by an `OmniscientOperationalProfile` (in `Vegas.Operational`).
+The same program can therefore be evaluated against many strategy
+profiles.
+
+## Classification
+
+Four of the five constructors are **protocol events** that model
+observable activity in a multi-party computation:
+
+* `ret` — the protocol terminates and players collect payoffs.
+* `sample` — nature draws from a public distribution; every player sees
+  the outcome.
+* `commit` — a player chooses a value subject to a guard and seals it
+  from the others.
+* `reveal` — a previously sealed value is disclosed to everyone. This is
+  the only way to make hidden data observable; the timing of the reveal
+  is under program control, distinguishing open play from sealed commitment.
+
+The fifth constructor, `letExpr`, is **administrative**: Semantically,
+`letExpr x e k` is equivalent to `sample x (Dirac e) k`: if the language
+provided a point-mass distribution constructor `Dirac : L.Expr → L.DistExpr`
+with `L.evalDist (Dirac e) = FDist.pure ∘ L.eval e`, then `bind` on a
+Dirac distribution reduces by `FDist.pure_bind` to the direct
+extension we do here. The constructor is kept as a distinct form
+despite this equivalence, for four reasons:
+
+1. **Smaller interface.** Eliminating `letExpr` would require `IExpr`
+    to expose a canonical `Expr → DistExpr` lift (or, equivalently, a
+    substitution operation). Keeping it means `IExpr` stays
+    dimensioned to its actual metatheory needs.
+
+2. **Linear term size.** Inlining a `let x = e` that is referenced
+    `n` times downstream would duplicate `e` into every reference
+    site — `n` copies in guards, distributions, and payoffs. The
+    named binding keeps the program linear in its surface size, which
+    also keeps `exprDeps` accounting local.
+
+3. **View-shape stability.** The public binding `(x, .pub b)` appears
+    in every downstream `viewVCtx who Γ'`. Erasing `letExpr` would
+    remove `x` from the context, changing the types of every
+    behavioral kernel that observed `x`. "A strategy depending on `x`
+    equals a strategy recomputing `e` from the earlier public view"
+    is true but requires a substitution/transport metatheorem that
+    currently isn't needed.
+
+4. **Reader intuition.** `let` and `sample` signal different intent:
+    one is bookkeeping, the other introduces randomness. A surface
+    reader encountering `sample x ~ Dirac(e)` would rightly ask "why
+    is this random?" when nothing stochastic is happening. -/
 inductive VegasCore (Player : Type) [DecidableEq Player] (L : IExpr) :
     VCtx Player L → Type where
   /-- Terminate with per-player payoffs. Each payoff expression is over the
@@ -790,9 +834,7 @@ inductive VegasCore (Player : Type) [DecidableEq Player] (L : IExpr) :
       VegasCore Player L Γ
   /-- Disclose a previously hidden variable `x` as a fresh public alias `y`.
   The membership witness `hx` must show `x` is currently hidden, owned by
-  `who`. This is the only way to make hidden data observable; the timing
-  of the reveal is under program control, distinguishing open play from
-  sealed commitment. -/
+  `who`. -/
   | reveal {Γ} (y : VarId) (who : Player) (x : VarId) {b : L.Ty}
       (hx : VHasVar Γ x (.hidden who b))
       (k : VegasCore Player L ((y, .pub b) :: Γ)) :
@@ -818,7 +860,7 @@ instance instFintypeVal (L : IExpr) (LF : FiniteValuation L)
   LF.fintypeVal τ
 
 /-- The finite branching factor of values of type `τ`. -/
-noncomputable def domainSize (L : IExpr) (LF : FiniteValuation L)
+def domainSize (L : IExpr) (LF : FiniteValuation L)
     (τ : L.Ty) : Nat :=
   let _ := instFintypeVal L LF τ
   Fintype.card (L.Val τ)
