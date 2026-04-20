@@ -10,7 +10,7 @@ import GameTheory.Concepts.PriceOfAnarchy
 # Vegas game-theoretic properties
 
 Core game-theoretic property definitions for Vegas programs, transported through
-the local `toKernelGame` bridge.
+the local `toKernelGame` bridge. All declarations consume a `WFProgram` bundle.
 
 Corollaries and derived theorems live under `Vegas/Corollaries/`.
 -/
@@ -21,135 +21,105 @@ open GameTheory
 
 variable {P : Type} [DecidableEq P] {L : IExpr}
 
-def IsεNash (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    (ε : ℝ) (σ : StrategyProfile p env hd) : Prop :=
-  (Game p env hd).IsεNash ε σ
+def IsεNash (g : WFProgram P L) (ε : ℝ) (σ : StrategyProfile g) : Prop :=
+  (Game g).IsεNash ε σ
 
-def IsεBestResponse (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    (ε : ℝ) (who : P) (σ : StrategyProfile p env hd)
-    (s : Strategy p env hd who) : Prop :=
-  (Game p env hd).IsεBestResponse ε who σ s
+def IsεBestResponse (g : WFProgram P L)
+    (ε : ℝ) (who : P) (σ : StrategyProfile g) (s : Strategy g who) : Prop :=
+  (Game g).IsεBestResponse ε who σ s
 
-def Survives (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    (n : ℕ) (who : P) (s : Strategy p env hd who) : Prop :=
-  (Game p env hd).Survives n who s
+def Survives (g : WFProgram P L) (n : ℕ) (who : P)
+    (s : Strategy g who) : Prop :=
+  (Game g).Survives n who s
 
-def IsRationalizable (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    (who : P) (s : Strategy p env hd who) : Prop :=
-  (Game p env hd).IsRationalizable who s
+def IsRationalizable (g : WFProgram P L) (who : P)
+    (s : Strategy g who) : Prop :=
+  (Game g).IsRationalizable who s
 
-def IsIndividuallyRational (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    (r : P → ℝ) (σ : StrategyProfile p env hd) : Prop :=
-  (Game p env hd).IsIndividuallyRational r σ
+def IsIndividuallyRational (g : WFProgram P L)
+    (r : P → ℝ) (σ : StrategyProfile g) : Prop :=
+  (Game g).IsIndividuallyRational r σ
 
-def IsDominanceSolvable (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p) : Prop :=
-  (Game p env hd).IsDominanceSolvable
+def IsDominanceSolvable (g : WFProgram P L) : Prop :=
+  (Game g).IsDominanceSolvable
 
 noncomputable def IsDominanceSolvable.dominantProfile
-    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
-    (hd : NormalizedDists p)
-    (h : IsDominanceSolvable p env hd) : StrategyProfile p env hd :=
-  KernelGame.IsDominanceSolvable.dominantProfile (G := Game p env hd) h
+    (g : WFProgram P L)
+    (h : IsDominanceSolvable g) : StrategyProfile g :=
+  KernelGame.IsDominanceSolvable.dominantProfile (G := Game g) h
 
-def IsExactPotential (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    (Φ : StrategyProfile p env hd → ℝ) : Prop :=
-  (Game p env hd).IsExactPotential Φ
+def IsExactPotential (g : WFProgram P L)
+    (Φ : StrategyProfile g → ℝ) : Prop :=
+  (Game g).IsExactPotential Φ
 
-def IsOrdinalPotential (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    (Φ : StrategyProfile p env hd → ℝ) : Prop :=
-  (Game p env hd).IsOrdinalPotential Φ
+def IsOrdinalPotential (g : WFProgram P L)
+    (Φ : StrategyProfile g → ℝ) : Prop :=
+  (Game g).IsOrdinalPotential Φ
 
-def Guarantees (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    (who : P) (s : Strategy p env hd who) (v : ℝ) : Prop :=
-  (Game p env hd).Guarantees who s v
+def Guarantees (g : WFProgram P L)
+    (who : P) (s : Strategy g who) (v : ℝ) : Prop :=
+  (Game g).Guarantees who s v
 
 def IsSaddlePoint
-    (p : VegasCore (Fin 2) L Γ) (env : VEnv (Player := Fin 2) L Γ)
-    (hd : NormalizedDists p)
-    (σ : StrategyProfile p env hd) : Prop :=
-  (Game p env hd).IsSaddlePoint σ
+    (g : WFProgram (Fin 2) L)
+    (σ : StrategyProfile g) : Prop :=
+  (Game g).IsSaddlePoint σ
 
-def MixedStrategy (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    (who : P) : Type :=
-  PMF (Strategy p env hd who)
+def MixedStrategy (g : WFProgram P L) (who : P) : Type :=
+  PMF (Strategy g who)
 
-def MixedStrategyProfile [Fintype P]
-    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
-    (hd : NormalizedDists p)
-    [∀ who, Fintype (Strategy p env hd who)] : Type :=
-  KernelGame.Profile (Game p env hd).mixedExtension
+def MixedStrategyProfile [Fintype P] (g : WFProgram P L)
+    [∀ who, Fintype (Strategy g who)] : Type :=
+  KernelGame.Profile (Game g).mixedExtension
 
-def IsMixedNash [Fintype P]
-    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
-    (hd : NormalizedDists p)
-    [∀ who, Fintype (Strategy p env hd who)]
-    (σ : MixedStrategyProfile p env hd) : Prop :=
-  (Game p env hd).mixedExtension.IsNash σ
+def IsMixedNash [Fintype P] (g : WFProgram P L)
+    [∀ who, Fintype (Strategy g who)]
+    (σ : MixedStrategyProfile g) : Prop :=
+  (Game g).mixedExtension.IsNash σ
 
-noncomputable def mixedEu [Fintype P]
-    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
-    (hd : NormalizedDists p)
-    [∀ who, Fintype (Strategy p env hd who)]
-    (σ : MixedStrategyProfile p env hd) (who : P) : ℝ :=
-  (Game p env hd).mixedExtension.eu σ who
+noncomputable def mixedEu [Fintype P] (g : WFProgram P L)
+    [∀ who, Fintype (Strategy g who)]
+    (σ : MixedStrategyProfile g) (who : P) : ℝ :=
+  (Game g).mixedExtension.eu σ who
 
-noncomputable def worstCaseEU (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    [Fintype (StrategyProfile p env hd)]
-    [∀ who, Fintype (Strategy p env hd who)]
-    [∀ who, Nonempty (Strategy p env hd who)]
-    [Nonempty (StrategyProfile p env hd)]
-    (who : P) (s : Strategy p env hd who) : ℝ :=
-  (Game p env hd).worstCaseEU who s
+noncomputable def worstCaseEU (g : WFProgram P L)
+    [Fintype (StrategyProfile g)]
+    [∀ who, Fintype (Strategy g who)]
+    [∀ who, Nonempty (Strategy g who)]
+    [Nonempty (StrategyProfile g)]
+    (who : P) (s : Strategy g who) : ℝ :=
+  (Game g).worstCaseEU who s
 
-noncomputable def securityLevel (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    [Fintype (StrategyProfile p env hd)]
-    [∀ who, Fintype (Strategy p env hd who)]
-    [∀ who, Nonempty (Strategy p env hd who)]
-    [Nonempty (StrategyProfile p env hd)]
+noncomputable def securityLevel (g : WFProgram P L)
+    [Fintype (StrategyProfile g)]
+    [∀ who, Fintype (Strategy g who)]
+    [∀ who, Nonempty (Strategy g who)]
+    [Nonempty (StrategyProfile g)]
     (who : P) : ℝ :=
-  (Game p env hd).securityLevel who
+  (Game g).securityLevel who
 
-def IsConstantSum [Fintype P] (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    (c : ℝ) : Prop :=
-  (Game p env hd).IsConstantSum c
+def IsConstantSum [Fintype P] (g : WFProgram P L) (c : ℝ) : Prop :=
+  (Game g).IsConstantSum c
 
-def IsZeroSum [Fintype P] (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p) : Prop :=
-  (Game p env hd).IsZeroSum
+def IsZeroSum [Fintype P] (g : WFProgram P L) : Prop :=
+  (Game g).IsZeroSum
 
-def IsTeamGame [Fintype P] (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p) : Prop :=
-  (Game p env hd).IsTeamGame
+def IsTeamGame [Fintype P] (g : WFProgram P L) : Prop :=
+  (Game g).IsTeamGame
 
-noncomputable def optimalWelfare [Fintype P] (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p) : ℝ :=
-  (Game p env hd).optimalWelfare
+noncomputable def optimalWelfare [Fintype P] (g : WFProgram P L) : ℝ :=
+  (Game g).optimalWelfare
 
-noncomputable def bestNashWelfare [Fintype P] (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    [Fintype (StrategyProfile p env hd)] [Nonempty (StrategyProfile p env hd)]
-    (hN : ∃ σ : StrategyProfile p env hd, IsNash p env hd σ) : ℝ :=
-  (Game p env hd).bestNashWelfare <| by
+noncomputable def bestNashWelfare [Fintype P] (g : WFProgram P L)
+    [Fintype (StrategyProfile g)] [Nonempty (StrategyProfile g)]
+    (hN : ∃ σ : StrategyProfile g, IsNash g σ) : ℝ :=
+  (Game g).bestNashWelfare <| by
     simpa [IsNash] using hN
 
-noncomputable def worstNashWelfare [Fintype P] (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ) (hd : NormalizedDists p)
-    [Fintype (StrategyProfile p env hd)] [Nonempty (StrategyProfile p env hd)]
-    (hN : ∃ σ : StrategyProfile p env hd, IsNash p env hd σ) : ℝ :=
-  (Game p env hd).worstNashWelfare <| by
+noncomputable def worstNashWelfare [Fintype P] (g : WFProgram P L)
+    [Fintype (StrategyProfile g)] [Nonempty (StrategyProfile g)]
+    (hN : ∃ σ : StrategyProfile g, IsNash g σ) : ℝ :=
+  (Game g).worstNashWelfare <| by
     simpa [IsNash] using hN
 
 end Vegas

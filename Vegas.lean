@@ -5,6 +5,7 @@ import Vegas.ExprSimple
 import Vegas.VegasSimple
 import Vegas.WF
 import Vegas.Scope
+import Vegas.WFProgram
 import Vegas.Finite
 import Vegas.Examples
 import Vegas.BigStep
@@ -19,4 +20,5 @@ import Vegas.GameProperties
 import Vegas.Corollaries.Equilibrium
 import Vegas.Corollaries.GameProperties
 import Vegas.Corollaries.PureStrategic
+import Vegas.ProtocolSemantics
 import Vegas.MAID

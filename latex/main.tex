@@ -98,7 +98,7 @@ scoping rather than by cryptographic mechanisms.
       and \emph{commutativity} (adjacent independent constructs commute).
 
 \item \textbf{Strategic bridge} (\Cref{sec:strategic}): a construction
-      $\toKG(p, \rho)$ packaging any Vegas program as a kernel game whose
+      $\toKG(g)$ packaging any well-formed Vegas program as a kernel game whose
       strategies are view-based behavioral strategies---functions from a
       player's visible state to action distributions. The typing discipline
       guarantees that strategies cannot depend on unobserved state, unlike
@@ -209,7 +209,7 @@ constructs---determines the information available to each player. Our
 commutativity theorems (\Cref{sec:semantics}) confirm that reordering
 independent constructs does not affect semantics.
 
-\subsection{Conditioned Choices}
+\subsection{Conditioned Choices}\label{sec:conditioned}
 
 Commit guards can restrict a player's available actions based on observable
 state. Consider a variant where Player~0's revealed choice becomes the guard
@@ -953,31 +953,77 @@ $\EU(\KG, \sigma, i) = \mathbb{E}_{o \sim \KG.\mathrm{outcomeKernel}(\sigma)}
 
 \subsection{From Vegas to Kernel Games}\label{sec:tokernelgame}
 
-Given $p : \Gamma \vdash p$, environment $\rho$, and proof $\NormDists(p)$,
-we construct:
+\begin{definition}[Well-formed program bundle]\label{def:wfprog}
+A \emph{well-formed program} $g : \WFP$ bundles a program with the three
+side conditions needed to interpret it as a game:
 \[
-  \toKG(p, \rho) : \KG \quad\text{where}\quad
+  g = (\Gamma,\, p,\, \rho,\, \mathsf{wf},\, \mathsf{norm},\, \mathsf{legal})
+\]
+where $\Gamma \vdash p$, $\rho : \VEnv(\Gamma)$, and $\mathsf{wf}$,
+$\mathsf{norm}$, $\mathsf{legal}$ witness $\WF(p)$, $\NormDists(p)$, and
+$\Legal(p)$ respectively. \leanref{WFProgram}
+\end{definition}
+
+\noindent
+Given $g : \WFP$, we construct:
+\[
+  \toKG(g) : \KG \quad\text{where}\quad
   \begin{cases}
-    \mathrm{Strategy}(i) &= \mathcal{B}_i \\
+    \mathrm{Strategy}(i) &= \mathcal{B}^{\Legal}_i \\
     \Outcome &= \Players \to_{\mathrm{fin}} \mathbb{Z} \\
     \mathrm{utility}(o)(i) &= o(i) \\
     \mathrm{outcomeKernel}(\sigma) &=
-      (\densub{p}{\widehat{\sigma}}(\rho)).\mathrm{toPMF}
+      (\densub{g.p}{\widehat{\sigma}}(g.\rho)).\mathrm{toPMF}
   \end{cases}
 \]
-Here $\mathcal{B}_i$ is the type of player~$i$'s view-based behavioral
-strategies, and $\widehat{\sigma}$ is the induced operational profile
-obtained by projecting each erased environment to the relevant player view.
-The normalization theorem (\Cref{thm:norm}) ensures total weight~1, enabling
-the promotion to $\PMF{}$.
+Here $\mathcal{B}^{\Legal}_i$ is the subtype of player~$i$'s view-based
+behavioral strategies that are \emph{guard-legal}: at every commit site
+owned by $i$ and every reachable erased environment $\rho$, the kernel's
+output distribution (on $i$'s view of $\rho$) is supported on actions
+satisfying the commit guard at $\rho$.
+$\widehat{\sigma}$ is the induced operational profile obtained by
+projecting each erased environment to the relevant player view.
+The normalization field $g.\mathsf{norm}$ (together with the normalization
+theorem, \Cref{thm:norm}) ensures total weight~1, enabling the promotion to
+$\PMF{}$.
+
+\paragraph{Why a bundle.}
+An earlier revision of the API took a raw $(p, \rho, \mathsf{norm})$ triple,
+which left a user-facing footgun: any program that happens to have
+normalized sample distributions could be fed to $\toKG$ regardless of
+whether its variable bindings are fresh, whether its secrets are ever
+revealed, whether guards respect player views, or whether commit sites are
+feasible. The resulting ``kernel game'' is then mathematically defined but
+semantically incoherent. The bundle closes this by requiring all three
+well-formedness obligations at the API boundary. Internal metatheory
+functions ($\outcomeDist$, trace semantics, MAID compilation) still consume
+raw programs plus the specific witnesses they need, since those recurse
+through subprograms where constructing fresh bundles would be mechanically
+painful and irrelevant.
+
+\paragraph{Strategy-level guard admissibility.}
+The program-level $\Legal$ predicate asserts that every commit site
+\emph{admits} at least one guard-satisfying action, but it does not rule
+out a strategy that proposes a guard-violating action at that site. To
+close this gap, $\toKG(g).\mathrm{Strategy}(i)$ refines the raw behavioral
+strategy type to the subtype $\mathcal{B}^{\Legal}_i$ carrying the
+predicate $\IsLegal(\sigma_i)$: at every reachable erased environment $\rho$
+and every commit site owned by $i$, the kernel's output distribution
+(applied to $i$'s view of $\rho$) is supported on $\{a \mid R(a, \rho)\}$.
+A pure counterpart $\mathcal{P}^{\Legal}_i$ is refined identically for
+$\toStrategicKG(g)$. All downstream equilibrium predicates and corollaries
+consume these legal subtypes, so a ``Nash equilibrium'' they produce is
+automatically protocol-legal: no player can unilaterally escape their
+guard even hypothetically. \leanref{ProgramBehavioralStrategy.IsLegal}
+\leanref{ProgramPureStrategy.IsLegal}
 
 \subsection{Expected Utility Preservation}
 
 \begin{theorem}[EU Preservation]\label{thm:eu}
-For any player~$i$ and joint strategy $\sigma$:
+For any $g : \WFP$, player~$i$, and joint strategy $\sigma$:
 \[
-  \EU(\toKG(p, \rho), \sigma, i) \;=\;
-    \sum_{o \in \Outcome} \densub{p}{\widehat{\sigma}}(\rho)(o) \cdot o(i)
+  \EU(\toKG(g), \sigma, i) \;=\;
+    \sum_{o \in \Outcome} \densub{g.p}{\widehat{\sigma}}(g.\rho)(o) \cdot o(i)
 \]
 \leanref{toKernelGame\_eu}
 \end{theorem}
@@ -989,12 +1035,11 @@ apply directly to Vegas programs. We provide a thin wrapper layer that
 transports the GT library's definitions through $\toKG$:
 
 \begin{definition}[Vegas Nash Equilibrium]
-A behavioral profile~$\sigma$ is a \emph{Nash equilibrium} of a Vegas
-program~$p$ with environment~$\rho$ if it is a Nash equilibrium of
-$\toKG(p, \rho)$:
+A behavioral profile~$\sigma$ is a \emph{Nash equilibrium} of a well-formed
+Vegas program $g : \WFP$ if it is a Nash equilibrium of $\toKG(g)$:
 \[
-  \mathsf{IsNash}(p, \rho, \sigma) \;\;\iff\;\;
-  \toKG(p, \rho).\mathsf{IsNash}(\sigma)
+  \mathsf{IsNash}(g, \sigma) \;\;\iff\;\;
+  \toKG(g).\mathsf{IsNash}(\sigma)
 \]
 \leanref{Vegas.IsNash}
 \end{definition}
@@ -1005,11 +1050,11 @@ $\mathsf{IsParetoEfficient}$, and $\mathsf{socialWelfare}$, all defined by
 the same transport. Two structural results lift through the bridge:
 
 \begin{theorem}[Nash Characterization]\label{thm:nashchar}
-$\mathsf{IsNash}(p, \rho, \sigma)$ holds iff every player is playing a best
+$\mathsf{IsNash}(g, \sigma)$ holds iff every player is playing a best
 response:
 \[
-  \mathsf{IsNash}(p, \rho, \sigma) \;\;\iff\;\;
-  \forall\, i.\; \mathsf{IsBestResponse}(p, \rho, i, \sigma, \sigma_i)
+  \mathsf{IsNash}(g, \sigma) \;\;\iff\;\;
+  \forall\, i.\; \mathsf{IsBestResponse}(g, i, \sigma, \sigma_i)
 \]
 \leanref{Vegas.isNash\_iff\_bestResponse}
 \end{theorem}
@@ -1029,6 +1074,81 @@ that neither player can increase their expected payoff by switching to a
 different strategy. Since both commits precede all reveals, each player's
 visible state at their commit point contains only their own prior
 choices (if any), enforcing the simultaneity of the original game.
+
+\subsection{Protocol-Native Solution Concepts}\label{sec:protocolsem}
+
+The equilibrium wrapper layer above transports game-theoretic notions
+through the $\toKG$ bridge. We also state them natively on the
+protocol, directly in terms of the Vegas outcome distribution
+$\outcomeDist_{\mathrm{beh}}$ and the legal behavioural profile space,
+and prove the two characterisations agree
+(\leanref{Vegas.ProtocolSemantics}).
+
+\begin{definition}[Protocol expected utility and Nash]
+For a well-formed program $g : \WFP$ and a guard-legal behavioural
+profile $\sigma : \mathcal{B}^{\Legal}$:
+\[
+  \protocolEU(g, \sigma, i) \;=\;
+    \sum_{o \in \Outcome}
+      \densub{g.p}{\widehat{\sigma}}(g.\rho)(o)\cdot o(i)
+\]
+\[
+  \ProtocolNash(g, \sigma) \;:=\;
+    \forall i,\, s' : \mathcal{B}^{\Legal}_i.\;
+      \protocolEU(g, \sigma, i) \;\geq\;
+        \protocolEU(g, \sigma[i \mapsto s'], i)
+\]
+\end{definition}
+
+\begin{theorem}[Layer correspondence]\label{thm:protocol-correspondence}
+For every well-formed program $g : \WFP$ and legal profile $\sigma$:
+\[
+  \mathrm{IsNash}(g, \sigma) \;\iff\; \ProtocolNash(g, \sigma)
+\]
+with analogous equivalences for best response, dominance, and strict
+Nash (\leanref{Vegas.isNash\_iff\_protocolNash}).
+\end{theorem}
+
+The proofs reduce to definitional unfolding: $\EU(\toKG(g), \sigma, i)$
+equals $\protocolEU(g, \sigma, i)$ by \Cref{thm:eu}, and each solution
+concept's statement shape is preserved by that substitution.
+
+\begin{definition}[Context-free guards]\label{def:contextfree}
+A commit guard $R : L.\Expr((x{:}\tau) :: \|\Gamma\|, \bool)$ is
+\emph{context-free} if $L.\exprDeps(R) \subseteq \{x\}$ --- legality
+of an action depends only on the proposed action itself, never on
+the ambient environment. A program has \emph{context-free guards},
+$\ContextFreeGuards(p)$, if every commit site's guard is context-free.
+Matching-pennies (with trivial guard $\mathit{true}$) has context-free
+guards; the conditioned-game of \Cref{sec:conditioned} does not.
+(\leanref{Vegas.ContextFreeGuards})
+\end{definition}
+
+\paragraph{Conjectural: protocol Kuhn.}
+We name the protocol-level Kuhn claim as a $\Prop$-valued target
+rather than a theorem: for every mixture $\mu$ over guard-legal pure
+strategies, there exists a guard-legal behavioural profile $\beta$
+with the same outcome distribution
+(\leanref{ProtocolKuhnProperty}). Proving this from existing MAID Kuhn
+would require the guard-respecting default-value repair discussed in
+\Cref{sec:mechanization}, or a direct Vegas Kuhn construction at the
+legal-subtype level. Neither is attempted in this paper.
+
+\paragraph{Gap: general MAID compilation does not preserve protocol
+equilibria.}
+MAID compilation is outcome-distribution preserving and supports a
+faithful Kuhn theorem at the outcome level, but the compiled MAID's
+strategy type is driven by $\mathrm{MAID.Struct.Val}$ which is set to
+the full $L.\Val(\tau)$ at every decision node. A MAID Nash
+equilibrium can therefore recommend guard-violating actions. The
+faithful compilation target for the general case is a formalism with
+environment-dependent action admissibility (factored-observation
+stochastic games); its mechanisation is a separate project. For
+context-free guards the restricted compilation is conceptually
+straightforward --- MAID decision-node $\Val$ becomes the guard-
+filtered subtype --- but its mechanisation requires a cascade through
+outcome extraction, policy translation, and the perfect-recall
+proofs, and is deferred.
 
 
 %% =====================================================================
@@ -1315,6 +1435,39 @@ instantiates $\leanref{IExpr}$ and exercises the full denotational, trace,
 strategic-behavioral, and equilibrium-wrapper metatheory; only the
 finite-enumeration backends are out of reach.
 
+\paragraph{Computability of the semantics.}
+The denotational semantics is stated over Mathlib's $\mathrm{Finsupp}$. Several
+of $\mathrm{Finsupp}$'s operations --- notably $\mathrm{single}$, $\mathrm{zipWith}$
+(underlying addition), and $\mathrm{onFinset}$ (underlying
+$\mathrm{mapRange}$) --- are marked $\mathrm{noncomputable}$ in Mathlib
+because their implementations invoke $\mathtt{Classical.dec}$ internally
+rather than taking a $\mathrm{DecidableEq}$ instance as an argument. This
+propagates through to $\FDist{}$'s $\mathrm{bind}$, $\mathrm{map}$, and
+$\mathrm{totalWeight}$, and thence to $\outcomeDist$ and the $\PMF{}$
+bridge. Lean's reducer therefore will not evaluate an
+$\outcomeDist\;\sigma\;p\;\rho$ term to a numeric distribution.
+
+The underlying mathematics is nevertheless effective: every step is a
+finite sum of decidable cases over rational weights and finitely-supported
+functions. The non-computability is an artifact of Mathlib's library
+conventions, not of the calculus. We bypass it where it is cheap to do so:
+$\mathrm{pure}$, $\mathrm{zero}$, $\mathrm{ofList}$, $\mathrm{mkOutcome}$,
+and $\mathrm{evalPayoffs}$ are all built as direct $\mathrm{Finsupp}$ records and
+are fully computable, so $\mathtt{\#eval}$ works on Dirac masses and
+concrete payoff aggregations. Extending this treatment to
+$\mathrm{bind}$, $\mathrm{map}$, and $\mathrm{totalWeight}$ is
+straightforward but not currently done; none of our metatheorems require
+it.
+
+Concrete \emph{execution} of a Vegas program --- numeric outcome
+distributions, numeric expected utilities, brute-force equilibrium search
+--- is not intended to go through the denotational semantics in any case.
+It goes through the MAID backend ($\leanref{Vegas.MAID}$), which is fully
+computable under $\leanref{FiniteValuation}$: chance-node CPDs, decision
+nodes with enumerable action sets, and utility functions all reduce in the
+Lean kernel. A user wanting to run a Vegas program compiles it to a MAID
+and runs the MAID.
+
 \paragraph{Design decisions.}
 The choice of $\FDist{}$ over Mathlib's $\PMF{}$ as the primary
 distribution type is discussed in \Cref{sec:fdist}; in short, it lets
@@ -1394,6 +1547,43 @@ We therefore classify the five constructors as four \emph{protocol events}
 binding ($\Let$), even though only the former carry observable strategic
 content.
 
+A fifth decision concerns where well-formedness is enforced. Every
+user-facing game-theory API --- $\toKG$, $\mathsf{IsNash}$,
+$\mathsf{IsεNash}$, the equilibrium-family predicates, their corollaries ---
+consumes a single $\WFP$ bundle (\Cref{def:wfprog}) that packages the
+program, its environment, and all three well-formedness witnesses
+($\WF$, $\NormDists$, $\Legal$). The raw calculus \leanref{VegasCore} remains an
+unchecked inductive, and the semantic functions ($\outcomeDist$, its
+behavioral and pure variants, trace semantics, MAID compilation) continue
+to consume raw programs plus the specific witness they need. The bundle
+is the API boundary: everything that produces a coherent game-theoretic
+object demands it. This prevents a concrete footgun --- a user
+constructing a duplicate-named or view-violating program, proving only
+$\NormDists$ trivially, and obtaining a ``Nash equilibrium'' of
+semantically-broken input --- without forcing the metatheory to thread
+bundles through structural inductions where they would be mechanically
+painful and irrelevant.
+
+A sixth decision, layered on top of the bundle, addresses \emph{strategy-
+level} guard admissibility. The program-level $\Legal(p)$ obligation
+witnesses that every commit site admits at least one guard-satisfying
+action; it does not, however, rule out a \emph{strategy} that proposes a
+guard-violating action at that site. A Nash equilibrium among such
+strategies would have no operational content --- the deviating player is
+exploring a counterfactual that the protocol would reject. We close this
+gap by refining $\toKG(g).\mathrm{Strategy}$ and
+$\toStrategicKG(g).\mathrm{Strategy}$ to \emph{legal} subtypes: behavioral
+and pure strategies carrying a predicate $\IsLegal$ stating that at every
+owned commit site and every reachable environment, the kernel's
+distribution is supported on guard-satisfying actions
+(\leanref{ProgramBehavioralStrategy.IsLegal},
+\leanref{ProgramPureStrategy.IsLegal}). All downstream user-facing
+equilibrium predicates consume these subtypes; a ``Nash equilibrium''
+produced by our corollaries is therefore automatically protocol-legal.
+The raw strategy types and the metatheoretic bridge $\outcomeDist$ remain
+unconstrained, since the MAID and Kuhn pipelines quantify over
+\emph{all} strategies and would be weakened by baked-in legality.
+
 
 %% =====================================================================
 \section{Related Work}\label{sec:related}
@@ -1468,7 +1658,14 @@ Extending Vegas with richer expression languages (continuous distributions,
 recursive types), sequential equilibrium refinements, and a deeper connection
 to verified smart contract languages. The commit-reveal structure suggests a
 natural correspondence with zero-knowledge protocols that remains to be
-formalized.
+formalized. On the protocol-compilation side, the natural target for the
+general case --- where commit guards may read the ambient environment ---
+is a factored-observation stochastic game (FOSG) with environment-dependent
+action admissibility. Formalising FOSGs in \texttt{GameTheory} and
+connecting them to Vegas would close the gap between Vegas's
+protocol-native semantics and a faithful compilation target for the full
+language; a restricted-MAID construction for the $\ContextFreeGuards$
+subclass (\Cref{def:contextfree}) is a smaller intermediate target.
 
 \begin{thebibliography}{9}
 

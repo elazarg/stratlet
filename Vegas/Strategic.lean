@@ -1,6 +1,7 @@
 import GameTheory.Core.KernelGame
 import Vegas.BigStep
 import Vegas.ViewKernel
+import Vegas.WFProgram
 
 /-!
 # Strategic semantics bridge
@@ -97,6 +98,59 @@ def tail
 
 end ProgramBehavioralProfile
 
+/-! ## Guard-legality predicate -/
+
+/-- A per-commit behavioral-kernel legality predicate: at every erased
+environment `ρ`, the kernel's output distribution (viewed through `who`'s
+view projection of `ρ`) is supported on actions that satisfy the commit
+guard `R` under `ρ`. -/
+def ProgramBehavioralKernel.IsLegalAt
+    {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
+    (κ : ProgramBehavioralKernel (P := P) (L := L) who Γ b)
+    (R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool) : Prop :=
+  ∀ ρ : Env L.Val (eraseVCtx Γ),
+    FDist.Supported (κ.run (projectViewEnv (P := P) (L := L) who ρ))
+      (fun a => evalGuard (Player := P) (L := L) R a ρ = true)
+
+/-- A behavioral strategy is guard-legal when every kernel at every
+owned commit site satisfies `IsLegalAt` for that commit's guard. -/
+def ProgramBehavioralStrategy.IsLegal : {who : P} →
+    {Γ : VCtx P L} → (p : VegasCore P L Γ) →
+    ProgramBehavioralStrategy (P := P) (L := L) who p → Prop
+  | _, _, .ret _, _ => True
+  | who, _, .letExpr _ _ k, σ =>
+      ProgramBehavioralStrategy.IsLegal (who := who) k σ
+  | who, _, .sample _ _ k, σ =>
+      ProgramBehavioralStrategy.IsLegal (who := who) k σ
+  | who, _, .commit _x owner (b := b) R k, σ => by
+      by_cases h : owner = who
+      · -- Save `who` before `subst` (subst may rename it to `owner`).
+        let σ' : ProgramBehavioralKernel (P := P) (L := L) owner _ b ×
+                 ProgramBehavioralStrategy (P := P) (L := L) owner k := by
+          subst h
+          simpa [ProgramBehavioralStrategy] using σ
+        exact σ'.1.IsLegalAt R
+              ∧ ProgramBehavioralStrategy.IsLegal (who := owner) k σ'.2
+      · let σ' : ProgramBehavioralStrategy (P := P) (L := L) who k := by
+          simpa [ProgramBehavioralStrategy, h] using σ
+        exact ProgramBehavioralStrategy.IsLegal (who := who) k σ'
+  | who, _, .reveal _ _ _ _ k, σ =>
+      ProgramBehavioralStrategy.IsLegal (who := who) k σ
+
+/-- A behavioral profile is legal when every player's strategy is legal. -/
+def ProgramBehavioralProfile.IsLegal {Γ : VCtx P L} {p : VegasCore P L Γ}
+    (σ : ProgramBehavioralProfile (P := P) (L := L) p) : Prop :=
+  ∀ who, (σ who).IsLegal p
+
+/-- Guard-legal behavioral strategies over a `WFProgram` bundle. -/
+abbrev LegalProgramBehavioralStrategy (g : WFProgram P L) (who : P) : Type :=
+  { s : ProgramBehavioralStrategy (P := P) (L := L) who g.prog //
+    s.IsLegal g.prog }
+
+/-- Guard-legal joint behavioral profile over a `WFProgram` bundle. -/
+abbrev LegalProgramBehavioralProfile (g : WFProgram P L) : Type :=
+  ∀ who, LegalProgramBehavioralStrategy g who
+
 /-- Evaluate a fixed-program behavioral profile directly, threading the
 continuation profile through the program structure. -/
 noncomputable def outcomeDistBehavioral :
@@ -153,51 +207,57 @@ theorem outcomeDistBehavioral_totalWeight_eq_one
       exact ih hd
 
 /-- Vegas denotational semantics as a `KernelGame` whose strategies are the
-fixed program's local behavioral strategies. -/
-noncomputable def toKernelGame (p : VegasCore P L Γ)
-    (env : VEnv (Player := P) L Γ)
-    (hd : NormalizedDists p) : GameTheory.KernelGame P where
-  Strategy := fun who => ProgramBehavioralStrategy (P := P) (L := L) who p
+fixed program's local *guard-legal* behavioral strategies.
+
+Consumes a `WFProgram` bundle. The `Strategy` field is the legal subtype
+`LegalProgramBehavioralStrategy g`, so game-theoretic solution concepts
+(Nash, dominance, etc.) applied to the resulting `KernelGame` quantify
+only over strategies that respect every commit guard. `wf`, `normalized`,
+and `legal` together carry the side conditions the Vegas protocol
+requires; `normalized` is what proves the outcome kernel sums to `1`. -/
+noncomputable def toKernelGame (g : WFProgram P L) : GameTheory.KernelGame P where
+  Strategy := LegalProgramBehavioralStrategy g
   Outcome := Outcome P
   utility := fun o i => (o i : ℝ)
   outcomeKernel := fun σ =>
-    (outcomeDistBehavioral p σ env).toPMF
-      (outcomeDistBehavioral_totalWeight_eq_one (P := P) (L := L) (p := p) (σ := σ) hd)
+    (outcomeDistBehavioral g.prog (fun i => (σ i).val) g.env).toPMF
+      (outcomeDistBehavioral_totalWeight_eq_one
+        (P := P) (L := L) (p := g.prog) (σ := fun i => (σ i).val) g.normalized)
 
 @[simp] theorem toKernelGame_outcomeKernel
-    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
-    (hd : NormalizedDists p)
-    (σ : ProgramBehavioralProfile (P := P) (L := L) p) :
-    (toKernelGame p env hd).outcomeKernel σ =
-      (outcomeDistBehavioral p σ env).toPMF
+    (g : WFProgram P L)
+    (σ : LegalProgramBehavioralProfile g) :
+    (toKernelGame g).outcomeKernel σ =
+      (outcomeDistBehavioral g.prog (fun i => (σ i).val) g.env).toPMF
         (outcomeDistBehavioral_totalWeight_eq_one
-          (P := P) (L := L) (p := p) (σ := σ) hd) := rfl
+          (P := P) (L := L) (p := g.prog) (σ := fun i => (σ i).val)
+          g.normalized) := rfl
 
 @[simp] theorem toKernelGame_udist
-    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
-    (hd : NormalizedDists p)
-    (σ : ProgramBehavioralProfile (P := P) (L := L) p) :
-    (toKernelGame p env hd).udist σ =
-      ((outcomeDistBehavioral p σ env).toPMF
+    (g : WFProgram P L)
+    (σ : LegalProgramBehavioralProfile g) :
+    (toKernelGame g).udist σ =
+      ((outcomeDistBehavioral g.prog (fun i => (σ i).val) g.env).toPMF
         (outcomeDistBehavioral_totalWeight_eq_one
-          (P := P) (L := L) (p := p) (σ := σ) hd)).bind
+          (P := P) (L := L) (p := g.prog) (σ := fun i => (σ i).val)
+          g.normalized)).bind
         (fun o => PMF.pure (fun i => (o i : ℝ))) := rfl
 
 /-- Expected utility in the kernel game matches Vegas expected payoff. -/
 theorem toKernelGame_eu
-    (p : VegasCore P L Γ) (env : VEnv (Player := P) L Γ)
-    (hd : NormalizedDists p)
-    (σ : ProgramBehavioralProfile (P := P) (L := L) p) (who : P) :
-    (toKernelGame p env hd).eu σ who =
-      (outcomeDistBehavioral p σ env).sum
+    (g : WFProgram P L)
+    (σ : LegalProgramBehavioralProfile g) (who : P) :
+    (toKernelGame g).eu σ who =
+      (outcomeDistBehavioral g.prog (fun i => (σ i).val) g.env).sum
         (fun o w => (w : ℝ) * (o who : ℝ)) := by
   let hnorm :=
     outcomeDistBehavioral_totalWeight_eq_one
-      (P := P) (L := L) (p := p) (σ := σ) (env := env) hd
+      (P := P) (L := L) (p := g.prog) (σ := fun i => (σ i).val) (env := g.env)
+      g.normalized
   simpa [GameTheory.KernelGame.eu, toKernelGame, hnorm,
     NNRat.toNNReal_coe_real] using
     (FDist.expect_toPMF_eq_sum
-      (d := outcomeDistBehavioral p σ env)
+      (d := outcomeDistBehavioral g.prog (fun i => (σ i).val) g.env)
       (h := hnorm)
       (f := fun o => (o who : ℝ)))
 

@@ -1,5 +1,6 @@
 import Vegas.WF
 import Vegas.Scope
+import Vegas.WFProgram
 
 namespace Vegas
 
@@ -280,6 +281,39 @@ example : ∀ (a : Bool) (va_val : Bool),
   intro a va_val
   cases a <;> cases va_val <;>
     (simp [cgGuard, evalGuard, evalExpr, simpleExpr, BindTy.base]; rfl)
+
+/-! ### The well-formed-program bundle
+
+Having proven `WF`, `NormalizedDists`, and `Legal` individually above, we can
+assemble them into a `WFProgram` bundle. This is the object that downstream
+game-theory APIs (`toKernelGame`, `IsNash`, `IsεNash`, etc.) consume. -/
+
+/-- Matching Pennies as a `WFProgram`: program + empty initial environment +
+the three well-formedness witnesses. -/
+noncomputable def matchingPenniesWF :
+    WFProgram Player simpleExpr where
+  Γ := Γ0
+  prog := matchingPennies
+  env := VEnv.empty simpleExpr
+  wf := ⟨by decide, by decide, by
+    constructor
+    · intro x hx
+      exact Finset.mem_insert_of_mem hx
+    · constructor
+      · intro x hx
+        exfalso
+        change x ∈ (∅ : Finset VarId) at hx
+        simp at hx
+      · trivial⟩
+  normalized := by simp [matchingPennies, NormalizedDists]
+  legal := by
+    constructor
+    · intro _env
+      exact ⟨true, by rfl⟩
+    · constructor
+      · intro _env
+        exact ⟨true, by rfl⟩
+      · trivial
 
 end Examples
 
