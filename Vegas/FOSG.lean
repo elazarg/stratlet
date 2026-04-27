@@ -1,5 +1,6 @@
 import GameTheory.Languages.FOSG.Information
 import GameTheory.Languages.FOSG.Strategy
+import GameTheory.Languages.FOSG.Compile
 import Vegas.Strategic
 import Vegas.Finite
 import Vegas.ViewKernel
@@ -1313,6 +1314,56 @@ noncomputable def observedProgramFOSG (g : WFProgram P L) (hctx : WFCtx g.Γ) :
       · exact isFalse (by intro h; cases h)
       · exact isFalse (by intro h; cases h)
       · exact isFalse (by intro h; cases h)
+
+/-- Along any chained realized path in `observedProgramFOSG`, elapsed history
+length plus remaining syntax steps is constant. -/
+theorem observedProgramFOSG_stepChain_remainingSyntaxSteps
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (w : CheckedWorld g hctx)
+    {es : List (observedProgramFOSG g hctx).Step}
+    (hchain : (observedProgramFOSG g hctx).StepChainFrom w es) :
+    ((observedProgramFOSG g hctx).lastStateFrom w es).remainingSyntaxSteps +
+        es.length = w.remainingSyntaxSteps := by
+  induction es generalizing w with
+  | nil =>
+      simp [GameTheory.FOSG.lastStateFrom]
+  | cons e es ih =>
+      rcases hchain with ⟨hsrc, htail⟩
+      subst hsrc
+      have hdec :
+          e.dst.remainingSyntaxSteps + 1 = e.src.remainingSyntaxSteps := by
+        simpa [observedProgramFOSG] using
+          checkedProgramTransition_remainingSyntaxSteps
+            (P := P) (L := L) (g := g) (hctx := hctx)
+            e.src e.act e.dst e.support
+      have htailInv := ih (w := e.dst) htail
+      simp [GameTheory.FOSG.lastStateFrom] at htailInv ⊢
+      omega
+
+/-- For every realized history, elapsed length plus remaining syntax steps is
+the source program's syntax-step bound. -/
+theorem observedProgramFOSG_history_remainingSyntaxSteps
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (h : (observedProgramFOSG g hctx).History) :
+    h.lastState.remainingSyntaxSteps + h.steps.length = syntaxSteps g.prog := by
+  simpa [GameTheory.FOSG.History.lastState, observedProgramFOSG,
+    CheckedWorld.remainingSyntaxSteps] using
+    observedProgramFOSG_stepChain_remainingSyntaxSteps
+      (P := P) (L := L) g hctx (CheckedWorld.initial g hctx) h.chain
+
+/-- The observed program FOSG is bounded by the number of operational syntax
+nodes in the source Vegas program. -/
+theorem observedProgramFOSG_boundedHorizon
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) :
+    (observedProgramFOSG g hctx).BoundedHorizon (syntaxSteps g.prog) := by
+  intro h hlen
+  have hinv := observedProgramFOSG_history_remainingSyntaxSteps
+    (P := P) (L := L) g hctx h
+  rw [hlen] at hinv
+  have hzero : h.lastState.remainingSyntaxSteps = 0 := by
+    omega
+  exact (checkedTerminal_iff_remainingSyntaxSteps_eq_zero
+    (P := P) (L := L) (g := g) (hctx := hctx) (w := h.lastState)).2 hzero
 
 namespace Observed
 
