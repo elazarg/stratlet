@@ -174,19 +174,26 @@ theorem initial_exists_jointActionLegal
 
 /-! ## A checked-world FOSG skeleton
 
-The next layer uses worlds that carry the obligations needed by the FOSG
+The next layer uses worlds that carry the local obligations needed by the FOSG
 structure itself. This avoids totalizing the game over malformed, deadlocking
-Vegas configurations. The observations below are deliberately `Unit`: this is
-an operational skeleton, not yet the information-preserving compiler needed for
-Kuhn/equilibrium transport.
+Vegas configurations. We carry `FreshBindings` and `ViewScoped` separately
+rather than `WF`: after a `commit`, the continuation is reveal-complete only
+relative to a nonempty pending stack, so the raw continuation need not satisfy
+`WF` with an empty pending stack.
 -/
 
 /-- A Vegas runtime configuration carrying the local obligations needed by
-FOSG's total transition and non-deadlock fields. -/
+FOSG's total transition, non-deadlock, and observation-soundness fields.
+
+This is intentionally not named `WFWorld`: `WF` includes
+`RevealComplete []`, which is not stable under stepping through a `commit`.
+-/
 structure CheckedWorld (P : Type) [DecidableEq P] (L : IExpr) where
   Γ : VCtx P L
   prog : VegasCore P L Γ
   env : VEnv L Γ
+  fresh : FreshBindings prog
+  viewScoped : ViewScoped prog
   normalized : NormalizedDists prog
   legal : Legal prog
 
@@ -201,6 +208,8 @@ def initial (g : WFProgram P L) : CheckedWorld P L where
   Γ := g.Γ
   prog := g.prog
   env := g.env
+  fresh := g.wf.1
+  viewScoped := g.wf.2.2
   normalized := g.normalized
   legal := g.legal
 
@@ -278,7 +287,7 @@ noncomputable def checkedTransition
     (a : {a : JointAction P L // CheckedJointActionLegal w a}) :
     PMF (CheckedWorld P L) := by
   cases w with
-  | mk Γ prog env normalized legal =>
+  | mk Γ prog env fresh viewScoped normalized legal =>
       cases prog with
       | ret payoffs =>
           exact False.elim (a.2.1 (by simp [checkedTerminal, CheckedWorld.toWorld, terminal]))
@@ -288,6 +297,8 @@ noncomputable def checkedTransition
               prog := k
               env := VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _)
                 (L.eval e (VEnv.erasePubEnv env)) env
+              fresh := fresh.2
+              viewScoped := viewScoped
               normalized := normalized
               legal := legal }
       | sample x D k =>
@@ -297,6 +308,8 @@ noncomputable def checkedTransition
                 prog := k
                 env := VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _)
                   v env
+                fresh := fresh.2
+                viewScoped := viewScoped
                 normalized := normalized.2
                 legal := legal })
             ((L.evalDist D (VEnv.eraseSampleEnv env)).toPMF (normalized.1 env))
@@ -312,6 +325,8 @@ noncomputable def checkedTransition
               prog := k
               env := VEnv.cons (Player := P) (L := L) (x := x) (τ := .hidden who _)
                 v env
+              fresh := fresh.2
+              viewScoped := viewScoped.2
               normalized := normalized
               legal := legal.2 }
       | reveal y who x hx k =>
@@ -320,6 +335,8 @@ noncomputable def checkedTransition
               prog := k
               env := VEnv.cons (Player := P) (L := L) (x := y) (τ := .pub _)
                 (env x (.hidden who _) hx) env
+              fresh := fresh.2
+              viewScoped := viewScoped
               normalized := normalized
               legal := legal }
 
