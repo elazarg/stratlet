@@ -1149,6 +1149,29 @@ def toCheckedWorld {g : WFProgram P L} {hctx : WFCtx g.Γ}
 
 end ProgramCursor
 
+namespace CursorRuntimeState
+
+/-- Project a local cursor runtime state under a global cursor prefix into the
+suffix-based checked-world presentation. This is the implementation adapter:
+the finite cursor representation is forgotten before semantic reasoning. -/
+def toCheckedWorldFrom
+    {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (pref : ProgramCursor (P := P) (L := L) g.prog)
+    (s : CursorRuntimeState (P := P) (L := L) pref.prog) :
+    CheckedWorld g hctx where
+  Γ := s.cursor.Γ
+  prog := s.cursor.prog
+  env := s.env
+  suffix := ProgramCursor.toSuffixFrom
+    (P := P) (L := L) pref.toSuffix s.cursor
+  wctx := s.valid.1
+  fresh := s.valid.2.1
+  viewScoped := s.valid.2.2.1
+  normalized := s.valid.2.2.2.1
+  legal := s.valid.2.2.2.2
+
+end CursorRuntimeState
+
 def checkedTerminal {g : WFProgram P L} {hctx : WFCtx g.Γ}
     (w : CheckedWorld g hctx) : Prop :=
   terminal w.toWorld
@@ -3360,6 +3383,29 @@ noncomputable def checkedProfileStep
               normalized := normalized
               legal := legal }
 
+theorem checkedTransition_eq_checkedProfileStep_of_active_empty
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (w : CheckedWorld g hctx)
+    (a : {a : JointAction P L // CheckedJointActionLegal w a})
+    (hactive : checkedActive w = ∅) :
+    checkedTransition (P := P) (L := L) w a =
+      checkedProfileStep (P := P) (L := L) g hctx σ w := by
+  cases w with
+  | mk Γ prog env suffix wctx fresh viewScoped normalized legal =>
+      cases prog with
+      | ret payoffs =>
+          exact False.elim
+            (a.2.1 (by simp [checkedTerminal, CheckedWorld.toWorld, terminal]))
+      | letExpr x e k =>
+          simp [checkedTransition, checkedProfileStep]
+      | sample x D k =>
+          simp [checkedTransition, checkedProfileStep]
+      | commit x who R k =>
+          simp [checkedActive, CheckedWorld.toWorld, active] at hactive
+      | reveal y who x hx k =>
+          simp [checkedTransition, checkedProfileStep]
+
 /-- Project a suffix-based checked world to the Vegas payoff outcome carried at
 terminal `ret` worlds. The nonterminal branch is a total-function default;
 support lemmas below prove it is irrelevant once the semantic run has enough
@@ -3616,6 +3662,21 @@ theorem checkedProfileRun_succ_nonterminal
       (checkedProfileStep (P := P) (L := L) g hctx σ w).bind
         (checkedProfileRun (P := P) (L := L) g hctx σ n) := by
   simp [checkedProfileRun, hterm]
+
+theorem checkedTransition_bind_checkedProfileRun_eq_checkedProfileRun_succ_of_active_empty
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (n : Nat) (w : CheckedWorld g hctx)
+    (a : {a : JointAction P L // CheckedJointActionLegal w a})
+    (hterm : ¬ checkedTerminal w)
+    (hactive : checkedActive w = ∅) :
+    (checkedTransition (P := P) (L := L) w a).bind
+        (checkedProfileRun (P := P) (L := L) g hctx σ n) =
+      checkedProfileRun (P := P) (L := L) g hctx σ (n + 1) w := by
+  rw [checkedTransition_eq_checkedProfileStep_of_active_empty
+    (P := P) (L := L) g hctx σ w a hactive]
+  rw [checkedProfileRun_succ_nonterminal
+    (P := P) (L := L) g hctx σ n w hterm]
 
 /-- Any finite run of the suffix-based Vegas semantic machine preserves the
 remaining denotational outcome kernel. -/
