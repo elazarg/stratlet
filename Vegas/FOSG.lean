@@ -422,5 +422,78 @@ noncomputable def compileObserved (g : WFProgram P L) :
     intro w hterm
     exact checked_nonterminal_exists_legal hterm
 
+namespace Observed
+
+/-- Last element of a list, as an `Option`. Kept local to avoid depending on
+which `List.getLast?` lemmas are imported. -/
+def last? {α : Type} : List α → Option α
+  | [] => none
+  | [x] => some x
+  | _ :: xs => last? xs
+
+@[simp] theorem last?_append_singleton {α : Type} (xs : List α) (x : α) :
+    last? (xs ++ [x]) = some x := by
+  induction xs with
+  | nil => rfl
+  | cons y ys ih =>
+      cases ys with
+      | nil => rfl
+      | cons z zs =>
+          simpa [last?] using ih
+
+/-- Observation events extracted from an observed FOSG information state. -/
+noncomputable def observationEvents
+    (g : WFProgram P L) (who : P)
+    (s : (compileObserved g).InfoState who) :
+    List (PrivateObs P L who × PublicObs P L) :=
+  s.filterMap
+    (GameTheory.FOSG.PlayerEvent.observationPart
+      (G := compileObserved g) (i := who))
+
+/-- Latest private/public observation in an observed FOSG information state. -/
+noncomputable def latestObservation?
+    (g : WFProgram P L) (who : P)
+    (s : (compileObserved g).InfoState who) :
+    Option (PrivateObs P L who × PublicObs P L) :=
+  last? (observationEvents g who s)
+
+noncomputable def latestPrivateObs?
+    (g : WFProgram P L) (who : P)
+    (s : (compileObserved g).InfoState who) :
+    Option (PrivateObs P L who) :=
+  (latestObservation? g who s).map Prod.fst
+
+noncomputable def latestPublicObs?
+    (g : WFProgram P L) (who : P)
+    (s : (compileObserved g).InfoState who) :
+    Option (PublicObs P L) :=
+  (latestObservation? g who s).map Prod.snd
+
+@[simp] theorem observationEvents_nil (g : WFProgram P L) (who : P) :
+    observationEvents g who [] = [] := rfl
+
+@[simp] theorem latestObservation?_nil (g : WFProgram P L) (who : P) :
+    latestObservation? g who [] = none := rfl
+
+theorem latestObservation?_append_obs
+    (g : WFProgram P L) (who : P)
+    (s : (compileObserved g).InfoState who)
+    (priv : PrivateObs P L who) (pub : PublicObs P L) :
+    latestObservation? g who
+      (s ++ [GameTheory.FOSG.PlayerEvent.obs priv pub]) = some (priv, pub) := by
+  simp [latestObservation?, observationEvents]
+
+theorem latestObservation?_append_act_obs
+    (g : WFProgram P L) (who : P)
+    (s : (compileObserved g).InfoState who)
+    (a : Action (P := P) L who)
+    (priv : PrivateObs P L who) (pub : PublicObs P L) :
+    latestObservation? g who
+      (s ++ [GameTheory.FOSG.PlayerEvent.act a,
+        GameTheory.FOSG.PlayerEvent.obs priv pub]) = some (priv, pub) := by
+  simp [latestObservation?, observationEvents]
+
+end Observed
+
 end FOSGBridge
 end Vegas
