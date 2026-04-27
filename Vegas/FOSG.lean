@@ -214,6 +214,69 @@ theorem tail_isLegal
 
 end ProgramBehavioralProfile
 
+/-! ## Program-local action cursors
+
+The broad `Action L who` alphabet above is useful for the first structural
+bridge, but finite FOSG execution should not quantify over every type in `L`.
+The following cursor describes exactly the commit sites of one program owned by
+one player; `ProgramAction` is the corresponding finite-by-construction target
+alphabet once value types are finite.
+-/
+
+/-- A cursor to a commit site owned by `who` inside a fixed Vegas program. -/
+inductive CommitCursor (who : P) :
+    {Γ : VCtx P L} → VegasCore P L Γ → Type where
+  | here
+      {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+      {k : VegasCore P L ((x, .hidden who b) :: Γ)} :
+      CommitCursor who (.commit x who R k)
+  | letExpr
+      {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {e : L.Expr (erasePubVCtx Γ) b}
+      {k : VegasCore P L ((x, .pub b) :: Γ)}
+      (c : CommitCursor who k) :
+      CommitCursor who (.letExpr x e k)
+  | sample
+      {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {D : L.DistExpr (erasePubVCtx Γ) b}
+      {k : VegasCore P L ((x, .pub b) :: Γ)}
+      (c : CommitCursor who k) :
+      CommitCursor who (.sample x D k)
+  | commit
+      {Γ : VCtx P L} {x : VarId} {owner : P} {b : L.Ty}
+      {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+      {k : VegasCore P L ((x, .hidden owner b) :: Γ)}
+      (c : CommitCursor who k) :
+      CommitCursor who (.commit x owner R k)
+  | reveal
+      {Γ : VCtx P L} {y : VarId} {owner : P} {x : VarId} {b : L.Ty}
+      {hx : VHasVar Γ x (.hidden owner b)}
+      {k : VegasCore P L ((y, .pub b) :: Γ)}
+      (c : CommitCursor who k) :
+      CommitCursor who (.reveal y owner x hx k)
+
+namespace CommitCursor
+
+/-- The value type chosen at the pointed commit site. -/
+def ty {who : P} :
+    {Γ : VCtx P L} → {p : VegasCore P L Γ} →
+      CommitCursor (P := P) (L := L) who p → L.Ty
+  | _, .commit _ _ (b := b) _ _, .here => b
+  | _, .letExpr _ _ _, .letExpr c => ty c
+  | _, .sample _ _ _, .sample c => ty c
+  | _, .commit _ _ _ _, .commit c => ty c
+  | _, .reveal _ _ _ _ _, .reveal c => ty c
+
+end CommitCursor
+
+/-- Program-local action alphabet: choose one owned commit site and a value of
+that site's type. This is the intended replacement alphabet for finite FOSG
+execution, avoiding any global finiteness assumption on `L.Ty`. -/
+structure ProgramAction {Γ : VCtx P L} (p : VegasCore P L Γ) (who : P) where
+  cursor : CommitCursor (P := P) (L := L) who p
+  value : L.Val (CommitCursor.ty cursor)
+
 /-! ## Program cursors
 
 The FOSG state must remember not only the current subprogram but also where
@@ -325,6 +388,41 @@ theorem behavioralProfile_isLegal
   | commit s ih =>
       exact ProgramBehavioralProfile.tail_isLegal (P := P) (L := L) (ih hσ)
   | reveal s ih => exact ih hσ
+
+/-- Lift a program-local commit cursor at the current suffix back to a cursor
+for the original root program. -/
+noncomputable def liftCommitCursor
+    {Γ₀ Γ : VCtx P L} {root : VegasCore P L Γ₀} {p : VegasCore P L Γ}
+    (s : ProgramSuffix root p) {who : P} :
+    CommitCursor (P := P) (L := L) who p →
+      CommitCursor (P := P) (L := L) who root := by
+  induction s with
+  | here =>
+      intro c
+      exact c
+  | letExpr s ih =>
+      intro c
+      exact ih (.letExpr c)
+  | sample s ih =>
+      intro c
+      exact ih (.sample c)
+  | commit s ih =>
+      intro c
+      exact ih (.commit c)
+  | reveal s ih =>
+      intro c
+      exact ih (.reveal c)
+
+/-- Convert a suffix proof whose endpoint is an owned commit node into the
+program-local commit cursor for that site. -/
+noncomputable def commitCursor
+    {Γ₀ Γ : VCtx P L} {root : VegasCore P L Γ₀}
+    {x : VarId} {who : P} {b : L.Ty}
+    {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+    {k : VegasCore P L ((x, .hidden who b) :: Γ)}
+    (s : ProgramSuffix root (.commit x who R k)) :
+    CommitCursor (P := P) (L := L) who root :=
+  s.liftCommitCursor .here
 
 end ProgramSuffix
 
