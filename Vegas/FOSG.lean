@@ -2135,6 +2135,75 @@ theorem latestObservation?_history_snoc
         latestObservation?_append_act_obs g hctx who (h.playerView who) ai
           (privateObsOfWorld who dst) (publicObsOfWorld dst)
 
+/-- Observation events extracted from the final program-action FOSG information
+state. -/
+noncomputable def programObservationEvents
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (s : (observedProgramFOSG g hctx).InfoState who) :
+    List (PrivateObs P L who × PublicObs g hctx) :=
+  s.filterMap
+    (GameTheory.FOSG.PlayerEvent.observationPart
+      (G := observedProgramFOSG g hctx) (i := who))
+
+noncomputable def programLatestObservation?
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (s : (observedProgramFOSG g hctx).InfoState who) :
+    Option (PrivateObs P L who × PublicObs g hctx) :=
+  last? (programObservationEvents g hctx who s)
+
+@[simp] theorem programObservationEvents_nil
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P) :
+    programObservationEvents g hctx who [] = [] := rfl
+
+@[simp] theorem programLatestObservation?_nil
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P) :
+    programLatestObservation? g hctx who [] = none := rfl
+
+theorem programLatestObservation?_append_obs
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (s : (observedProgramFOSG g hctx).InfoState who)
+    (priv : PrivateObs P L who) (pub : PublicObs g hctx) :
+    programLatestObservation? g hctx who
+      (s ++ [GameTheory.FOSG.PlayerEvent.obs priv pub]) = some (priv, pub) := by
+  simp [programLatestObservation?, programObservationEvents]
+
+theorem programLatestObservation?_append_act_obs
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (s : (observedProgramFOSG g hctx).InfoState who)
+    (a : ProgramAction (P := P) (L := L) g.prog who)
+    (priv : PrivateObs P L who) (pub : PublicObs g hctx) :
+    programLatestObservation? g hctx who
+      (s ++ [GameTheory.FOSG.PlayerEvent.act a,
+        GameTheory.FOSG.PlayerEvent.obs priv pub]) = some (priv, pub) := by
+  simp [programLatestObservation?, programObservationEvents]
+
+/-- Extending a program-action FOSG history records the destination cursor
+world's Vegas view/public state as the latest information-state observation. -/
+theorem programLatestObservation?_history_snoc
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (h : (observedProgramFOSG g hctx).History)
+    (a : (observedProgramFOSG g hctx).LegalAction h.lastState)
+    (dst : CursorCheckedWorld (P := P) (L := L) g)
+    (support : (observedProgramFOSG g hctx).transition h.lastState a dst ≠ 0) :
+    programLatestObservation? g hctx who ((h.snoc a dst support).playerView who) =
+      some (privateObsOfCursorWorld who dst, publicObsOfCursorWorld dst) := by
+  rw [GameTheory.FOSG.History.playerView_snoc]
+  let e : (observedProgramFOSG g hctx).Step :=
+    { src := h.lastState, act := a, dst := dst, support := support }
+  change programLatestObservation? g hctx who (h.playerView who ++ e.playerView who) =
+    some (privateObsOfCursorWorld who dst, publicObsOfCursorWorld dst)
+  cases hact : e.ownAction? who with
+  | none =>
+      rw [GameTheory.FOSG.Step.playerView_of_none e who hact]
+      simpa [e, observedProgramFOSG] using
+        programLatestObservation?_append_obs g hctx who (h.playerView who)
+          (privateObsOfCursorWorld who dst) (publicObsOfCursorWorld dst)
+  | some ai =>
+      rw [GameTheory.FOSG.Step.playerView_of_some e who hact]
+      simpa [e, observedProgramFOSG] using
+        programLatestObservation?_append_act_obs g hctx who (h.playerView who) ai
+          (privateObsOfCursorWorld who dst) (publicObsOfCursorWorld dst)
+
 /-! ## Behavioral profile candidate
 
 The following definitions build a raw FOSG behavioral profile from a legal Vegas
@@ -2164,6 +2233,40 @@ noncomputable def moveAtCursor
             ProgramBehavioralStrategy.headKernel_normalized
               (P := P) (L := L) (σp who) view
           exact PMF.map (fun v => some (Sigma.mk b v)) (d.toPMF hd)
+      else
+        PMF.pure none
+  | _ => PMF.pure none
+
+/-- Program-action variant of `moveAtCursor`, targeting the finite
+`observedProgramFOSG` action alphabet. -/
+noncomputable def moveAtProgramCursor
+    (g : WFProgram P L) (_hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (who : P)
+    {Γ : VCtx P L} {p : VegasCore P L Γ}
+    (suffix : ProgramSuffix g.prog p)
+    (view : ViewEnv (P := P) (L := L) who Γ) :
+    PMF (Option (ProgramAction (P := P) (L := L) g.prog who)) :=
+  match p with
+  | .commit x owner (b := b) R k =>
+      if howner : owner = who then
+        by
+          cases howner
+          let σp : ProgramBehavioralProfile (P := P) (L := L) (.commit x who R k) :=
+            suffix.behavioralProfile (fun i => (σ i).val)
+          let d := ProgramBehavioralStrategy.headKernel (P := P) (L := L) (σp who) view
+          have hd :
+              FDist.totalWeight d = 1 :=
+            ProgramBehavioralStrategy.headKernel_normalized
+              (P := P) (L := L) (σp who) view
+          exact PMF.map
+            (fun v => some
+              ({ cursor := ProgramSuffix.commitCursor (P := P) (L := L) suffix
+                 value := by
+                   rw [ProgramSuffix.ty_commitCursor (P := P) (L := L) suffix]
+                   exact v } :
+                ProgramAction (P := P) (L := L) g.prog who))
+            (d.toPMF hd)
       else
         PMF.pure none
   | _ => PMF.pure none
@@ -2206,6 +2309,14 @@ noncomputable def moveAtWorld
     PMF (Option (Action (P := P) L who)) :=
   moveAtCursor g hctx σ who w.suffix
     (projectViewEnv who (VEnv.eraseEnv w.env))
+
+noncomputable def moveAtCursorWorld
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (who : P) (w : CursorCheckedWorld (P := P) (L := L) g) :
+    PMF (Option (ProgramAction (P := P) (L := L) g.prog who)) :=
+  moveAtProgramCursor g hctx σ who w.1.suffix
+    (projectViewEnv who (VEnv.eraseEnv w.1.env))
 
 theorem moveAtWorld_support_available
     (g : WFProgram P L) (hctx : WFCtx g.Γ)
@@ -2308,6 +2419,69 @@ theorem moveAtObservation?_of_world
   rw [privateObsOfWorld_eraseEnv]
   simp only [publicObsOfWorld]
   simp [privateObsOfWorld]
+
+/-- Program-action observation lookup for the final `observedProgramFOSG`
+target. -/
+noncomputable def moveAtProgramObservation?
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (who : P)
+    (obs : PrivateObs P L who × PublicObs g hctx) :
+    PMF (Option (ProgramAction (P := P) (L := L) g.prog who)) := by
+  let priv := obs.1
+  let pub := obs.2
+  by_cases hΓ : priv.Γ = pub.Γ
+  · exact moveAtProgramCursor g hctx σ who pub.suffix (hΓ ▸ VEnv.eraseEnv priv.env)
+  · exact PMF.pure none
+
+theorem moveAtProgramObservation?_of_cursorWorld
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (who : P) (w : CursorCheckedWorld (P := P) (L := L) g) :
+    moveAtProgramObservation? g hctx σ who
+      (privateObsOfCursorWorld who w, publicObsOfCursorWorld w) =
+      moveAtCursorWorld g hctx σ who w := by
+  unfold moveAtProgramObservation? moveAtCursorWorld
+  simp only [dite_eq_ite]
+  rw [privateObsOfCursorWorld_eraseEnv]
+  simp only [publicObsOfCursorWorld]
+  simp [privateObsOfCursorWorld]
+
+/-- Raw behavioral profile induced by a Vegas legal behavioral profile for the
+final program-action FOSG. The `Candidate` suffix is intentional until the
+support-availability theorem below this layer is completed. -/
+noncomputable def programBehavioralProfileCandidate
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g) :
+    GameTheory.FOSG.BehavioralProfile (observedProgramFOSG g hctx) :=
+  fun who s =>
+    match programLatestObservation? g hctx who s with
+    | none => moveAtCursorWorld g hctx σ who (CursorCheckedWorld.initial g hctx)
+    | some obs => moveAtProgramObservation? g hctx σ who obs
+
+@[simp] theorem programBehavioralProfileCandidate_nil
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g) (who : P) :
+    programBehavioralProfileCandidate g hctx σ who
+      ((GameTheory.FOSG.History.nil (observedProgramFOSG g hctx)).playerView who) =
+      moveAtCursorWorld g hctx σ who (CursorCheckedWorld.initial g hctx) := by
+  simp [programBehavioralProfileCandidate, programLatestObservation?,
+    programObservationEvents, last?]
+
+@[simp] theorem programBehavioralProfileCandidate_snoc
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (who : P)
+    (h : (observedProgramFOSG g hctx).History)
+    (a : (observedProgramFOSG g hctx).LegalAction h.lastState)
+    (dst : CursorCheckedWorld (P := P) (L := L) g)
+    (support : (observedProgramFOSG g hctx).transition h.lastState a dst ≠ 0) :
+    programBehavioralProfileCandidate g hctx σ who
+      ((h.snoc a dst support).playerView who) =
+      moveAtCursorWorld g hctx σ who dst := by
+  rw [programBehavioralProfileCandidate,
+    programLatestObservation?_history_snoc g hctx who h a dst support]
+  simp [moveAtProgramObservation?_of_cursorWorld]
 
 /-- Raw FOSG behavioral profile induced by a Vegas legal behavioral profile.
 
