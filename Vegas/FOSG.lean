@@ -346,7 +346,7 @@ noncomputable def checkedTransition
               normalized := normalized
               legal := legal }
 
-def checkedReward
+def rewardOnEnteringRet
     (_w : CheckedWorld P L)
     (_a : {a : JointAction P L // CheckedJointActionLegal _w a})
     (w' : CheckedWorld P L) (who : P) : ℝ :=
@@ -354,14 +354,14 @@ def checkedReward
   | .ret payoffs => (evalPayoffs payoffs w'.env who : ℝ)
   | _ => 0
 
-/-- A first executable FOSG object for a checked Vegas program.
+/-- A first executable FOSG control-flow object for a checked Vegas program.
 
 This captures the operational control flow and guard-as-availability
-structure. The observation types are intentionally coarse, so this definition
-is not yet the final information-preserving bridge used for solution-concept
-transport.
+structure. The observation types are intentionally coarse, and rewards are paid
+on transitions that enter `ret`; consequently this is not the final
+utility-preserving compiler used for solution-concept transport.
 -/
-noncomputable def compileSkeleton (g : WFProgram P L) (hctx : WFCtx g.Γ) :
+noncomputable def controlFlowFOSG (g : WFProgram P L) (hctx : WFCtx g.Γ) :
     GameTheory.FOSG P (CheckedWorld P L)
       (fun who : P => Action (P := P) L who)
       (fun _who : P => Unit)
@@ -371,7 +371,7 @@ noncomputable def compileSkeleton (g : WFProgram P L) (hctx : WFCtx g.Γ) :
   availableActions := checkedAvailableActions
   terminal := checkedTerminal
   transition := checkedTransition
-  reward := checkedReward
+  reward := rewardOnEnteringRet
   privObs := fun _ _ _ _ => ()
   pubObs := fun _ _ _ => ()
   terminal_active_eq_empty := by
@@ -386,10 +386,11 @@ noncomputable def compileSkeleton (g : WFProgram P L) (hctx : WFCtx g.Γ) :
 
 /-! ## Observation-preserving target
 
-`compileSkeleton` is useful for the transition/availability core, but its
+`controlFlowFOSG` is useful for the transition/availability core, but its
 `Unit` observations intentionally discard information. The definitions below
 are the bridge target for strategy transport: every transition emits the next
-public protocol state and the next player-local view.
+public protocol state and the next player-local view. This remains a
+control-flow bridge, not a completed utility-preserving semantic compiler.
 -/
 
 /-- Public observation after a Vegas/FOSG transition: the current program
@@ -422,7 +423,7 @@ transport work. The remaining work is not to invent a game model, but to prove
 that these observation histories determine exactly the same view environments
 that Vegas strategies consume.
 -/
-noncomputable def compileObserved (g : WFProgram P L) (hctx : WFCtx g.Γ) :
+noncomputable def observedControlFlowFOSG (g : WFProgram P L) (hctx : WFCtx g.Γ) :
     GameTheory.FOSG P (CheckedWorld P L)
       (fun who : P => Action (P := P) L who)
       (fun who : P => PrivateObs P L who)
@@ -432,7 +433,7 @@ noncomputable def compileObserved (g : WFProgram P L) (hctx : WFCtx g.Γ) :
   availableActions := checkedAvailableActions
   terminal := checkedTerminal
   transition := checkedTransition
-  reward := checkedReward
+  reward := rewardOnEnteringRet
   privObs := fun who _ _ w' => privateObsOfWorld who w'
   pubObs := fun _ _ w' => publicObsOfWorld w'
   terminal_active_eq_empty := by
@@ -467,28 +468,28 @@ def last? {α : Type} : List α → Option α
 /-- Observation events extracted from an observed FOSG information state. -/
 noncomputable def observationEvents
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
-    (s : (compileObserved g hctx).InfoState who) :
+    (s : (observedControlFlowFOSG g hctx).InfoState who) :
     List (PrivateObs P L who × PublicObs P L) :=
   s.filterMap
     (GameTheory.FOSG.PlayerEvent.observationPart
-      (G := compileObserved g hctx) (i := who))
+      (G := observedControlFlowFOSG g hctx) (i := who))
 
 /-- Latest private/public observation in an observed FOSG information state. -/
 noncomputable def latestObservation?
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
-    (s : (compileObserved g hctx).InfoState who) :
+    (s : (observedControlFlowFOSG g hctx).InfoState who) :
     Option (PrivateObs P L who × PublicObs P L) :=
   last? (observationEvents g hctx who s)
 
 noncomputable def latestPrivateObs?
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
-    (s : (compileObserved g hctx).InfoState who) :
+    (s : (observedControlFlowFOSG g hctx).InfoState who) :
     Option (PrivateObs P L who) :=
   (latestObservation? g hctx who s).map Prod.fst
 
 noncomputable def latestPublicObs?
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
-    (s : (compileObserved g hctx).InfoState who) :
+    (s : (observedControlFlowFOSG g hctx).InfoState who) :
     Option (PublicObs P L) :=
   (latestObservation? g hctx who s).map Prod.snd
 
@@ -500,7 +501,7 @@ noncomputable def latestPublicObs?
 
 theorem latestObservation?_append_obs
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
-    (s : (compileObserved g hctx).InfoState who)
+    (s : (observedControlFlowFOSG g hctx).InfoState who)
     (priv : PrivateObs P L who) (pub : PublicObs P L) :
     latestObservation? g hctx who
       (s ++ [GameTheory.FOSG.PlayerEvent.obs priv pub]) = some (priv, pub) := by
@@ -508,7 +509,7 @@ theorem latestObservation?_append_obs
 
 theorem latestObservation?_append_act_obs
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
-    (s : (compileObserved g hctx).InfoState who)
+    (s : (observedControlFlowFOSG g hctx).InfoState who)
     (a : Action (P := P) L who)
     (priv : PrivateObs P L who) (pub : PublicObs P L) :
     latestObservation? g hctx who
@@ -520,26 +521,26 @@ theorem latestObservation?_append_act_obs
 view/public state as the latest information-state observation. -/
 theorem latestObservation?_history_snoc
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
-    (h : (compileObserved g hctx).History)
-    (a : (compileObserved g hctx).LegalAction h.lastState)
+    (h : (observedControlFlowFOSG g hctx).History)
+    (a : (observedControlFlowFOSG g hctx).LegalAction h.lastState)
     (dst : CheckedWorld P L)
-    (support : (compileObserved g hctx).transition h.lastState a dst ≠ 0) :
+    (support : (observedControlFlowFOSG g hctx).transition h.lastState a dst ≠ 0) :
     latestObservation? g hctx who ((h.snoc a dst support).playerView who) =
       some (privateObsOfWorld who dst, publicObsOfWorld dst) := by
   rw [GameTheory.FOSG.History.playerView_snoc]
-  let e : (compileObserved g hctx).Step :=
+  let e : (observedControlFlowFOSG g hctx).Step :=
     { src := h.lastState, act := a, dst := dst, support := support }
   change latestObservation? g hctx who (h.playerView who ++ e.playerView who) =
     some (privateObsOfWorld who dst, publicObsOfWorld dst)
   cases hact : e.ownAction? who with
   | none =>
       rw [GameTheory.FOSG.Step.playerView_of_none e who hact]
-      simpa [e, compileObserved] using
+      simpa [e, observedControlFlowFOSG] using
         latestObservation?_append_obs g hctx who (h.playerView who)
           (privateObsOfWorld who dst) (publicObsOfWorld dst)
   | some ai =>
       rw [GameTheory.FOSG.Step.playerView_of_some e who hact]
-      simpa [e, compileObserved] using
+      simpa [e, observedControlFlowFOSG] using
         latestObservation?_append_act_obs g hctx who (h.playerView who) ai
           (privateObsOfWorld who dst) (publicObsOfWorld dst)
 
