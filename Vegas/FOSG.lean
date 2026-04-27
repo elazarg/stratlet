@@ -30,6 +30,11 @@ The player argument is intentionally unused. FOSG requires a per-player static
 action type, while a Vegas commit node chooses the active player and the type
 of value expected at that node. Node-local availability below filters this
 static alphabet down to the values of the demanded type satisfying the guard.
+
+This broad alphabet is adequate for the structural control-flow bridge. A
+finite execution bridge should use a program-local action alphabet instead:
+otherwise `Fintype (Action L who)` would require finiteness of `L.Ty`, not just
+finiteness of values that actually occur in `g`.
 -/
 abbrev Action (L : IExpr) (_who : P) : Type :=
   Sigma L.Val
@@ -426,6 +431,38 @@ private theorem commit_value_of_legal
         simpa [availableActions] using havail) with ⟨v, hai, hv⟩
       exact ⟨v, by simp [hai], hv⟩
 
+/-- The committed value carried by a legal joint action at a Vegas commit node. -/
+noncomputable def commitValueOfLegal
+    {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
+    {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+    {k : VegasCore P L ((x, .hidden who b) :: Γ)}
+    {env : VEnv L Γ} {a : JointAction P L}
+    (ha : JointActionLegal
+      ({ Γ := Γ, prog := VegasCore.commit x who R k, env := env } : World P L) a) :
+    L.Val b :=
+  Classical.choose (commit_value_of_legal (L := L) ha)
+
+theorem commitValueOfLegal_action
+    {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
+    {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+    {k : VegasCore P L ((x, .hidden who b) :: Γ)}
+    {env : VEnv L Γ} {a : JointAction P L}
+    (ha : JointActionLegal
+      ({ Γ := Γ, prog := VegasCore.commit x who R k, env := env } : World P L) a) :
+    a who = some (Sigma.mk b (commitValueOfLegal (L := L) ha)) :=
+  (Classical.choose_spec (commit_value_of_legal (L := L) ha)).1
+
+theorem commitValueOfLegal_guard
+    {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
+    {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+    {k : VegasCore P L ((x, .hidden who b) :: Γ)}
+    {env : VEnv L Γ} {a : JointAction P L}
+    (ha : JointActionLegal
+      ({ Γ := Γ, prog := VegasCore.commit x who R k, env := env } : World P L) a) :
+    evalGuard (Player := P) (L := L) R
+      (commitValueOfLegal (L := L) ha) (VEnv.eraseEnv env) = true :=
+  (Classical.choose_spec (commit_value_of_legal (L := L) ha)).2
+
 theorem checked_terminal_active_eq_empty
     {g : WFProgram P L} {hctx : WFCtx g.Γ} {w : CheckedWorld g hctx} :
     checkedTerminal w → checkedActive w = ∅ :=
@@ -488,7 +525,7 @@ noncomputable def checkedTransition
               a.1 := by
             simpa [CheckedJointActionLegal, checkedActive, checkedTerminal,
               checkedAvailableActions, CheckedWorld.toWorld] using a.2
-          let v := Classical.choose (commit_value_of_legal (L := L) ha)
+          let v := commitValueOfLegal (L := L) ha
           exact PMF.pure
             { Γ := _
               prog := k
