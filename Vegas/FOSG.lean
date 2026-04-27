@@ -192,6 +192,7 @@ structure CheckedWorld (P : Type) [DecidableEq P] (L : IExpr) where
   Γ : VCtx P L
   prog : VegasCore P L Γ
   env : VEnv L Γ
+  wctx : WFCtx Γ
   fresh : FreshBindings prog
   viewScoped : ViewScoped prog
   normalized : NormalizedDists prog
@@ -204,10 +205,11 @@ def toWorld (w : CheckedWorld P L) : World P L where
   prog := w.prog
   env := w.env
 
-def initial (g : WFProgram P L) : CheckedWorld P L where
+def initial (g : WFProgram P L) (hctx : WFCtx g.Γ) : CheckedWorld P L where
   Γ := g.Γ
   prog := g.prog
   env := g.env
+  wctx := hctx
   fresh := g.wf.1
   viewScoped := g.wf.2.2
   normalized := g.normalized
@@ -287,7 +289,7 @@ noncomputable def checkedTransition
     (a : {a : JointAction P L // CheckedJointActionLegal w a}) :
     PMF (CheckedWorld P L) := by
   cases w with
-  | mk Γ prog env fresh viewScoped normalized legal =>
+  | mk Γ prog env wctx fresh viewScoped normalized legal =>
       cases prog with
       | ret payoffs =>
           exact False.elim (a.2.1 (by simp [checkedTerminal, CheckedWorld.toWorld, terminal]))
@@ -297,6 +299,7 @@ noncomputable def checkedTransition
               prog := k
               env := VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _)
                 (L.eval e (VEnv.erasePubEnv env)) env
+              wctx := WFCtx.cons fresh.1 wctx
               fresh := fresh.2
               viewScoped := viewScoped
               normalized := normalized
@@ -308,6 +311,7 @@ noncomputable def checkedTransition
                 prog := k
                 env := VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _)
                   v env
+                wctx := WFCtx.cons fresh.1 wctx
                 fresh := fresh.2
                 viewScoped := viewScoped
                 normalized := normalized.2
@@ -325,6 +329,7 @@ noncomputable def checkedTransition
               prog := k
               env := VEnv.cons (Player := P) (L := L) (x := x) (τ := .hidden who _)
                 v env
+              wctx := WFCtx.cons fresh.1 wctx
               fresh := fresh.2
               viewScoped := viewScoped.2
               normalized := normalized
@@ -335,6 +340,7 @@ noncomputable def checkedTransition
               prog := k
               env := VEnv.cons (Player := P) (L := L) (x := y) (τ := .pub _)
                 (env x (.hidden who _) hx) env
+              wctx := WFCtx.cons fresh.1 wctx
               fresh := fresh.2
               viewScoped := viewScoped
               normalized := normalized
@@ -355,12 +361,12 @@ structure. The observation types are intentionally coarse, so this definition
 is not yet the final information-preserving bridge used for solution-concept
 transport.
 -/
-noncomputable def compileSkeleton (g : WFProgram P L) :
+noncomputable def compileSkeleton (g : WFProgram P L) (hctx : WFCtx g.Γ) :
     GameTheory.FOSG P (CheckedWorld P L)
       (fun who : P => Action (P := P) L who)
       (fun _who : P => Unit)
       Unit where
-  init := CheckedWorld.initial g
+  init := CheckedWorld.initial g hctx
   active := checkedActive
   availableActions := checkedAvailableActions
   terminal := checkedTerminal
@@ -416,12 +422,12 @@ transport work. The remaining work is not to invent a game model, but to prove
 that these observation histories determine exactly the same view environments
 that Vegas strategies consume.
 -/
-noncomputable def compileObserved (g : WFProgram P L) :
+noncomputable def compileObserved (g : WFProgram P L) (hctx : WFCtx g.Γ) :
     GameTheory.FOSG P (CheckedWorld P L)
       (fun who : P => Action (P := P) L who)
       (fun who : P => PrivateObs P L who)
       (PublicObs P L) where
-  init := CheckedWorld.initial g
+  init := CheckedWorld.initial g hctx
   active := checkedActive
   availableActions := checkedAvailableActions
   terminal := checkedTerminal
@@ -460,52 +466,52 @@ def last? {α : Type} : List α → Option α
 
 /-- Observation events extracted from an observed FOSG information state. -/
 noncomputable def observationEvents
-    (g : WFProgram P L) (who : P)
-    (s : (compileObserved g).InfoState who) :
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (s : (compileObserved g hctx).InfoState who) :
     List (PrivateObs P L who × PublicObs P L) :=
   s.filterMap
     (GameTheory.FOSG.PlayerEvent.observationPart
-      (G := compileObserved g) (i := who))
+      (G := compileObserved g hctx) (i := who))
 
 /-- Latest private/public observation in an observed FOSG information state. -/
 noncomputable def latestObservation?
-    (g : WFProgram P L) (who : P)
-    (s : (compileObserved g).InfoState who) :
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (s : (compileObserved g hctx).InfoState who) :
     Option (PrivateObs P L who × PublicObs P L) :=
-  last? (observationEvents g who s)
+  last? (observationEvents g hctx who s)
 
 noncomputable def latestPrivateObs?
-    (g : WFProgram P L) (who : P)
-    (s : (compileObserved g).InfoState who) :
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (s : (compileObserved g hctx).InfoState who) :
     Option (PrivateObs P L who) :=
-  (latestObservation? g who s).map Prod.fst
+  (latestObservation? g hctx who s).map Prod.fst
 
 noncomputable def latestPublicObs?
-    (g : WFProgram P L) (who : P)
-    (s : (compileObserved g).InfoState who) :
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (s : (compileObserved g hctx).InfoState who) :
     Option (PublicObs P L) :=
-  (latestObservation? g who s).map Prod.snd
+  (latestObservation? g hctx who s).map Prod.snd
 
-@[simp] theorem observationEvents_nil (g : WFProgram P L) (who : P) :
-    observationEvents g who [] = [] := rfl
+@[simp] theorem observationEvents_nil (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P) :
+    observationEvents g hctx who [] = [] := rfl
 
-@[simp] theorem latestObservation?_nil (g : WFProgram P L) (who : P) :
-    latestObservation? g who [] = none := rfl
+@[simp] theorem latestObservation?_nil (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P) :
+    latestObservation? g hctx who [] = none := rfl
 
 theorem latestObservation?_append_obs
-    (g : WFProgram P L) (who : P)
-    (s : (compileObserved g).InfoState who)
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (s : (compileObserved g hctx).InfoState who)
     (priv : PrivateObs P L who) (pub : PublicObs P L) :
-    latestObservation? g who
+    latestObservation? g hctx who
       (s ++ [GameTheory.FOSG.PlayerEvent.obs priv pub]) = some (priv, pub) := by
   simp [latestObservation?, observationEvents]
 
 theorem latestObservation?_append_act_obs
-    (g : WFProgram P L) (who : P)
-    (s : (compileObserved g).InfoState who)
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (s : (compileObserved g hctx).InfoState who)
     (a : Action (P := P) L who)
     (priv : PrivateObs P L who) (pub : PublicObs P L) :
-    latestObservation? g who
+    latestObservation? g hctx who
       (s ++ [GameTheory.FOSG.PlayerEvent.act a,
         GameTheory.FOSG.PlayerEvent.obs priv pub]) = some (priv, pub) := by
   simp [latestObservation?, observationEvents]
@@ -513,28 +519,28 @@ theorem latestObservation?_append_act_obs
 /-- Extending an observed FOSG history records the destination world's Vegas
 view/public state as the latest information-state observation. -/
 theorem latestObservation?_history_snoc
-    (g : WFProgram P L) (who : P)
-    (h : (compileObserved g).History)
-    (a : (compileObserved g).LegalAction h.lastState)
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
+    (h : (compileObserved g hctx).History)
+    (a : (compileObserved g hctx).LegalAction h.lastState)
     (dst : CheckedWorld P L)
-    (support : (compileObserved g).transition h.lastState a dst ≠ 0) :
-    latestObservation? g who ((h.snoc a dst support).playerView who) =
+    (support : (compileObserved g hctx).transition h.lastState a dst ≠ 0) :
+    latestObservation? g hctx who ((h.snoc a dst support).playerView who) =
       some (privateObsOfWorld who dst, publicObsOfWorld dst) := by
   rw [GameTheory.FOSG.History.playerView_snoc]
-  let e : (compileObserved g).Step :=
+  let e : (compileObserved g hctx).Step :=
     { src := h.lastState, act := a, dst := dst, support := support }
-  change latestObservation? g who (h.playerView who ++ e.playerView who) =
+  change latestObservation? g hctx who (h.playerView who ++ e.playerView who) =
     some (privateObsOfWorld who dst, publicObsOfWorld dst)
   cases hact : e.ownAction? who with
   | none =>
       rw [GameTheory.FOSG.Step.playerView_of_none e who hact]
       simpa [e, compileObserved] using
-        latestObservation?_append_obs g who (h.playerView who)
+        latestObservation?_append_obs g hctx who (h.playerView who)
           (privateObsOfWorld who dst) (publicObsOfWorld dst)
   | some ai =>
       rw [GameTheory.FOSG.Step.playerView_of_some e who hact]
       simpa [e, compileObserved] using
-        latestObservation?_append_act_obs g who (h.playerView who) ai
+        latestObservation?_append_act_obs g hctx who (h.playerView who) ai
           (privateObsOfWorld who dst) (publicObsOfWorld dst)
 
 end Observed
