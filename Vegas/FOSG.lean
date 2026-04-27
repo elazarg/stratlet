@@ -1020,6 +1020,29 @@ noncomputable def toObservedControlFlowLegalBehavioralProfile
     ((toObservedControlFlowLegalBehavioralProfile g hctx σ who).1) =
       behavioralProfileCandidate g hctx σ who := rfl
 
+@[simp] theorem behavioralProfileCandidate_nil
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g) (who : P) :
+    behavioralProfileCandidate g hctx σ who
+      ((GameTheory.FOSG.History.nil (observedControlFlowFOSG g hctx)).playerView who) =
+      moveAtWorld g hctx σ who (CheckedWorld.initial g hctx) := by
+  simp [behavioralProfileCandidate, latestObservation?, observationEvents, last?]
+
+@[simp] theorem behavioralProfileCandidate_snoc
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (who : P)
+    (h : (observedControlFlowFOSG g hctx).History)
+    (a : (observedControlFlowFOSG g hctx).LegalAction h.lastState)
+    (dst : CheckedWorld g hctx)
+    (support : (observedControlFlowFOSG g hctx).transition h.lastState a dst ≠ 0) :
+    behavioralProfileCandidate g hctx σ who
+      ((h.snoc a dst support).playerView who) =
+      moveAtWorld g hctx σ who dst := by
+  rw [behavioralProfileCandidate,
+    latestObservation?_history_snoc g hctx who h a dst support]
+  simp [moveAtObservation?_of_world]
+
 end Observed
 
 end FOSGBridge
