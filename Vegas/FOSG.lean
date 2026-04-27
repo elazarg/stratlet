@@ -3903,6 +3903,105 @@ theorem observedProgramCheckedWorldRunDistFrom_terminal_eq_checkedProfileRun
   exact (checkedTerminal_observedProgramHistoryCheckedWorld
     (P := P) (L := L) g hctx h).2 hterm
 
+/-- The checked-world projection of one nonterminal FOSG execution step followed
+by the remaining projected run. The finite action instances are local to this
+definition, avoiding heavyweight theorem signatures. -/
+noncomputable def observedProgramCheckedWorldRunDistFromSucc
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (LF : FiniteValuation L)
+    [Fintype P]
+    (σ : LegalProgramBehavioralProfile g)
+    (n : Nat) (h : (observedProgramFOSG g hctx).History)
+    (hterm : ¬ (observedProgramFOSG g hctx).terminal h.lastState) :
+    PMF (CheckedWorld g hctx) := by
+  letI : Fintype (CursorCheckedWorld (P := P) (L := L) g) :=
+    observedProgramFOSG.instFintypeWorld (P := P) (L := L) g hctx LF
+  letI : ∀ who : P,
+      Fintype (Option (ProgramAction (P := P) (L := L) g.prog who)) :=
+    fun who =>
+      observedProgramFOSG.instFintypeOptionAction
+        (P := P) (L := L) g hctx LF who
+  exact
+    ((observedProgramFOSG (P := P) (L := L) g hctx).legalActionLaw
+        (toObservedProgramLegalBehavioralProfile g hctx σ) h hterm).bind
+      (fun a =>
+        ((observedProgramFOSG (P := P) (L := L) g hctx).transition
+            h.lastState a).bind
+          (fun dst =>
+            observedProgramCheckedWorldRunDistFrom
+              (P := P) (L := L) g hctx LF σ n
+              (h.extendByOutcome a dst)))
+
+/-- Checked-world projection of the generic nonterminal FOSG run equation. -/
+theorem observedProgramCheckedWorldRunDistFrom_succ_nonterminal
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (LF : FiniteValuation L)
+    [Fintype P]
+    (σ : LegalProgramBehavioralProfile g)
+    (n : Nat) (h : (observedProgramFOSG g hctx).History)
+    (hterm : ¬ (observedProgramFOSG g hctx).terminal h.lastState) :
+    observedProgramCheckedWorldRunDistFrom
+        (P := P) (L := L) g hctx LF σ (n + 1) h =
+      observedProgramCheckedWorldRunDistFromSucc
+        (P := P) (L := L) g hctx LF σ n h hterm := by
+  letI : Fintype (CursorCheckedWorld (P := P) (L := L) g) :=
+    observedProgramFOSG.instFintypeWorld (P := P) (L := L) g hctx LF
+  letI : ∀ who : P,
+      Fintype (Option (ProgramAction (P := P) (L := L) g.prog who)) :=
+    fun who =>
+      observedProgramFOSG.instFintypeOptionAction
+        (P := P) (L := L) g hctx LF who
+  letI : DecidablePred (observedProgramFOSG g hctx).terminal :=
+    observedProgramFOSG.instDecidablePredTerminal (P := P) (L := L) g hctx
+  unfold observedProgramCheckedWorldRunDistFromSucc
+  unfold observedProgramCheckedWorldRunDistFrom observedProgramRunDistFrom
+  rw [GameTheory.FOSG.History.runDistFrom_succ_nonterminal
+    (G := observedProgramFOSG (P := P) (L := L) g hctx)
+    (toObservedProgramLegalBehavioralProfile g hctx σ) n h hterm]
+  rw [PMF.map_bind]
+  congr
+  funext a
+  rw [PMF.map_bind]
+
+/-- Checked-world projection of the one-step FOSG run equation at states with
+no active players. This is the implementation-side reduction for Vegas `let`,
+`sample`, and `reveal` nodes. -/
+theorem observedProgramCheckedWorldRunDistFrom_succ_active_empty
+    (g : WFProgram P L) (hctx : WFCtx g.Γ) (LF : FiniteValuation L)
+    [Fintype P]
+    (σ : LegalProgramBehavioralProfile g)
+    (n : Nat) (h : (observedProgramFOSG g hctx).History)
+    (hterm : ¬ (observedProgramFOSG g hctx).terminal h.lastState)
+    (hactive : (observedProgramFOSG g hctx).active h.lastState = ∅) :
+    observedProgramCheckedWorldRunDistFrom
+        (P := P) (L := L) g hctx LF σ (n + 1) h =
+      ((observedProgramFOSG (P := P) (L := L) g hctx).transition h.lastState
+          ⟨GameTheory.FOSG.noopAction
+              (fun who : P => ProgramAction (P := P) (L := L) g.prog who),
+            (observedProgramFOSG (P := P) (L := L) g hctx)
+              |>.legal_noopAction_of_active_empty_of_not_terminal hactive hterm⟩).bind
+        (fun dst =>
+          observedProgramCheckedWorldRunDistFrom
+            (P := P) (L := L) g hctx LF σ n
+            (h.extendByOutcome
+              ⟨GameTheory.FOSG.noopAction
+                  (fun who : P => ProgramAction (P := P) (L := L) g.prog who),
+                (observedProgramFOSG (P := P) (L := L) g hctx)
+                  |>.legal_noopAction_of_active_empty_of_not_terminal hactive hterm⟩
+              dst)) := by
+  letI : Fintype (CursorCheckedWorld (P := P) (L := L) g) :=
+    observedProgramFOSG.instFintypeWorld (P := P) (L := L) g hctx LF
+  letI : ∀ who : P,
+      Fintype (Option (ProgramAction (P := P) (L := L) g.prog who)) :=
+    fun who =>
+      observedProgramFOSG.instFintypeOptionAction
+        (P := P) (L := L) g hctx LF who
+  letI : DecidablePred (observedProgramFOSG g hctx).terminal :=
+    observedProgramFOSG.instDecidablePredTerminal (P := P) (L := L) g hctx
+  unfold observedProgramCheckedWorldRunDistFrom observedProgramRunDistFrom
+  rw [GameTheory.FOSG.History.runDistFrom_succ_active_empty
+    (G := observedProgramFOSG (P := P) (L := L) g hctx)
+    (toObservedProgramLegalBehavioralProfile g hctx σ) n h hterm hactive]
+  rw [PMF.map_bind]
+
 theorem observedProgramOutcomeKernel_eq_checkedWorldRunDist
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (LF : FiniteValuation L)
     [Fintype P]
