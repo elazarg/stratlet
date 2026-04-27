@@ -13,7 +13,8 @@ namespace Vegas
 
 open MAID
 
-variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr} {B : MAIDBackend Player L}
+variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
+variable {B : MAIDBackend Player L}
 
 /-- Abbreviation for the compiled VegasMAID and its derived MAID structure. -/
 noncomputable abbrev compiledStruct
@@ -403,8 +404,6 @@ theorem compilePureProfileAuxV_player_indep
   | commit x who_commit R k ih =>
     intro hl hd ρ st π₁ π₂ who h
     rename_i Γ' b
-    change (compilePureProfileAuxV B (.commit x who_commit R k) hl hd ρ st π₁) who =
-       (compilePureProfileAuxV B (.commit x who_commit R k) hl hd ρ st π₂) who
     simp only [compilePureProfileAuxV]
     funext ⟨d, cfg⟩; dsimp only
     split
@@ -601,7 +600,7 @@ theorem rawEnvOfCfg_proj_eq_select
   · have hps' := hps i hi
     by_cases hmem : (⟨i, hi⟩ : Fin st.nextId) ∈ ps
     · simp [MAIDCompileState.rawEnvOfCfg, projCfg, rawOfTAssign, hi, hmem, (hps').mp hmem]
-    · simp [MAIDCompileState.rawEnvOfCfg, projCfg, hi, hmem,
+    · simp [MAIDCompileState.rawEnvOfCfg, hi, hmem,
         show i ∉ deps from fun h => hmem ((hps').mpr h)]
   · simp [MAIDCompileState.rawEnvOfCfg, hi]
 
@@ -1137,9 +1136,10 @@ theorem pmf_bind_castValType
     d.bind (fun v => f (castValType hdesc v)) = (hdesc ▸ d).bind f := by
   subst hdesc; rfl
 
-/-- evalStep bind distributes over left bind. -/
-theorem foldl_evalStep_bind_left [Fintype Player] {n : Nat}
-    {S : MAID.Struct Player n} (sem : MAID.Sem S) (pol : MAID.Policy S)
+-- evalStep bind distributes over left bind.
+omit [Fintype Player] in
+theorem foldl_evalStep_bind_left {fp : Fintype Player} {n : Nat}
+    {S : @MAID.Struct Player _ fp n} (sem : MAID.Sem S) (pol : MAID.Policy S)
     (nodes : List (Fin n)) {β : Type} (μ : PMF β)
     (g : β → PMF (MAID.TAssign S)) :
     List.foldl (MAID.evalStep S sem pol) (μ.bind g) nodes =

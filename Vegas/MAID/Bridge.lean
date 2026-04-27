@@ -14,7 +14,8 @@ namespace Vegas
 
 open MAID
 
-variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr} {B : MAIDBackend Player L}
+variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
+variable {B : MAIDBackend Player L}
 
 private theorem cast_PMF_pure {α β : Type} (h₁ : PMF α = PMF β) (h₂ : α = β) (x : α) :
     cast h₁ (PMF.pure x) = PMF.pure (cast h₂ x) := by
@@ -38,6 +39,7 @@ private theorem toPMF_fdist_transport_cast {α β : Type}
   subst h
   rfl
 
+omit [Fintype Player] in
 private theorem infoset_eq_of_cfg_heq
     [Fintype Player] {n : Nat} {S : MAID.Struct Player n} {p : Player}
     {d₁ d₂ : MAID.DecisionNode S p}
@@ -49,6 +51,7 @@ private theorem infoset_eq_of_cfg_heq
   cases hcfg
   rfl
 
+omit [Fintype Player] in
 private theorem playerStrategy_apply_heq
     [Fintype Player] {n : Nat} {S : MAID.Struct Player n} {p : Player}
     (pol : MAID.PlayerStrategy S p) {I J : MAID.Infoset S p} (h : I = J) :
@@ -150,6 +153,7 @@ private theorem compilePureProfileV_eq_pureToPolicy
   intro β
   exact compilePureProfileV_eq_pureToPolicy_aux B p hl hd hfresh (fun _ => env) .empty π
 
+omit [Fintype Player] in
 private theorem toBehavioralPMF_eq_toPMFProfile_toBehavioral
     {Γ : VCtx Player L}
     (p : VegasCore Player L Γ)

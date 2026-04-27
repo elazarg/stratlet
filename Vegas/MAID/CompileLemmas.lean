@@ -20,7 +20,7 @@ variable {B : MAIDBackend Player L}
 -- ────────────────────────────────────────────────
 
 section
-omit [DecidableEq Player]
+omit [DecidableEq Player] [Fintype Player]
 
 theorem lookupDepsAux_append_singleton_eq_of_ne
     (vars : List (MAIDVarEntry Player L))
@@ -224,7 +224,7 @@ theorem MAIDCompileState.viewDeps_sub_ctxDeps
   unfold MAIDCompileState.viewDeps MAIDCompileState.ctxDeps
   exact st.depsOfVars_subset_of_subset _ _ (fun x hx => viewVCtx_map_fst_sub hx)
 
-omit [DecidableEq Player] in
+omit [DecidableEq Player] [Fintype Player] in
 private theorem erasePubVCtx_map_fst_sub (Γ : VCtx Player L) :
     ∀ x, x ∈ (erasePubVCtx Γ).map Prod.fst → x ∈ Γ.map Prod.fst := by
   induction Γ with

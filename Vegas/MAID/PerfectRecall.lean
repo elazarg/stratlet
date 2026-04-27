@@ -15,7 +15,8 @@ namespace Vegas
 
 open MAID
 
-variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr} {B : MAIDBackend Player L}
+variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
+variable {B : MAIDBackend Player L}
 
 /-! ## Helper lemmas -/
 
