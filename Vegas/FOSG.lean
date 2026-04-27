@@ -1128,6 +1128,27 @@ def initial (g : WFProgram P L) (hctx : WFCtx g.Γ) : CheckedWorld g hctx where
 
 end CheckedWorld
 
+namespace ProgramCursor
+
+/-- Forget a finite cursor endpoint to the suffix-based checked-world
+presentation. This is the projection used by adapter lemmas: cursors are the
+finite implementation, while `CheckedWorld` is the semantic machine. -/
+def toCheckedWorld {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (c : ProgramCursor (P := P) (L := L) g.prog)
+    (env : VEnv L c.Γ) (valid : c.EndpointValid) :
+    CheckedWorld g hctx where
+  Γ := c.Γ
+  prog := c.prog
+  env := env
+  suffix := c.toSuffix
+  wctx := valid.1
+  fresh := valid.2.1
+  viewScoped := valid.2.2.1
+  normalized := valid.2.2.2.1
+  legal := valid.2.2.2.2
+
+end ProgramCursor
+
 def checkedTerminal {g : WFProgram P L} {hctx : WFCtx g.Γ}
     (w : CheckedWorld g hctx) : Prop :=
   terminal w.toWorld
@@ -3339,6 +3360,41 @@ noncomputable def checkedProfileStep
               normalized := normalized
               legal := legal }
 
+/-- Project a suffix-based checked world to the Vegas payoff outcome carried at
+terminal `ret` worlds. The nonterminal branch is a total-function default;
+support lemmas below prove it is irrelevant once the semantic run has enough
+horizon. -/
+def checkedWorldOutcome
+    {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (w : CheckedWorld g hctx) : Outcome P :=
+  match w.prog with
+  | .ret payoffs => evalPayoffs payoffs w.env
+  | _ => 0
+
+/-- At terminal checked worlds, the denotational kernel is exactly the point
+mass at the world's payoff outcome. -/
+theorem checkedVegasOutcomeKernel_terminal
+    {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (σ : LegalProgramBehavioralProfile g)
+    (w : CheckedWorld g hctx)
+    (hterm : checkedTerminal w) :
+    checkedVegasOutcomeKernel (P := P) (L := L) σ w =
+      PMF.pure (checkedWorldOutcome (P := P) (L := L) w) := by
+  cases w with
+  | mk Γ prog env suffix wctx fresh viewScoped normalized legal =>
+      cases prog with
+      | ret payoffs =>
+          simp [checkedVegasOutcomeKernel, checkedWorldOutcome,
+            outcomeDistBehavioral, FDist.toPMF_pure]
+      | letExpr x e k =>
+          simp [checkedTerminal, CheckedWorld.toWorld, terminal] at hterm
+      | sample x D k =>
+          simp [checkedTerminal, CheckedWorld.toWorld, terminal] at hterm
+      | commit x who R k =>
+          simp [checkedTerminal, CheckedWorld.toWorld, terminal] at hterm
+      | reveal y who x hx k =>
+          simp [checkedTerminal, CheckedWorld.toWorld, terminal] at hterm
+
 /-- One semantic small step preserves the remaining Vegas denotation. This is
 the hard preservation equation in the proof architecture; it is proved at the
 suffix-based machine level before involving the finite FOSG cursor encoding. -/
@@ -3467,6 +3523,204 @@ theorem checkedProfileStep_bind_checkedVegasOutcomeKernel
       | reveal y who x hx k =>
           simp [checkedProfileStep, checkedVegasOutcomeKernel,
             outcomeDistBehavioral, VEnv.get]
+
+set_option linter.flexible false in
+/-- Every supported nonterminal semantic small step consumes exactly one Vegas
+syntax node. -/
+theorem checkedProfileStep_remainingSyntaxSteps
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (w : CheckedWorld g hctx)
+    (hterm : ¬ checkedTerminal w)
+    (dst : CheckedWorld g hctx)
+    (hsupp : checkedProfileStep (P := P) (L := L) g hctx σ w dst ≠ 0) :
+    dst.remainingSyntaxSteps + 1 = w.remainingSyntaxSteps := by
+  cases w with
+  | mk Γ prog env suffix wctx fresh viewScoped normalized legal =>
+      cases prog with
+      | ret payoffs =>
+          simp [checkedTerminal, CheckedWorld.toWorld, terminal] at hterm
+      | letExpr x e k =>
+          simp [checkedProfileStep, CheckedWorld.remainingSyntaxSteps,
+            syntaxSteps] at hsupp ⊢
+          subst dst
+          rfl
+      | sample x D k =>
+          simp [checkedProfileStep, CheckedWorld.remainingSyntaxSteps,
+            syntaxSteps] at hsupp ⊢
+          rcases hsupp with ⟨v, hdst, _hv⟩
+          subst dst
+          rfl
+      | commit x who R k =>
+          simp [checkedProfileStep, CheckedWorld.remainingSyntaxSteps,
+            syntaxSteps] at hsupp ⊢
+          rcases hsupp with ⟨v, hdst, _hv⟩
+          subst dst
+          rfl
+      | reveal y who x hx k =>
+          simp [checkedProfileStep, CheckedWorld.remainingSyntaxSteps,
+            syntaxSteps] at hsupp ⊢
+          subst dst
+          rfl
+
+open Classical in
+/-- Vegas' own finite-horizon run over suffix-based checked worlds. This is
+not an FOSG compiler output; it is the semantic small-step machine used as the
+proof target for FOSG implementation lemmas. -/
+noncomputable def checkedProfileRun
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g) :
+    Nat → CheckedWorld g hctx → PMF (CheckedWorld g hctx)
+  | 0, w => PMF.pure w
+  | n + 1, w =>
+      if checkedTerminal w then
+        PMF.pure w
+      else
+        (checkedProfileStep (P := P) (L := L) g hctx σ w).bind
+          (checkedProfileRun g hctx σ n)
+
+@[simp] theorem checkedProfileRun_zero
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (w : CheckedWorld g hctx) :
+    checkedProfileRun (P := P) (L := L) g hctx σ 0 w = PMF.pure w := rfl
+
+@[simp] theorem checkedProfileRun_succ_terminal
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (n : Nat) (w : CheckedWorld g hctx)
+    (hterm : checkedTerminal w) :
+    checkedProfileRun (P := P) (L := L) g hctx σ (n + 1) w =
+      PMF.pure w := by
+  simp [checkedProfileRun, hterm]
+
+theorem checkedProfileRun_succ_nonterminal
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (n : Nat) (w : CheckedWorld g hctx)
+    (hterm : ¬ checkedTerminal w) :
+    checkedProfileRun (P := P) (L := L) g hctx σ (n + 1) w =
+      (checkedProfileStep (P := P) (L := L) g hctx σ w).bind
+        (checkedProfileRun (P := P) (L := L) g hctx σ n) := by
+  simp [checkedProfileRun, hterm]
+
+/-- Any finite run of the suffix-based Vegas semantic machine preserves the
+remaining denotational outcome kernel. -/
+theorem checkedProfileRun_bind_checkedVegasOutcomeKernel
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g) :
+    ∀ (n : Nat) (w : CheckedWorld g hctx),
+      (checkedProfileRun (P := P) (L := L) g hctx σ n w).bind
+          (checkedVegasOutcomeKernel (P := P) (L := L) σ) =
+        checkedVegasOutcomeKernel (P := P) (L := L) σ w := by
+  intro n
+  induction n with
+  | zero =>
+      intro w
+      simp
+  | succ n ih =>
+      intro w
+      by_cases hterm : checkedTerminal w
+      · rw [checkedProfileRun_succ_terminal
+          (P := P) (L := L) g hctx σ n w hterm]
+        simp
+      · rw [checkedProfileRun_succ_nonterminal
+          (P := P) (L := L) g hctx σ n w hterm]
+        rw [PMF.bind_bind]
+        conv_lhs =>
+          arg 2
+          intro w'
+          rw [ih w']
+        exact checkedProfileStep_bind_checkedVegasOutcomeKernel
+          (P := P) (L := L) g hctx σ w
+
+/-- Once the semantic run horizon covers the remaining syntax depth, every
+supported destination is terminal. -/
+theorem checkedProfileRun_support_terminal
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g) :
+    ∀ (n : Nat) (w dst : CheckedWorld g hctx),
+      w.remainingSyntaxSteps ≤ n →
+      dst ∈ (checkedProfileRun (P := P) (L := L) g hctx σ n w).support →
+        checkedTerminal dst := by
+  intro n
+  induction n with
+  | zero =>
+      intro w dst hn hdst
+      have hzero : w.remainingSyntaxSteps = 0 := by omega
+      have hterm : checkedTerminal w :=
+        checkedTerminal_iff_remainingSyntaxSteps_eq_zero.mpr hzero
+      have hdstEq : dst = w := by
+        simpa using hdst
+      subst dst
+      exact hterm
+  | succ n ih =>
+      intro w dst hn hdst
+      by_cases hterm : checkedTerminal w
+      · rw [checkedProfileRun_succ_terminal
+          (P := P) (L := L) g hctx σ n w hterm] at hdst
+        have hdstEq : dst = w := by
+          simpa using hdst
+        subst dst
+        exact hterm
+      · rw [checkedProfileRun_succ_nonterminal
+          (P := P) (L := L) g hctx σ n w hterm] at hdst
+        rw [PMF.mem_support_bind_iff] at hdst
+        rcases hdst with ⟨mid, hmid, hdst⟩
+        have hstep := checkedProfileStep_remainingSyntaxSteps
+          (P := P) (L := L) g hctx σ w hterm mid
+          (by simpa [PMF.mem_support_iff] using hmid)
+        have hmidDepth : mid.remainingSyntaxSteps ≤ n := by omega
+        exact ih mid dst hmidDepth hdst
+
+/-- At sufficient horizon, the suffix-based Vegas semantic run projected to
+payoff outcomes is exactly the denotational outcome kernel at the starting
+world. -/
+theorem checkedProfileRun_map_checkedWorldOutcome_eq_checkedVegasOutcomeKernel
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (n : Nat) (w : CheckedWorld g hctx)
+    (hn : w.remainingSyntaxSteps ≤ n) :
+    PMF.map (checkedWorldOutcome (P := P) (L := L))
+        (checkedProfileRun (P := P) (L := L) g hctx σ n w) =
+      checkedVegasOutcomeKernel (P := P) (L := L) σ w := by
+  rw [← PMF.bind_pure_comp]
+  rw [Math.ProbabilityMassFunction.bind_congr_on_support
+    (checkedProfileRun (P := P) (L := L) g hctx σ n w)
+    (PMF.pure ∘ checkedWorldOutcome (P := P) (L := L))
+    (checkedVegasOutcomeKernel (P := P) (L := L) σ)]
+  · exact checkedProfileRun_bind_checkedVegasOutcomeKernel
+      (P := P) (L := L) g hctx σ n w
+  · intro dst hdst
+    have hterm := checkedProfileRun_support_terminal
+      (P := P) (L := L) g hctx σ n w dst hn hdst
+    rw [checkedVegasOutcomeKernel_terminal
+      (P := P) (L := L) σ dst hterm]
+    rfl
+
+@[simp] theorem checkedVegasOutcomeKernel_initial
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g) :
+    checkedVegasOutcomeKernel (P := P) (L := L) σ
+        (CheckedWorld.initial (P := P) (L := L) g hctx) =
+      (toKernelGame g).outcomeKernel σ := rfl
+
+/-- The suffix-based Vegas semantic machine, run for the syntactic horizon
+from the initial checked world and projected to payoff outcomes, agrees with
+the user-facing kernel-game semantics. -/
+theorem checkedProfileRun_initial_outcomeKernel
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g) :
+    PMF.map (checkedWorldOutcome (P := P) (L := L))
+        (checkedProfileRun (P := P) (L := L) g hctx σ
+          (syntaxSteps g.prog)
+          (CheckedWorld.initial (P := P) (L := L) g hctx)) =
+      (toKernelGame g).outcomeKernel σ := by
+  rw [checkedProfileRun_map_checkedWorldOutcome_eq_checkedVegasOutcomeKernel
+    (P := P) (L := L) g hctx σ (syntaxSteps g.prog)
+    (CheckedWorld.initial (P := P) (L := L) g hctx)]
+  · rfl
+  · rfl
 
 @[simp] theorem checkedVegasOutcomeKernel_ofCursorChecked
     {g : WFProgram P L} {hctx : WFCtx g.Γ}
