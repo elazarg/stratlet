@@ -685,6 +685,24 @@ def toSuffix
     ProgramSuffix root (prog c) :=
   toSuffixFrom .here c
 
+/-- Compose a cursor from `root` to `p` with a cursor from `p` to a deeper
+continuation. -/
+def extend :
+    {Γ₀ : VCtx P L} → {root : VegasCore P L Γ₀} →
+      (c : ProgramCursor (P := P) (L := L) root) →
+      ProgramCursor (P := P) (L := L) (prog c) →
+        ProgramCursor (P := P) (L := L) root
+  | _, _, .here, d => d
+  | _, _, .letExpr c, d => .letExpr (extend c d)
+  | _, _, .sample c, d => .sample (extend c d)
+  | _, _, .commit c, d => .commit (extend c d)
+  | _, _, .reveal c, d => .reveal (extend c d)
+
+@[simp] theorem extend_here_left
+    {Γ : VCtx P L} {root : VegasCore P L Γ}
+    (d : ProgramCursor (P := P) (L := L) root) :
+    extend (P := P) (L := L) (.here : ProgramCursor (P := P) (L := L) root) d = d := rfl
+
 /-- Canonical cursors are finite because Vegas syntax is linear. -/
 @[reducible] noncomputable def instFintype :
     {Γ : VCtx P L} → (p : VegasCore P L Γ) →
@@ -835,6 +853,33 @@ def Valid {g : WFProgram P L} (d : CursorWorldData (P := P) (L := L) g) : Prop :
 
 end CursorWorldData
 
+/-- Checked worlds over the finite cursor-keyed carrier. This is the intended
+finite world type for the final executable FOSG target. -/
+abbrev CursorCheckedWorld (g : WFProgram P L) : Type :=
+  {d : CursorWorldData (P := P) (L := L) g // d.Valid}
+
+namespace CursorCheckedWorld
+
+/-- The finite cursor-keyed checked-world carrier is finite under finite value
+types. `Fintype.ofFinite` avoids requiring decidability of the proof-bearing
+`Valid` predicate. -/
+@[reducible] noncomputable def instFintype
+    (g : WFProgram P L) (LF : FiniteValuation L) :
+    Fintype (CursorCheckedWorld (P := P) (L := L) g) := by
+  let _ : Fintype (CursorWorldData (P := P) (L := L) g) :=
+    CursorWorldData.instFintype (P := P) (L := L) g LF
+  exact Fintype.ofFinite (CursorCheckedWorld (P := P) (L := L) g)
+
+/-- Initial state for the finite cursor-keyed checked-world carrier. -/
+def initial (g : WFProgram P L) (hctx : WFCtx g.Γ) :
+    CursorCheckedWorld (P := P) (L := L) g :=
+  ⟨{ cursor := .here
+     env := g.env },
+    by
+      exact ⟨hctx, g.wf.1, g.wf.2.2, g.normalized, g.legal⟩⟩
+
+end CursorCheckedWorld
+
 /-! ## Program points
 
 `CheckedWorld` carries proof fields needed by the FOSG structure. For
@@ -901,6 +946,21 @@ structure CheckedWorld (g : WFProgram P L) (hctx : WFCtx g.Γ) where
   legal : Legal prog
 
 namespace CheckedWorld
+
+/-- Embed the finite cursor-keyed carrier into the current suffix-based
+`CheckedWorld` presentation. -/
+def ofCursorChecked {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (w : CursorCheckedWorld (P := P) (L := L) g) :
+    CheckedWorld g hctx where
+  Γ := w.1.cursor.Γ
+  prog := w.1.prog
+  env := w.1.env
+  suffix := w.1.suffix
+  wctx := w.2.1
+  fresh := w.2.2.1
+  viewScoped := w.2.2.2.1
+  normalized := w.2.2.2.2.1
+  legal := w.2.2.2.2.2
 
 /-- Forget the proof obligations on a checked world. -/
 def toData {g : WFProgram P L} {hctx : WFCtx g.Γ}
