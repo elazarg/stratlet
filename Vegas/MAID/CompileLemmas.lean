@@ -12,7 +12,7 @@ namespace Vegas
 
 open MAID
 
-variable {Player : Type} [DecidableEq Player] {L : IExpr}
+variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
 variable {B : MAIDBackend Player L}
 
 -- ────────────────────────────────────────────────
@@ -446,7 +446,7 @@ theorem MAIDCompileState.ofProg_nextId_le
       (MAIDCompileState.ofProg B p hl hd ρ st₀).nextId := by
   induction p generalizing st₀ with
   | ret u =>
-    letI := B.fintypePlayer; simp only [MAIDCompileState.ofProg]
+    simp only [MAIDCompileState.ofProg]
     rw [MAIDCompileState.addUtilityNodes_nextId]; omega
   | letExpr x e k ih =>
     exact ih hl hd
@@ -514,13 +514,13 @@ theorem MAIDCompileState.ofProg_descAt_old
 -- ────────────────────────────────────────────────
 
 @[simp] theorem toStruct_kind (st : MAIDCompileState Player L B) (nd : Fin st.nextId) :
-    st.toStruct.kind (fp := B.fintypePlayer) nd = (st.descAt nd).kind := rfl
+    st.toStruct.kind nd = (st.descAt nd).kind := rfl
 
 theorem MAIDCompileState.mem_toStruct_parents_iff
     (st : MAIDCompileState Player L B)
     (nd : Fin st.nextId)
     {i : Nat} (hi : i < st.nextId) :
-    (⟨i, hi⟩ : Fin st.nextId) ∈ st.toStruct.parents (fp := B.fintypePlayer) nd ↔
+    (⟨i, hi⟩ : Fin st.nextId) ∈ st.toStruct.parents nd ↔
       i ∈ (st.descAt nd).parents := by
   constructor
   · intro h
@@ -537,7 +537,7 @@ theorem MAIDCompileState.mem_toStruct_obsParents_iff
     (st : MAIDCompileState Player L B)
     (nd : Fin st.nextId)
     {i : Nat} (hi : i < st.nextId) :
-    (⟨i, hi⟩ : Fin st.nextId) ∈ st.toStruct.obsParents (fp := B.fintypePlayer) nd
+    (⟨i, hi⟩ : Fin st.nextId) ∈ st.toStruct.obsParents nd
        ↔ i ∈ (st.descAt nd).obsParents := by
   constructor
   · intro h
@@ -619,7 +619,6 @@ theorem computeReveals_revealTime_le (B : MAIDBackend Player L)
   induction p generalizing rs with
   | ret =>
       simp only [computeReveals]
-      letI := B.fintypePlayer
       generalize (Finset.univ (α := Player)).toList = players
       induction players generalizing rs with
       | nil => simp
@@ -896,7 +895,6 @@ theorem computeReveals_consistent (B : MAIDBackend Player L)
       simp only [computeReveals, MAIDCompileState.ofProg]
       -- addUtilityNodes adds only utility nodes; foldl adds public nodes
       -- Induction on the player list with deps as a free parameter.
-      letI := B.fintypePlayer
       suffices ∀ (players : List Player) (deps : Finset Nat)
           (ufn : Player → RawNodeEnv L → ℝ)
           (st : MAIDCompileState Player L B) (rs : RevealState)
@@ -1445,7 +1443,6 @@ theorem computeReveals_parents_visible (B : MAIDBackend Player L)
   induction p generalizing st₀ rs₀ with
   | ret payoffs =>
       simp only [computeReveals, MAIDCompileState.ofProg]
-      letI := B.fintypePlayer
       suffices ∀ (players : List Player) (deps : Finset Nat)
           (ufn : Player → RawNodeEnv L → ℝ)
           (st : MAIDCompileState Player L B) (rs : RevealState)
@@ -1775,7 +1772,7 @@ noncomputable def compileVegasMAID
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
     (env : VEnv (Player := Player) L Γ) :
     let st := MAIDCompileState.ofProg B p hl hd (fun _ => env) .empty
-    @VegasMAID Player _ B.fintypePlayer st.nextId :=
+    VegasMAID Player st.nextId :=
   let st := MAIDCompileState.ofProg B p hl hd (fun _ => env) .empty
   let rs := computeReveals B p .empty
   let hcon : RevealConsistent .empty .empty :=

@@ -72,34 +72,29 @@ end MAIDValuation
 
 This is intentionally backend-specific: the protocol semantics do not need
 finite players or finite/nonempty value domains. -/
-structure MAIDBackend (Player : Type) [DecidableEq Player] (L : IExpr)
-    extends MAIDValuation L where
-  fintypePlayer : Fintype Player
+structure MAIDBackend (Player : Type) [DecidableEq Player] [Fintype Player] (L : IExpr)
+    extends MAIDValuation L
 
 namespace MAIDBackend
 
-instance instFintypePlayer {Player : Type} [DecidableEq Player] {L : IExpr}
-    (B : MAIDBackend Player L) : Fintype Player :=
-  B.fintypePlayer
-
 /-- The MAID node-domain size associated to a language type. -/
-noncomputable def domainSize {Player : Type} [DecidableEq Player] {L : IExpr}
+noncomputable def domainSize {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
     (B : MAIDBackend Player L) (τ : L.Ty) : Nat :=
   B.toMAIDValuation.toFiniteValuation.domainSize L τ
 
 /-- Language values encoded as MAID node values. -/
-abbrev NodeVal {Player : Type} [DecidableEq Player] {L : IExpr}
+abbrev NodeVal {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
     (B : MAIDBackend Player L) (τ : L.Ty) : Type :=
   Fin (B.domainSize τ)
 
 /-- Canonical value encoding for MAID nodes. -/
-noncomputable def encodeVal {Player : Type} [DecidableEq Player] {L : IExpr}
+noncomputable def encodeVal {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
     (B : MAIDBackend Player L) (τ : L.Ty) :
     L.Val τ ≃ NodeVal B τ :=
   B.toMAIDValuation.encodeVal L τ
 
 /-- Positive size of any non-utility node domain produced by the backend. -/
-theorem domainSize_pos {Player : Type} [DecidableEq Player] {L : IExpr}
+theorem domainSize_pos {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
     (B : MAIDBackend Player L) (τ : L.Ty) :
     0 < B.domainSize τ := by
   simpa [MAIDBackend.domainSize] using

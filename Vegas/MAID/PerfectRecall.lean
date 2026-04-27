@@ -15,7 +15,7 @@ namespace Vegas
 
 open MAID
 
-variable {Player : Type} [DecidableEq Player] {L : IExpr} {B : MAIDBackend Player L}
+variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr} {B : MAIDBackend Player L}
 
 /-! ## Helper lemmas -/
 
@@ -28,9 +28,8 @@ theorem CompiledNode.parents_eq_obsParents' (nd : CompiledNode Player L B) :
 private theorem MAIDCompileState.toStruct_parent_val_lt'
     (st : MAIDCompileState Player L B)
     (a b : Fin st.nextId)
-    (h : letI : Fintype Player := B.fintypePlayer; a ∈ st.toStruct.parents b) :
+    (h : a ∈ st.toStruct.parents b) :
     a.val < b.val := by
-  letI : Fintype Player := B.fintypePlayer
   change a ∈ (st.descAt b).parents.attach.image _ at h
   rw [Finset.mem_image] at h
   obtain ⟨⟨x, hx⟩, _, heq⟩ := h
@@ -40,9 +39,8 @@ private theorem MAIDCompileState.toStruct_parent_val_lt'
 private theorem MAIDCompileState.isAncestor_val_lt'
     (st : MAIDCompileState Player L B)
     (d₁ d₂ : Fin st.nextId)
-    (h : letI : Fintype Player := B.fintypePlayer; st.toStruct.IsAncestor d₁ d₂) :
+    (h : st.toStruct.IsAncestor d₁ d₂) :
     d₁.val < d₂.val := by
-  letI : Fintype Player := B.fintypePlayer
   induction h with
   | single hp => exact st.toStruct_parent_val_lt' _ _ hp
   | tail _ hp ih => exact Nat.lt_trans ih (st.toStruct_parent_val_lt' _ _ hp)
@@ -410,8 +408,7 @@ theorem compiledStruct_perfectRecallV
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False) :
-    (compiledStruct B p env hl hd hfresh hpub).PerfectRecall (fp := B.fintypePlayer) := by
-  letI : Fintype Player := B.fintypePlayer
+    (compiledStruct B p env hl hd hfresh hpub).PerfectRecall := by
   set st := compiledState B p env hl hd with hst
   set S := compiledStruct B p env hl hd hfresh hpub
   have core := MAIDCompileState.ofProg_decision_obs_monotone' (B := B) p env hl hd hfresh

@@ -13,7 +13,7 @@ namespace Vegas
 
 open MAID
 
-variable {Player : Type} [DecidableEq Player] {L : IExpr} {B : MAIDBackend Player L}
+variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr} {B : MAIDBackend Player L}
 
 /-- Abbreviation for the compiled VegasMAID and its derived MAID structure. -/
 noncomputable abbrev compiledStruct
@@ -23,8 +23,7 @@ noncomputable abbrev compiledStruct
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False) :=
-  letI := B.fintypePlayer
-  (compileVegasMAID B p hl hd hfresh hpub env).toStruct
+    (compileVegasMAID B p hl hd hfresh hpub env).toStruct
 
 /-- The underlying compile state, for definitions that need it. -/
 noncomputable abbrev compiledState
@@ -43,19 +42,17 @@ noncomputable def vegasMAIDSem
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False) :
-    Sem (fp := B.fintypePlayer) (compiledStruct B p env hl hd hfresh hpub) := by
-  haveI : Fintype Player := B.fintypePlayer
-  exact (compiledState B p env hl hd).toSem
+    Sem (compiledStruct B p env hl hd hfresh hpub) := by
+    exact (compiledState B p env hl hd).toSem
 
 /-! ## Raw environment conversion -/
 
 /-- Convert a MAID total assignment to a raw node environment (generalized). -/
 noncomputable def rawOfTAssign
     (st : MAIDCompileState Player L B)
-    (a : TAssign (fp := B.fintypePlayer) st.toStruct) :
+    (a : TAssign st.toStruct) :
     RawNodeEnv L :=
-  haveI := B.fintypePlayer
-  fun i =>
+    fun i =>
     if hi : i < st.nextId then
       MAIDCompileState.taggedOfVal (st.descAt ⟨i, hi⟩) (a ⟨i, hi⟩)
     else
@@ -68,7 +65,7 @@ noncomputable def rawOfTAssignV
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
-    (a : TAssign (fp := B.fintypePlayer)
+    (a : TAssign
       (compiledStruct B p env hl hd hfresh hpub)) :
     RawNodeEnv L :=
   rawOfTAssign (compiledState B p env hl hd) a
@@ -113,7 +110,7 @@ noncomputable def extractOutcomeV
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False) :
-    TAssign (fp := B.fintypePlayer)
+    TAssign
       (compiledStruct B p env hl hd hfresh hpub) → Outcome Player :=
   fun a => extractOutcomeAux B p (fun _ => env) 0
     (rawOfTAssignV B p env hl hd hfresh hpub a)
@@ -131,10 +128,9 @@ noncomputable def translateStrategyV
       (ρ : RawNodeEnv L → VEnv L Γ) →
       (st₀ : MAIDCompileState Player L B) →
       ProgramBehavioralProfile p →
-      MAID.Policy (fp := B.fintypePlayer)
+      MAID.Policy
         (MAIDCompileState.ofProg B p hl hd ρ st₀).toStruct
   | _Γ, .ret _payoffs, _hl, _hd, _ρ, _st, _β => by
-      letI := B.fintypePlayer
       intro _p ⟨d, cfg⟩
       exact PMF.pure default
   | _Γ, .letExpr (b := b) x e k, hl, hd, ρ, st, β =>
@@ -169,7 +165,6 @@ noncomputable def translateStrategyV
           subst d; exact Nat.lt_succ_self _))
         β
   | Γ, .commit (b := b) x who R k, hl, hd, ρ, st, β => by
-      letI := B.fintypePlayer
       let obs := st.viewDeps who Γ
       let acts := allValues B b
       have hacts : acts ≠ [] := allValues_ne_nil B b
@@ -234,7 +229,7 @@ noncomputable def compiledPolicyV
     (hfresh : FreshBindings p)
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
     (β : ProgramBehavioralProfile p) :
-    Policy (fp := B.fintypePlayer)
+    Policy
       (compiledStruct B p env hl hd hfresh hpub) :=
   translateStrategyV B p hl hd (fun _ => env) .empty β
 
@@ -247,7 +242,7 @@ noncomputable def reflectPolicyAuxV
     (hl : Legal p) → (hd : NormalizedDists p) →
     (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ) →
     (st₀ : MAIDCompileState Player L B) →
-    MAID.Policy (fp := B.fintypePlayer)
+    MAID.Policy
       (MAIDCompileState.ofProg B p hl hd ρ st₀).toStruct →
     ProgramBehavioralProfilePMF p
   | _, .ret _, _, _, _, _, _ => fun _ => .ret
@@ -258,7 +253,6 @@ noncomputable def reflectPolicyAuxV
   | _, .sample x D' k, hl, hd, ρ, st, pol =>
       fun i => ProgramBehavioralStrategyPMF.sample (reflectPolicyAuxV B k hl hd.2 _ _ pol i)
   | Γ, .commit (b := b) x who R k, hl, hd, ρ, st, pol =>
-      letI := B.fintypePlayer
       let st_final := MAIDCompileState.ofProg B (.commit x who R k) hl hd ρ st
       let id := st.nextId
       let obs := st.viewDeps who Γ
@@ -298,7 +292,7 @@ noncomputable def reflectPolicyAuxV
       let kernel : ProgramBehavioralKernelPMF who Γ b :=
         { run := by
             intro view
-            let forwardMap (cfg : MAID.Cfg (fp := B.fintypePlayer) st_final.toStruct
+            let forwardMap (cfg : MAID.Cfg st_final.toStruct
                 (st_final.toStruct.obsParents ⟨id, hid_lt⟩)) :=
               projectViewEnv who (VEnv.eraseEnv (ρ (st_final.rawEnvOfCfg cfg)))
             by_cases h : ∃ cfg, forwardMap cfg = view
@@ -319,7 +313,7 @@ noncomputable def reflectPolicyV
     (hl : Legal p) (hd : NormalizedDists p)
     (hfresh : FreshBindings p)
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
-    (pol : Policy (fp := B.fintypePlayer)
+    (pol : Policy
       (compiledStruct B p env hl hd hfresh hpub)) :
     ProgramBehavioralProfilePMF p :=
   reflectPolicyAuxV B p hl hd (fun _ => env) .empty pol
@@ -334,10 +328,10 @@ noncomputable def compilePureProfileAuxV
     (ρ : RawNodeEnv L → VEnv (Player := Player) L Γ) →
     (st₀ : MAIDCompileState Player L B) →
     ProgramPureProfile (P := Player) (L := L) p →
-    MAID.PurePolicy (fp := B.fintypePlayer)
+    MAID.PurePolicy
       (MAIDCompileState.ofProg B p hl hd ρ st₀).toStruct
   | _, .ret _, _, _, _, _, _ => by
-      letI := B.fintypePlayer; intro _p ⟨d, _⟩
+      intro _p ⟨d, _⟩
       exact default
   | _, .letExpr (b := b) x e k, hl, hd, ρ, st, π =>
       compilePureProfileAuxV B k hl hd
@@ -346,7 +340,6 @@ noncomputable def compilePureProfileAuxV
   | _, .sample x D' k, hl, hd, ρ, st, π =>
       compilePureProfileAuxV B k hl hd.2 _ _ π
   | Γ, .commit (b := b) x who R k, hl, hd, ρ, st, π => by
-      letI := B.fintypePlayer
       let id := st.nextId
       let obs := st.viewDeps who Γ
       let acts := allValues B b
@@ -410,9 +403,8 @@ theorem compilePureProfileAuxV_player_indep
   | commit x who_commit R k ih =>
     intro hl hd ρ st π₁ π₂ who h
     rename_i Γ' b
-    letI := B.fintypePlayer
     change (compilePureProfileAuxV B (.commit x who_commit R k) hl hd ρ st π₁) who =
-           (compilePureProfileAuxV B (.commit x who_commit R k) hl hd ρ st π₂) who
+       (compilePureProfileAuxV B (.commit x who_commit R k) hl hd ρ st π₂) who
     simp only [compilePureProfileAuxV]
     funext ⟨d, cfg⟩; dsimp only
     split
@@ -470,7 +462,7 @@ noncomputable def compilePureProfileV
     (hfresh : FreshBindings p)
     (hpub : ∀ y who b, VHasVar (L := L) Γ y (.hidden who b) → False)
     (π : ProgramPureProfile (P := Player) (L := L) p) :
-    PurePolicy (fp := B.fintypePlayer)
+    PurePolicy
       (compiledStruct B p env hl hd hfresh hpub) :=
   compilePureProfileAuxV B p hl hd (fun _ => env) .empty π
 
@@ -558,12 +550,12 @@ theorem InsensitiveTo.eq_of_agree_off_list [Nonempty (RawTaggedVal L)]
 /-- rawOfTAssign update at a node with known tagged value = extend. -/
 theorem rawOfTAssign_updateAssign_of_tagged
     (st : MAIDCompileState Player L B)
-    (a : TAssign (fp := B.fintypePlayer) st.toStruct)
+    (a : TAssign st.toStruct)
     (nd : Fin st.nextId)
-    (v : Struct.Val (fp := B.fintypePlayer) st.toStruct nd)
+    (v : Struct.Val st.toStruct nd)
     (tv : RawTaggedVal L)
     (htag : MAIDCompileState.taggedOfVal (st.descAt nd) v = some tv) :
-    rawOfTAssign st (updateAssign (fp := B.fintypePlayer) a nd v) =
+    rawOfTAssign st (updateAssign a nd v) =
       (rawOfTAssign st a).extend nd.val tv := by
   funext i
   by_cases hi : i < st.nextId
@@ -579,7 +571,7 @@ theorem rawOfTAssign_updateAssign_of_tagged
 theorem rawEnvOfCfg_not_mem
     (st : MAIDCompileState Player L B)
     {ps : Finset (Fin st.nextId)}
-    (cfg : Cfg (fp := B.fintypePlayer) st.toStruct ps)
+    (cfg : Cfg st.toStruct ps)
     (i : Nat) (hi : i < st.nextId)
     (hmem : (⟨i, hi⟩ : Fin st.nextId) ∉ ps) :
     st.rawEnvOfCfg cfg i = none := by
@@ -589,7 +581,7 @@ theorem rawEnvOfCfg_not_mem
 theorem rawEnvOfCfg_ge_nextId
     (st : MAIDCompileState Player L B)
     {ps : Finset (Fin st.nextId)}
-    (cfg : Cfg (fp := B.fintypePlayer) st.toStruct ps)
+    (cfg : Cfg st.toStruct ps)
     (i : Nat) (hi : ¬(i < st.nextId)) :
     st.rawEnvOfCfg cfg i = none := by
   simp [MAIDCompileState.rawEnvOfCfg, hi]
@@ -597,11 +589,11 @@ theorem rawEnvOfCfg_ge_nextId
 /-- rawEnvOfCfg of projCfg selects from rawOfTAssign at deps. -/
 theorem rawEnvOfCfg_proj_eq_select
     (st : MAIDCompileState Player L B)
-    (a : TAssign (fp := B.fintypePlayer) st.toStruct)
+    (a : TAssign st.toStruct)
     (ps : Finset (Fin st.nextId))
     (deps : Finset Nat)
     (hps : ∀ i (hi : i < st.nextId), ((⟨i, hi⟩ : Fin st.nextId) ∈ ps ↔ i ∈ deps)) :
-    st.rawEnvOfCfg (projCfg (fp := B.fintypePlayer) a ps) =
+    st.rawEnvOfCfg (projCfg a ps) =
       fun i => if i < st.nextId then
         if i ∈ deps then rawOfTAssign st a i else none else none := by
   funext i
@@ -619,7 +611,7 @@ theorem eq_on_ctxDeps_rawOfTAssign
     (st : MAIDCompileState Player L B)
     {deps : Finset Nat} {f : RawNodeEnv L → α}
     (hf : ∀ j, j ∉ deps → InsensitiveTo f j)
-    (a : TAssign (fp := B.fintypePlayer) st.toStruct) :
+    (a : TAssign st.toStruct) :
     let rawSel : RawNodeEnv L := fun i =>
       if i < st.nextId then
         if i ∈ deps then rawOfTAssign st a i else none else none
@@ -657,10 +649,9 @@ theorem taggedOfVal_injective {c : CompiledNode Player L B}
 theorem rawEnvOfCfg_injective
     (st : MAIDCompileState Player L B)
     {ps : Finset (Fin st.nextId)}
-    (cfg₁ cfg₂ : Cfg (fp := B.fintypePlayer) st.toStruct ps)
+    (cfg₁ cfg₂ : Cfg st.toStruct ps)
     (h : st.rawEnvOfCfg cfg₁ = st.rawEnvOfCfg cfg₂) :
     cfg₁ = cfg₂ := by
-  letI := B.fintypePlayer
   funext ⟨nd, hmem⟩
   have hi := nd.isLt
   have := congr_fun h nd.val
@@ -695,10 +686,10 @@ theorem taggedOfVal_decision_cast
 /-- Updating a total assignment at a utility node doesn't change `rawOfTAssign`. -/
 theorem rawOfTAssign_updateAssign_utility
     (st : MAIDCompileState Player L B)
-    (a : TAssign (fp := B.fintypePlayer) st.toStruct)
-    (nd : Fin st.nextId) (v : Struct.Val (fp := B.fintypePlayer) st.toStruct nd)
+    (a : TAssign st.toStruct)
+    (nd : Fin st.nextId) (v : Struct.Val st.toStruct nd)
     (hwho : ∃ who, (st.descAt nd).kind = .utility who) :
-    rawOfTAssign st (updateAssign (fp := B.fintypePlayer) a nd v) = rawOfTAssign st a := by
+    rawOfTAssign st (updateAssign a nd v) = rawOfTAssign st a := by
   have taggedOfVal_utility : ∀ (c : CompiledNode Player L B)
       (_ : ∃ who, c.kind = .utility who) (v₁ v₂ : CompiledNode.valType c),
       MAIDCompileState.taggedOfVal c v₁ = MAIDCompileState.taggedOfVal c v₂ := by
@@ -717,8 +708,7 @@ theorem rawOfTAssign_updateAssign_utility
 
 /-- The compiled structure has natural order (parents have lower indices). -/
 theorem compiled_naturalOrderV (st : MAIDCompileState Player L B) :
-    Struct.NaturalOrder (fp := B.fintypePlayer) st.toStruct := by
-  letI : Fintype Player := B.fintypePlayer
+    Struct.NaturalOrder st.toStruct := by
   intro nd p hp
   rcases Finset.mem_image.mp hp with ⟨d, hd, rfl⟩
   exact st.descAt_parent_lt nd d.2
@@ -1104,12 +1094,11 @@ open MAID in
 theorem rawEnvOfCfg_rawsMatchDescAt
     {st st₀ : MAIDCompileState Player L B}
     {ps : Finset (Fin st.nextId)}
-    (cfg₁ cfg₂ : Cfg (fp := B.fintypePlayer) st.toStruct ps)
+    (cfg₁ cfg₂ : Cfg st.toStruct ps)
     {i : Nat} (hilt : i < st.nextId) (hi₀ : i < st₀.nextId)
     (hmem : (⟨i, hilt⟩ : Fin st.nextId) ∈ ps)
     (hdesc : st.descAt ⟨i, hilt⟩ = st₀.descAt ⟨i, hi₀⟩) :
     RawsMatchDescAt st₀ (st.rawEnvOfCfg cfg₁) (st.rawEnvOfCfg cfg₂) i hi₀ := by
-  letI := B.fintypePlayer
   suffices ∀ (nd : CompiledNode Player L B) (v₁ v₂ : CompiledNode.valType nd)
       (hraw₁ : st.rawEnvOfCfg cfg₁ i = MAIDCompileState.taggedOfVal nd v₁)
       (hraw₂ : st.rawEnvOfCfg cfg₂ i = MAIDCompileState.taggedOfVal nd v₂)

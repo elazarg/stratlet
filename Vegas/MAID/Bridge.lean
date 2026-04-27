@@ -14,7 +14,7 @@ namespace Vegas
 
 open MAID
 
-variable {Player : Type} [DecidableEq Player] {L : IExpr} {B : MAIDBackend Player L}
+variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr} {B : MAIDBackend Player L}
 
 private theorem cast_PMF_pure {α β : Type} (h₁ : PMF α = PMF β) (h₂ : α = β) (x : α) :
     cast h₁ (PMF.pure x) = PMF.pure (cast h₂ x) := by
@@ -108,7 +108,7 @@ private theorem compilePureProfileV_eq_pureToPolicy_aux
     (st₀ : MAIDCompileState Player L B)
     (π : ProgramPureProfile p) :
     translateStrategyV B p hl hd ρ st₀ (ProgramPureProfile.toBehavioral p π) =
-      MAID.pureToPolicy (fp := B.fintypePlayer) (compilePureProfileAuxV B p hl hd ρ st₀ π) := by
+      MAID.pureToPolicy (compilePureProfileAuxV B p hl hd ρ st₀ π) := by
   induction p generalizing st₀ with
   | ret =>
       funext player ⟨d, cfg⟩
@@ -145,7 +145,7 @@ private theorem compilePureProfileV_eq_pureToPolicy
     (π : ProgramPureProfile p) :
     let β := ProgramPureProfile.toBehavioral p π
     compiledPolicyV B p env hl hd hfresh hpub β =
-      MAID.pureToPolicy (fp := B.fintypePlayer)
+      MAID.pureToPolicy
         (compilePureProfileV B p env hl hd hfresh hpub π) := by
   intro β
   exact compilePureProfileV_eq_pureToPolicy_aux B p hl hd hfresh (fun _ => env) .empty π
@@ -230,14 +230,14 @@ private structure BridgeInv
   fold_eq :
     ∀ (_hρ_readers : ViewDeterminesRaw st₀ Γ ρ)
       (_hρ_readval : EnvReadValAtDeps st₀ Γ ρ)
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (bridgeStruct B p hl hd ρ st₀))
-      (a₀ : TAssign (fp := B.fintypePlayer) (bridgeStruct B p hl hd ρ st₀)),
+      (a₀ : TAssign (bridgeStruct B p hl hd ρ st₀)),
       PMF.map (fun a =>
           extractOutcomeAux B p ρ st₀.nextId
             (rawOfTAssign (bridgeState B p hl hd ρ st₀) a))
         ((List.finRange (bridgeState B p hl hd ρ st₀).nextId).drop st₀.nextId |>.foldl
-          (evalStep (fp := B.fintypePlayer)
+          (evalStep
             (bridgeStruct B p hl hd ρ st₀)
             (MAIDCompileState.toSem (bridgeState B p hl hd ρ st₀)) pol)
           (PMF.pure a₀)) =
@@ -247,11 +247,11 @@ private structure BridgeInv
         (rawOfTAssign (bridgeState B p hl hd ρ st₀) a₀)
   behavioral_eq :
     ∀ (β : ProgramBehavioralProfile p)
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (bridgeStruct B p hl hd ρ st₀))
       (env : VEnv L Γ),
       (∀ (who : Player)
-          (I : MAID.Infoset (fp := B.fintypePlayer)
+          (I : MAID.Infoset
             (bridgeStruct B p hl hd ρ st₀) who),
         I.1.1.val ≥ st₀.nextId →
         pol who I = translateStrategyV B p hl hd ρ st₀ β who I) →
@@ -283,16 +283,16 @@ private theorem bridgeInv_ret_fold
     (st₀ : MAIDCompileState Player L B) :
     ∀ (_hρ_readers : ViewDeterminesRaw st₀ Γ ρ)
       (_hρ_readval : EnvReadValAtDeps st₀ Γ ρ)
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (bridgeStruct B (.ret u) hl hd ρ st₀))
-      (a₀ : TAssign (fp := B.fintypePlayer)
+      (a₀ : TAssign
         (bridgeStruct B (.ret u) hl hd ρ st₀)),
       PMF.map (fun a =>
           extractOutcomeAux B (.ret u) ρ st₀.nextId
             (rawOfTAssign (bridgeState B (.ret u) hl hd ρ st₀) a))
         (((List.finRange (bridgeState B (.ret u) hl hd ρ st₀).nextId).drop st₀.nextId)
           |>.foldl
-            (evalStep (fp := B.fintypePlayer)
+            (evalStep
               (bridgeStruct B (.ret u) hl hd ρ st₀)
               (MAIDCompileState.toSem (bridgeState B (.ret u) hl hd ρ st₀)) pol)
             (PMF.pure a₀)) =
@@ -300,7 +300,6 @@ private theorem bridgeInv_ret_fold
         (reflectPolicyAuxV B (.ret u) hl hd ρ st₀ pol)
         ρ st₀.nextId
         (rawOfTAssign (bridgeState B (.ret u) hl hd ρ st₀) a₀) := by
-  letI := B.fintypePlayer
   intro _hρ_readers _hρ_readval pol a₀
   let st := bridgeState B (.ret u) hl hd ρ st₀
   let extract := fun a => extractOutcomeAux B (.ret u) ρ st₀.nextId (rawOfTAssign st a)
@@ -371,11 +370,11 @@ private theorem bridgeInv_ret_behavioral
     (ρ : RawNodeEnv L → VEnv L Γ)
     (st₀ : MAIDCompileState Player L B) :
     ∀ (β : ProgramBehavioralProfile (.ret u))
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (bridgeStruct B (.ret u) hl hd ρ st₀))
       (env : VEnv L Γ),
       (∀ (who : Player)
-          (I : MAID.Infoset (fp := B.fintypePlayer)
+          (I : MAID.Infoset
             (bridgeStruct B (.ret u) hl hd ρ st₀) who),
         I.1.1.val ≥ st₀.nextId →
         pol who I = translateStrategyV B (.ret u) hl hd ρ st₀ β who I) →
@@ -384,7 +383,6 @@ private theorem bridgeInv_ret_behavioral
         (reflectPolicyAuxV B (.ret u) hl hd ρ st₀ pol) env =
       outcomeDistBehavioralPMF (.ret u) hd
         (ProgramBehavioralProfile.toPMFProfile (.ret u) β) env := by
-  letI := B.fintypePlayer
   intro β pol env hpol hraw
   rfl
 
@@ -420,16 +418,16 @@ private theorem bridgeInv_letExpr_fold
     (hnodup : (Γ'.map Prod.fst).Nodup) :
     ∀ (_hρ_readers : ViewDeterminesRaw st₀ Γ' ρ)
       (_hρ_readval : EnvReadValAtDeps st₀ Γ' ρ)
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (MAIDCompileState.ofProg B (.letExpr x e k) hl hd ρ st₀).toStruct)
-      (a₀ : TAssign (fp := B.fintypePlayer)
+      (a₀ : TAssign
         (MAIDCompileState.ofProg B (.letExpr x e k) hl hd ρ st₀).toStruct),
       PMF.map (fun a =>
           extractOutcomeAux B (.letExpr x e k) ρ st₀.nextId
             (rawOfTAssign (MAIDCompileState.ofProg B (.letExpr x e k) hl hd ρ st₀) a))
         (((List.finRange (MAIDCompileState.ofProg B (.letExpr x e k) hl hd ρ st₀).nextId).drop
           st₀.nextId) |>.foldl
-            (evalStep (fp := B.fintypePlayer)
+            (evalStep
               (MAIDCompileState.ofProg B (.letExpr x e k) hl hd ρ st₀).toStruct
               (MAIDCompileState.toSem (MAIDCompileState.ofProg B (.letExpr x e k) hl hd ρ st₀)) pol)
             (PMF.pure a₀)) =
@@ -437,7 +435,6 @@ private theorem bridgeInv_letExpr_fold
         (reflectPolicyAuxV B (.letExpr x e k) hl hd ρ st₀ pol)
         ρ st₀.nextId
         (rawOfTAssign (MAIDCompileState.ofProg B (.letExpr x e k) hl hd ρ st₀) a₀) := by
-  letI := B.fintypePlayer
   intro hρ_readers hρ_readval pol a₀
   have hxΓ : Fresh x Γ' := hfresh.1
   have hxvars : x ∉ st₀.vars.map Prod.fst := fun hxmem => hxΓ (hvars x hxmem)
@@ -522,11 +519,11 @@ private theorem bridgeInv_letExpr_behavioral
     (hρ_var : EnvRespectsLookupDeps st₀ ρ)
     (hnodup : (Γ'.map Prod.fst).Nodup) :
     ∀ (β : ProgramBehavioralProfile (.letExpr x e k))
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (MAIDCompileState.ofProg B (.letExpr x e k) hl hd ρ st₀).toStruct)
       (env : VEnv L Γ'),
       (∀ (who : Player)
-          (I : MAID.Infoset (fp := B.fintypePlayer)
+          (I : MAID.Infoset
             (MAIDCompileState.ofProg B (.letExpr x e k) hl hd ρ st₀).toStruct who),
         I.1.1.val ≥ st₀.nextId →
         pol who I = translateStrategyV B (.letExpr x e k) hl hd ρ st₀ β who I) →
@@ -535,7 +532,6 @@ private theorem bridgeInv_letExpr_behavioral
         (reflectPolicyAuxV B (.letExpr x e k) hl hd ρ st₀ pol) env =
       outcomeDistBehavioralPMF (.letExpr x e k) hd
         (ProgramBehavioralProfile.toPMFProfile (.letExpr x e k) β) env := by
-  letI := B.fintypePlayer
   intro β pol env hpol ⟨raw₀, hraw₀, hraw_typed, hraw_hi⟩
   have hxΓ : Fresh x _ := hfresh.1
   exact (ih hl hd hfresh.2 _ _
@@ -586,16 +582,16 @@ private theorem bridgeInv_reveal_fold
     (hnodup : (Γ'.map Prod.fst).Nodup) :
     ∀ (_hρ_readers : ViewDeterminesRaw st₀ Γ' ρ)
       (_hρ_readval : EnvReadValAtDeps st₀ Γ' ρ)
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (MAIDCompileState.ofProg B (.reveal y who x hx k) hl hd ρ st₀).toStruct)
-      (a₀ : TAssign (fp := B.fintypePlayer)
+      (a₀ : TAssign
         (MAIDCompileState.ofProg B (.reveal y who x hx k) hl hd ρ st₀).toStruct),
       PMF.map (fun a =>
           extractOutcomeAux B (.reveal y who x hx k) ρ st₀.nextId
             (rawOfTAssign (MAIDCompileState.ofProg B (.reveal y who x hx k) hl hd ρ st₀) a))
         (((List.finRange (MAIDCompileState.ofProg B (.reveal y who x hx k) hl hd ρ st₀).nextId).drop
           st₀.nextId) |>.foldl
-            (evalStep (fp := B.fintypePlayer)
+            (evalStep
               (MAIDCompileState.ofProg B (.reveal y who x hx k) hl hd ρ st₀).toStruct
               (MAIDCompileState.toSem
                 (MAIDCompileState.ofProg B (.reveal y who x hx k) hl hd ρ st₀)) pol)
@@ -604,7 +600,6 @@ private theorem bridgeInv_reveal_fold
         (reflectPolicyAuxV B (.reveal y who x hx k) hl hd ρ st₀ pol)
         ρ st₀.nextId
         (rawOfTAssign (MAIDCompileState.ofProg B (.reveal y who x hx k) hl hd ρ st₀) a₀) := by
-  letI := B.fintypePlayer
   intro hρ_readers hρ_readval pol a₀
   have hyΓ : Fresh y Γ' := hfresh.1
   have hyvars : y ∉ st₀.vars.map Prod.fst := fun hymem => hyΓ (hvars y hymem)
@@ -720,11 +715,11 @@ private theorem bridgeInv_reveal_behavioral
     (hρ_var : EnvRespectsLookupDeps st₀ ρ)
     (hnodup : (Γ'.map Prod.fst).Nodup) :
     ∀ (β : ProgramBehavioralProfile (.reveal y who x hx k))
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (MAIDCompileState.ofProg B (.reveal y who x hx k) hl hd ρ st₀).toStruct)
       (env : VEnv L Γ'),
       (∀ (who' : Player)
-          (I : MAID.Infoset (fp := B.fintypePlayer)
+          (I : MAID.Infoset
             (MAIDCompileState.ofProg B (.reveal y who x hx k) hl hd ρ st₀).toStruct who'),
         I.1.1.val ≥ st₀.nextId →
         pol who' I = translateStrategyV B (.reveal y who x hx k) hl hd ρ st₀ β who' I) →
@@ -733,7 +728,6 @@ private theorem bridgeInv_reveal_behavioral
         (reflectPolicyAuxV B (.reveal y who x hx k) hl hd ρ st₀ pol) env =
       outcomeDistBehavioralPMF (.reveal y who x hx k) hd
         (ProgramBehavioralProfile.toPMFProfile (.reveal y who x hx k) β) env := by
-  letI := B.fintypePlayer
   intro β pol env hpol ⟨raw₀, hraw₀, hraw_typed, hraw_hi⟩
   simp only [outcomeDistBehavioralPMF, reflectPolicyAuxV,
     ProgramBehavioralProfile.toPMFProfile]
@@ -786,9 +780,9 @@ private theorem bridgeInv_sample_fold
     (hnodup : (Γ'.map Prod.fst).Nodup) :
     ∀ (_hρ_readers : ViewDeterminesRaw st₀ Γ' ρ)
       (_hρ_readval : EnvReadValAtDeps st₀ Γ' ρ)
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (MAIDCompileState.ofProg B (.sample x D' k) hl hd ρ st₀).toStruct)
-      (a₀ : TAssign (fp := B.fintypePlayer)
+      (a₀ : TAssign
         (MAIDCompileState.ofProg B (.sample x D' k) hl hd ρ st₀).toStruct),
       PMF.map (fun a =>
           extractOutcomeAux B (.sample x D' k) ρ st₀.nextId
@@ -796,7 +790,7 @@ private theorem bridgeInv_sample_fold
         (((List.finRange
             (MAIDCompileState.ofProg B (.sample x D' k) hl hd ρ st₀).nextId).drop
           st₀.nextId) |>.foldl
-            (evalStep (fp := B.fintypePlayer)
+            (evalStep
               (MAIDCompileState.ofProg B (.sample x D' k) hl hd ρ st₀).toStruct
               (MAIDCompileState.toSem
                 (MAIDCompileState.ofProg B (.sample x D' k) hl hd ρ st₀)) pol)
@@ -805,7 +799,6 @@ private theorem bridgeInv_sample_fold
         (reflectPolicyAuxV B (.sample x D' k) hl hd ρ st₀ pol)
         ρ st₀.nextId
         (rawOfTAssign (MAIDCompileState.ofProg B (.sample x D' k) hl hd ρ st₀) a₀) := by
-  letI := B.fintypePlayer
   intro hρ_readers hρ_readval pol a₀
   have hxΓ : Fresh x Γ' := hfresh.1
   have hxvars : x ∉ st₀.vars.map Prod.fst := fun hxmem => hxΓ (hvars x hxmem)
@@ -1053,11 +1046,11 @@ private theorem bridgeInv_sample_behavioral
     (hρ_var : EnvRespectsLookupDeps st₀ ρ)
     (hnodup : (Γ'.map Prod.fst).Nodup) :
     ∀ (β : ProgramBehavioralProfile (.sample x D' k))
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (MAIDCompileState.ofProg B (.sample x D' k) hl hd ρ st₀).toStruct)
       (env : VEnv L Γ'),
       (∀ (who : Player)
-          (I : MAID.Infoset (fp := B.fintypePlayer)
+          (I : MAID.Infoset
             (MAIDCompileState.ofProg B (.sample x D' k) hl hd ρ st₀).toStruct who),
         I.1.1.val ≥ st₀.nextId →
         pol who I = translateStrategyV B (.sample x D' k) hl hd ρ st₀ β who I) →
@@ -1066,7 +1059,6 @@ private theorem bridgeInv_sample_behavioral
         (reflectPolicyAuxV B (.sample x D' k) hl hd ρ st₀ pol) env =
       outcomeDistBehavioralPMF (.sample x D' k) hd
         (ProgramBehavioralProfile.toPMFProfile (.sample x D' k) β) env := by
-  letI := B.fintypePlayer
   intro β pol env hpol ⟨raw₀, hraw₀, hraw_typed, hraw_hi⟩
   simp only [outcomeDistBehavioralPMF]
   have hxΓ : Fresh x _ := hfresh.1
@@ -1144,9 +1136,9 @@ private theorem bridgeInv_commit_fold
     (hnodup : (Γ'.map Prod.fst).Nodup) :
     ∀ (_hρ_readers : ViewDeterminesRaw st₀ Γ' ρ)
       (_hρ_readval : EnvReadValAtDeps st₀ Γ' ρ)
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (MAIDCompileState.ofProg B (.commit x who_commit R k) hl hd ρ st₀).toStruct)
-      (a₀ : TAssign (fp := B.fintypePlayer)
+      (a₀ : TAssign
         (MAIDCompileState.ofProg B (.commit x who_commit R k) hl hd ρ st₀).toStruct),
       PMF.map (fun a =>
           extractOutcomeAux B (.commit x who_commit R k) ρ st₀.nextId
@@ -1154,7 +1146,7 @@ private theorem bridgeInv_commit_fold
         (((List.finRange
             (MAIDCompileState.ofProg B (.commit x who_commit R k) hl hd ρ st₀).nextId).drop
           st₀.nextId) |>.foldl
-            (evalStep (fp := B.fintypePlayer)
+            (evalStep
               (MAIDCompileState.ofProg B (.commit x who_commit R k) hl hd ρ st₀).toStruct
               (MAIDCompileState.toSem
                 (MAIDCompileState.ofProg B (.commit x who_commit R k) hl hd ρ st₀)) pol)
@@ -1163,7 +1155,6 @@ private theorem bridgeInv_commit_fold
         (reflectPolicyAuxV B (.commit x who_commit R k) hl hd ρ st₀ pol)
         ρ st₀.nextId
         (rawOfTAssign (MAIDCompileState.ofProg B (.commit x who_commit R k) hl hd ρ st₀) a₀) := by
-  letI := B.fintypePlayer
   intro hρ_readers hρ_readval pol a₀
   have hxΓ : Fresh x Γ' := hfresh.1
   have hxvars : x ∉ st₀.vars.map Prod.fst := fun hxmem => hxΓ (hvars x hxmem)
@@ -1546,13 +1537,11 @@ private theorem commit_cfg_view_exists_of_realizedRawEnv
     let nd0 : Fin st.nextId := ⟨st₀.nextId, by
       refine Nat.lt_of_lt_of_le ?_ (MAIDCompileState.ofProg_nextId_le B k hlk hdk ρ' st₁)
       simp [st₁, stNode, MAIDCompileState.addVar, MAIDCompileState.addNode]⟩
-    letI := B.fintypePlayer
-    ∃ cfg : MAID.Cfg st.toStruct (st.toStruct.obsParents nd0),
+        ∃ cfg : MAID.Cfg st.toStruct (st.toStruct.obsParents nd0),
       projectViewEnv who_commit
           (VEnv.eraseEnv (ρ (st.rawEnvOfCfg cfg))) =
         projectViewEnv who_commit
           (VEnv.eraseEnv env) := by
-  letI := B.fintypePlayer
   intro stNode st₁ ρ' st nd0
   have hdesc0 : st.descAt nd0 = nd := by
     have hdesc1 := MAIDCompileState.ofProg_descAt_old B k hlk hdk ρ' st₁ st₀.nextId
@@ -1565,7 +1554,7 @@ private theorem commit_cfg_view_exists_of_realizedRawEnv
     intro i hi
     rw [st.mem_toStruct_obsParents_iff nd0 hi]
     simp only [hdesc0, hnd, CompiledNode.obsParents]
-  let cfg : MAID.Cfg (fp := B.fintypePlayer) st.toStruct (st.toStruct.obsParents nd0) := by
+  let cfg : MAID.Cfg st.toStruct (st.toStruct.obsParents nd0) := by
     intro i
     have himem : i.1.val ∈ st₀.viewDeps who_commit Γ' := (hobs_mem i.1.val i.1.isLt).mp i.2
     have hi_old : i.1.val < st₀.nextId := st₀.depsOfVars_lt _ _ himem
@@ -1658,11 +1647,11 @@ private theorem bridgeInv_commit_behavioral
     (hρ_var : EnvRespectsLookupDeps st₀ ρ)
     (hnodup : (Γ'.map Prod.fst).Nodup) :
     ∀ (β : ProgramBehavioralProfile (.commit x who_commit R k))
-      (pol : Policy (fp := B.fintypePlayer)
+      (pol : Policy
         (MAIDCompileState.ofProg B (.commit x who_commit R k) hl hd ρ st₀).toStruct)
       (env : VEnv L Γ'),
       (∀ (who : Player)
-          (I : MAID.Infoset (fp := B.fintypePlayer)
+          (I : MAID.Infoset
             (MAIDCompileState.ofProg B (.commit x who_commit R k) hl hd ρ st₀).toStruct who),
         I.1.1.val ≥ st₀.nextId →
         pol who I = translateStrategyV B (.commit x who_commit R k) hl hd ρ st₀ β who I) →
@@ -1671,7 +1660,6 @@ private theorem bridgeInv_commit_behavioral
         (reflectPolicyAuxV B (.commit x who_commit R k) hl hd ρ st₀ pol) env =
       outcomeDistBehavioralPMF (.commit x who_commit R k) hd
         (ProgramBehavioralProfile.toPMFProfile (.commit x who_commit R k) β) env := by
-  letI := B.fintypePlayer
   intro β pol env hpol ⟨raw₀, hraw₀, hraw_typed, hraw_hi⟩
   apply Vegas.outcomeDistBehavioralPMF_commit_congr
   · simp only [reflectPolicyAuxV, ProgramBehavioralProfile.toPMFProfile, dif_pos rfl,
@@ -1763,7 +1751,7 @@ private theorem bridgeInv_commit_behavioral
       fun raw => VEnv.cons (τ := .hidden who_commit b)
         (MAIDCompileState.readVal (B := B) raw b st₀.nextId) (ρ raw)
     have hst₁_le : ∀ (who : Player)
-        (I : MAID.Infoset (fp := B.fintypePlayer)
+        (I : MAID.Infoset
           (MAIDCompileState.ofProg B k hl.2 hd ρ' st₁).toStruct who),
         I.1.1.val ≥ st₁.nextId →
         pol who I = translateStrategyV B k hl.2 hd ρ' st₁
@@ -1847,8 +1835,7 @@ private theorem bridgeInv
     (hρ_var : EnvRespectsLookupDeps st₀ ρ)
     (hnodup : (Γ.map Prod.fst).Nodup) :
     BridgeInv B p hl hd hfresh ρ st₀ hvars hρ_deps hρ_var hnodup := by
-  letI := B.fintypePlayer
-  induction p generalizing st₀ with
+    induction p generalizing st₀ with
   | ret u =>
       exact bridgeInv_ret B u hl hd hfresh ρ st₀ hvars hρ_deps hρ_var hnodup
   | letExpr x e k ih =>
@@ -1927,11 +1914,11 @@ private theorem pmfFoldBridgeV
     (hρ_readval : EnvReadValAtDeps st₀ Γ ρ)
     (hnodup : (Γ.map Prod.fst).Nodup) :
     let st := bridgeState B p hl hd ρ st₀
-    ∀ (pol : Policy (fp := B.fintypePlayer) st.toStruct)
-      (a₀ : TAssign (fp := B.fintypePlayer) st.toStruct),
+    ∀ (pol : Policy st.toStruct)
+      (a₀ : TAssign st.toStruct),
       PMF.map (fun a => extractOutcomeAux B p ρ st₀.nextId (rawOfTAssign st a))
         ((List.finRange st.nextId).drop st₀.nextId |>.foldl
-          (evalStep (fp := B.fintypePlayer) st.toStruct
+          (evalStep st.toStruct
             (MAIDCompileState.toSem st) pol) (PMF.pure a₀)) =
       nativeOutcomeDistPMFV B p hd
         (reflectPolicyAuxV B p hl hd ρ st₀ pol)
@@ -1950,9 +1937,9 @@ private theorem outcomeDistRoundtripV
     (st₀ : MAIDCompileState Player L B)
     (hvars : st₀.VarsSubCtx Γ)
     (β : ProgramBehavioralProfile p)
-    (pol : MAID.Policy (fp := B.fintypePlayer) (bridgeStruct B p hl hd ρ st₀))
+    (pol : MAID.Policy (bridgeStruct B p hl hd ρ st₀))
     (env : VEnv L Γ) :
-    (∀ (who : Player) (I : MAID.Infoset (fp := B.fintypePlayer)
+    (∀ (who : Player) (I : MAID.Infoset
       (bridgeStruct B p hl hd ρ st₀) who),
       I.1.1.val ≥ st₀.nextId →
       pol who I =
@@ -1980,15 +1967,14 @@ theorem vegasMAID_reverse_bridge
     (hfresh : FreshBindings p)
     (hpub : ∀ y who b, VHasVar Γ y (.hidden who b) → False)
     (hnodup : (Γ.map Prod.fst).Nodup)
-    (pol : Policy (fp := B.fintypePlayer) (compiledStruct B p env hl hd hfresh hpub)) :
+    (pol : Policy (compiledStruct B p env hl hd hfresh hpub)) :
     let S := compiledStruct B p env hl hd hfresh hpub
     let sem := vegasMAIDSem B p env hl hd hfresh hpub
     let σ := reflectPolicyV B p env hl hd hfresh hpub pol
     PMF.map (extractOutcomeV B p env hl hd hfresh hpub)
-      (frontierEval (fp := B.fintypePlayer) S sem pol) =
+      (frontierEval S sem pol) =
     outcomeDistBehavioralPMF p hd σ env := by
   intro S sem σ
-  letI := B.fintypePlayer
   rw [MAID.frontierEval_eq_evalAssignDist]
   let st := compiledState B p env hl hd
   have hnat := compiled_naturalOrderV st
@@ -2020,11 +2006,10 @@ theorem vegasMAID_behavioral_bridge
     (hnodup : (Γ.map Prod.fst).Nodup)
     (β : ProgramBehavioralProfile p) :
     PMF.map (extractOutcomeV B p env hl hd hfresh hpub)
-      (frontierEval (fp := B.fintypePlayer) (compiledStruct B p env hl hd hfresh hpub)
+      (frontierEval (compiledStruct B p env hl hd hfresh hpub)
         (vegasMAIDSem B p env hl hd hfresh hpub)
         (compiledPolicyV B p env hl hd hfresh hpub β)) =
     outcomeDistBehavioralPMF p hd (ProgramBehavioralProfile.toPMFProfile p β) env := by
-  letI := B.fintypePlayer
   have hrev := vegasMAID_reverse_bridge B p env hl hd hfresh hpub hnodup
     (compiledPolicyV B p env hl hd hfresh hpub β)
   rw [hrev]
@@ -2044,16 +2029,15 @@ theorem vegasMAID_pure_bridge
     (hnodup : (Γ.map Prod.fst).Nodup)
     (π : ProgramPureProfile p) :
     PMF.map (extractOutcomeV B p env hl hd hfresh hpub)
-      (frontierEval (fp := B.fintypePlayer)
+      (frontierEval
         (compiledStruct B p env hl hd hfresh hpub) (vegasMAIDSem B p env hl hd hfresh hpub)
-        (pureToPolicy (fp := B.fintypePlayer)
+        (pureToPolicy
           (compilePureProfileV B p env hl hd hfresh hpub π))) =
     (outcomeDistPure p π env).toPMF (outcomeDistPure_totalWeight_eq_one hd) := by
-  letI := B.fintypePlayer
   let β : ProgramBehavioralProfile p :=
     ProgramPureProfile.toBehavioral p π
   have hpol :
-      pureToPolicy (fp := B.fintypePlayer) (compilePureProfileV B p env hl hd hfresh hpub π) =
+      pureToPolicy (compilePureProfileV B p env hl hd hfresh hpub π) =
         compiledPolicyV B p env hl hd hfresh hpub β := by
     simpa [compiledPolicyV, β] using
       (compilePureProfileV_eq_pureToPolicy B p env hl hd hfresh hpub π).symm

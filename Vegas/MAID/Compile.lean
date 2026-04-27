@@ -26,7 +26,7 @@ namespace Vegas
 
 open MAID
 
-variable {Player : Type} [DecidableEq Player] {L : IExpr}
+variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
 
 /-- Untyped payload used to reconstruct Vegas environments from MAID parent
 configurations. -/
@@ -37,7 +37,7 @@ abbrev RawNodeEnv (L : IExpr) : Type := Nat → Option (RawTaggedVal L)
 
 /-- A fully-typed emitted MAID node. This is the compiler's single source of
 truth for both `MAID.Struct` and `MAID.Sem`. -/
-inductive CompiledNode (Player : Type) [DecidableEq Player] (L : IExpr)
+inductive CompiledNode (Player : Type) [DecidableEq Player] [Fintype Player] (L : IExpr)
     (B : MAIDBackend Player L)
     where
   | chance (τ : L.Ty) (parents : Finset Nat)
@@ -109,7 +109,7 @@ theorem nonutility_pos (nd : CompiledNode Player L B)
     0 < nd.domainSize := by
   cases nd with
   | chance τ ps cpd hn =>
-      simpa [domainSize] using B.domainSize_pos τ
+      simpa [domainSize] using MAIDBackend.domainSize_pos B τ
   | decision τ who acts hacts hnodup ps =>
       exact List.length_pos_iff.mpr hacts
   | utility who ps ufn =>
@@ -144,7 +144,7 @@ abbrev MAIDVarEntry (Player : Type) (L : IExpr) :=
   VarId × BindTy Player L × Finset Nat
 
 /-- Internal state for direct Vegas-to-MAID compilation. -/
-structure MAIDCompileState (Player : Type) [DecidableEq Player] (L : IExpr)
+structure MAIDCompileState (Player : Type) [DecidableEq Player] [Fintype Player] (L : IExpr)
     (B : MAIDBackend Player L)
     where
   nextId : Nat
@@ -158,8 +158,6 @@ structure MAIDCompileState (Player : Type) [DecidableEq Player] (L : IExpr)
 namespace MAIDCompileState
 
 variable {B : MAIDBackend Player L}
-
-local instance : Fintype Player := B.fintypePlayer
 
 def empty : MAIDCompileState Player L B where
   nextId := 0
@@ -176,7 +174,7 @@ def lookupDepsAux : List (MAIDVarEntry Player L) → VarId → Finset Nat
 def lookupDeps (st : MAIDCompileState Player L B) (x : VarId) : Finset Nat :=
   lookupDepsAux st.vars x
 
-omit [DecidableEq Player] in
+omit [DecidableEq Player] [Fintype Player] in
 theorem lookupDepsAux_lt {vars : List (MAIDVarEntry Player L)} {n : Nat}
     (hvars : ∀ e ∈ vars, ∀ d ∈ e.2.2, d < n) (x : VarId) :
     ∀ d ∈ lookupDepsAux vars x, d < n := by
@@ -352,7 +350,6 @@ noncomputable def ofProg
       MAIDCompileState Player L B →
       MAIDCompileState Player L B
   | Γ, .ret payoffs, _hl, _hd, ρ, st =>
-      let _ : Fintype Player := B.fintypePlayer
       st.addUtilityNodes
         (st.ctxDeps Γ)
         (st.depsOfVars_lt _)
@@ -451,8 +448,7 @@ noncomputable instance (nd : CompiledNode Player L B) :
   | utility _ _ _ => exact ⟨()⟩
 
 noncomputable def toStruct (st : MAIDCompileState Player L B) :
-    @MAID.Struct Player _ B.fintypePlayer st.nextId :=
-  letI := B.fintypePlayer
+    MAID.Struct Player st.nextId :=
   { kind := fun nd => (st.descAt nd).kind
     parents := fun nd =>
       (st.descAt nd).parents.attach.image
@@ -504,9 +500,8 @@ noncomputable def taggedOfVal :
 
 noncomputable def rawEnvOfCfg (st : MAIDCompileState Player L B)
     {ps : Finset (Fin st.nextId)}
-    (cfg : @Cfg Player _ B.fintypePlayer st.nextId st.toStruct ps) :
+    (cfg : Cfg st.toStruct ps) :
     RawNodeEnv L :=
-  let _ : Fintype Player := B.fintypePlayer
   fun i =>
   if hi : i < st.nextId then
     let nd : Fin st.nextId := ⟨i, hi⟩
@@ -518,8 +513,7 @@ noncomputable def rawEnvOfCfg (st : MAIDCompileState Player L B)
     none
 
 noncomputable def toSem (st : MAIDCompileState Player L B) :
-    @MAID.Sem Player _ B.fintypePlayer st.nextId st.toStruct := by
-  let _ : Fintype Player := B.fintypePlayer
+    MAID.Sem st.toStruct := by
   exact show MAID.Sem st.toStruct from
     { chanceCPD := by
         intro c cfg
@@ -549,8 +543,7 @@ noncomputable def toMAID
     (p : VegasCore Player L Γ) (env : VEnv (Player := Player) L Γ)
     (hl : Legal p)
     (hd : NormalizedDists (P := Player) (L := L) p) :
-    Σ n, Σ S : @MAID.Struct Player _ B.fintypePlayer n, @MAID.Sem Player _ B.fintypePlayer n S := by
-  let _ : Fintype Player := B.fintypePlayer
+    Σ n, Σ S : MAID.Struct Player n, MAID.Sem S := by
   let st := MAIDCompileState.ofProg B p hl hd (fun _ => env) .empty
   exact ⟨st.nextId, st.toStruct, MAIDCompileState.toSem st⟩
 
@@ -603,7 +596,6 @@ noncomputable def computeReveals (B : MAIDBackend Player L) :
     VegasCore Player L Γ →
     RevealState → RevealState
   | _, .ret _, rs =>
-      let _ := B.fintypePlayer
       (Finset.univ (α := Player)).toList.foldl (fun rs' _ => rs'.addPublicNode) rs
   | _, .letExpr _ _ k, rs =>
       computeReveals B k rs
@@ -652,8 +644,7 @@ noncomputable def toVegasMAID
         rs.revealTime i ≤ ↑d.val ∨
           (∃ q, (st.descAt ⟨i, Nat.lt_trans (st.descAt_parent_lt d hi) d.2⟩).kind =
             .decision q ∧ q = p)) :
-    @VegasMAID Player _ B.fintypePlayer st.nextId := by
-  letI := B.fintypePlayer
+    VegasMAID Player st.nextId := by
   exact
   { kind := fun nd => (st.descAt nd).kind
     parents := fun nd =>
