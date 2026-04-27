@@ -333,6 +333,14 @@ def toAction {Γ : VCtx P L} {p : VegasCore P L Γ} {who : P}
     (a : ProgramAction (P := P) (L := L) p who) : Action (P := P) L who :=
   Sigma.mk (CommitCursor.ty a.cursor) a.value
 
+/-- Local decidable equality helper for program actions. Kept as an explicit
+definition rather than a global instance because it is classical over the
+dependent cursor proof shape. -/
+@[reducible] noncomputable def instDecidableEq
+    {Γ : VCtx P L} (p : VegasCore P L Γ) (who : P) :
+    DecidableEq (ProgramAction (P := P) (L := L) p who) :=
+  Classical.decEq _
+
 /-- Program-local actions are finite when the value types that occur in the
 language are finite. This avoids the stronger and usually wrong requirement
 that the global sigma alphabet `Action L who` be finite. -/
@@ -1081,6 +1089,19 @@ noncomputable def observedProgramFOSG (g : WFProgram P L) (hctx : WFCtx g.Γ) :
   nonterminal_exists_legal := by
     intro w hterm
     exact checked_nonterminal_exists_program_legal hterm
+
+/-- Per-player finite action helper for `observedProgramFOSG`. -/
+@[reducible] noncomputable def observedProgramFOSG.instFintypeAction
+    (g : WFProgram P L) (_hctx : WFCtx g.Γ) (LF : FiniteValuation L)
+    (who : P) :
+    Fintype (ProgramAction (P := P) (L := L) g.prog who) :=
+  ProgramAction.instFintype (P := P) (L := L) LF g.prog who
+
+/-- Per-player action equality helper for `observedProgramFOSG`. -/
+@[reducible] noncomputable def observedProgramFOSG.instDecidableEqAction
+    (g : WFProgram P L) (_hctx : WFCtx g.Γ) (who : P) :
+    DecidableEq (ProgramAction (P := P) (L := L) g.prog who) :=
+  ProgramAction.instDecidableEq (P := P) (L := L) g.prog who
 
 namespace Observed
 
