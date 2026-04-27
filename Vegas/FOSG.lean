@@ -781,6 +781,60 @@ def toSuffix
 
 end ProgramCursor
 
+/-! ## Cursor-based world data -/
+
+/-- Data-bearing world state keyed by a canonical finite program cursor. This
+is the finite-state carrier that should replace the older suffix-based
+`CheckedWorldData` once the FOSG target is migrated. -/
+structure CursorWorldData (g : WFProgram P L) where
+  cursor : ProgramCursor (P := P) (L := L) g.prog
+  env : VEnv L cursor.Γ
+
+namespace CursorWorldData
+
+def prog {g : WFProgram P L} (d : CursorWorldData (P := P) (L := L) g) :
+    VegasCore P L d.cursor.Γ :=
+  d.cursor.prog
+
+def suffix {g : WFProgram P L} (d : CursorWorldData (P := P) (L := L) g) :
+    ProgramSuffix g.prog d.prog :=
+  d.cursor.toSuffix
+
+/-- Local proof obligations for a cursor-keyed checked world. -/
+def Valid {g : WFProgram P L} (d : CursorWorldData (P := P) (L := L) g) : Prop :=
+  WFCtx d.cursor.Γ ∧ FreshBindings d.prog ∧ ViewScoped d.prog ∧
+    NormalizedDists d.prog ∧ Legal d.prog
+
+/-- Cursor-keyed world data is finite under finite value types. -/
+@[reducible] noncomputable def instFintype
+    (g : WFProgram P L) (LF : FiniteValuation L) :
+    Fintype (CursorWorldData (P := P) (L := L) g) := by
+  let _ : Fintype (ProgramCursor (P := P) (L := L) g.prog) :=
+    ProgramCursor.instFintype (P := P) (L := L) g.prog
+  have hEnv : ∀ c : ProgramCursor (P := P) (L := L) g.prog,
+      Fintype (VEnv L c.Γ) := fun c => VEnv.instFintype LF
+  let e :
+      CursorWorldData (P := P) (L := L) g ≃
+        Sigma (fun c : ProgramCursor (P := P) (L := L) g.prog =>
+          VEnv L c.Γ) :=
+    { toFun := fun d => ⟨d.cursor, d.env⟩
+      invFun := fun d => { cursor := d.1, env := d.2 }
+      left_inv := by
+        intro d
+        cases d
+        rfl
+      right_inv := by
+        intro d
+        cases d
+        rfl }
+  let _ : ∀ c : ProgramCursor (P := P) (L := L) g.prog,
+      Fintype (VEnv L c.Γ) := hEnv
+  exact Fintype.ofEquiv
+    (Sigma (fun c : ProgramCursor (P := P) (L := L) g.prog => VEnv L c.Γ))
+    e.symm
+
+end CursorWorldData
+
 /-! ## Program points
 
 `CheckedWorld` carries proof fields needed by the FOSG structure. For
