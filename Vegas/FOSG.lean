@@ -1475,6 +1475,19 @@ noncomputable def commitValueOfLegal
     L.Val b :=
   Classical.choose (commit_value_of_legal (L := L) ha)
 
+theorem commitValueOfLegal_proof_irrel
+    {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
+    {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+    {k : VegasCore P L ((x, .hidden who b) :: Γ)}
+    {env : VEnv L Γ} {a : JointAction P L}
+    (ha₁ ha₂ : JointActionLegal
+      ({ Γ := Γ, prog := VegasCore.commit x who R k, env := env } : World P L) a) :
+    commitValueOfLegal (P := P) (L := L) ha₁ =
+      commitValueOfLegal (P := P) (L := L) ha₂ := by
+  have hproof : ha₁ = ha₂ := Subsingleton.elim ha₁ ha₂
+  cases hproof
+  rfl
+
 theorem commitValueOfLegal_action
     {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
     {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
@@ -1844,6 +1857,102 @@ noncomputable def checkedTransition
               viewScoped := viewScoped
               normalized := normalized
               legal := legal }
+
+/-- At a concrete commit checked world, `checkedTransition` depends on the
+program-local joint action only through the active player's selected program
+action. This is the commit-side counterpart of the active-empty transition
+lemma. -/
+theorem checkedTransition_commit_eq_programActionContinuation
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
+    {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+    {k : VegasCore P L ((x, .hidden who b) :: Γ)}
+    (env : VEnv L Γ)
+    (suffix : ProgramSuffix (P := P) (L := L) g.prog (.commit x who R k))
+    (wctx : WFCtx Γ) (fresh : FreshBindings (.commit x who R k))
+    (viewScoped : ViewScoped (.commit x who R k))
+    (normalized : NormalizedDists (.commit x who R k))
+    (legal : Legal (.commit x who R k))
+    (a : ProgramJointAction (P := P) (L := L) g)
+    (ha : JointActionLegal
+      ({ Γ := Γ, prog := VegasCore.commit x who R k, env := env } : World P L)
+      (ProgramJointAction.toAction a)) :
+    checkedTransition (P := P) (L := L)
+      ({ Γ := Γ, prog := VegasCore.commit x who R k, env := env, suffix := suffix,
+         wctx := wctx, fresh := fresh, viewScoped := viewScoped,
+         normalized := normalized, legal := legal } : CheckedWorld g hctx)
+      ⟨ProgramJointAction.toAction a, by
+        simpa [CheckedJointActionLegal, checkedActive, checkedTerminal,
+          checkedAvailableActions, CheckedWorld.toWorld] using ha⟩ =
+    match a who with
+    | some ai =>
+        if hty : CommitCursor.ty ai.cursor = b then
+          PMF.pure
+            ({ Γ := _
+               prog := k
+               env := VEnv.cons (Player := P) (L := L) (x := x)
+                 (τ := .hidden who _) (hty ▸ ai.value) env
+               suffix := .commit suffix
+               wctx := WFCtx.cons fresh.1 wctx
+               fresh := fresh.2
+               viewScoped := viewScoped.2
+               normalized := normalized
+               legal := legal.2 } : CheckedWorld g hctx)
+        else
+          PMF.pure
+            ({ Γ := Γ, prog := VegasCore.commit x who R k, env := env, suffix := suffix,
+               wctx := wctx, fresh := fresh, viewScoped := viewScoped,
+               normalized := normalized, legal := legal } : CheckedWorld g hctx)
+    | none =>
+        PMF.pure
+          ({ Γ := Γ, prog := VegasCore.commit x who R k, env := env, suffix := suffix,
+             wctx := wctx, fresh := fresh, viewScoped := viewScoped,
+             normalized := normalized, legal := legal } : CheckedWorld g hctx) := by
+  cases hai : a who with
+  | none =>
+      have hlocal := ha.2 who
+      have hnone : ProgramJointAction.toAction a who = none := by
+        simp [ProgramJointAction.toAction, hai]
+      rw [hnone] at hlocal
+      have hmem :
+          who ∈ active
+            ({ Γ := Γ, prog := VegasCore.commit x who R k, env := env } :
+              World P L) := by
+        simp [active]
+      exact False.elim (hlocal hmem)
+  | some ai =>
+      dsimp only
+      by_cases hty : CommitCursor.ty ai.cursor = b
+      · rw [dif_pos hty]
+        simp only [checkedTransition]
+        rw [commitValueOfLegal_proof_irrel (P := P) (L := L) (ha₂ := ha)]
+        have hv := commitValueOfLegal_eq_programAction_value
+          (P := P) (L := L) (g := g) (Γ := Γ) (x := x) (who := who)
+          (b := b) (R := R) (k := k) (env := env) (a := a) ha hai hty
+        have henv :
+            VEnv.cons (Player := P) (L := L) (x := x) (τ := .hidden who _)
+                (commitValueOfLegal (P := P) (L := L) ha) env =
+              VEnv.cons (Player := P) (L := L) (x := x) (τ := .hidden who _)
+                (hty ▸ ai.value) env :=
+          VEnv.cons_ext hv.symm rfl
+        apply congrArg PMF.pure
+        congr
+        exact hv.symm
+      · rw [dif_neg hty]
+        simp only [checkedTransition]
+        exact False.elim (hty (by
+          -- The selected program action at `who` is the commit cursor.
+          have hlocal := ha.2 who
+          have hsome :
+              ProgramJointAction.toAction a who =
+                some (ProgramAction.toAction ai) := by
+            simp [ProgramJointAction.toAction, hai]
+          rw [hsome] at hlocal
+          have havail := hlocal.2
+          rcases (by
+              simpa [availableActions, ProgramAction.toAction] using havail) with
+            ⟨_v, htyv, _hguard⟩
+          exact htyv.1))
 
 /-- Cursor-recursive transition over the erased broad action alphabet.
 
@@ -3843,6 +3952,75 @@ theorem observedProgramLegalActionLaw_bind_checkedTransition_eq_checkedProfileSt
   apply checkedTransition_eq_checkedProfileStep_of_active_empty
   simpa [observedProgramFOSG, checkedActive, CheckedWorld.ofCursorChecked,
     CursorCheckedWorld.active] using hactive
+
+/-- If a player is active in the observed-program FOSG, the cursor endpoint is
+a commit node owned by that player, and all checked-world projections expose
+the same commit data. -/
+theorem observedProgram_active_mem_commitData
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (w : CursorCheckedWorld (P := P) (L := L) g)
+    {who : P}
+    (hmem : who ∈
+      (observedProgramFOSG (P := P) (L := L) g hctx).active w) :
+    ∃ (Γ : VCtx P L) (x : VarId) (b : L.Ty)
+      (R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool)
+      (k : VegasCore P L ((x, .hidden who b) :: Γ))
+      (env : VEnv L Γ)
+      (suffix : ProgramSuffix (P := P) (L := L) g.prog
+        (.commit x who R k))
+      (wctx : WFCtx Γ)
+      (fresh : FreshBindings (.commit x who R k))
+      (viewScoped : ViewScoped (.commit x who R k))
+      (normalized : NormalizedDists (.commit x who R k))
+      (legal : Legal (.commit x who R k)),
+      CheckedWorld.ofCursorChecked (P := P) (L := L) (hctx := hctx) w =
+        ({ Γ := Γ, prog := .commit x who R k, env := env, suffix := suffix,
+           wctx := wctx, fresh := fresh, viewScoped := viewScoped,
+           normalized := normalized, legal := legal } : CheckedWorld g hctx) ∧
+      w.toWorld =
+        ({ Γ := Γ, prog := .commit x who R k, env := env } : World P L) := by
+  cases w with
+  | mk data valid =>
+      cases data with
+      | mk cursor env =>
+          rcases valid with ⟨wctx, fresh, viewScoped, normalized, legal⟩
+          cases hprog : cursor.prog with
+          | ret payoffs =>
+              simp [observedProgramFOSG, CursorCheckedWorld.active,
+                CursorCheckedWorld.toWorld, CursorWorldData.prog, active,
+                hprog] at hmem
+          | letExpr x e k =>
+              simp [observedProgramFOSG, CursorCheckedWorld.active,
+                CursorCheckedWorld.toWorld, CursorWorldData.prog, active,
+                hprog] at hmem
+          | sample x D k =>
+              simp [observedProgramFOSG, CursorCheckedWorld.active,
+                CursorCheckedWorld.toWorld, CursorWorldData.prog, active,
+                hprog] at hmem
+          | reveal y owner x hx k =>
+              simp [observedProgramFOSG, CursorCheckedWorld.active,
+                CursorCheckedWorld.toWorld, CursorWorldData.prog, active,
+                hprog] at hmem
+          | commit x owner R k =>
+              have hwho : who = owner := by
+                simpa [observedProgramFOSG, CursorCheckedWorld.active,
+                  CursorCheckedWorld.toWorld, CursorWorldData.prog, active,
+                  hprog] using hmem
+              subst who
+              let suffix : ProgramSuffix (P := P) (L := L) g.prog
+                  (VegasCore.commit x owner R k) :=
+                by
+                  rw [← hprog]
+                  exact cursor.toSuffix
+              refine ⟨cursor.Γ, x, _, R, k, env, suffix, wctx, ?_, ?_,
+                ?_, ?_, ?_, ?_⟩
+              · simpa [CursorWorldData.prog, hprog] using fresh
+              · simpa [CursorWorldData.prog, hprog] using viewScoped
+              · simpa [CursorWorldData.prog, hprog] using normalized
+              · simpa [CursorWorldData.prog, hprog] using legal
+              · simp [CheckedWorld.ofCursorChecked, CursorWorldData.prog,
+                  CursorWorldData.suffix, suffix, hprog]
+              · simp [CursorCheckedWorld.toWorld, CursorWorldData.prog, hprog]
 
 /-- Project a suffix-based checked world to the Vegas payoff outcome carried at
 terminal `ret` worlds. The nonterminal branch is a total-function default;
