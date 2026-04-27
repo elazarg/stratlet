@@ -860,6 +860,42 @@ abbrev CursorCheckedWorld (g : WFProgram P L) : Type :=
 
 namespace CursorCheckedWorld
 
+/-- Forget the cursor-keyed checked obligations to the raw runtime world. -/
+def toWorld {g : WFProgram P L}
+    (w : CursorCheckedWorld (P := P) (L := L) g) : World P L where
+  Γ := w.1.cursor.Γ
+  prog := w.1.prog
+  env := w.1.env
+
+/-- Terminality for the finite cursor-keyed checked-world carrier. -/
+def terminal {g : WFProgram P L}
+    (w : CursorCheckedWorld (P := P) (L := L) g) : Prop :=
+  Vegas.FOSGBridge.terminal w.toWorld
+
+/-- Active players for the finite cursor-keyed checked-world carrier. -/
+def active {g : WFProgram P L}
+    (w : CursorCheckedWorld (P := P) (L := L) g) : Finset P :=
+  Vegas.FOSGBridge.active w.toWorld
+
+/-- Broad-alphabet action availability for the finite cursor-keyed carrier. -/
+def availableActions {g : WFProgram P L}
+    (w : CursorCheckedWorld (P := P) (L := L) g) (who : P) :
+    Set (Action (P := P) L who) :=
+  Vegas.FOSGBridge.availableActions w.toWorld who
+
+/-- Remaining operational syntax nodes at a finite cursor-keyed checked world. -/
+def remainingSyntaxSteps {g : WFProgram P L}
+    (w : CursorCheckedWorld (P := P) (L := L) g) : Nat :=
+  syntaxSteps w.1.prog
+
+theorem terminal_iff_remainingSyntaxSteps_eq_zero
+    {g : WFProgram P L} {w : CursorCheckedWorld (P := P) (L := L) g} :
+    w.terminal ↔ w.remainingSyntaxSteps = 0 := by
+  cases w with
+  | mk data valid =>
+      cases data
+      simp [terminal, remainingSyntaxSteps, toWorld, terminal_iff_syntaxSteps_eq_zero]
+
 /-- The finite cursor-keyed checked-world carrier is finite under finite value
 types. `Fintype.ofFinite` avoids requiring decidability of the proof-bearing
 `Valid` predicate. -/
@@ -1088,6 +1124,19 @@ def checkedAvailableProgramActions
             else
               False
         | _ => False}
+
+namespace CursorCheckedWorld
+
+/-- Program-local action availability for the finite cursor-keyed carrier,
+defined by transport through the current checked-world presentation. -/
+def availableProgramActions {g : WFProgram P L} (hctx : WFCtx g.Γ)
+    (w : CursorCheckedWorld (P := P) (L := L) g) (who : P) :
+    Set (ProgramAction (P := P) (L := L) g.prog who) :=
+  checkedAvailableProgramActions
+    (P := P) (L := L) (g := g) (hctx := hctx)
+    (CheckedWorld.ofCursorChecked (hctx := hctx) w) who
+
+end CursorCheckedWorld
 
 /-- FOSG joint-action legality for the program-local action alphabet. -/
 abbrev CheckedProgramJointActionLegal
