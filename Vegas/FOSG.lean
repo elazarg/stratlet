@@ -1,4 +1,5 @@
 import GameTheory.Languages.FOSG.Information
+import Vegas.ViewKernel
 import Vegas.WFProgram
 
 /-!
@@ -414,6 +415,14 @@ def publicObsOfWorld (w : CheckedWorld P L) : PublicObs P L where
 def privateObsOfWorld (who : P) (w : CheckedWorld P L) : PrivateObs P L who where
   Γ := w.Γ
   env := VEnv.toView who w.env
+
+/-- The private observation's stored structured view is exactly the
+strategy-facing erased view after erasure. -/
+theorem privateObsOfWorld_eraseEnv
+    (who : P) (w : CheckedWorld P L) :
+    VEnv.eraseEnv (privateObsOfWorld who w).env =
+      projectViewEnv who (VEnv.eraseEnv w.env) := by
+  exact (projectViewEnv_eraseEnv_eq_toView (who := who) w.wctx w.env).symm
 
 /-- A FOSG compiler target that preserves the public protocol location and
 each player's local Vegas view at every step.

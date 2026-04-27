@@ -112,6 +112,31 @@ theorem projectViewEnv_apply {who : P} {Γ : VCtx P L}
   subst hτ
   exact ⟨hv.ofViewVCtx.toErased, rfl⟩
 
+/-- Projecting an erased `VEnv` to a player's view agrees with first taking the
+structured `VEnv.toView` projection and then erasing it.
+
+This is the canonical bridge between the strategy-facing erased view API
+(`projectViewEnv`) and the visibility-structured environment API
+(`VEnv.toView`). It needs `WFCtx Γ` because the two sides route through
+different `HasVar` witnesses; unique variable names make those witnesses
+proof-irrelevant. -/
+theorem projectViewEnv_eraseEnv_eq_toView
+    {who : P} {Γ : VCtx P L}
+    (hctx : WFCtx Γ) (env : VEnv (Player := P) L Γ) :
+    projectViewEnv who (VEnv.eraseEnv env) =
+      VEnv.eraseEnv (VEnv.toView who env) := by
+  funext x τ h
+  dsimp [projectViewEnv]
+  rcases HasVar.toVHasVar (Γ := viewVCtx who Γ) h with
+    ⟨σ, hv, ⟨hτ⟩⟩
+  cases hτ
+  have hnodup_view : ((eraseVCtx (viewVCtx who Γ)).map Prod.fst).Nodup := by
+    rw [eraseVCtx_map_fst]
+    exact WFCtx.viewVCtx hctx
+  have hh : h = hv.toErased := HasVar.eq_of_nodup hnodup_view h hv.toErased
+  rw [hh]
+  simp [VEnv.toView]
+
 theorem projectViewEnv_eq_of_obsEq
     {who : P} {Γ : VCtx P L}
     {ρ₁ ρ₂ : Env L.Val (eraseVCtx Γ)}

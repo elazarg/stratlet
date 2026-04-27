@@ -104,6 +104,25 @@ theorem Fresh_viewVCtx {P : Type} [DecidableEq P] {L : IExpr}
     (hfresh : Fresh x Γ) : Fresh x (viewVCtx p Γ) :=
   fun hmem => hfresh (viewVCtx_map_fst_sub hmem)
 
+theorem WFCtx.viewVCtx {P : Type} [DecidableEq P] {L : IExpr}
+    {p : P} {Γ : VCtx P L}
+    (hctx : WFCtx Γ) : WFCtx (viewVCtx p Γ) := by
+  induction Γ generalizing p with
+  | nil => exact WFCtx_nil
+  | cons hd tl ih =>
+      obtain ⟨x, τ⟩ := hd
+      have hfresh : Fresh x tl := WFCtx.fresh_head hctx
+      have htail : WFCtx tl := WFCtx.tail hctx
+      cases hsee : canSee p τ with
+      | false =>
+          change WFCtx (if canSee p τ then (x, τ) :: Vegas.viewVCtx p tl else Vegas.viewVCtx p tl)
+          rw [hsee]
+          exact ih (p := p) htail
+      | true =>
+          change WFCtx (if canSee p τ then (x, τ) :: Vegas.viewVCtx p tl else Vegas.viewVCtx p tl)
+          rw [hsee]
+          exact WFCtx.cons (Fresh_viewVCtx (p := p) hfresh) (ih (p := p) htail)
+
 def Legal {P : Type} [DecidableEq P]
     {L : Vegas.IExpr}
 :
