@@ -607,6 +607,180 @@ theorem ty_commitCursor
 
 end ProgramSuffix
 
+/-! ## Canonical program cursors
+
+`ProgramSuffix` is useful for proof transport, but it is not the right finite
+state key: it is a proof-shaped path. `ProgramCursor` is the canonical data
+representation of a position in the linear Vegas syntax.
+-/
+
+/-- A canonical cursor to one syntactic continuation of a Vegas program. -/
+inductive ProgramCursor :
+    {Γ : VCtx P L} → VegasCore P L Γ → Type where
+  | here {Γ : VCtx P L} {p : VegasCore P L Γ} :
+      ProgramCursor p
+  | letExpr
+      {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {e : L.Expr (erasePubVCtx Γ) b}
+      {k : VegasCore P L ((x, .pub b) :: Γ)}
+      (c : ProgramCursor k) :
+      ProgramCursor (.letExpr x e k)
+  | sample
+      {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {D : L.DistExpr (erasePubVCtx Γ) b}
+      {k : VegasCore P L ((x, .pub b) :: Γ)}
+      (c : ProgramCursor k) :
+      ProgramCursor (.sample x D k)
+  | commit
+      {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
+      {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+      {k : VegasCore P L ((x, .hidden who b) :: Γ)}
+      (c : ProgramCursor k) :
+      ProgramCursor (.commit x who R k)
+  | reveal
+      {Γ : VCtx P L} {y : VarId} {who : P} {x : VarId} {b : L.Ty}
+      {hx : VHasVar Γ x (.hidden who b)}
+      {k : VegasCore P L ((y, .pub b) :: Γ)}
+      (c : ProgramCursor k) :
+      ProgramCursor (.reveal y who x hx k)
+
+namespace ProgramCursor
+
+/-- Context at the cursor target. -/
+def Γ :
+    {Γ₀ : VCtx P L} → {root : VegasCore P L Γ₀} →
+      ProgramCursor (P := P) (L := L) root → VCtx P L
+  | Γ₀, _, .here => Γ₀
+  | _, _, .letExpr c => Γ c
+  | _, _, .sample c => Γ c
+  | _, _, .commit c => Γ c
+  | _, _, .reveal c => Γ c
+
+/-- Program continuation at the cursor target. -/
+def prog :
+    {Γ₀ : VCtx P L} → {root : VegasCore P L Γ₀} →
+      (c : ProgramCursor (P := P) (L := L) root) → VegasCore P L (Γ c)
+  | _, root, .here => root
+  | _, _, .letExpr c => prog c
+  | _, _, .sample c => prog c
+  | _, _, .commit c => prog c
+  | _, _, .reveal c => prog c
+
+/-- Extend an existing suffix by a canonical cursor rooted at its endpoint. -/
+def toSuffixFrom
+    {Γ₀ Γ : VCtx P L} {root : VegasCore P L Γ₀} {p : VegasCore P L Γ}
+    (s : ProgramSuffix root p) :
+    (c : ProgramCursor (P := P) (L := L) p) →
+      ProgramSuffix root (prog c)
+  | .here => s
+  | .letExpr c => toSuffixFrom (.letExpr s) c
+  | .sample c => toSuffixFrom (.sample s) c
+  | .commit c => toSuffixFrom (.commit s) c
+  | .reveal c => toSuffixFrom (.reveal s) c
+
+/-- Convert a canonical cursor to the existing proof-shaped suffix. -/
+def toSuffix
+    {Γ₀ : VCtx P L} {root : VegasCore P L Γ₀}
+    (c : ProgramCursor (P := P) (L := L) root) :
+    ProgramSuffix root (prog c) :=
+  toSuffixFrom .here c
+
+/-- Canonical cursors are finite because Vegas syntax is linear. -/
+@[reducible] noncomputable def instFintype :
+    {Γ : VCtx P L} → (p : VegasCore P L Γ) →
+      Fintype (ProgramCursor (P := P) (L := L) p)
+  | _, .ret _ =>
+      let e : ProgramCursor (P := P) (L := L) (.ret _) ≃ Unit :=
+        { toFun := fun _ => ()
+          invFun := fun _ => .here
+          left_inv := by
+            intro c
+            cases c
+            rfl
+          right_inv := by
+            intro u
+            cases u
+            rfl }
+      Fintype.ofEquiv Unit e.symm
+  | Γ, .letExpr x (b := b) e k =>
+      let _ : Fintype (ProgramCursor (P := P) (L := L) k) := instFintype k
+      let e : ProgramCursor (P := P) (L := L) (.letExpr x (b := b) e k) ≃
+          Unit ⊕ ProgramCursor (P := P) (L := L) k :=
+        { toFun := fun c =>
+            match c with
+            | .here => Sum.inl ()
+            | .letExpr c => Sum.inr c
+          invFun := fun s =>
+            match s with
+            | Sum.inl _ => .here
+            | Sum.inr c => .letExpr c
+          left_inv := by
+            intro c
+            cases c <;> rfl
+          right_inv := by
+            intro s
+            cases s <;> rfl }
+      Fintype.ofEquiv (Unit ⊕ ProgramCursor (P := P) (L := L) k) e.symm
+  | Γ, .sample x (b := b) D k =>
+      let _ : Fintype (ProgramCursor (P := P) (L := L) k) := instFintype k
+      let e : ProgramCursor (P := P) (L := L) (.sample x (b := b) D k) ≃
+          Unit ⊕ ProgramCursor (P := P) (L := L) k :=
+        { toFun := fun c =>
+            match c with
+            | .here => Sum.inl ()
+            | .sample c => Sum.inr c
+          invFun := fun s =>
+            match s with
+            | Sum.inl _ => .here
+            | Sum.inr c => .sample c
+          left_inv := by
+            intro c
+            cases c <;> rfl
+          right_inv := by
+            intro s
+            cases s <;> rfl }
+      Fintype.ofEquiv (Unit ⊕ ProgramCursor (P := P) (L := L) k) e.symm
+  | Γ, .commit x who (b := b) R k =>
+      let _ : Fintype (ProgramCursor (P := P) (L := L) k) := instFintype k
+      let e : ProgramCursor (P := P) (L := L) (.commit x who (b := b) R k) ≃
+          Unit ⊕ ProgramCursor (P := P) (L := L) k :=
+        { toFun := fun c =>
+            match c with
+            | .here => Sum.inl ()
+            | .commit c => Sum.inr c
+          invFun := fun s =>
+            match s with
+            | Sum.inl _ => .here
+            | Sum.inr c => .commit c
+          left_inv := by
+            intro c
+            cases c <;> rfl
+          right_inv := by
+            intro s
+            cases s <;> rfl }
+      Fintype.ofEquiv (Unit ⊕ ProgramCursor (P := P) (L := L) k) e.symm
+  | Γ, .reveal y who x (b := b) hx k =>
+      let _ : Fintype (ProgramCursor (P := P) (L := L) k) := instFintype k
+      let e : ProgramCursor (P := P) (L := L) (.reveal y who x (b := b) hx k) ≃
+          Unit ⊕ ProgramCursor (P := P) (L := L) k :=
+        { toFun := fun c =>
+            match c with
+            | .here => Sum.inl ()
+            | .reveal c => Sum.inr c
+          invFun := fun s =>
+            match s with
+            | Sum.inl _ => .here
+            | Sum.inr c => .reveal c
+          left_inv := by
+            intro c
+            cases c <;> rfl
+          right_inv := by
+            intro s
+            cases s <;> rfl }
+      Fintype.ofEquiv (Unit ⊕ ProgramCursor (P := P) (L := L) k) e.symm
+
+end ProgramCursor
+
 /-! ## Program points
 
 `CheckedWorld` carries proof fields needed by the FOSG structure. For
