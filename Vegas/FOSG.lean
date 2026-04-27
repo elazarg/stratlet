@@ -1,4 +1,6 @@
 import GameTheory.Languages.FOSG.Information
+import GameTheory.Languages.FOSG.Strategy
+import Vegas.Strategic
 import Vegas.ViewKernel
 import Vegas.WFProgram
 
@@ -173,6 +175,154 @@ theorem initial_exists_jointActionLegal
     ∃ a : JointAction P L, JointActionLegal (World.initial g) a :=
   exists_jointActionLegal_of_legal (World.initial g) g.legal hterm
 
+namespace ProgramBehavioralProfile
+
+/-- Dropping the head commit site preserves behavioral guard-legality. -/
+theorem tail_isLegal
+    {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
+    {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+    {k : VegasCore P L ((x, .hidden who b) :: Γ)}
+    {σ : ProgramBehavioralProfile (P := P) (L := L) (.commit x who R k)}
+    (hσ : σ.IsLegal) :
+    (ProgramBehavioralProfile.tail (P := P) (L := L) σ).IsLegal := by
+  intro j
+  by_cases hj : who = j
+  · subst hj
+    have hσ_who : (σ who).IsLegal (.commit x who R k) := hσ who
+    dsimp [ProgramBehavioralStrategy.IsLegal] at hσ_who
+    dsimp [ProgramBehavioralProfile.tail]
+    split at hσ_who
+    · split
+      · exact hσ_who.2
+      · exact absurd rfl ‹_›
+    · exact absurd rfl ‹_›
+  · have hσ_j : (σ j).IsLegal (.commit x who R k) := hσ j
+    dsimp [ProgramBehavioralStrategy.IsLegal] at hσ_j
+    dsimp [ProgramBehavioralProfile.tail]
+    split at hσ_j
+    · rename_i h
+      exact absurd h hj
+    · split
+      · rename_i h
+        exact absurd h hj
+      · exact hσ_j
+
+end ProgramBehavioralProfile
+
+/-! ## Program cursors
+
+The FOSG state must remember not only the current subprogram but also where
+that subprogram sits inside the original Vegas program. This is what lets a
+fixed Vegas strategy profile be projected to the current continuation without
+putting strategy data into the game state.
+-/
+
+/-- `ProgramSuffix root p` means `p` is the current continuation reached by
+stepping forward from `root`. It is a typed cursor into the original program. -/
+inductive ProgramSuffix {Γ₀ : VCtx P L} (root : VegasCore P L Γ₀) :
+    {Γ : VCtx P L} → VegasCore P L Γ → Type where
+  | here : ProgramSuffix root root
+  | letExpr
+      {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {e : L.Expr (erasePubVCtx Γ) b}
+      {k : VegasCore P L ((x, .pub b) :: Γ)}
+      (s : ProgramSuffix root (.letExpr x e k)) :
+      ProgramSuffix root k
+  | sample
+      {Γ : VCtx P L} {x : VarId} {b : L.Ty}
+      {D : L.DistExpr (erasePubVCtx Γ) b}
+      {k : VegasCore P L ((x, .pub b) :: Γ)}
+      (s : ProgramSuffix root (.sample x D k)) :
+      ProgramSuffix root k
+  | commit
+      {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
+      {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+      {k : VegasCore P L ((x, .hidden who b) :: Γ)}
+      (s : ProgramSuffix root (.commit x who R k)) :
+      ProgramSuffix root k
+  | reveal
+      {Γ : VCtx P L} {y : VarId} {who : P} {x : VarId} {b : L.Ty}
+      {hx : VHasVar Γ x (.hidden who b)}
+      {k : VegasCore P L ((y, .pub b) :: Γ)}
+      (s : ProgramSuffix root (.reveal y who x hx k)) :
+      ProgramSuffix root k
+
+namespace ProgramSuffix
+
+def fresh
+    {Γ₀ Γ : VCtx P L} {root : VegasCore P L Γ₀} {p : VegasCore P L Γ}
+    (s : ProgramSuffix root p) :
+    FreshBindings root → FreshBindings p := by
+  induction s with
+  | here => intro h; exact h
+  | letExpr s ih => intro h; exact ih h |>.2
+  | sample s ih => intro h; exact ih h |>.2
+  | commit s ih => intro h; exact ih h |>.2
+  | reveal s ih => intro h; exact ih h |>.2
+
+def viewScoped
+    {Γ₀ Γ : VCtx P L} {root : VegasCore P L Γ₀} {p : VegasCore P L Γ}
+    (s : ProgramSuffix root p) :
+    ViewScoped root → ViewScoped p := by
+  induction s with
+  | here => intro h; exact h
+  | letExpr s ih => intro h; exact ih h
+  | sample s ih => intro h; exact ih h
+  | commit s ih => intro h; exact (ih h).2
+  | reveal s ih => intro h; exact ih h
+
+def normalized
+    {Γ₀ Γ : VCtx P L} {root : VegasCore P L Γ₀} {p : VegasCore P L Γ}
+    (s : ProgramSuffix root p) :
+    NormalizedDists root → NormalizedDists p := by
+  induction s with
+  | here => intro h; exact h
+  | letExpr s ih => intro h; exact ih h
+  | sample s ih => intro h; exact (ih h).2
+  | commit s ih => intro h; exact ih h
+  | reveal s ih => intro h; exact ih h
+
+def legal
+    {Γ₀ Γ : VCtx P L} {root : VegasCore P L Γ₀} {p : VegasCore P L Γ}
+    (s : ProgramSuffix root p) :
+    Legal root → Legal p := by
+  induction s with
+  | here => intro h; exact h
+  | letExpr s ih => intro h; exact ih h
+  | sample s ih => intro h; exact ih h
+  | commit s ih => intro h; exact (ih h).2
+  | reveal s ih => intro h; exact ih h
+
+noncomputable def behavioralProfile
+    {Γ₀ Γ : VCtx P L} {root : VegasCore P L Γ₀} {p : VegasCore P L Γ}
+    (s : ProgramSuffix root p) :
+    ProgramBehavioralProfile (P := P) (L := L) root →
+      ProgramBehavioralProfile (P := P) (L := L) p := by
+  induction s with
+  | here => intro σ; exact σ
+  | letExpr s ih => intro σ; exact ih σ
+  | sample s ih => intro σ; exact ih σ
+  | commit s ih =>
+      intro σ
+      exact ProgramBehavioralProfile.tail (P := P) (L := L) (ih σ)
+  | reveal s ih => intro σ; exact ih σ
+
+theorem behavioralProfile_isLegal
+    {Γ₀ Γ : VCtx P L} {root : VegasCore P L Γ₀} {p : VegasCore P L Γ}
+    (s : ProgramSuffix root p)
+    {σ : ProgramBehavioralProfile (P := P) (L := L) root}
+    (hσ : σ.IsLegal) :
+    (s.behavioralProfile σ).IsLegal := by
+  induction s generalizing σ with
+  | here => exact hσ
+  | letExpr s ih => exact ih hσ
+  | sample s ih => exact ih hσ
+  | commit s ih =>
+      exact ProgramBehavioralProfile.tail_isLegal (P := P) (L := L) (ih hσ)
+  | reveal s ih => exact ih hσ
+
+end ProgramSuffix
+
 /-! ## A checked-world FOSG skeleton
 
 The next layer uses worlds that carry the local obligations needed by the FOSG
@@ -189,10 +339,11 @@ FOSG's total transition, non-deadlock, and observation-soundness fields.
 This is intentionally not named `WFWorld`: `WF` includes
 `RevealComplete []`, which is not stable under stepping through a `commit`.
 -/
-structure CheckedWorld (P : Type) [DecidableEq P] (L : IExpr) where
+structure CheckedWorld (g : WFProgram P L) (hctx : WFCtx g.Γ) where
   Γ : VCtx P L
   prog : VegasCore P L Γ
   env : VEnv L Γ
+  suffix : ProgramSuffix g.prog prog
   wctx : WFCtx Γ
   fresh : FreshBindings prog
   viewScoped : ViewScoped prog
@@ -201,15 +352,17 @@ structure CheckedWorld (P : Type) [DecidableEq P] (L : IExpr) where
 
 namespace CheckedWorld
 
-def toWorld (w : CheckedWorld P L) : World P L where
+def toWorld {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (w : CheckedWorld g hctx) : World P L where
   Γ := w.Γ
   prog := w.prog
   env := w.env
 
-def initial (g : WFProgram P L) (hctx : WFCtx g.Γ) : CheckedWorld P L where
+def initial (g : WFProgram P L) (hctx : WFCtx g.Γ) : CheckedWorld g hctx where
   Γ := g.Γ
   prog := g.prog
   env := g.env
+  suffix := .here
   wctx := hctx
   fresh := g.wf.1
   viewScoped := g.wf.2.2
@@ -218,18 +371,22 @@ def initial (g : WFProgram P L) (hctx : WFCtx g.Γ) : CheckedWorld P L where
 
 end CheckedWorld
 
-def checkedTerminal (w : CheckedWorld P L) : Prop :=
+def checkedTerminal {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (w : CheckedWorld g hctx) : Prop :=
   terminal w.toWorld
 
-def checkedActive (w : CheckedWorld P L) : Finset P :=
+def checkedActive {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (w : CheckedWorld g hctx) : Finset P :=
   active w.toWorld
 
 def checkedAvailableActions
-    (w : CheckedWorld P L) (who : P) : Set (Action (P := P) L who) :=
+    {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (w : CheckedWorld g hctx) (who : P) : Set (Action (P := P) L who) :=
   availableActions w.toWorld who
 
 abbrev CheckedJointActionLegal
-    (w : CheckedWorld P L) (a : JointAction P L) : Prop :=
+    {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (w : CheckedWorld g hctx) (a : JointAction P L) : Prop :=
   GameTheory.JointActionLegal
     (fun who : P => Action (P := P) L who)
     checkedActive
@@ -269,16 +426,20 @@ private theorem commit_value_of_legal
         simpa [availableActions] using havail) with ⟨v, hai, hv⟩
       exact ⟨v, by simp [hai], hv⟩
 
-theorem checked_terminal_active_eq_empty {w : CheckedWorld P L} :
+theorem checked_terminal_active_eq_empty
+    {g : WFProgram P L} {hctx : WFCtx g.Γ} {w : CheckedWorld g hctx} :
     checkedTerminal w → checkedActive w = ∅ :=
   terminal_active_eq_empty
 
-theorem checked_terminal_no_legal {w : CheckedWorld P L} {a : JointAction P L} :
+theorem checked_terminal_no_legal
+    {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    {w : CheckedWorld g hctx} {a : JointAction P L} :
     checkedTerminal w → ¬ CheckedJointActionLegal w a := by
   intro hterm hlegal
   exact hlegal.1 hterm
 
-theorem checked_nonterminal_exists_legal {w : CheckedWorld P L} :
+theorem checked_nonterminal_exists_legal
+    {g : WFProgram P L} {hctx : WFCtx g.Γ} {w : CheckedWorld g hctx} :
     ¬ checkedTerminal w →
       ∃ a : JointAction P L, CheckedJointActionLegal w a := by
   intro hterm
@@ -286,11 +447,12 @@ theorem checked_nonterminal_exists_legal {w : CheckedWorld P L} :
 
 /-- The one-step transition kernel of the checked-world FOSG skeleton. -/
 noncomputable def checkedTransition
-    (w : CheckedWorld P L)
+    {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (w : CheckedWorld g hctx)
     (a : {a : JointAction P L // CheckedJointActionLegal w a}) :
-    PMF (CheckedWorld P L) := by
+    PMF (CheckedWorld g hctx) := by
   cases w with
-  | mk Γ prog env wctx fresh viewScoped normalized legal =>
+  | mk Γ prog env suffix wctx fresh viewScoped normalized legal =>
       cases prog with
       | ret payoffs =>
           exact False.elim (a.2.1 (by simp [checkedTerminal, CheckedWorld.toWorld, terminal]))
@@ -300,6 +462,7 @@ noncomputable def checkedTransition
               prog := k
               env := VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _)
                 (L.eval e (VEnv.erasePubEnv env)) env
+              suffix := .letExpr suffix
               wctx := WFCtx.cons fresh.1 wctx
               fresh := fresh.2
               viewScoped := viewScoped
@@ -312,6 +475,7 @@ noncomputable def checkedTransition
                 prog := k
                 env := VEnv.cons (Player := P) (L := L) (x := x) (τ := .pub _)
                   v env
+                suffix := .sample suffix
                 wctx := WFCtx.cons fresh.1 wctx
                 fresh := fresh.2
                 viewScoped := viewScoped
@@ -330,6 +494,7 @@ noncomputable def checkedTransition
               prog := k
               env := VEnv.cons (Player := P) (L := L) (x := x) (τ := .hidden who _)
                 v env
+              suffix := .commit suffix
               wctx := WFCtx.cons fresh.1 wctx
               fresh := fresh.2
               viewScoped := viewScoped.2
@@ -341,6 +506,7 @@ noncomputable def checkedTransition
               prog := k
               env := VEnv.cons (Player := P) (L := L) (x := y) (τ := .pub _)
                 (env x (.hidden who _) hx) env
+              suffix := .reveal suffix
               wctx := WFCtx.cons fresh.1 wctx
               fresh := fresh.2
               viewScoped := viewScoped
@@ -348,9 +514,10 @@ noncomputable def checkedTransition
               legal := legal }
 
 def rewardOnEnteringRet
-    (_w : CheckedWorld P L)
+    {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (_w : CheckedWorld g hctx)
     (_a : {a : JointAction P L // CheckedJointActionLegal _w a})
-    (w' : CheckedWorld P L) (who : P) : ℝ :=
+    (w' : CheckedWorld g hctx) (who : P) : ℝ :=
   match w'.prog with
   | .ret payoffs => (evalPayoffs payoffs w'.env who : ℝ)
   | _ => 0
@@ -363,7 +530,7 @@ on transitions that enter `ret`; consequently this is not the final
 utility-preserving compiler used for solution-concept transport.
 -/
 noncomputable def controlFlowFOSG (g : WFProgram P L) (hctx : WFCtx g.Γ) :
-    GameTheory.FOSG P (CheckedWorld P L)
+    GameTheory.FOSG P (CheckedWorld g hctx)
       (fun who : P => Action (P := P) L who)
       (fun _who : P => Unit)
       Unit where
@@ -394,11 +561,14 @@ public protocol state and the next player-local view. This remains a
 control-flow bridge, not a completed utility-preserving semantic compiler.
 -/
 
-/-- Public observation after a Vegas/FOSG transition: the current program
-location together with the public environment. -/
-structure PublicObs (P : Type) [DecidableEq P] (L : IExpr) where
+/-- Public observation after a Vegas/FOSG transition: the current public
+program cursor together with the public environment. The cursor is public
+control-flow metadata and is needed to project a fixed Vegas strategy profile
+to the current continuation. -/
+structure PublicObs (g : WFProgram P L) (hctx : WFCtx g.Γ) where
   Γ : VCtx P L
   prog : VegasCore P L Γ
+  suffix : ProgramSuffix g.prog prog
   env : VEnv L (pubVCtx Γ)
 
 /-- Private observation after a Vegas/FOSG transition: the observing player's
@@ -407,19 +577,23 @@ structure PrivateObs (P : Type) [DecidableEq P] (L : IExpr) (who : P) where
   Γ : VCtx P L
   env : VEnv L (viewVCtx who Γ)
 
-def publicObsOfWorld (w : CheckedWorld P L) : PublicObs P L where
+def publicObsOfWorld {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (w : CheckedWorld g hctx) : PublicObs g hctx where
   Γ := w.Γ
   prog := w.prog
+  suffix := w.suffix
   env := VEnv.toPub w.env
 
-def privateObsOfWorld (who : P) (w : CheckedWorld P L) : PrivateObs P L who where
+def privateObsOfWorld {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (who : P) (w : CheckedWorld g hctx) : PrivateObs P L who where
   Γ := w.Γ
   env := VEnv.toView who w.env
 
 /-- The private observation's stored structured view is exactly the
 strategy-facing erased view after erasure. -/
 theorem privateObsOfWorld_eraseEnv
-    (who : P) (w : CheckedWorld P L) :
+    {g : WFProgram P L} {hctx : WFCtx g.Γ}
+    (who : P) (w : CheckedWorld g hctx) :
     VEnv.eraseEnv (privateObsOfWorld who w).env =
       projectViewEnv who (VEnv.eraseEnv w.env) := by
   exact (projectViewEnv_eraseEnv_eq_toView (who := who) w.wctx w.env).symm
@@ -433,10 +607,10 @@ that these observation histories determine exactly the same view environments
 that Vegas strategies consume.
 -/
 noncomputable def observedControlFlowFOSG (g : WFProgram P L) (hctx : WFCtx g.Γ) :
-    GameTheory.FOSG P (CheckedWorld P L)
+    GameTheory.FOSG P (CheckedWorld g hctx)
       (fun who : P => Action (P := P) L who)
       (fun who : P => PrivateObs P L who)
-      (PublicObs P L) where
+      (PublicObs g hctx) where
   init := CheckedWorld.initial g hctx
   active := checkedActive
   availableActions := checkedAvailableActions
@@ -478,7 +652,7 @@ def last? {α : Type} : List α → Option α
 noncomputable def observationEvents
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
     (s : (observedControlFlowFOSG g hctx).InfoState who) :
-    List (PrivateObs P L who × PublicObs P L) :=
+    List (PrivateObs P L who × PublicObs g hctx) :=
   s.filterMap
     (GameTheory.FOSG.PlayerEvent.observationPart
       (G := observedControlFlowFOSG g hctx) (i := who))
@@ -487,7 +661,7 @@ noncomputable def observationEvents
 noncomputable def latestObservation?
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
     (s : (observedControlFlowFOSG g hctx).InfoState who) :
-    Option (PrivateObs P L who × PublicObs P L) :=
+    Option (PrivateObs P L who × PublicObs g hctx) :=
   last? (observationEvents g hctx who s)
 
 noncomputable def latestPrivateObs?
@@ -499,7 +673,7 @@ noncomputable def latestPrivateObs?
 noncomputable def latestPublicObs?
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
     (s : (observedControlFlowFOSG g hctx).InfoState who) :
-    Option (PublicObs P L) :=
+    Option (PublicObs g hctx) :=
   (latestObservation? g hctx who s).map Prod.snd
 
 @[simp] theorem observationEvents_nil (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P) :
@@ -511,7 +685,7 @@ noncomputable def latestPublicObs?
 theorem latestObservation?_append_obs
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
     (s : (observedControlFlowFOSG g hctx).InfoState who)
-    (priv : PrivateObs P L who) (pub : PublicObs P L) :
+    (priv : PrivateObs P L who) (pub : PublicObs g hctx) :
     latestObservation? g hctx who
       (s ++ [GameTheory.FOSG.PlayerEvent.obs priv pub]) = some (priv, pub) := by
   simp [latestObservation?, observationEvents]
@@ -520,7 +694,7 @@ theorem latestObservation?_append_act_obs
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
     (s : (observedControlFlowFOSG g hctx).InfoState who)
     (a : Action (P := P) L who)
-    (priv : PrivateObs P L who) (pub : PublicObs P L) :
+    (priv : PrivateObs P L who) (pub : PublicObs g hctx) :
     latestObservation? g hctx who
       (s ++ [GameTheory.FOSG.PlayerEvent.act a,
         GameTheory.FOSG.PlayerEvent.obs priv pub]) = some (priv, pub) := by
@@ -532,7 +706,7 @@ theorem latestObservation?_history_snoc
     (g : WFProgram P L) (hctx : WFCtx g.Γ) (who : P)
     (h : (observedControlFlowFOSG g hctx).History)
     (a : (observedControlFlowFOSG g hctx).LegalAction h.lastState)
-    (dst : CheckedWorld P L)
+    (dst : CheckedWorld g hctx)
     (support : (observedControlFlowFOSG g hctx).transition h.lastState a dst ≠ 0) :
     latestObservation? g hctx who ((h.snoc a dst support).playerView who) =
       some (privateObsOfWorld who dst, publicObsOfWorld dst) := by
@@ -552,6 +726,180 @@ theorem latestObservation?_history_snoc
       simpa [e, observedControlFlowFOSG] using
         latestObservation?_append_act_obs g hctx who (h.playerView who) ai
           (privateObsOfWorld who dst) (publicObsOfWorld dst)
+
+/-! ## Behavioral profile candidate
+
+The following definitions build a raw FOSG behavioral profile from a legal Vegas
+behavioral profile. They are deliberately named `candidate`: the legal-support
+proof is the next obligation, and only after that proof should this be exposed
+as a strategy transport.
+-/
+
+noncomputable def moveAtCursor
+    (g : WFProgram P L) (_hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (who : P)
+    {Γ : VCtx P L} {p : VegasCore P L Γ}
+    (suffix : ProgramSuffix g.prog p)
+    (view : ViewEnv (P := P) (L := L) who Γ) :
+    PMF (Option (Action (P := P) L who)) :=
+  match p with
+  | .commit x owner (b := b) R k =>
+      if howner : owner = who then
+        by
+          cases howner
+          let σp : ProgramBehavioralProfile (P := P) (L := L) (.commit x who R k) :=
+            suffix.behavioralProfile (fun i => (σ i).val)
+          let d := ProgramBehavioralStrategy.headKernel (P := P) (L := L) (σp who) view
+          have hd :
+              FDist.totalWeight d = 1 :=
+            ProgramBehavioralStrategy.headKernel_normalized
+              (P := P) (L := L) (σp who) view
+          exact PMF.map (fun v => some (Sigma.mk b v)) (d.toPMF hd)
+      else
+        PMF.pure none
+  | _ => PMF.pure none
+
+private theorem mem_fdist_support_of_mem_toPMF_support
+    {α : Type} [DecidableEq α] {d : FDist α} {h : d.totalWeight = 1} {a : α}
+    (ha : a ∈ (d.toPMF h).support) :
+    a ∈ d.support := by
+  rw [PMF.mem_support_iff, FDist.toPMF_apply] at ha
+  rw [Finsupp.mem_support_iff]
+  intro hzero
+  exact ha (by rw [hzero, NNRat.toNNReal_zero]; rfl)
+
+theorem headKernel_supported_atCursor
+    (g : WFProgram P L) (_hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    {Γ : VCtx P L} {x : VarId} {who : P} {b : L.Ty}
+    {R : L.Expr ((x, b) :: eraseVCtx Γ) L.bool}
+    {k : VegasCore P L ((x, .hidden who b) :: Γ)}
+    (suffix : ProgramSuffix g.prog (.commit x who R k))
+    (ρ : Env L.Val (eraseVCtx Γ)) :
+    FDist.Supported
+      (ProgramBehavioralStrategy.headKernel (P := P) (L := L)
+        ((suffix.behavioralProfile (fun i => (σ i).val)) who)
+        (projectViewEnv (P := P) (L := L) who ρ))
+      (fun v => evalGuard (Player := P) (L := L) R v ρ = true) := by
+  let raw : ProgramBehavioralProfile (P := P) (L := L) g.prog :=
+    fun i => (σ i).val
+  have hraw : raw.IsLegal := fun i => (σ i).2
+  have hcursor : (suffix.behavioralProfile raw).IsLegal :=
+    suffix.behavioralProfile_isLegal hraw
+  have hsite := hcursor who
+  simp [ProgramBehavioralStrategy.IsLegal] at hsite
+  simpa [raw] using hsite.1 ρ
+
+noncomputable def moveAtWorld
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (who : P) (w : CheckedWorld g hctx) :
+    PMF (Option (Action (P := P) L who)) :=
+  moveAtCursor g hctx σ who w.suffix
+    (projectViewEnv who (VEnv.eraseEnv w.env))
+
+theorem moveAtWorld_support_available
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (who : P) (w : CheckedWorld g hctx)
+    {oi : Option (Action (P := P) L who)}
+    (hoi : oi ∈ (moveAtWorld g hctx σ who w).support) :
+    oi ∈ (observedControlFlowFOSG g hctx).availableMovesAtState w who := by
+  cases w with
+  | mk Γ prog env suffix wctx fresh viewScoped normalized legal =>
+      cases prog with
+      | ret payoffs =>
+          have hoiNone : oi = none := by
+            simpa [moveAtWorld, moveAtCursor] using hoi
+          subst oi
+          simp [GameTheory.FOSG.availableMovesAtState,
+            GameTheory.FOSG.locallyLegalAtState, observedControlFlowFOSG,
+            checkedActive, CheckedWorld.toWorld, active]
+      | letExpr x e k =>
+          have hoiNone : oi = none := by
+            simpa [moveAtWorld, moveAtCursor] using hoi
+          subst oi
+          simp [GameTheory.FOSG.availableMovesAtState,
+            GameTheory.FOSG.locallyLegalAtState, observedControlFlowFOSG,
+            checkedActive, CheckedWorld.toWorld, active]
+      | sample x D k =>
+          have hoiNone : oi = none := by
+            simpa [moveAtWorld, moveAtCursor] using hoi
+          subst oi
+          simp [GameTheory.FOSG.availableMovesAtState,
+            GameTheory.FOSG.locallyLegalAtState, observedControlFlowFOSG,
+            checkedActive, CheckedWorld.toWorld, active]
+      | reveal y owner x hx k =>
+          have hoiNone : oi = none := by
+            simpa [moveAtWorld, moveAtCursor] using hoi
+          subst oi
+          simp [GameTheory.FOSG.availableMovesAtState,
+            GameTheory.FOSG.locallyLegalAtState, observedControlFlowFOSG,
+            checkedActive, CheckedWorld.toWorld, active]
+      | commit x owner R k =>
+          by_cases howner : owner = who
+          · cases howner
+            let d :=
+              ProgramBehavioralStrategy.headKernel (P := P) (L := L)
+                ((suffix.behavioralProfile (fun i => (σ i).val)) who)
+                (projectViewEnv (P := P) (L := L) who (VEnv.eraseEnv env))
+            have hd :
+                FDist.totalWeight d = 1 :=
+              ProgramBehavioralStrategy.headKernel_normalized
+                (P := P) (L := L)
+                ((suffix.behavioralProfile (fun i => (σ i).val)) who)
+                (projectViewEnv (P := P) (L := L) who (VEnv.eraseEnv env))
+            have hoi' :
+                ∃ v, ¬(d.toPMF hd) v = 0 ∧ some (Sigma.mk _ v) = oi := by
+              simpa [moveAtWorld, moveAtCursor, d, hd] using hoi
+            rcases hoi' with ⟨v, hvprob, hvo⟩
+            rw [← hvo]
+            have hv : v ∈ (d.toPMF hd).support := by
+              rw [PMF.mem_support_iff]
+              simpa [d] using hvprob
+            have hvFD : v ∈ d.support :=
+              mem_fdist_support_of_mem_toPMF_support (d := d) (h := hd) hv
+            have hguard :
+                evalGuard (Player := P) (L := L) R v (VEnv.eraseEnv env) = true := by
+              exact headKernel_supported_atCursor (P := P) (L := L)
+                g hctx σ suffix (VEnv.eraseEnv env) v hvFD
+            simp [GameTheory.FOSG.availableMovesAtState,
+              GameTheory.FOSG.locallyLegalAtState, observedControlFlowFOSG,
+              checkedActive, checkedAvailableActions, CheckedWorld.toWorld,
+              active, availableActions, hguard]
+          · have hoiNone : oi = none := by
+              simpa [moveAtWorld, moveAtCursor, howner] using hoi
+            subst oi
+            have hnot : who ≠ owner := fun h => howner h.symm
+            simp [GameTheory.FOSG.availableMovesAtState,
+              GameTheory.FOSG.locallyLegalAtState, observedControlFlowFOSG,
+              checkedActive, CheckedWorld.toWorld, active, hnot]
+
+noncomputable def moveAtObservation?
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g)
+    (who : P)
+    (obs : PrivateObs P L who × PublicObs g hctx) :
+    PMF (Option (Action (P := P) L who)) := by
+  let priv := obs.1
+  let pub := obs.2
+  by_cases hΓ : priv.Γ = pub.Γ
+  · exact moveAtCursor g hctx σ who pub.suffix (hΓ ▸ VEnv.eraseEnv priv.env)
+  · exact PMF.pure none
+
+/-- Raw FOSG behavioral profile induced by a Vegas legal behavioral profile.
+
+This is not yet bundled as a legal FOSG profile; legality is the next theorem.
+-/
+noncomputable def behavioralProfileCandidate
+    (g : WFProgram P L) (hctx : WFCtx g.Γ)
+    (σ : LegalProgramBehavioralProfile g) :
+    GameTheory.FOSG.BehavioralProfile (observedControlFlowFOSG g hctx) :=
+  fun who s =>
+    match latestObservation? g hctx who s with
+    | none => moveAtWorld g hctx σ who (CheckedWorld.initial g hctx)
+    | some obs => moveAtObservation? g hctx σ who obs
 
 end Observed
 
