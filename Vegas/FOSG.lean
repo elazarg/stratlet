@@ -493,6 +493,33 @@ theorem latestObservation?_append_act_obs
         GameTheory.FOSG.PlayerEvent.obs priv pub]) = some (priv, pub) := by
   simp [latestObservation?, observationEvents]
 
+/-- Extending an observed FOSG history records the destination world's Vegas
+view/public state as the latest information-state observation. -/
+theorem latestObservation?_history_snoc
+    (g : WFProgram P L) (who : P)
+    (h : (compileObserved g).History)
+    (a : (compileObserved g).LegalAction h.lastState)
+    (dst : CheckedWorld P L)
+    (support : (compileObserved g).transition h.lastState a dst ≠ 0) :
+    latestObservation? g who ((h.snoc a dst support).playerView who) =
+      some (privateObsOfWorld who dst, publicObsOfWorld dst) := by
+  rw [GameTheory.FOSG.History.playerView_snoc]
+  let e : (compileObserved g).Step :=
+    { src := h.lastState, act := a, dst := dst, support := support }
+  change latestObservation? g who (h.playerView who ++ e.playerView who) =
+    some (privateObsOfWorld who dst, publicObsOfWorld dst)
+  cases hact : e.ownAction? who with
+  | none =>
+      rw [GameTheory.FOSG.Step.playerView_of_none e who hact]
+      simpa [e, compileObserved] using
+        latestObservation?_append_obs g who (h.playerView who)
+          (privateObsOfWorld who dst) (publicObsOfWorld dst)
+  | some ai =>
+      rw [GameTheory.FOSG.Step.playerView_of_some e who hact]
+      simpa [e, compileObserved] using
+        latestObservation?_append_act_obs g who (h.playerView who) ai
+          (privateObsOfWorld who dst) (publicObsOfWorld dst)
+
 end Observed
 
 end FOSGBridge
