@@ -7,6 +7,7 @@ Authors: VegasCore contributors
 import Vegas.Scheduled.Law
 import Vegas.Scheduled.Predraw
 import Vegas.Scheduled.Strategic
+import GameTheory.Core.Approximate
 
 /-! # Equilibrium preservation for the actual serialized game -/
 
@@ -155,6 +156,111 @@ theorem expectedUtility_backtranslateSerialized_update (program : Program Player
       (fun history => program.settledPlayerUtility history.state who)
   simpa only [FinDist.expect_map] using hpay
 
+/-- Every unilateral runtime deviation has a terminal-state law which is a
+finite mixture of unilateral source-deviation laws against the *same* honest
+opponents. The mixture may depend on the profile and horizon; it is not a
+uniform translator for all counterfactual opponent profiles. No rationality or
+equilibrium assumption is made about any participant. -/
+theorem serializedDeviation_eq_sourceMixture (program : Program Player L)
+    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : (who : Player) → program.information.BehavioralPolicy who) (who : Player)
+    (replacement : program.serializedArena.information.BehavioralPolicy (.player who)) :
+    ∃ replacements : FinDist (program.information.BehavioralPolicy who),
+      (program.serializedArena.information.runBehavioral
+        (Function.update (program.compileSerializedBehavioralProfile scheduler profile)
+          (.player who) replacement) program.graph.nodeCount).map
+            (fun history => history.state.base) =
+      replacements.bind fun alternative =>
+        (program.information.runBehavioral (Function.update profile who alternative)
+          program.graph.nodeCount).map ExecutionProtocol.History.state := by
+  let deviated := Function.update
+    (program.compileSerializedBehavioralProfile scheduler profile) (.player who) replacement
+  obtain ⟨schedulers, hlaw⟩ := program.serializedSystem.exists_predrawScheduler
+    deviated program.graph.nodeCount program.serializedArena.execution.initHistory
+  refine ⟨schedulers.map (fun pureScheduler =>
+    program.backtranslateSerializedBehavioralPolicy pureScheduler who replacement), ?_⟩
+  have hfixed : ∀ pureScheduler,
+      program.serializedSystem.fixScheduler pureScheduler deviated =
+      Profile.update (sig := (program.serializedGame (fun _ => 0)).behavioral.form.sig)
+        (program.compileSerializedBehavioralProfile pureScheduler.toBehavioral profile)
+        (.player who) replacement := by
+    intro pureScheduler
+    funext participant
+    cases participant with
+    | scheduler => simp [ScheduledSystem.fixScheduler, Profile.update,
+        compileSerializedBehavioralProfile]
+    | player other =>
+        by_cases heq : other = who
+        · subst other
+          simp [ScheduledSystem.fixScheduler, deviated, Profile.update]
+        · simp [ScheduledSystem.fixScheduler, deviated, Profile.update, heq,
+            compileSerializedBehavioralProfile]
+  change (program.serializedSystem.revealingInformation.runBehavioralFrom deviated
+    program.graph.nodeCount program.serializedArena.execution.initHistory).map _ = _
+  rw [← hlaw, FinDist.map_bind, FinDist.bind_map]
+  apply FinDist.bind_congr
+  intro pureScheduler _
+  rw [hfixed]
+  have htranslate := program.runBehavioral_backtranslateSerialized pureScheduler
+    (Profile.update (sig := (program.serializedGame (fun _ => 0)).behavioral.form.sig)
+      (program.compileSerializedBehavioralProfile pureScheduler.toBehavioral profile)
+      (.player who) replacement) (by simp [Profile.update, compileSerializedBehavioralProfile])
+  rw [program.backtranslateSerialized_update] at htranslate
+  exact htranslate
+
+/-- Exact source expectations also survive every unilateral runtime deviation.
+The observable need not be a utility or belong to the deviating player. -/
+theorem serializedDeviation_expect_eq (program : Program Player L)
+    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : (who : Player) → program.information.BehavioralPolicy who) (who : Player)
+    (observable : program.State → ℝ) (value : ℝ)
+    (hvalue : ∀ alternative : program.information.BehavioralPolicy who,
+      (program.information.runBehavioral (Function.update profile who alternative)
+        program.graph.nodeCount).expect (fun history => observable history.state) = value)
+    (replacement : program.serializedArena.information.BehavioralPolicy (.player who)) :
+    (program.serializedArena.information.runBehavioral
+      (Function.update (program.compileSerializedBehavioralProfile scheduler profile)
+        (.player who) replacement) program.graph.nodeCount).expect
+          (fun history => observable history.state.base) = value := by
+  obtain ⟨replacements, hlaw⟩ := program.serializedDeviation_eq_sourceMixture
+    scheduler profile who replacement
+  have hexpect := congrArg (fun law => law.expect observable) hlaw
+  rw [FinDist.expect_map, FinDist.expect_bind] at hexpect
+  rw [hexpect]
+  calc
+    _ = replacements.expect (fun _ => value) := by
+      apply FinDist.expect_congr
+      intro alternative _
+      simpa only [FinDist.expect_map] using hvalue alternative
+    _ = value := FinDist.expect_const _ _
+
+/-- Any source bound on any terminal-state loss survives arbitrary unilateral
+runtime deviations and arbitrary public-data behavioral scheduling. The loss
+can measure harm to an honest player, not merely the deviator's own utility. -/
+theorem serializedDeviation_expect_le (program : Program Player L)
+    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : (who : Player) → program.information.BehavioralPolicy who) (who : Player)
+    (loss : program.State → ℝ) (bound : ℝ)
+    (hbound : ∀ alternative : program.information.BehavioralPolicy who,
+      (program.information.runBehavioral (Function.update profile who alternative)
+        program.graph.nodeCount).expect (fun history => loss history.state) ≤ bound)
+    (replacement : program.serializedArena.information.BehavioralPolicy (.player who)) :
+    (program.serializedArena.information.runBehavioral
+      (Function.update (program.compileSerializedBehavioralProfile scheduler profile)
+        (.player who) replacement) program.graph.nodeCount).expect
+          (fun history => loss history.state.base) ≤ bound := by
+  obtain ⟨replacements, hlaw⟩ := program.serializedDeviation_eq_sourceMixture
+    scheduler profile who replacement
+  have hexpect := congrArg (fun law => law.expect loss) hlaw
+  rw [FinDist.expect_map, FinDist.expect_bind] at hexpect
+  rw [hexpect]
+  calc
+    _ ≤ replacements.expect (fun _ => bound) := by
+      apply FinDist.expect_mono
+      intro alternative _
+      simpa only [FinDist.expect_map] using hbound alternative
+    _ = bound := FinDist.expect_const _ _
+
 /-- A source behavioral Nash equilibrium remains Nash for the original
 players against all behavioral runtime deviations. The fixed scheduler may
 react arbitrarily to public data; it is not tested as an equilibrium player. -/
@@ -184,43 +290,11 @@ theorem isPlayerNash_compileSerialized_of_isNash (program : Program Player L)
     Scheduled.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler profile) := by
   intro who replacement _
-  let deviated := Profile.update
-    (sig := (program.serializedGame schedulerUtility).behavioral.form.sig)
-    (program.compileSerializedBehavioralProfile scheduler profile) (.player who) replacement
-  obtain ⟨schedulers, hlaw⟩ := program.serializedSystem.exists_predrawScheduler
-    deviated program.graph.nodeCount program.serializedArena.execution.initHistory
-  have hfixed : ∀ pureScheduler,
-      program.serializedSystem.fixScheduler pureScheduler deviated =
-      Profile.update (sig := (program.serializedGame schedulerUtility).behavioral.form.sig)
-        (program.compileSerializedBehavioralProfile pureScheduler.toBehavioral profile)
-        (.player who) replacement := by
-    intro pureScheduler
-    funext participant
-    cases participant with
-    | scheduler => simp [ScheduledSystem.fixScheduler, Profile.update,
-        compileSerializedBehavioralProfile]
-    | player other =>
-        by_cases heq : other = who
-        · subst other
-          simp [ScheduledSystem.fixScheduler, deviated]
-        · simp [ScheduledSystem.fixScheduler, deviated, Profile.update, heq,
-            compileSerializedBehavioralProfile]
   rw [program.expectedUtility_compileSerialized]
-  change expectedUtility (program.serializedUtility schedulerUtility) (.player who)
-    (program.serializedSystem.revealingInformation.runBehavioralFrom deviated
-      program.graph.nodeCount program.serializedArena.execution.initHistory) ≤ _
-  rw [← hlaw, expectedUtility_bind]
-  calc
-    _ ≤ schedulers.expect (fun _ => expectedUtility program.game.behavioral.utility who
-        (program.game.behavioral.form.play profile)) := by
-      apply FinDist.expect_mono
-      intro pureScheduler _
-      rw [hfixed]
-      change expectedUtility (program.serializedGame schedulerUtility).behavioral.utility
-        (.player who) ((program.serializedGame schedulerUtility).behavioral.form.play _) ≤ _
-      rw [program.expectedUtility_backtranslateSerialized_update]
-      exact (isNash_iff (F := program.game.behavioral.form) profile).mp hnash who _
-    _ = _ := FinDist.expect_const _ _
+  exact program.serializedDeviation_expect_le scheduler profile who
+    (fun state => program.settledPlayerUtility state who) _
+    (fun alternative => (isNash_iff (F := program.game.behavioral.form) profile).mp
+      hnash who alternative) replacement
 
 /-- Compilation commutes with a unilateral source deviation. -/
 theorem compileSerialized_update (program : Program Player L)
@@ -239,6 +313,59 @@ theorem compileSerialized_update (program : Program Player L)
       by_cases heq : other = who
       · subst other; simp [compileSerializedBehavioralProfile]
       · simp [compileSerializedBehavioralProfile, Profile.update, heq]
+
+/-- Exact preservation and reflection of every unilateral terminal-loss bound.
+This characterizes worst-case expected harm without assuming existence of a
+best response, bounded utilities, equilibrium, or adversarial rationality. -/
+theorem serializedDeviation_expect_bound_iff (program : Program Player L)
+    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : (who : Player) → program.information.BehavioralPolicy who) (who : Player)
+    (loss : program.State → ℝ) (bound : ℝ) :
+    (∀ replacement : program.serializedArena.information.BehavioralPolicy (.player who),
+      (program.serializedArena.information.runBehavioral
+        (Function.update (program.compileSerializedBehavioralProfile scheduler profile)
+          (.player who) replacement) program.graph.nodeCount).expect
+            (fun history => loss history.state.base) ≤ bound) ↔
+    (∀ alternative : program.information.BehavioralPolicy who,
+      (program.information.runBehavioral (Function.update profile who alternative)
+        program.graph.nodeCount).expect (fun history => loss history.state) ≤ bound) := by
+  constructor
+  · intro hbound alternative
+    have htarget := hbound (program.compileSerializedBehavioralPolicy who alternative)
+    have hupdate := program.compileSerialized_update scheduler profile who alternative
+    change program.compileSerializedBehavioralProfile scheduler
+      (Function.update profile who alternative) = Function.update
+        (program.compileSerializedBehavioralProfile scheduler profile) (.player who)
+        (program.compileSerializedBehavioralPolicy who alternative) at hupdate
+    rw [← hupdate] at htarget
+    have hlaw := congrArg (fun law => law.expect loss)
+      (program.runBehavioral_compileSerialized scheduler (Function.update profile who alternative))
+    simp only [FinDist.expect_map] at hlaw
+    exact hlaw ▸ htarget
+  · exact fun hbound => program.serializedDeviation_expect_le
+      scheduler profile who loss bound hbound
+
+/-- Approximate equilibrium is preserved with exactly the same error budget.
+Only original-player deviations are tested in the implementation. -/
+theorem serialized_approximate_nash_iff (program : Program Player L)
+    (schedulerUtility : program.serializedArena.History → ℝ)
+    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : (who : Player) → program.information.BehavioralPolicy who) (ε : ℝ) :
+    (∀ who replacement,
+      expectedUtility (program.serializedGame schedulerUtility).behavioral.utility (.player who)
+        ((program.serializedGame schedulerUtility).behavioral.form.play
+          (Profile.update (program.compileSerializedBehavioralProfile scheduler profile)
+            (.player who) replacement)) ≤
+      expectedUtility (program.serializedGame schedulerUtility).behavioral.utility (.player who)
+        ((program.serializedGame schedulerUtility).behavioral.form.play
+          (program.compileSerializedBehavioralProfile scheduler profile)) + ε) ↔
+    IsεNash program.game.behavioral.form program.game.behavioral.utility ε profile := by
+  rw [isεNash_iff]
+  simp only [program.expectedUtility_compileSerialized]
+  apply forall_congr'
+  intro who
+  exact program.serializedDeviation_expect_bound_iff scheduler profile who
+    (fun state => program.settledPlayerUtility state who) _
 
 /-- **End-to-end behavioral Nash equivalence for the actual serializer.**
 For every public-data behavioral scheduler, compiled source profiles are Nash

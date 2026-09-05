@@ -487,9 +487,27 @@ and scheduler optimality are irrelevant. The proof reconstructs runtime
 information from the canonical source player's compact information, then
 predraws only scheduler randomness. Honest opponents remain unchanged.
 
+The distributional statement is stronger than Nash preservation: every
+unilateral behavioral runtime deviation induces a finite mixture of source
+deviation terminal-state laws against the same opponents. Thus every source
+upper bound on expected terminal loss is preserved and reflected, even when
+the loss measures harm to an honest player and the adversary has no rationality
+assumption. Approximate Nash equilibria are preserved and reflected with
+exactly the same ε. For randomized schedulers the mixture witness is
+profile-local; a uniform opponent-independent translator is not claimed.
+
+`VegasTests/MatchingPenniesEquilibrium.lean` proves the payoff table of the
+compiled hidden-choice game, including its automatic reveals, constructs its
+fair-coin behavioral Nash equilibrium, and transports it through the actual
+serializer for every behavioral public-data scheduler. With one fair player,
+an arbitrary unilateral runtime adversary leaves both expected payoffs exactly
+zero. This is a concrete honest-player guarantee, not just a conditional
+equilibrium-equivalence instantiation.
+
 This result concerns the modeled serializer, not public-chain execution.
 The scheduler cannot inspect sealed values or current simultaneous submissions,
 and utilities of original players depend only on the settled graph state.
+The unilateral results do not establish coordinated-coalition security.
 The theorem does not model censorship, transaction timing, gas, external
 utility, or cryptographic realization of the sealed values.
 

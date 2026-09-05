@@ -823,6 +823,64 @@ theorem compiled_serialized_nash_iff
       (GameTheory.euPreference program.game.behavioral.utility) profile :=
   program.isPlayerNash_compileSerialized_iff schedulerUtility scheduler profile
 
+/-- **Distributional unilateral-adversary preservation.** Every behavioral
+runtime deviation has a terminal-state law equal to a finite mixture of source
+deviations against exactly the same compiled opponents. The mixture is local
+to this profile and horizon, not a uniform randomized-scheduler translator. -/
+theorem compiled_serialized_deviation_law
+    {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
+    (program : Machine.Program Player L)
+    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : (who : Player) → program.information.BehavioralPolicy who) (who : Player)
+    (replacement : program.serializedArena.information.BehavioralPolicy (.player who)) :
+    ∃ replacements : FinDist (program.information.BehavioralPolicy who),
+      (program.serializedArena.information.runBehavioral
+        (Function.update (program.compileSerializedBehavioralProfile scheduler profile)
+          (.player who) replacement) program.graph.nodeCount).map
+            (fun history => history.state.base) =
+      replacements.bind fun alternative =>
+        (program.information.runBehavioral (Function.update profile who alternative)
+          program.graph.nodeCount).map GameTheory.Protocol.ExecutionProtocol.History.state :=
+  program.serializedDeviation_eq_sourceMixture scheduler profile who replacement
+
+/-- **Exact preservation of unilateral adversarial loss bounds.** The loss is
+any real-valued terminal-state observable, including harm to an honest player.
+No equilibrium, rationality, or existence of a best response is assumed. -/
+theorem compiled_serialized_loss_bound_iff
+    {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
+    (program : Machine.Program Player L)
+    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : (who : Player) → program.information.BehavioralPolicy who) (who : Player)
+    (loss : program.State → ℝ) (bound : ℝ) :
+    (∀ replacement : program.serializedArena.information.BehavioralPolicy (.player who),
+      (program.serializedArena.information.runBehavioral
+        (Function.update (program.compileSerializedBehavioralProfile scheduler profile)
+          (.player who) replacement) program.graph.nodeCount).expect
+            (fun history => loss history.state.base) ≤ bound) ↔
+    (∀ alternative : program.information.BehavioralPolicy who,
+      (program.information.runBehavioral (Function.update profile who alternative)
+        program.graph.nodeCount).expect (fun history => loss history.state) ≤ bound) :=
+  program.serializedDeviation_expect_bound_iff scheduler profile who loss bound
+
+/-- **Approximate Nash equivalence without error inflation.** Only original
+players are tested; scheduling is an arbitrary public-data environment. -/
+theorem compiled_serialized_approximate_nash_iff
+    {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
+    (program : Machine.Program Player L)
+    (schedulerUtility : program.serializedArena.History → ℝ)
+    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : (who : Player) → program.information.BehavioralPolicy who) (ε : ℝ) :
+    (∀ who replacement,
+      GameTheory.expectedUtility (program.serializedGame schedulerUtility).behavioral.utility
+        (.player who) ((program.serializedGame schedulerUtility).behavioral.form.play
+          (GameTheory.Profile.update (program.compileSerializedBehavioralProfile scheduler profile)
+            (.player who) replacement)) ≤
+      GameTheory.expectedUtility (program.serializedGame schedulerUtility).behavioral.utility
+        (.player who) ((program.serializedGame schedulerUtility).behavioral.form.play
+          (program.compileSerializedBehavioralProfile scheduler profile)) + ε) ↔
+    GameTheory.IsεNash program.game.behavioral.form program.game.behavioral.utility ε profile :=
+  program.serialized_approximate_nash_iff schedulerUtility scheduler profile ε
+
 /-! ## Scheduling -/
 
 /-- **Confluence of effects is not invisibility of order.**
@@ -1352,6 +1410,18 @@ build fails here rather than silently widening what the paper is trusting.
 /-- info: 'Vegas.Paper.compiled_serialized_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.compiled_serialized_nash_iff
+
+/-- info: 'Vegas.Paper.compiled_serialized_deviation_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.compiled_serialized_deviation_law
+
+/-- info: 'Vegas.Paper.compiled_serialized_loss_bound_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.compiled_serialized_loss_bound_iff
+
+/-- info: 'Vegas.Paper.compiled_serialized_approximate_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.compiled_serialized_approximate_nash_iff
 
 /-- info: 'Vegas.Paper.utility_preservation_honest' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in

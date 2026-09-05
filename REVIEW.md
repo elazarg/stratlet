@@ -9,7 +9,9 @@ It is a mechanized semantics paper along these lines:
 > strategy presentations are mutually deviation adequate, so their outcome laws and Nash equilibria correspond.
 > Public serialization preserves the complete terminal-state law of compiled behavioral play and preserves and reflects
 > Nash equilibrium for the original players against every behavioral public-data scheduler and every behavioral player
-> deviation.
+> deviation. More generally, unilateral runtime-deviation terminal laws are finite mixtures of source-deviation laws
+> against unchanged opponents. Every upper bound on expected terminal loss is preserved and reflected, without assuming
+> adversarial rationality; approximate Nash equilibria retain exactly the same error budget.
 
 The strongest new result around that core is a mechanized scheduling boundary. The actual graph-derived serializer gives
 the scheduler the complete public graph observation, but no sealed value or same-round submission. Every accepted
@@ -40,6 +42,11 @@ sites. Honest players remain behavioral and their random choices are not disclos
 the resulting source-deviation inequalities establishes behavioral Nash equivalence for the actual serialized game.
 The independent-signal games are auxiliary examples, not premises of this result.
 
+The finite-mixture law is independent of the choice of terminal observable, so it supports honest-player loss bounds as
+well as the deviator's incentive inequalities. For randomized schedulers the mixture is profile- and horizon-local;
+opponent-independent back-translation is proved for fixed pure executing schedulers. These are unilateral results,
+not coordinated-coalition security. They do not assert equality of the entire source and runtime equilibrium sets.
+
 Most ingredients are already proved:
 
 - Terminal source-payoff reconstruction: Vegas/Compile/SourceAdequacy.lean:441
@@ -55,6 +62,8 @@ Most ingredients are already proved:
 - Complete atomic/serialized terminal-state laws: Vegas/Scheduled/Law.lean
 - Scheduler-only finite-support predrawing: Vegas/Scheduled/Predraw.lean
 - Actual serializer behavioral Nash preservation and reflection: Vegas/Scheduled/Equilibrium.lean
+- Terminal-loss bound equivalence and exact-error approximate Nash: Vegas/Scheduled/Equilibrium.lean
+- Concrete compiled fair equilibrium and unilateral-adversary payoff guarantee: VegasTests/MatchingPenniesEquilibrium.lean
 - Player-only Nash preservation for independent signals: Vegas/Scheduled/Strategic.lean
 - Exact FOSG→EFG behavioral-law and Nash results exist in the imported GameTheory library: GameTheory/GameTheory/
 Languages/Bridges/FOSGToEFGStrategic.lean:240
@@ -125,16 +134,16 @@ The contribution should be presented as:
 - behavioral Nash equivalence through a public-data adversarial serialization environment;
 - deviation adequacy as the interface required for later runtime passes.
 
-To make that a convincing paper rather than a collection of library theorems, a concrete equilibrium case study is essential:
+The concrete case study in VegasTests/MatchingPenniesEquilibrium.lean establishes that the initial compiled menus are
+exactly Boolean choices, proves the execution's payoff table through automatic reveals, constructs the fair behavioral
+equilibrium, and transports it to the actual serializer for every behavioral scheduler. Off-path policies and arbitrary
+legal behavioral deviations are included. One fair player guarantees both expected payoffs are exactly zero against an
+arbitrary unilateral runtime adversary, irrespective of its objective.
 
-1. One real mechanized case study. The matching-pennies test exercises a remarkable amount of the infrastructure, but it
-    never defines the equilibrium, proves it is Nash, or transports it through the representations. Do that for
-    Odds–Evens or matching pennies.
-
-The general atomic-to-serialized theorem is instantiated for the matching-pennies compiled game in
-VegasTests/ScheduledEquilibrium.lean. Those tests establish equivalence for arbitrary profiles; they do not construct
-and prove its particular fair-coin equilibrium. Initial chance settlement and the zero-node game also instantiate the
-complete-law theorem.
+VegasTests/ScheduledEquilibrium.lean also instantiates the equivalence for arbitrary profiles. Initial chance settlement
+and the zero-node game instantiate the complete-law theorem. A multistage equilibrium example with public chance between
+strategic frontiers remains missing: the general theorem covers it, but the concrete fair-coin example has only one
+strategic frontier and therefore does not exercise adaptive scheduling between player decisions.
 
 ## The strongest enhanced version
 
@@ -144,7 +153,7 @@ The scheduling theorem supports the following concrete claim:
 > uniformly over schedulers that may react to all prior public observations but not to sealed values or current-round
 > submissions.
 
-For the same Odds–Evens example, this should combine:
+The matching-pennies example combines:
 
 - the existing proof that both runtime orders are accepted and have the same settled graph effect;
 - a target utility that factors through the settled source outcome and ignores the order log;
@@ -242,11 +251,12 @@ checked compiler interface—not as the first connection between deviation simul
 ## Recommended order of work
 
 1. Freeze and name one finite supported fragment.
-2. Add one equilibrium-carrying mechanized example.
-3. Transport that concrete equilibrium through the proved serializer Nash equivalence.
-4. Correct the abstract, theorem descriptions, attribution, README claims, and artifact counts.
+2. Add a multistage case study with public chance between strategic frontiers and a proved equilibrium or loss guarantee.
+3. Give a narrow transaction-level model explicit refusal, inclusion, and observation rules; prove its strategic bridge
+   or a counterexample before claiming the scheduler result applies to it.
+4. Correct the abstract, theorem descriptions, attribution, README claims, and artifact counts once the result is fixed.
 5. Either build the Kotlin→Lean translation validator or present the artifacts unequivocally as independent.
-6. Leave public-chain strategic adequacy and whole-handler EVM verification to a later paper.
+6. Keep public-chain strategic adequacy and whole-handler EVM verification separate from the proved serializer result.
 
 The scheduling results include exact atomic implementation, compact-information sufficiency, canonical local policy
 back-translation, complete terminal laws, and behavioral Nash equivalence under arbitrary public-data behavioral

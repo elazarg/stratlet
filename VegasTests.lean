@@ -8,3 +8,4 @@ import VegasTests.Game
 import VegasTests.Machine
 import VegasTests.ScheduledReplay
 import VegasTests.ScheduledEquilibrium
+import VegasTests.MatchingPenniesEquilibrium

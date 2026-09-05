@@ -149,6 +149,51 @@ open GameTheory.Protocol GameTheory.Math.Probability EventGraph
 
 variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
 
+/-- Atomic execution never changes a field whose writer has already completed. -/
+theorem executionStep_extends (program : Program Player L) (state : program.State)
+    (command : {joint // program.execution.Legal state joint}) {next : program.State}
+    (hnext : next ∈ (program.execution.step state command).support) :
+    state.1.Extends next.1 := by
+  classical
+  change next ∈ ((toExecutionProtocol program.graph program.graphWF program.guardLive).step
+    state command).support at hnext
+  by_cases hinternal : (readyInternalNodes program.graph state.1).Nonempty
+  · rw [Compiled.toExecutionProtocol_step_eq_stepReadyInternal
+      program.graph program.graphWF program.guardLive state command hinternal] at hnext
+    exact extends_of_stepReadyInternal program.graphWF state hinternal hnext
+  · rw [toExecutionProtocol_step_eq_pure_applyFrontier
+      program.graph program.graphWF program.guardLive state command
+        (Finset.not_nonempty_iff_eq_empty.mp hinternal), FinDist.mem_support_pure] at hnext
+    subst next
+    exact extends_applyFrontier_of_legal program.graph program.graphWF program.guardLive
+      state command.1 command.2
+
+/-- Every supported continuation preserves completed field values. -/
+theorem runBehavioralFrom_extends (program : Program Player L)
+    (profile : (who : Player) → program.information.BehavioralPolicy who)
+    (fuel : Nat) (start next : program.execution.History)
+    (hnext : next ∈ (program.information.runBehavioralFrom profile fuel start).support) :
+    start.state.1.Extends next.state.1 := by
+  induction fuel generalizing start with
+  | zero =>
+      change next ∈ (FinDist.pure start).support at hnext
+      rw [FinDist.mem_support_pure] at hnext
+      subst next
+      exact Config.Extends.refl _
+  | succ fuel ih =>
+      by_cases hterm : program.execution.terminal start.state
+      · rw [InformationModel.runBehavioralFrom_of_terminal _ _ _ hterm,
+          FinDist.mem_support_pure] at hnext
+        subst next
+        exact Config.Extends.refl _
+      · rw [InformationModel.runBehavioralFrom_succ_of_not_terminal _ _ _ hterm,
+          FinDist.support_bind] at hnext
+        obtain ⟨command, _, hnext⟩ := Set.mem_iUnion₂.mp hnext
+        rw [FinDist.support_bindOnSupport] at hnext
+        obtain ⟨middle, hmiddle, hnext⟩ := Set.mem_iUnion₂.mp hnext
+        exact (program.executionStep_extends start.state command hmiddle).trans
+          (ih (start.extend command.2 hmiddle) hnext)
+
 /-- Compile the real players and supply the scheduler as an environment policy. -/
 def compileSerializedBehavioralProfile (program : Program Player L)
     (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
