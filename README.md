@@ -572,8 +572,20 @@ are explicit model assumptions; this is not generated EVM-handler verification.
 `VegasTests/QuittingSource.lean` supplies a well-formed compiled program with
 explicit acknowledgment dependencies: both hidden choices precede the public
 coin, and a completion acknowledgment gates future chance and the hidden-value
-reveals. It checks graph staging, not yet a correspondence between every
-compiled behavioral policy and the smaller multistage kernel.
+reveals. `VegasTests/QuittingStrategy.lean` proves complete decoded outcome-law
+equality with the multistage kernel for every behavioral profile: extract each
+player's initial bit distribution, and every such distribution has a legal
+behavioral lift. `VegasTests/QuittingEquilibrium.lean` checks the compiled
+payoffs, proves Nash preservation and reflection, and transfers the fair
+equilibrium and zero expected loss against arbitrary unilateral adversaries to
+every public-data behavioral scheduler in the serializer model.
+
+The continuation proof uses a distribution-valued invariant that retains
+completed coin draws and averages over unfinished ones. Its generic finite-run
+rule is `Runtime.runBehavioralFrom_harmonic`. No later player policy is fixed
+by the proof. The remaining quitting-specific gap is identifying the compiled
+completion checkpoint's full information state with own bit plus public coin;
+outcome-law equality alone does not establish that observation correspondence.
 
 ## Path to a blockchain backend
 

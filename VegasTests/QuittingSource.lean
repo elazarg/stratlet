@@ -18,9 +18,11 @@ The distribution expressions explicitly retain their marker reads, even
 though both conditional branches have the same fair law. Textual sequencing
 alone does not impose those dependencies.
 
-This module checks source well-formedness and compiled graph staging. It does
-not identify the full behavioral game with the smaller observed-quitting
-kernel; that requires a strategy and observation correspondence.
+This module checks source well-formedness and compiled graph staging.
+QuittingStrategy and QuittingEquilibrium prove the complete outcome-law and
+Nash correspondence with the smaller kernel, for every behavioral profile.
+Identifying the full information state at the completion checkpoint with the
+kernel's quitting observation is a separate, unproved runtime obligation.
 -/
 
 noncomputable section

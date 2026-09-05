@@ -13,3 +13,6 @@ import VegasTests.RuntimeBoundaries
 import VegasTests.ObservedAbort
 import VegasTests.DisclosureWindow
 import VegasTests.QuittingSource
+import VegasTests.QuittingLaw
+import VegasTests.QuittingStrategy
+import VegasTests.QuittingEquilibrium
