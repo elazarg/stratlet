@@ -10,8 +10,6 @@ import Vegas.Scheduled.Backtranslation
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace Vegas.Scheduled
 
 open GameTheory.Protocol GameTheory.Math.Probability

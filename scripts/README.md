@@ -2,6 +2,10 @@
 
 Run these tools from the repository root.
 
+- `python scripts/check-lean-options.py` rejects source-local `set_option`
+  directives in Vegas and VegasTests. Shared elaboration and lint settings
+  belong in `lakefile.toml`; separately managed dependencies keep their own
+  package configuration.
 - `scripts/bump-lean-mathlib.sh v4.32.0` updates the Lean toolchain and
   Mathlib pins, advances the recursive `GameTheory` submodule, refreshes Lake
   manifests, and verifies that the dependency pins agree. Review the resulting

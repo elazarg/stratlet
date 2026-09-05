@@ -14,8 +14,6 @@ behavioral policies and private randomness throughout the comparison.
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace Vegas.Scheduled
 
 open GameTheory.Protocol GameTheory.Math.Probability

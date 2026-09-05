@@ -23,8 +23,6 @@ implementation obligation.
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace Vegas.Runtime.ObservedAbort
 
 open GameTheory GameTheory.Math.Probability

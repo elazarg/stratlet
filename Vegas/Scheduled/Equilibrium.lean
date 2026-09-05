@@ -13,8 +13,6 @@ import GameTheory.Core.Approximate
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace Vegas.Machine.Program
 
 open GameTheory GameTheory.Protocol GameTheory.Math.Probability

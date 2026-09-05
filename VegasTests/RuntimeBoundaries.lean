@@ -12,8 +12,6 @@ import Vegas.Runtime.SelectiveAbort
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace VegasTests.RuntimeBoundaries
 
 open Vegas GameTheory GameTheory.Math.Probability MatchingPenniesEquilibrium

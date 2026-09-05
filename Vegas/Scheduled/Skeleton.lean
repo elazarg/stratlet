@@ -17,8 +17,6 @@ player policies, chance outcomes, or the scheduler's accepted order.
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace Vegas.EventGraph
 
 open GameTheory.Protocol GameTheory.Math.Probability

@@ -17,8 +17,6 @@ exactly, including its probabilities.
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace Vegas.Machine.Program
 
 open GameTheory.Protocol GameTheory.Math.Probability EventGraph

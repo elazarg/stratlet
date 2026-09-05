@@ -17,8 +17,6 @@ allows earlier observations to be recovered from compact player information.
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace Vegas.EventGraph
 
 open GameTheory.Protocol GameTheory.Math.Probability

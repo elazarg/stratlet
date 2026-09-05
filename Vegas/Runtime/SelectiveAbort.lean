@@ -25,8 +25,6 @@ enforcing its eventual disclosure.
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace Vegas.Runtime.SelectiveAbort
 
 open GameTheory GameTheory.Math.Probability

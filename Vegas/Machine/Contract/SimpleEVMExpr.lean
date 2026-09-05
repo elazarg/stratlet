@@ -309,8 +309,7 @@ def lowerBoolExpr? {Γ : CtxSimple} :
               eval_eq := by
                 intro ρ
                 simp only [BoolExprIR.eval, evalExpr,
-                  loweredLeft.eval_eq ρ, loweredRight.eval_eq ρ]
-                rfl }
+                  loweredLeft.eval_eq ρ, loweredRight.eval_eq ρ] }
       | _, _ => none
   | .eq (b := .word) left right =>
       match lowerWordExpr? left, lowerWordExpr? right with
@@ -320,8 +319,7 @@ def lowerBoolExpr? {Γ : CtxSimple} :
               eval_eq := by
                 intro ρ
                 simp only [BoolExprIR.eval, evalExpr,
-                  loweredLeft.eval_eq ρ, loweredRight.eval_eq ρ]
-                rfl }
+                  loweredLeft.eval_eq ρ, loweredRight.eval_eq ρ] }
       | _, _ => none
   | .ltWord left right =>
       match lowerWordExpr? left, lowerWordExpr? right with

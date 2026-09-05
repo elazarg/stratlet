@@ -22,8 +22,6 @@ checks that the final chance draw is made only after the completion decision.
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace VegasTests.ObservedAbort
 
 open GameTheory GameTheory.Math.Probability Vegas.Runtime

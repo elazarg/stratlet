@@ -10,8 +10,6 @@ import VegasTests.Game
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace VegasTests.MatchingPenniesEquilibrium
 
 open Vegas EventGraph GameTheory GameTheory.Protocol GameTheory.Math.Probability

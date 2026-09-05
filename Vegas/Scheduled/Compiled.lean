@@ -468,7 +468,6 @@ theorem settleInternal_succ_eq_source_step
   rw [settleInternal_succ_of_internal hwf fuel state hinternal,
     toExecutionProtocol_step_eq_stepReadyInternal
       G hwf hguards state _ hinternal]
-  rfl
 
 omit [Fintype Player] in
 /-- If the fuel covers every graph node not already completed, every supported

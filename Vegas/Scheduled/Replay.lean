@@ -23,8 +23,6 @@ information suffices to recover it on legal runtime histories.
 
 noncomputable section
 
-set_option backward.isDefEq.respectTransparency false
-
 namespace Vegas.ScheduledSystem
 
 open GameTheory.Protocol GameTheory.Math.Probability

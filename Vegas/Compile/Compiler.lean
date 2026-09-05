@@ -1049,7 +1049,6 @@ theorem eventDistOf_eval_eq_eval
       L.evalDist dist sourceEnv := by
   unfold EventGraph.EventDist.eval IExpr.evalDist
   rw [eventDistOf_evalLaw_eq_evalLaw state dist sourceEnv readEnv hagrees]
-  rfl
 
 theorem eventDistOf_readEnv_agrees_sourceEnvOfStore_of_readEnv
     {Γ : VCtx P L} {ty : L.Ty}
@@ -1320,7 +1319,6 @@ theorem viewEnvOfReadEnv_eq_eraseEnv_sourceEnvOfStore
             (VEnv.toView who (sourceEnvOfStore state store available))
             name lifted.1.base lifted.2.1.toErased) := by
       rw [hvalueBase, hviewErased]
-      exact HEq.rfl
     exact HEq.trans hreadLifted herasedHEq
   have hcast :
       HEq

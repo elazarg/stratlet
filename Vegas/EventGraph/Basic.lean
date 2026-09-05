@@ -720,7 +720,6 @@ def fieldRow (G : Graph Player L)
         exact hlt'
       omega
     simp [field?, fieldRow, hinit, List.getElem?_eq_getElem hnode]
-    constructor <;> rfl
 
 theorem field_lt_fieldCount_of_field?_some (G : Graph Player L)
     {field : Nat} {spec : FieldSpec Player L}

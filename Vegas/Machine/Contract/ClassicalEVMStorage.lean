@@ -758,7 +758,6 @@ theorem encodeClassicalSnapshot_completeBool
           omega
         simp only [StateSnapshot.ofConfig, Config.completeNode]
         simp [hnodeNe]
-        rfl
       · rw [dif_neg hcompleted, dif_neg hcompleted]
 
 @[simp] theorem decodeClassicalField_encodeClassicalSnapshot
