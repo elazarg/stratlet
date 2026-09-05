@@ -538,6 +538,27 @@ assumes a final informed veto with specified terminal abort payoffs. Neither is
 an impossibility theorem for arbitrary blockchain protocols. The net-utility
 threshold is not a verified deposit, funding, or timeout implementation.
 
+`Runtime.ObservedAbort` handles a quitter who sees only an observation `I`,
+with an observation-dependent abort payoff `a(I)`. Its exact optimum is
+`E[max(E[U | I], a(I))]`. Completing is optimal against refusal-only deviations
+iff `a(I) ≤ E[U | I]` at every supported observation. The full Nash criterion
+also covers changing the source strategy: the conditional law is recomputed
+for each deviation. More information cannot decrease the value of the exit
+option. A causal-law theorem places the decision before future sampling when
+the observation is determined at the checkpoint.
+
+`VegasTests/ObservedAbort.lean` gives a finite multistage game with hidden
+choices, public chance, refusal, and future chance. It proves the fair source
+equilibrium and a sharp abort threshold of −1 despite supported completion
+payoffs of −3. With a zero abort payoff, the optimal exit value is 1/2 when the
+player knows its own choice and the public coin, versus 3/4 when it knows the
+prospective payoff. Observing only its own choice leaves exit value zero and
+preserves the fair equilibrium, including combined initial-choice/refusal
+deviations. The example's causally ordered game has the same complete
+settlement/abort law and the same equilibrium threshold. This is a directly
+defined strategic kernel, not a compiled VegasCore-syntax case study or a
+transaction-handler implementation.
+
 ## Path to a blockchain backend
 
 An EVM-class compiler can grow as a sequence like this:

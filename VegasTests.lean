@@ -10,3 +10,4 @@ import VegasTests.ScheduledReplay
 import VegasTests.ScheduledEquilibrium
 import VegasTests.MatchingPenniesEquilibrium
 import VegasTests.RuntimeBoundaries
+import VegasTests.ObservedAbort

@@ -967,6 +967,79 @@ theorem selective_abort_nash_iff
             GameTheory.expectedUtility source.utility last (source.form.play profile) :=
   Runtime.SelectiveAbort.nash_compile_iff source profile last abortPayoff
 
+/-- **Refusal under partial information.** The quitter's optimal expected
+value clips the conditional expected continuation payoff, not its realized
+value. The observation-dependent abort payoff is available at the decision. -/
+theorem observed_abort_value_bound_iff
+    {Outcome Info : Type*} (law : FinDist Outcome) (observe : Outcome → Info)
+    (completePayoff : Outcome → ℝ) (abortPayoff : Info → ℝ) (bound : ℝ) :
+    (∀ rule : Info → FinDist Bool,
+      Runtime.ObservedAbort.value law observe completePayoff abortPayoff rule ≤ bound) ↔
+    (law.map observe).expect (fun info =>
+      max ((law.condOnFibre observe info).expect completePayoff) (abortPayoff info)) ≤ bound :=
+  Runtime.ObservedAbort.all_rules_bound_iff law observe completePayoff abortPayoff bound
+
+/-- **Exact information-level exit condition.** Completing is optimal against
+all randomized refusal rules precisely at the supported information values
+where its conditional expected payoff is at least the exit payoff. -/
+theorem observed_abort_support_iff
+    {Outcome Info : Type*} (law : FinDist Outcome) (observe : Outcome → Info)
+    (completePayoff : Outcome → ℝ) (abortPayoff : Info → ℝ) :
+    (∀ rule : Info → FinDist Bool,
+      Runtime.ObservedAbort.value law observe completePayoff abortPayoff rule ≤
+        law.expect completePayoff) ↔
+    ∀ info ∈ (law.map observe).support,
+      abortPayoff info ≤ (law.condOnFibre observe info).expect completePayoff :=
+  Runtime.ObservedAbort.no_profitable_refusal_iff law observe completePayoff abortPayoff
+
+/-- **The value of exit is monotone in information.** The abort payoffs are
+held fixed as the quitter learns a refinement of its original observation. -/
+theorem observed_abort_information_mono
+    {Outcome Fine Info : Type*} (law : FinDist Outcome)
+    (observe : Outcome → Fine) (forget : Fine → Info)
+    (completePayoff : Outcome → ℝ) (abortPayoff : Info → ℝ) :
+    (law.map (forget ∘ observe)).expect (fun info =>
+      max ((law.condOnFibre (forget ∘ observe) info).expect completePayoff) (abortPayoff info)) ≤
+    (law.map observe).expect (fun info =>
+      max ((law.condOnFibre observe info).expect completePayoff) (abortPayoff (forget info))) :=
+  Runtime.ObservedAbort.envelope_mono_information law observe forget completePayoff abortPayoff
+
+/-- **A causal realization of the exit decision.** If the outcome observation
+is already determined at the checkpoint, deciding before sampling the future
+continuation has the same complete settlement/abort law for every local rule. -/
+theorem observed_abort_causal_law
+    {Checkpoint Outcome Info : Type*} (checkpoints : FinDist Checkpoint)
+    (continuation : Checkpoint → FinDist Outcome) (checkpointObserve : Checkpoint → Info)
+    (observe : Outcome → Info) (rule : Info → FinDist Bool)
+    (hobserve : ∀ checkpoint ∈ checkpoints.support,
+      ∀ outcome ∈ (continuation checkpoint).support,
+        observe outcome = checkpointObserve checkpoint) :
+    Runtime.ObservedAbort.run (checkpoints.bind continuation) observe rule =
+      checkpoints.bind fun checkpoint => (rule (checkpointObserve checkpoint)).bind fun complete =>
+        if complete then (continuation checkpoint).map Sum.inl
+        else FinDist.pure (Sum.inr (checkpointObserve checkpoint)) :=
+  Runtime.ObservedAbort.run_causal checkpoints continuation checkpointObserve observe rule hobserve
+
+/-- **Full Nash criterion for a partially informed refusal pass.** Every
+source deviation induces its own conditional law. The final player may change
+both its upstream strategy and its randomized information-based exit rule. -/
+theorem observed_abort_nash_iff
+    {Player Info : Type} [DecidableEq Player] (source : GameTheory.UtilityGame Player)
+    (observe : source.form.sig.Outcome → Info) (profile : GameTheory.Profile source.form.sig)
+    (last : Player) (abortPayoff : Info → Player → ℝ) :
+    GameTheory.IsNash (Runtime.ObservedAbort.Game.game source observe last abortPayoff).form
+      (GameTheory.euPreference
+        (Runtime.ObservedAbort.Game.game source observe last abortPayoff).utility)
+      (Runtime.ObservedAbort.Game.compileProfile source profile) ↔
+    GameTheory.IsNash source.form (GameTheory.euPreference source.utility) profile ∧
+      ∀ replacement : source.form.sig.Strategy last,
+        let law := source.form.play (GameTheory.Profile.update profile last replacement)
+        (law.map observe).expect (fun info =>
+          max ((law.condOnFibre observe info).expect (fun outcome => source.utility outcome last))
+            (abortPayoff info last)) ≤
+              GameTheory.expectedUtility source.utility last (source.form.play profile) :=
+  Runtime.ObservedAbort.Game.nash_compile_iff source observe profile last abortPayoff
+
 /-! ## Scheduling -/
 
 /-- **Confluence of effects is not invisibility of order.**
@@ -1528,6 +1601,26 @@ build fails here rather than silently widening what the paper is trusting.
 /-- info: 'Vegas.Paper.selective_abort_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.selective_abort_nash_iff
+
+/-- info: 'Vegas.Paper.observed_abort_value_bound_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.observed_abort_value_bound_iff
+
+/-- info: 'Vegas.Paper.observed_abort_support_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.observed_abort_support_iff
+
+/-- info: 'Vegas.Paper.observed_abort_information_mono' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.observed_abort_information_mono
+
+/-- info: 'Vegas.Paper.observed_abort_causal_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.observed_abort_causal_law
+
+/-- info: 'Vegas.Paper.observed_abort_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.observed_abort_nash_iff
 
 /-- info: 'Vegas.Paper.utility_preservation_honest' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
