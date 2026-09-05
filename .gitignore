@@ -7,3 +7,4 @@ ephemeral/
 .codex
 texput.log
 overleaf/
+__pycache__/

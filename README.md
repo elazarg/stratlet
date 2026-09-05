@@ -4,6 +4,15 @@ VegasCore is a Lean 4 foundation for executable games with partial
 information. A checked source program has one semantic compilation, with two
 consumers: GameTheory analysis and gradual lowering toward concrete runtimes.
 
+The paper audit is the default `Paper` build target: root `Paper.lean` imports
+the general claims in `Vegas/Paper.lean` and restates the concrete case studies.
+`paper-claims.json` maps numbered statements and tagged prose results in the
+separate `overleaf/` repository to axiom-pinned audit theorems. Run
+`python scripts/check-paper-claims.py` and `lake --wfail build` when either side
+changes; the structural check complements, but cannot replace, mathematical
+review of the statements. Compiler preservation claims are generic in the
+game; concrete examples instantiate them or refute an all-game guarantee.
+
 ## Architecture
 
 ```text
@@ -546,6 +555,16 @@ also covers changing the source strategy: the conditional law is recomputed
 for each deviation. More information cannot decrease the value of the exit
 option. A causal-law theorem places the decision before future sampling when
 the observation is determined at the checkpoint.
+
+For Vegas, the quit decision and its outcome belong to the source game, not
+to a runtime-only augmentation. In these mathematical constructions the
+argument named `source` is the normal-completion restriction; the game returned
+by `ObservedAbort.Game.game` includes the specified quitting strategy. The
+conditional-payoff criterion tests whether completion is an equilibrium of
+that full game. Deviation adequacy of its disclosure-window implementation
+holds for arbitrary quit payoffs, including profitable quitting. A general
+proof from the Kotlin type checker's nonresponse semantics to this Lean game
+and onward to generated handlers is not supplied.
 
 `VegasTests/ObservedAbort.lean` gives a finite multistage game with hidden
 choices, public chance, refusal, and future chance. It proves the fair source

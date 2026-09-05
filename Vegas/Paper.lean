@@ -13,24 +13,17 @@ import Vegas.Runtime
 import Vegas.Scheduled
 
 /-!
-# Paper-facing claim surface
+# General paper-facing claims
 
-Every theorem the paper states, restated here **in full**, so that the
-statement can be read and audited without chasing definitions through the
-development.  Each proof is an immediate delegation to the theorem that does
-the work; nothing is proved in this file.
+The root `Paper.lean` audit target imports this module and adds the concrete
+case studies. General compiler theorems remain independent of those examples.
+Statements are restated here so that their hypotheses and conclusions can be
+audited; proofs delegate to the modules that own the results.
 
-The point of the file is that it fails to compile if a claim stops being true,
-stops being provable in the stated form, or is renamed out from under the prose.
-
-Two directions, and only one of them is machine-checked.  *Everything here is
-proved and axiom-pinned* — that the build enforces, and it is what licenses
-citing an entry.  *Everything the paper claims appears here* is a manual
-obligation this repository cannot verify, since the prose is not tracked in it.
-Reviewers have found gaps in that direction before: perfect recall, bounded
-horizon, and the arena's status as a defined rather than translated FOSG were all
-asserted in prose while missing here.  They are listed now.  Treat an absent
-claim as unbacked until checked against this file, not as evidence of anything.
+The build checks the statements and pins their axioms. The paper-claim checker
+requires a mapping for every numbered theorem and explicitly tagged prose
+claim in the active paper. Agreement between mathematical prose and Lean still
+requires review: a matching declaration name is not a proof of that agreement.
 
 Two conventions, both load-bearing:
 
@@ -78,7 +71,7 @@ theorem source_payoff_adequacy
 
 /-! ## Event-graph structure -/
 
-/-- **Schedule confluence** (paper: `thm:confluence`).
+/-- **Schedule confluence** (paper: `thm:confluence`, fixed-result schedules).
 
 Completing a fixed assignment of node values along two orderings of the same
 duplicate-free node list reaches the same configuration: independent events
@@ -92,6 +85,37 @@ theorem schedule_confluence
     (hperm : List.Perm left right) (hnodup : left.Nodup) :
     cfg.scheduleComplete value left = cfg.scheduleComplete value right :=
   Config.scheduleComplete_perm cfg value hperm hnodup
+
+/-- Graph observations agree at equal completed-node cuts with fixed values.
+This does not identify checkpoints that have completed different node sets. -/
+theorem schedule_observation_confluence
+    {Player : Type} [DecidableEq Player] {L : IExpr}
+    {G : Graph Player L} (cfg : Config G) (who : Player)
+    (value : Fin G.nodeCount → TypedValue L)
+    {left right : List (Fin G.nodeCount)}
+    (hperm : List.Perm left right) (hnodup : left.Nodup) :
+    (publicObserve G (cfg.scheduleComplete value left),
+        observe G (cfg.scheduleComplete value left) who) =
+      (publicObserve G (cfg.scheduleComplete value right),
+        observe G (cfg.scheduleComplete value right) who) :=
+  congrArg (fun state => (publicObserve G state, observe G state who))
+    (Config.scheduleComplete_perm cfg value hperm hnodup)
+
+/-- **Local execution diamond** (paper: `thm:confluence`). Both orders have
+supported continuations to equal configurations, not merely equal raw writes. -/
+theorem execution_diamond
+    {Player : Type} [DecidableEq Player] {L : IExpr}
+    {G : Graph Player L} (hwf : G.WF) {cfg leftNext rightNext : Config G}
+    (left right : AvailableEvent G cfg) (hne : left.node ≠ right.node)
+    (hleft : leftNext ∈ (stepAvailableEvent G cfg left).support)
+    (hright : rightNext ∈ (stepAvailableEvent G cfg right).support) :
+    ∃ rightAfterLeft : AvailableEvent G leftNext,
+      ∃ leftAfterRight : AvailableEvent G rightNext,
+        ∃ finalLeft finalRight : Config G,
+          finalLeft ∈ (stepAvailableEvent G leftNext rightAfterLeft).support ∧
+          finalRight ∈ (stepAvailableEvent G rightNext leftAfterRight).support ∧
+          finalLeft = finalRight :=
+  supported_available_events_diamond hwf left right hne hleft hright
 
 /-- **What a commit writes does not depend on the configuration**
 (paper: `thm:write-determinacy`).
@@ -179,6 +203,18 @@ theorem commit_reveal_barrier
     (hcommit : priorEvent.sem = .commit who guard) :
     prior ∈ G.prereqs node :=
   G.prior_commit_mem_prereqs_of_reveal hnode hprior hlt hreveal hcommit
+
+/-- **Ready reveals have completed their commitment fence** (paper: `thm:fence`). -/
+theorem ready_reveal_fence
+    {Player : Type} [DecidableEq Player] {L : IExpr}
+    (G : Graph Player L) (cfg : Config G) {node prior : Fin G.nodeCount}
+    {event priorEvent : EventNode Player L} {source : Nat}
+    {who : Player} {guard : EventGuard L}
+    (hnode : G.nodes[node]? = some event) (hprior : G.nodes[prior]? = some priorEvent)
+    (hlt : (prior : Nat) < (node : Nat)) (hreveal : event.sem = .reveal source)
+    (hcommit : priorEvent.sem = .commit who guard) (hready : Ready G cfg node) :
+    prior ∈ cfg.done :=
+  hready.2 (G.prior_commit_mem_prereqs_of_reveal hnode hprior hlt hreveal hcommit)
 
 /-! ## Scheduling discipline
 
@@ -883,6 +919,30 @@ theorem compiled_serialized_approximate_nash_iff
 
 /-! ## Runtime obstructions -/
 
+/-- **The second submitter's winning deviation** (paper: `thm:public-submission`). -/
+theorem public_submission_winning_deviation
+    (schedulerUtility : Scheduled.PublicSubmission.Values → ℝ)
+    (profile : Profile Scheduled.PublicSubmission.signature) (first : Fin 2)
+    (horder : profile .scheduler = FinDist.pure first) :
+    expectedUtility (Scheduled.PublicSubmission.game schedulerUtility).utility
+      (.player (Scheduled.PublicSubmission.other first))
+      ((Scheduled.PublicSubmission.game schedulerUtility).form.play
+        (Profile.update profile (.player (Scheduled.PublicSubmission.other first))
+          (Scheduled.PublicSubmission.winningPolicy
+            (Scheduled.PublicSubmission.other first)))) = 1 :=
+  Scheduled.PublicSubmission.winning_deviation schedulerUtility profile first horder
+
+/-- **Zero payoff is not Nash for the second submitter** (paper: `thm:public-submission`). -/
+theorem public_submission_not_nash
+    (schedulerUtility : Scheduled.PublicSubmission.Values → ℝ)
+    (profile : Profile Scheduled.PublicSubmission.signature) (first : Fin 2)
+    (horder : profile .scheduler = FinDist.pure first)
+    (hpayoff : expectedUtility (Scheduled.PublicSubmission.game schedulerUtility).utility
+      (.player (Scheduled.PublicSubmission.other first))
+      ((Scheduled.PublicSubmission.game schedulerUtility).form.play profile) = 0) :
+    ¬ Scheduled.IsPlayerNash (Scheduled.PublicSubmission.game schedulerUtility) profile :=
+  Scheduled.PublicSubmission.not_nash_of_zero_payoff schedulerUtility profile first horder hpayoff
+
 /-- **Public sequential submission cannot implement a zero-payoff Nash
 equilibrium.** In this two-bit runtime the later player sees the earlier
 irreversible value before choosing. No compiler or decoder can supply an
@@ -979,6 +1039,18 @@ theorem observed_abort_value_bound_iff
       max ((law.condOnFibre observe info).expect completePayoff) (abortPayoff info)) ≤ bound :=
   Runtime.ObservedAbort.all_rules_bound_iff law observe completePayoff abortPayoff bound
 
+/-- **Deterministic attainment** (paper: `thm:observed-quitting`). Complete
+exactly when the conditional continuation payoff weakly exceeds the exit payoff. -/
+theorem observed_abort_optimal_rule
+    {Outcome Info : Type*} (law : FinDist Outcome) (observe : Outcome → Info)
+    (completePayoff : Outcome → ℝ) (abortPayoff : Info → ℝ) :
+    Runtime.ObservedAbort.value law observe completePayoff abortPayoff
+      (fun info => FinDist.pure
+        (decide (abortPayoff info ≤ (law.condOnFibre observe info).expect completePayoff))) =
+      (law.map observe).expect (fun info =>
+        max ((law.condOnFibre observe info).expect completePayoff) (abortPayoff info)) :=
+  Runtime.ObservedAbort.optimal_value law observe completePayoff abortPayoff
+
 /-- **Exact information-level exit condition.** Completing is optimal against
 all randomized refusal rules precisely at the supported information values
 where its conditional expected payoff is at least the exit payoff. -/
@@ -1020,9 +1092,11 @@ theorem observed_abort_causal_law
         else FinDist.pure (Sum.inr (checkpointObserve checkpoint)) :=
   Runtime.ObservedAbort.run_causal checkpoints continuation checkpointObserve observe rule hobserve
 
-/-- **Full Nash criterion for a partially informed refusal pass.** Every
-source deviation induces its own conditional law. The final player may change
-both its upstream strategy and its randomized information-based exit rule. -/
+/-- **Completion-equilibrium criterion for a source game with quitting.**
+Here `source` denotes the normal-completion restriction; `Game.game` is the
+full game including the specified quit decision. Every upstream deviation
+induces its own conditional law. This is a mechanism-design criterion, not a
+requirement that compilers remove profitable source-level quit strategies. -/
 theorem observed_abort_nash_iff
     {Player Info : Type} [DecidableEq Player] (source : GameTheory.UtilityGame Player)
     (observe : source.form.sig.Outcome → Info) (profile : GameTheory.Profile source.form.sig)
@@ -1071,6 +1145,31 @@ theorem disclosure_window_nash_iff
             (abortPayoff info last)) ≤
               GameTheory.expectedUtility source.utility last (source.form.play profile) :=
   Runtime.DisclosureWindow.Game.nash_compile_iff source observe profile last abortPayoff gate slots
+
+/-- A nonempty bounded window is uniformly deviation-adequate for the full
+source game with quitting, including its complete tagged outcome law. This
+holds for arbitrary games and quit payoffs, even when quitting is profitable. -/
+theorem disclosure_window_adequacy
+    {Player Info Request : Type} [DecidableEq Player] (source : UtilityGame Player)
+    (observe : source.form.sig.Outcome → Info) (last : Player)
+    (abortPayoff : Info → Player → ℝ)
+    (gate : Runtime.DisclosureWindow.Gate Info Request) (slots : Nat) :
+    Nonempty (Runtime.DeviationAdequacy
+      (Runtime.ObservedAbort.Game.game source observe last abortPayoff)
+      (Runtime.DisclosureWindow.Game.game source observe last abortPayoff gate (slots + 1))) :=
+  ⟨Runtime.DisclosureWindow.Game.adequacy source observe last abortPayoff gate slots⟩
+
+theorem observed_abort_no_information
+    {Outcome : Type*} (law : FinDist Outcome) (utility : Outcome → ℝ) (abortValue : ℝ) :
+    Runtime.ObservedAbort.envelope law (fun _ => ()) utility (fun _ => abortValue) =
+      max (law.expect utility) abortValue :=
+  Runtime.ObservedAbort.envelope_no_information law utility abortValue
+
+theorem observed_abort_payoff_information
+    {Outcome : Type*} (law : FinDist Outcome) (utility : Outcome → ℝ) (abortValue : ℝ) :
+    Runtime.ObservedAbort.envelope law utility utility (fun _ => abortValue) =
+      law.expect (fun outcome => max (utility outcome) abortValue) :=
+  Runtime.ObservedAbort.envelope_payoff_information law utility abortValue
 
 /-! ## Scheduling -/
 
@@ -1729,6 +1828,42 @@ build fails here rather than silently widening what the paper is trusting.
 /-- info: 'Vegas.Paper.declining_is_always_live' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.declining_is_always_live
+
+/-- info: 'Vegas.Paper.execution_diamond' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.execution_diamond
+
+/-- info: 'Vegas.Paper.public_submission_winning_deviation' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.public_submission_winning_deviation
+
+/-- info: 'Vegas.Paper.public_submission_not_nash' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.public_submission_not_nash
+
+/-- info: 'Vegas.Paper.observed_abort_optimal_rule' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.observed_abort_optimal_rule
+
+/-- info: 'Vegas.Paper.schedule_observation_confluence' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.schedule_observation_confluence
+
+/-- info: 'Vegas.Paper.ready_reveal_fence' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.ready_reveal_fence
+
+/-- info: 'Vegas.Paper.disclosure_window_adequacy' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.disclosure_window_adequacy
+
+/-- info: 'Vegas.Paper.observed_abort_no_information' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.observed_abort_no_information
+
+/-- info: 'Vegas.Paper.observed_abort_payoff_information' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.observed_abort_payoff_information
 
 end Paper
 

@@ -26,6 +26,22 @@ theorem no_public_submission_adequacy
     fair_isNash (fun who => expectedUtility_eq_zero_of_opponent_fair fairPolicy who
       (fun other _ => initialLaw_fair other)) schedulerUtility
 
+/-- No compiler is deviation-adequate for every well-formed program if it
+implements the hidden-choice witness by these public sequential submissions.
+The target assignment is otherwise arbitrary: the obstruction concerns a
+universal compiler guarantee, not a claim that every game needs secrecy. -/
+theorem no_universal_public_submission_compiler
+    (target : WFProgram TestPlayer simpleExpr → UtilityGame (Participant TestPlayer))
+    (schedulerUtility : Scheduled.PublicSubmission.Values → ℝ)
+    (hwitness : target matchingPenniesProgram = Scheduled.PublicSubmission.game schedulerUtility) :
+    ¬ (∀ source : WFProgram TestPlayer simpleExpr,
+      Nonempty (Scheduled.PlayerDeviationAdequacy (Machine.compile source).game.behavioral
+        (target source))) := by
+  intro hall
+  have hw := hall matchingPenniesProgram
+  rw [hwitness] at hw
+  exact no_public_submission_adequacy schedulerUtility hw
+
 theorem fair_clipped_payoff (who : TestPlayer) (abortValue : ℝ) :
     (program.game.behavioral.form.play fairPolicy).expect
       (fun history => max (program.game.behavioral.utility history who) abortValue) =
