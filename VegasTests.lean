@@ -7,3 +7,4 @@ Authors: VegasCore contributors
 import VegasTests.Game
 import VegasTests.Machine
 import VegasTests.ScheduledReplay
+import VegasTests.ScheduledEquilibrium

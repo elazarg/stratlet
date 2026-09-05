@@ -477,6 +477,22 @@ has exactly the source strategy carrier and decoded outcome-law equality holds
 for every profile. It derives deviation adequacy automatically. It must not be
 used to skip intermediate scheduler or information proofs.
 
+`Scheduled.Equilibrium` proves a concrete strategic-preservation result for
+the graph-derived serializer. For every behavioral scheduler observing the
+public graph history, compiled source behavioral play has the same complete
+terminal-state distribution, and source Nash equilibrium is equivalent to
+Nash for the original runtime players against all behavioral deviations.
+Players may condition their deviations on observed orders; scheduler utility
+and scheduler optimality are irrelevant. The proof reconstructs runtime
+information from the canonical source player's compact information, then
+predraws only scheduler randomness. Honest opponents remain unchanged.
+
+This result concerns the modeled serializer, not public-chain execution.
+The scheduler cannot inspect sealed values or current simultaneous submissions,
+and utilities of original players depend only on the settled graph state.
+The theorem does not model censorship, transaction timing, gas, external
+utility, or cryptographic realization of the sealed values.
+
 ## Path to a blockchain backend
 
 An EVM-class compiler can grow as a sequence like this:
@@ -602,9 +618,9 @@ by each lowering pass.
 ## Build
 
 ```text
-lake build
+lake --wfail build
 ```
 
 The public roots are `Vegas`, `Vegas.Core`, `Vegas.EventGraph`,
 `Vegas.Language`, `Vegas.Compile`, `Vegas.Machine`, `Vegas.Game`,
-`Vegas.Game.Kuhn`, and `Vegas.Runtime`.
+`Vegas.Game.Kuhn`, `Vegas.Runtime`, and `Vegas.Scheduled`.

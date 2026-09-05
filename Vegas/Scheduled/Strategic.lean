@@ -34,8 +34,11 @@ histories. Applying it to a public-data-dependent scheduler requires a causal
 construction of a source strategy for each fixed scheduler random seed. The
 executed-policy replay in `Vegas.Scheduled.Replay` supplies this construction
 for full order-blind runtime histories, preserving complete behavioral laws.
-The atomic history simulation lives in `Vegas.Scheduled.History`; identifying
-the replay's full history with compact source information remains separate.
+The atomic history simulation lives in `Vegas.Scheduled.History`. Compact
+information sufficiency and complete terminal laws are proved in
+`Vegas.Scheduled.Information` and `Vegas.Scheduled.Law`. The actual serializer's
+behavioral Nash equivalence, including scheduler-only predrawing, is in
+`Vegas.Scheduled.Equilibrium`; it does not rely on the auxiliary signal games.
 -/
 
 noncomputable section

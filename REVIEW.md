@@ -7,6 +7,9 @@ It is a mechanized semantics paper along these lines:
 > A well-formed finite VegasCore program compiles to a bounded imperfect-information game with perfect recall. Terminal
 > graph executions reconstruct valid source executions with the same payoff, and behavioral and product-mixed-pure
 > strategy presentations are mutually deviation adequate, so their outcome laws and Nash equilibria correspond.
+> Public serialization preserves the complete terminal-state law of compiled behavioral play and preserves and reflects
+> Nash equilibrium for the original players against every behavioral public-data scheduler and every behavioral player
+> deviation.
 
 The strongest new result around that core is a mechanized scheduling boundary. The actual graph-derived serializer gives
 the scheduler the complete public graph observation, but no sealed value or same-round submission. Every accepted
@@ -25,10 +28,17 @@ scheduler, a player can reconstruct its full runtime information from its order-
 arbitrary behavioral players by these independent local replays preserves the entire execution law. A mixture over
 actually executing scheduler policies has the same property; realized orders may depend on public game data.
 
-Adjoining an independent public signal also preserves and reflects Nash at lifted source profiles. However, replay
-retains the player's full order-free observation history, whereas the canonical graph game stores compact information.
-An information-sufficiency bridge between those models, followed by the full atomic/batched behavioral-law comparison,
-is still missing. A per-trace source witness alone does not supply that bridge.
+The canonical source game's compact information determines the player's full order-free runtime information on all
+legal traces. The proof uses the data-independent completed-node timeline and preservation of already written fields;
+it does not make the scheduler's realized orders data-independent. Canonical source back-translation then reconstructs
+every order-aware runtime deviation after fixing an executing scheduler policy, independently of opponents' policies.
+Already compiled honest policies back-translate to exactly their original source policies, even off the realized path.
+
+The complete atomic/serialized terminal-state laws agree for compiled source players under every behavioral scheduler.
+For randomized deviations, only the scheduler's randomness is predrawn on finitely many support-reachable information
+sites. Honest players remain behavioral and their random choices are not disclosed or fixed by the argument. Averaging
+the resulting source-deviation inequalities establishes behavioral Nash equivalence for the actual serialized game.
+The independent-signal games are auxiliary examples, not premises of this result.
 
 Most ingredients are already proved:
 
@@ -40,6 +50,11 @@ Most ingredients are already proved:
 - Exact serialized-round implementation and the scheduler information boundary: Vegas/Scheduled/Compiled.lean
 - Source-history expansion and exact one-round information laws: Vegas/Scheduled/History.lean
 - Executed scheduler replay and exact full behavioral-history laws: Vegas/Scheduled/Replay.lean
+- Compact information sufficiency on all legal runtime histories: Vegas/Scheduled/Information.lean
+- Opponent-independent canonical policy back-translation: Vegas/Scheduled/Backtranslation.lean
+- Complete atomic/serialized terminal-state laws: Vegas/Scheduled/Law.lean
+- Scheduler-only finite-support predrawing: Vegas/Scheduled/Predraw.lean
+- Actual serializer behavioral Nash preservation and reflection: Vegas/Scheduled/Equilibrium.lean
 - Player-only Nash preservation for independent signals: Vegas/Scheduled/Strategic.lean
 - Exact FOSG→EFG behavioral-law and Nash results exist in the imported GameTheory library: GameTheory/GameTheory/
 Languages/Bridges/FOSGToEFGStrategic.lean:240
@@ -83,18 +98,16 @@ The project currently has five strong layers:
     only by the source game's players. The independent-signal constructions permit arbitrary scheduler utility and
     arbitrary signal-aware player deviations. Their expected payoff averages ordinary source-deviation payoffs, proving
     Nash preservation and reflection at lifted source profiles. Matching pennies instantiates these auxiliary games.
-    Separately, its actual serialized game instantiates history expansion and full scheduler replay. Replay removes
-    order dependence from arbitrary behavioral players against a fixed scheduler, preserving the entire runtime law,
-    and extends to mixtures of executing scheduler policies. Connecting full order-blind runtime information to the
-    canonical source's compact information remains necessary for source Nash preservation.
+    The actual serialized game has a separate, unconditional behavioral Nash equivalence theorem. Compact information
+    sufficiency connects full order-blind runtime recall to the canonical source game. Replay removes order dependence
+    from arbitrary behavioral deviations against each fixed scheduler. Complete terminal laws and scheduler-only
+    predrawing extend the result to every behavioral scheduler without changing honest opponents.
 
-What does not yet exist is an end-to-end deviation-adequacy certificate between the canonical atomic behavioral game and
-the actual serialized behavioral game, or from either game to a generated contract game. The canonical compiled graph game
-does exist; what does not exist is a separate strategic semantics for the pre-compilation raw program. The serializer gap
-is specifically the bridge from full order-blind runtime histories to compact source information, and the full
-atomic/batched behavioral-law comparison. Replay does not close that bridge: its input retains every player observation,
-while the canonical source policy uses a compact information state. This is a missing proof, not a proved
-impossibility result or a reason to forbid the scheduler from observing public data.
+There is no strategic-preservation theorem from either game to a generated contract game, and no separate strategic
+semantics for the pre-compilation raw program. The canonical atomic-to-serialized Nash theorem is direct: it compares
+terminal-state laws and player payoffs, not a deterministic decoding of complete target histories into complete atomic
+histories. No such decoder is needed for utilities that depend only on the settled state. Behavioral scheduler policies
+use independent local draws; the theorem does not include an external seed correlated with hidden game data.
 
 ## The paper I would aim for
 
@@ -109,24 +122,23 @@ The contribution should be presented as:
 - operational source-payoff soundness;
 - extraction of a bounded perfect-recall stochastic game;
 - exact equivalence of standard strategic presentations;
+- behavioral Nash equivalence through a public-data adversarial serialization environment;
 - deviation adequacy as the interface required for later runtime passes.
 
-To make that a convincing paper rather than a collection of library theorems, I think two additions are essential:
+To make that a convincing paper rather than a collection of library theorems, a concrete equilibrium case study is essential:
 
 1. One real mechanized case study. The matching-pennies test exercises a remarkable amount of the infrastructure, but it
     never defines the equilibrium, proves it is Nash, or transports it through the representations. Do that for
     Odds–Evens or matching pennies.
 
-2. Give an atomic-game-to-serialized-game `PlayerDeviationAdequacy` certificate for an actual compiled graph game. The
-    runtime already proves exact round implementation, public-only scheduler information, schedule-blind player utility,
-    and bounded perfect-recall execution. The trace induction and exact one-round state/information laws are proved.
-    Replay constructs order-blind runtime policies with exact full execution laws. What remains is their translation to
-    compact source information, followed by the full atomic/batched behavioral-law theorem. The expansion currently
-    draws submissions using runtime policies; it does not silently assume that these are canonical source policies.
+The general atomic-to-serialized theorem is instantiated for the matching-pennies compiled game in
+VegasTests/ScheduledEquilibrium.lean. Those tests establish equivalence for arbitrary profiles; they do not construct
+and prove its particular fair-coin equilibrium. Initial chance settlement and the zero-node game also instantiate the
+complete-law theorem.
 
 ## The strongest enhanced version
 
-The most valuable additional theorem would connect the scheduling work to an actual compiled game:
+The scheduling theorem supports the following concrete claim:
 
 > Publicly serializing a legal atomic frontier preserves every original player's expected utility and Nash equilibrium,
 > uniformly over schedulers that may react to all prior public observations but not to sealed values or current-round
@@ -138,14 +150,13 @@ For the same Odds–Evens example, this should combine:
 - a target utility that factors through the settled source outcome and ignores the order log;
 - erasure of every schedule-conditioned target-player policy to an atomic-game policy, after fixing the adversarial
   public-history scheduler;
-- an instantiated `PlayerDeviationAdequacy` certificate and player-Nash equivalence.
+- the direct player-Nash equivalence theorem, instantiated at the proved equilibrium.
 
-The graph-derived scheduling model establishes the operational half in exact form: matching pennies has a real concurrent
-frontier, permissive serialization exposes both orders, both implement the atomic successor, automatic nodes settle via
-source steps, and an executable fixed policy is available. The history expansion preserves exact round laws and erased
-player information. Replay constructs order-blind runtime deviations for each fixed scheduler policy and preserves
-full history laws, also under mixtures of scheduler policies. The independent-signal theorem supplies averaging for
-Nash. Connecting replay's full order-blind information to the canonical source's compact information is still missing.
+The graph-derived scheduling model establishes these properties generically. Matching pennies has a real concurrent
+frontier, permissive serialization exposes both orders, both implement the atomic successor, and automatic nodes settle
+via source steps. The information-sufficiency proof and complete law theorem discharge the source/runtime bridge.
+Scheduler-only predrawing and source-deviation payoff equalities give Nash equivalence without treating the scheduler
+as a Nash player or restricting it to data-independent orders.
 
 ## Claims that are currently unsupported or overstated
 
@@ -232,13 +243,11 @@ checked compiler interface—not as the first connection between deviation simul
 
 1. Freeze and name one finite supported fragment.
 2. Add one equilibrium-carrying mechanized example.
-3. Connect the compiled graph serializer to player-only schedule adequacy in one complete game example.
+3. Transport that concrete equilibrium through the proved serializer Nash equivalence.
 4. Correct the abstract, theorem descriptions, attribution, README claims, and artifact counts.
 5. Either build the Kotlin→Lean translation validator or present the artifacts unequivocally as independent.
 6. Leave public-chain strategic adequacy and whole-handler EVM verification to a later paper.
 
-The scheduling results include exact atomic implementation for each accepted serialization, reconstruction of scheduler
-information from order-free player histories under fixed policies, full behavioral-law-preserving scheduler replay, and
-source-history simulation preserving payoffs and one-round information laws. Independent-signal equilibrium preservation
-is also proved. Item 3 would connect these operational and strategic
-results for an actual executing game. The blockchain paper still requires a different scale of additional work.
+The scheduling results include exact atomic implementation, compact-information sufficiency, canonical local policy
+back-translation, complete terminal laws, and behavioral Nash equivalence under arbitrary public-data behavioral
+schedulers. The blockchain paper still requires a different scale of additional work.

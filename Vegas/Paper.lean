@@ -654,8 +654,8 @@ theorem public_scheduler_adds_no_history_information
 public-information scheduler.** Every original player may use an arbitrary
 behavioral policy. The translated policy simulates the scheduler locally,
 independently of opponents' policies. The order-blind model retains the full
-observation history; no identification with compact source information is
-asserted. -/
+observation history. For compiled graph games,
+`compiled_compact_information_sufficient` connects it to compact source information. -/
 theorem public_scheduler_replay_preserves_behavioral_law
     {Player : Type} [Fintype Player] (sys : ScheduledSystem Player)
     (scheduler : sys.revealingInformation.Policy .scheduler)
@@ -773,6 +773,55 @@ theorem compiled_serialized_behavioral_round_expands
           (fun who => command.1 (.player who))
           (program.serializedPlayers_legal command)).map program.historySummary :=
   program.serializedBehavioralRound_expands source log trace hinfo policies hterm
+
+/-- **Compact source information is sufficient for runtime order-free recall.**
+This holds on all legal runtime histories, without choosing opponents' policies
+or strengthening the canonical source information model. -/
+theorem compiled_compact_information_sufficient
+    {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
+    (program : Machine.Program Player L) (who : Player)
+    {left right : program.serializedArena.execution.State}
+    (first : program.serializedArena.execution.Trace left)
+    (second : program.serializedArena.execution.Trace right)
+    (hcompact : program.eraseSerializedPlayerInformation who
+        (program.serializedArena.information.infoOf (.player who) first) =
+      program.eraseSerializedPlayerInformation who
+        (program.serializedArena.information.infoOf (.player who) second)) :
+    program.serializedSystem.blindSignals.infoOf (.player who) first =
+      program.serializedSystem.blindSignals.infoOf (.player who) second :=
+  program.serializedBlindInfo_eq_of_compact_eq who first second hcompact
+
+/-- **Complete terminal-state law of the actual serialized implementation.**
+The scheduler can randomize and react to public observations. No realized-order
+independence hypothesis or finite-domain hypothesis is needed. -/
+theorem compiled_serialized_behavioral_law
+    {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
+    (program : Machine.Program Player L)
+    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : (who : Player) → program.information.BehavioralPolicy who) :
+    (program.serializedArena.information.runBehavioral
+      (program.compileSerializedBehavioralProfile scheduler profile) program.graph.nodeCount).map
+        (fun history => history.state.base) =
+      (program.information.runBehavioral profile program.graph.nodeCount).map
+        GameTheory.Protocol.ExecutionProtocol.History.state :=
+  program.runBehavioral_compileSerialized scheduler profile
+
+/-- **Behavioral Nash equivalence from the canonical graph game to the actual
+publicly serialized game.** Deviations range over all behavioral runtime player
+policies, including order-aware policies. The scheduler is an arbitrary
+behavioral environment, not an equilibrium player. Its private random choices
+are not shared with honest players, and its utility is unconstrained. -/
+theorem compiled_serialized_nash_iff
+    {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
+    (program : Machine.Program Player L)
+    (schedulerUtility : program.serializedArena.History → ℝ)
+    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : (who : Player) → program.information.BehavioralPolicy who) :
+    Scheduled.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+      (program.compileSerializedBehavioralProfile scheduler profile) ↔
+    GameTheory.IsNash program.game.behavioral.form
+      (GameTheory.euPreference program.game.behavioral.utility) profile :=
+  program.isPlayerNash_compileSerialized_iff schedulerUtility scheduler profile
 
 /-! ## Scheduling -/
 
@@ -1126,19 +1175,13 @@ Read the conclusions the same way. (1) is *support-level and one-way*: every
 terminal target execution has a source counterpart with the same payoff. It is
 not equality of probabilistic laws, and there is no converse here. (4) relates
 two presentations of the *same* compiled game to each other; it is not a
-statement relating source strategies to target strategies. The development has
-no end-to-end deviation-adequacy certificate from the canonical atomic game to
-the actual serialized game or from either to a generated contract game. It also
-has no separate source-level strategy game for the pre-compilation raw program.
-`compiled_scheduler_has_no_extra_information` proves the compiled view is
-public. Atomic/serialized history simulation preserves state, erased player
-information, and one-round probability laws. What remains is a causal
-back-translation of arbitrary runtime policies, consistent across source
-information sets, and the resulting full behavioral-law comparison.
-Scheduler replay already provides exact full-history laws for order-blind
-runtime players, including mixtures of executing scheduler policies. That
-order-blind model retains every observation, while the canonical source model
-is compact; the needed information-sufficiency bridge is not yet proved.
+statement relating source strategies to target strategies. Separately,
+`compiled_serialized_nash_iff` relates the canonical atomic behavioral game to
+the actual serialized behavioral game, for every public-data behavioral
+scheduler. Compact information sufficiency, scheduler replay, full terminal
+laws, and scheduler-only predrawing discharge the concrete proof obligations.
+There is no separate strategy game for the pre-compilation raw program and no
+strategic-preservation theorem to a generated contract game.
 An EVM theorem must additionally define the target game and
 show that ordering, inclusion, timing, and visibility satisfy the required
 utility factorization and player-deviation back-translation. -/
@@ -1297,6 +1340,18 @@ build fails here rather than silently widening what the paper is trusting.
 /-- info: 'Vegas.Paper.compiled_serialized_behavioral_round_expands' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.compiled_serialized_behavioral_round_expands
+
+/-- info: 'Vegas.Paper.compiled_compact_information_sufficient' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.compiled_compact_information_sufficient
+
+/-- info: 'Vegas.Paper.compiled_serialized_behavioral_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.compiled_serialized_behavioral_law
+
+/-- info: 'Vegas.Paper.compiled_serialized_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.compiled_serialized_nash_iff
 
 /-- info: 'Vegas.Paper.utility_preservation_honest' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in

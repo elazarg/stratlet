@@ -16,8 +16,9 @@ The scheduler may react to public data and all its previous choices.
 
 This reconstructs the full runtime information, including memory at earlier
 decisions, and back-translates every deterministic order-aware player policy
-to an order-blind policy. The order-blind model here retains every observation;
-it is not identified with the compiled graph's compact information model.
+to an order-blind policy. The order-blind model here retains every observation.
+`Vegas.Scheduled.Information` proves that the compiled graph's compact source
+information suffices to recover it on legal runtime histories.
 -/
 
 noncomputable section
@@ -236,7 +237,7 @@ def replayBehavioralProfile
 
 variable [Fintype ι]
 
-private theorem behavioralJoint_scheduler_eq
+theorem behavioralJoint_scheduler_eq
     (scheduler : sys.revealingInformation.Policy .scheduler)
     (profile : (who : Participant ι) → sys.revealingInformation.BehavioralPolicy who)
     (hscheduler : profile .scheduler = scheduler.toBehavioral)
@@ -261,8 +262,8 @@ policy, never opponents' policies or hidden state.
 
 The scheduler is an environment parameter. The comparison uses the same
 serialized execution protocol and an order-blind player information
-projection; it does not yet identify that projection with the canonical
-compiled source game's compact information. -/
+projection. Identification with the canonical compiled source game's compact
+information is supplied separately by `Vegas.Scheduled.Information`. -/
 theorem runBehavioralFrom_replay
     (scheduler : sys.revealingInformation.Policy .scheduler)
     (project : (i : ι) → sys.Obs i → sys.SchedulerView)

@@ -22,4 +22,6 @@ jobs:
       - name: Check documentation references resolve
         run: python scripts/check-doc-references.py
       - uses: leanprover/lean-action@v1
+      - name: Require a warning-free Lean build
+        run: lake --wfail build
       - uses: leanprover-community/docgen-action@v1
