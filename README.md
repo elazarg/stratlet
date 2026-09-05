@@ -555,8 +555,9 @@ player knows its own choice and the public coin, versus 3/4 when it knows the
 prospective payoff. Observing only its own choice leaves exit value zero and
 preserves the fair equilibrium, including combined initial-choice/refusal
 deviations. The example's causally ordered game has the same complete
-settlement/abort law and the same equilibrium threshold. This is a directly
-defined strategic kernel, not a compiled VegasCore-syntax case study.
+settlement/abort law and the same equilibrium threshold. This directly defined
+strategic kernel also serves as the specification for the compiled case study
+below.
 
 `Runtime.DisclosureWindow` implements the local quit decision by a finite
 delivery window: valid requests complete, rejected requests and silence consume
@@ -583,9 +584,24 @@ every public-data behavioral scheduler in the serializer model.
 The continuation proof uses a distribution-valued invariant that retains
 completed coin draws and averages over unfinished ones. Its generic finite-run
 rule is `Runtime.runBehavioralFrom_harmonic`. No later player policy is fixed
-by the proof. The remaining quitting-specific gap is identifying the compiled
-completion checkpoint's full information state with own bit plus public coin;
-outcome-law equality alone does not establish that observation correspondence.
+by the proof. `VegasTests/QuittingCheckpoint.lean` proves the exact joint law
+of the compiled checkpoint configuration and player zero's full information
+state, including remembered actions. Equality of that information is exactly
+equality of own bit and public coin, for every behavioral profile.
+
+`VegasTests/QuittingImplementation.lean` executes this compiled prefix, makes
+the quit decision using the full information state, and executes the compiled
+continuation only after completion. Its uniform strategy back-translation
+proves deviation adequacy with the observed-quitting kernel.
+`VegasTests/QuittingWindow.lean` extends the result to every nonempty bounded
+request window and all randomized policies over full information and request
+history, including combined deviations in the underlying behavioral strategy.
+The fair immediate-completion profile is Nash exactly when the quitter's
+constant abort payoff is at most −1. This connects the compiled case study to
+the finite quitting/window model; it does not verify cryptographic commitments,
+transaction inclusion, fees, or new observations during a window. The public
+serializer results above concern the base game, not a composition of that
+serializer with the quitting window.
 
 ## Path to a blockchain backend
 

@@ -21,8 +21,9 @@ alone does not impose those dependencies.
 This module checks source well-formedness and compiled graph staging.
 QuittingStrategy and QuittingEquilibrium prove the complete outcome-law and
 Nash correspondence with the smaller kernel, for every behavioral profile.
-Identifying the full information state at the completion checkpoint with the
-kernel's quitting observation is a separate, unproved runtime obligation.
+QuittingCheckpoint identifies the full completion-checkpoint information with
+own bit and public coin. QuittingImplementation and QuittingWindow connect
+the compiled execution to causal quitting and bounded request histories.
 -/
 
 noncomputable section

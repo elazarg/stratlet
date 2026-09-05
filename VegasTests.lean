@@ -16,3 +16,6 @@ import VegasTests.QuittingSource
 import VegasTests.QuittingLaw
 import VegasTests.QuittingStrategy
 import VegasTests.QuittingEquilibrium
+import VegasTests.QuittingCheckpoint
+import VegasTests.QuittingImplementation
+import VegasTests.QuittingWindow
