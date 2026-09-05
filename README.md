@@ -556,8 +556,24 @@ prospective payoff. Observing only its own choice leaves exit value zero and
 preserves the fair equilibrium, including combined initial-choice/refusal
 deviations. The example's causally ordered game has the same complete
 settlement/abort law and the same equilibrium threshold. This is a directly
-defined strategic kernel, not a compiled VegasCore-syntax case study or a
-transaction-handler implementation.
+defined strategic kernel, not a compiled VegasCore-syntax case study.
+
+`Runtime.DisclosureWindow` implements the local quit decision by a finite
+delivery window: valid requests complete, rejected requests and silence consume
+a slot, and exhaustion aborts. Every randomized policy over its own request
+history back-translates uniformly to an observation-local rule. With at least
+one slot, every rule is realizable, giving deviation adequacy and the same
+exact Nash criterion. `VegasTests/DisclosureWindow.lean` checks caller and
+opening rejection, successful retry, silence-to-timeout, and the multistage
+threshold against arbitrary request policies. Delivery, deadline progress,
+fixed game information during the window, and absence of transaction costs
+are explicit model assumptions; this is not generated EVM-handler verification.
+
+`VegasTests/QuittingSource.lean` supplies a well-formed compiled program with
+explicit acknowledgment dependencies: both hidden choices precede the public
+coin, and a completion acknowledgment gates future chance and the hidden-value
+reveals. It checks graph staging, not yet a correspondence between every
+compiled behavioral policy and the smaller multistage kernel.
 
 ## Path to a blockchain backend
 

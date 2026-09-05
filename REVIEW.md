@@ -191,7 +191,8 @@ The positive serializer theorem is paired with two explicit negative boundaries:
 The first result changes same-frontier information, so it is not a counterexample to the positive serializer theorem.
 The second is an exact characterization for one explicit final-veto pass, not a general completeness theorem for
 distributed implementations. It neither provides cryptographic commitments nor implements, funds, or enforces a deposit.
-The next bridge is from actual request, disclosure, inclusion, and timeout rules to these modeled capabilities.
+The delivery-window bridge below covers explicit request and timeout semantics; actual chain inclusion and generated
+handler correctness remain distinct obligations.
 
 Vegas/Runtime/ObservedAbort.lean generalizes refusal to the information actually available. The exact exit envelope is
 E[max(E[U | I], a(I))], with a total conditional law whose off-support fallback cannot affect the result. The supported
@@ -203,7 +204,19 @@ refusal can execute before the future continuation is sampled, preserving the fu
 VegasTests/ObservedAbort.lean uses hidden simultaneous choices, a public fair coin, refusal, and a future fair coin. The
 fair source profile is Nash. Public-signal refusal has sharp net abort threshold −1 although supported completion
 payoffs reach −3. With refund payoff zero, the optimal value is 1/2 with the public signal and 3/4 with prospective-payoff
-information. This example and its causal game are mechanized, but no transaction handler or syntax compiler is involved.
+information. This example and its causal game are defined directly as finite kernels.
+
+Vegas/Runtime/DisclosureWindow.lean implements one quit opportunity by a bounded sequence of delivered requests.
+Policies remember all their attempts and may randomize, send malformed requests, retry, or remain silent. Successful
+validation completes; failed validation consumes a slot; exhaustion times out. A uniform back-translation maps every
+policy to its effective observation-local completion law. With a nonempty window every abstract rule is realizable,
+so the pass carries a deviation-adequacy certificate and the exact Nash criterion. Validation reads only the fixed
+observation, a valid request is constructible, delivery and deadline progress are guaranteed, and transaction costs
+and incoming game information are absent. These premises are not claims about public-chain execution.
+
+VegasTests/QuittingSource.lean checks a compiled source with explicit acknowledgment dependencies that gate public
+chance after both hidden choices and future chance after the completion checkpoint. These graph facts do not yet prove
+the full behavioral-strategy and observation correspondence with the smaller multistage kernel.
 
 ## Claim boundaries
 
@@ -276,10 +289,10 @@ distinguish these model-specific guarantees from cryptographic or end-to-end blo
 ## Recommended order of work
 
 1. Freeze and name one finite supported fragment.
-2. Connect a multistage VegasCore-syntax example to the observed-refusal model; the existing multistage kernel example
-   proves its equilibrium and causal law directly, without invoking that compiler.
-3. Relate actual request, disclosure, inclusion, and timeout rules to the modeled public-write or final-veto capabilities;
-   the small-model impossibilities and exact refusal criterion do not establish that refinement.
+2. Prove the full strategy and observation correspondence from the staged compiled source to the multistage kernel;
+   graph staging and the kernel's equilibrium are checked separately.
+3. Relate concrete generated handlers and chain inclusion to the bounded disclosure-window semantics, or extend that
+   semantics for new observations, costs, and censorship. The local request-policy theorem does not discharge this step.
 4. Keep paper statements paired with checked declarations and generate artifact metadata for a selected release.
 5. Either build the Kotlin→Lean translation validator or present the artifacts unequivocally as independent.
 6. Keep public-chain strategic adequacy and whole-handler EVM verification separate from the proved serializer result.

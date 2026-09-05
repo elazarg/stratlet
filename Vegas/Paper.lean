@@ -1040,6 +1040,38 @@ theorem observed_abort_nash_iff
               GameTheory.expectedUtility source.utility last (source.form.play profile) :=
   Runtime.ObservedAbort.Game.nash_compile_iff source observe profile last abortPayoff
 
+/-- **Every observation-local quit rule has a delivered-request implementation.** -/
+theorem disclosure_window_rule_exact {Info Request : Type}
+    (gate : Runtime.DisclosureWindow.Gate Info Request) (slots : Nat)
+    (rule : Runtime.ObservedAbort.Rule Info) :
+    Runtime.DisclosureWindow.effectiveRule gate (slots + 1)
+      (Runtime.DisclosureWindow.compileRule gate rule) = rule :=
+  Runtime.DisclosureWindow.effectiveRule_compileRule gate slots rule
+
+/-- **Arbitrary request histories preserve the exact quitting Nash criterion.**
+    Delivery, deadline progress, and fixed information are part of this target model. -/
+theorem disclosure_window_nash_iff
+    {Player Info Request : Type} [DecidableEq Player] (source : GameTheory.UtilityGame Player)
+    (observe : source.form.sig.Outcome → Info) (profile : GameTheory.Profile source.form.sig)
+    (last : Player) (abortPayoff : Info → Player → ℝ)
+    (gate : Runtime.DisclosureWindow.Gate Info Request) (slots : Nat) :
+    GameTheory.IsNash
+      (Runtime.DisclosureWindow.Game.game source observe last abortPayoff gate (slots + 1)).form
+      (GameTheory.euPreference
+        (Runtime.DisclosureWindow.Game.game
+          source observe last abortPayoff gate (slots + 1)).utility)
+      ((Runtime.DisclosureWindow.Game.adequacy
+          source observe last abortPayoff gate slots).compileProfile
+        (Runtime.ObservedAbort.Game.compileProfile source profile)) ↔
+    GameTheory.IsNash source.form (GameTheory.euPreference source.utility) profile ∧
+      ∀ replacement : source.form.sig.Strategy last,
+        let law := source.form.play (GameTheory.Profile.update profile last replacement)
+        (law.map observe).expect (fun info =>
+          max ((law.condOnFibre observe info).expect (fun outcome => source.utility outcome last))
+            (abortPayoff info last)) ≤
+              GameTheory.expectedUtility source.utility last (source.form.play profile) :=
+  Runtime.DisclosureWindow.Game.nash_compile_iff source observe profile last abortPayoff gate slots
+
 /-! ## Scheduling -/
 
 /-- **Confluence of effects is not invisibility of order.**
@@ -1621,6 +1653,14 @@ build fails here rather than silently widening what the paper is trusting.
 /-- info: 'Vegas.Paper.observed_abort_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.observed_abort_nash_iff
+
+/-- info: 'Vegas.Paper.disclosure_window_rule_exact' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.disclosure_window_rule_exact
+
+/-- info: 'Vegas.Paper.disclosure_window_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.disclosure_window_nash_iff
 
 /-- info: 'Vegas.Paper.utility_preservation_honest' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
