@@ -511,6 +511,33 @@ The unilateral results do not establish coordinated-coalition security.
 The theorem does not model censorship, transaction timing, gas, external
 utility, or cryptographic realization of the sealed values.
 
+## Strategic runtime boundaries
+
+Two additional runtime models give proved limits rather than assumed
+preservation obligations:
+
+- `Scheduled.PublicSubmission` executes two irreversible public Boolean
+  submissions in scheduler-selected order. The later player observes the
+  earlier value and can force matching-pennies payoff +1. No target profile
+  preserving its source payoff zero is Nash; approximate preservation requires
+  payoff error + equilibrium slack at least 1. No player-deviation adequacy
+  certificate into this fixed runtime exists from a source game with a
+  zero-payoff Nash equilibrium, regardless of the compiler or decoder.
+- `Runtime.SelectiveAbort` adds a final decision to complete or abort after
+  observing one's prospective utility. Its exact optimal value is
+  `E[max(source payoff, abort payoff)]`. The full Nash criterion includes
+  changes to both the source strategy and the randomized refusal rule.
+  `VegasTests/RuntimeBoundaries.lean` proves that the compiled matching-pennies
+  fair equilibrium survives this pass exactly when the designated player's
+  net abort payoff is at most −1. A refund payoff of zero gives a deviation
+  worth +1/2 instead of zero.
+
+The public-submission result changes the information available before choosing;
+it does not refute the atomic-frontier serializer theorem. The refusal result
+assumes a final informed veto with specified terminal abort payoffs. Neither is
+an impossibility theorem for arbitrary blockchain protocols. The net-utility
+threshold is not a verified deposit, funding, or timeout implementation.
+
 ## Path to a blockchain backend
 
 An EVM-class compiler can grow as a sequence like this:

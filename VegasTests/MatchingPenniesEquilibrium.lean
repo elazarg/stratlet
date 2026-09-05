@@ -258,19 +258,21 @@ theorem terminal_payoff (bits : TestPlayer → Bool) (state : program.State)
 theorem continuation_payoff
     (profile : (who : TestPlayer) → program.information.BehavioralPolicy who)
     (bits : TestPlayer → Bool) (start : program.execution.History)
-    (hstate : start.state = after bits) (who : TestPlayer) :
+    (hstate : start.state = after bits) (who : TestPlayer) (observable : ℝ → ℝ) :
     (program.terminalStateLaw profile start).expect
-      (fun state => program.settledPlayerUtility state who) = payoff bits who := by
+      (fun state => observable (program.settledPlayerUtility state who)) =
+        observable (payoff bits who) := by
   rw [Machine.Program.terminalStateLaw, FinDist.expect_map]
   calc
     _ = (program.information.runBehavioralFrom profile graph.nodeCount start).expect
-        (fun _ => payoff bits who) := by
+        (fun _ => observable (payoff bits who)) := by
       apply FinDist.expect_congr
       intro next hnext
       have hterminal := Scheduled.runBehavioralFrom_terminal_of_bound program.information
         profile program.boundedHorizon start next hnext
       have hextends := program.runBehavioralFrom_extends profile graph.nodeCount start next hnext
       rw [hstate] at hextends
+      apply congrArg observable
       apply terminal_payoff bits next.state hterminal
       all_goals
         rw [hextends.getAs _ .bool (by
@@ -292,19 +294,20 @@ theorem continuation_payoff
 /-- Exact evaluation of the compiled behavioral game through its initial
 choice laws. All automatic internal histories and all off-path policies are
 accounted for by the continuation proof. -/
-theorem expectedUtility_eq
-    (profile : (who : TestPlayer) → program.information.BehavioralPolicy who) (who : TestPlayer) :
-    expectedUtility program.game.behavioral.utility who
-      (program.game.behavioral.form.play profile) =
+theorem expectedPayoffObservable_eq
+    (profile : (who : TestPlayer) → program.information.BehavioralPolicy who)
+    (who : TestPlayer) (observable : ℝ → ℝ) :
+    (program.game.behavioral.form.play profile).expect
+      (fun history => observable (program.game.behavioral.utility history who)) =
     (FinDist.pi fun player => (profile player (initialInfo player)).map
-      (choiceEquiv player).symm).expect (fun bits => payoff bits who) := by
+      (choiceEquiv player).symm).expect (fun bits => observable (payoff bits who)) := by
   have hterm : ¬ program.execution.terminal program.execution.init :=
     (matchingPenniesInitial_active 0).1
   change (program.information.runBehavioral profile graph.nodeCount).expect
-    (fun history => program.settledPlayerUtility history.state who) = _
+    (fun history => observable (program.settledPlayerUtility history.state who)) = _
   rw [← FinDist.expect_map ExecutionProtocol.History.state
     (program.information.runBehavioral profile graph.nodeCount)
-    (fun state => program.settledPlayerUtility state who)]
+    (fun state => observable (program.settledPlayerUtility state who))]
   change (program.terminalStateLaw profile program.execution.initHistory).expect _ = _
   rw [program.terminalStateLaw_step profile _ hterm, FinDist.expect_bind,
     InformationModel.behavioralJoint, FinDist.expect_map, FinDist.pi_map, FinDist.expect_map]
@@ -333,7 +336,7 @@ theorem expectedUtility_eq
   calc
     _ = ((program.execution.step program.execution.init
         ⟨fun player => (draws player).1, hlegal⟩).bindOnSupport
-          (fun _ _ => FinDist.pure (payoff bits who))).expect id := by
+          (fun _ _ => FinDist.pure (observable (payoff bits who)))).expect id := by
       apply FinDist.expect_bindOnSupport_congr
       intro next hnext
       have hnextEq : next = after bits := by
@@ -341,8 +344,16 @@ theorem expectedUtility_eq
           ⟨fun player => (draws player).1, hlegal⟩).support at hnext
         simpa only [hstep, FinDist.mem_support_pure] using hnext
       rw [FinDist.expect_pure]
-      exact continuation_payoff profile bits _ hnextEq who
+      exact continuation_payoff profile bits _ hnextEq who observable
     _ = _ := by rw [FinDist.bindOnSupport_eq_bind, FinDist.bind_const, FinDist.expect_pure]; rfl
+
+theorem expectedUtility_eq
+    (profile : (who : TestPlayer) → program.information.BehavioralPolicy who) (who : TestPlayer) :
+    expectedUtility program.game.behavioral.utility who
+      (program.game.behavioral.form.play profile) =
+    (FinDist.pi fun player => (profile player (initialInfo player)).map
+      (choiceEquiv player).symm).expect (fun bits => payoff bits who) :=
+  expectedPayoffObservable_eq profile who id
 
 theorem initialLaw_fair (who : TestPlayer) :
     (fairPolicy who (initialInfo who)).map (choiceEquiv who).symm =

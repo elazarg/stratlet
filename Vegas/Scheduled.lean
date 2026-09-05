@@ -11,6 +11,7 @@ import Vegas.Scheduled.History
 import Vegas.Scheduled.Replay
 import Vegas.Scheduled.Strategic
 import Vegas.Scheduled.Equilibrium
+import Vegas.Scheduled.PublicSubmission
 
 /-! Protocols whose rounds are ordered by a scheduler, with the realized order
 publicly observable. -/

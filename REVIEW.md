@@ -167,6 +167,30 @@ via source steps. The information-sufficiency proof and complete law theorem dis
 Scheduler-only predrawing and source-deviation payoff equalities give Nash equivalence without treating the scheduler
 as a Nash player or restricting it to data-independent orders.
 
+## Proved runtime obstructions
+
+The positive serializer theorem is paired with two explicit negative boundaries:
+
+1. Public sequential submission. In Vegas/Scheduled/PublicSubmission.lean, a scheduler chooses the first of two public,
+   irreversible Boolean writes; the second player observes the first value. Matching-pennies utility depends only on
+   the final bits. The second player can force +1 against any first-player policy. Every target profile preserving its
+   source payoff zero therefore fails player Nash; approximate equilibrium slack plus payoff error must be at least 1.
+   The resulting impossibility quantifies over all strategy compilers and outcome decoders into this runtime, not merely
+   the constant-policy embedding. VegasTests/RuntimeBoundaries.lean instantiates it with the compiled source game.
+
+2. Informed final refusal. Vegas/Runtime/SelectiveAbort.lean adds a designated player's final completion/abort decision,
+   observing only its prospective utility. Honest completion preserves the tagged source outcome law. The exact optimal
+   refusal value is the expectation of the source payoff clipped from below at the abort payoff. With source choices
+   fixed, refusal is unprofitable iff every supported prospective payoff is at least the abort payoff. The full Nash iff
+   additionally quantifies over simultaneous replacement of the player's source strategy and randomized refusal rule.
+   For compiled matching pennies, a refund payoff of zero makes a deviation worth +1/2. The fair honest-completion lift
+   is Nash exactly when the designated player's net abort payoff is at most −1.
+
+The first result changes same-frontier information, so it is not a counterexample to the positive serializer theorem.
+The second is an exact characterization for one explicit final-veto pass, not a general completeness theorem for
+distributed implementations. It neither provides cryptographic commitments nor implements, funds, or enforces a deposit.
+The next bridge is from actual request, disclosure, inclusion, and timeout rules to these modeled capabilities.
+
 ## Claims that are currently unsupported or overstated
 
 Several draft claims should be removed or narrowed immediately.
@@ -252,8 +276,8 @@ checked compiler interface—not as the first connection between deviation simul
 
 1. Freeze and name one finite supported fragment.
 2. Add a multistage case study with public chance between strategic frontiers and a proved equilibrium or loss guarantee.
-3. Give a narrow transaction-level model explicit refusal, inclusion, and observation rules; prove its strategic bridge
-   or a counterexample before claiming the scheduler result applies to it.
+3. Relate actual request, disclosure, inclusion, and timeout rules to the modeled public-write or final-veto capabilities;
+   the small-model impossibilities and exact refusal criterion do not establish that refinement.
 4. Correct the abstract, theorem descriptions, attribution, README claims, and artifact counts once the result is fixed.
 5. Either build the Kotlin→Lean translation validator or present the artifacts unequivocally as independent.
 6. Keep public-chain strategic adequacy and whole-handler EVM verification separate from the proved serializer result.

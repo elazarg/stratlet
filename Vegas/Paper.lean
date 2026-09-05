@@ -881,6 +881,92 @@ theorem compiled_serialized_approximate_nash_iff
     GameTheory.IsεNash program.game.behavioral.form program.game.behavioral.utility ε profile :=
   program.serialized_approximate_nash_iff schedulerUtility scheduler profile ε
 
+/-! ## Runtime obstructions -/
+
+/-- **Public sequential submission cannot implement a zero-payoff Nash
+equilibrium.** In this two-bit runtime the later player sees the earlier
+irreversible value before choosing. No compiler or decoder can supply an
+unrestricted player-deviation adequacy certificate for the stated source game. -/
+theorem public_submission_no_adequacy
+    (source : GameTheory.UtilityGame (Fin 2)) (profile : GameTheory.Profile source.form.sig)
+    (hnash : GameTheory.IsNash source.form (GameTheory.euPreference source.utility) profile)
+    (hzero : ∀ who, GameTheory.expectedUtility source.utility who (source.form.play profile) = 0)
+    (schedulerUtility : Scheduled.PublicSubmission.Values → ℝ) :
+    ¬ Nonempty (Scheduled.PlayerDeviationAdequacy source
+      (Scheduled.PublicSubmission.game schedulerUtility)) :=
+  Scheduled.PublicSubmission.no_adequacy_of_zero_equilibrium source profile hnash hzero
+    schedulerUtility
+
+/-- **Quantitative, compiler-independent obstruction.** Any runtime profile
+which is an ε equilibrium for the players and retains the second player's
+source payoff zero up to an upper error δ must satisfy δ + ε ≥ 1. -/
+theorem public_submission_approximation_lower_bound
+    (schedulerUtility : Scheduled.PublicSubmission.Values → ℝ)
+    (profile : GameTheory.Profile Scheduled.PublicSubmission.signature)
+    (first : Fin 2) (δ ε : ℝ)
+    (horder : profile .scheduler = FinDist.pure first)
+    (hpayoff : GameTheory.expectedUtility
+      (Scheduled.PublicSubmission.game schedulerUtility).utility
+      (.player (Scheduled.PublicSubmission.other first))
+      ((Scheduled.PublicSubmission.game schedulerUtility).form.play profile) ≤ δ)
+    (hequilibrium : ∀ who replacement,
+      GameTheory.expectedUtility (Scheduled.PublicSubmission.game schedulerUtility).utility
+        (.player who) ((Scheduled.PublicSubmission.game schedulerUtility).form.play
+          (GameTheory.Profile.update profile (.player who) replacement)) ≤
+      GameTheory.expectedUtility (Scheduled.PublicSubmission.game schedulerUtility).utility
+        (.player who) ((Scheduled.PublicSubmission.game schedulerUtility).form.play profile) + ε) :
+    1 ≤ δ + ε :=
+  Scheduled.PublicSubmission.approximation_lower_bound schedulerUtility profile first δ ε
+    horder hpayoff hequilibrium
+
+/-- **Exact optimal value of an informed final veto.** For fixed source
+choices, every randomized refusal rule is bounded by the expectation of the
+prospective payoff clipped from below at the abort payoff, and this bound is attained. -/
+theorem selective_abort_value_bound_iff
+    {Player : Type} [DecidableEq Player] (source : GameTheory.UtilityGame Player)
+    (profile : GameTheory.Profile source.form.sig) (last : Player)
+    (abortPayoff : Player → ℝ) (bound : ℝ) :
+    (∀ rule, GameTheory.expectedUtility
+      (Runtime.SelectiveAbort.game source last abortPayoff).utility
+      last ((Runtime.SelectiveAbort.game source last abortPayoff).form.play
+        (Runtime.SelectiveAbort.withRule source profile last rule)) ≤ bound) ↔
+    (source.form.play profile).expect
+      (fun outcome => max (source.utility outcome last) (abortPayoff last)) ≤ bound :=
+  Runtime.SelectiveAbort.all_rules_bound_iff source profile last abortPayoff bound
+
+/-- **Exact support boundary for informed refusal alone.** Completion is
+optimal precisely when abort pays no more than every supported prospective
+payoff. The player's source strategy is held fixed in this statement. -/
+theorem selective_abort_support_iff
+    {Player : Type} [DecidableEq Player] (source : GameTheory.UtilityGame Player)
+    (profile : GameTheory.Profile source.form.sig) (last : Player)
+    (abortPayoff : Player → ℝ) :
+    (∀ rule, GameTheory.expectedUtility
+      (Runtime.SelectiveAbort.game source last abortPayoff).utility
+      last ((Runtime.SelectiveAbort.game source last abortPayoff).form.play
+        (Runtime.SelectiveAbort.withRule source profile last rule)) ≤
+      GameTheory.expectedUtility source.utility last (source.form.play profile)) ↔
+    ∀ outcome ∈ (source.form.play profile).support,
+      abortPayoff last ≤ source.utility outcome last :=
+  Runtime.SelectiveAbort.no_profitable_refusal_iff source profile last abortPayoff
+
+/-- **Exact full Nash criterion for the final-veto pass.** The additional
+inequality quantifies over every upstream source-strategy replacement by the
+designated player, as well as accounting for its optimal randomized refusal. -/
+theorem selective_abort_nash_iff
+    {Player : Type} [DecidableEq Player] (source : GameTheory.UtilityGame Player)
+    (profile : GameTheory.Profile source.form.sig) (last : Player)
+    (abortPayoff : Player → ℝ) :
+    GameTheory.IsNash (Runtime.SelectiveAbort.game source last abortPayoff).form
+      (GameTheory.euPreference (Runtime.SelectiveAbort.game source last abortPayoff).utility)
+      (Runtime.SelectiveAbort.compileProfile source profile) ↔
+    GameTheory.IsNash source.form (GameTheory.euPreference source.utility) profile ∧
+      ∀ replacement : source.form.sig.Strategy last,
+        (source.form.play (GameTheory.Profile.update profile last replacement)).expect
+          (fun outcome => max (source.utility outcome last) (abortPayoff last)) ≤
+            GameTheory.expectedUtility source.utility last (source.form.play profile) :=
+  Runtime.SelectiveAbort.nash_compile_iff source profile last abortPayoff
+
 /-! ## Scheduling -/
 
 /-- **Confluence of effects is not invisibility of order.**
@@ -1422,6 +1508,26 @@ build fails here rather than silently widening what the paper is trusting.
 /-- info: 'Vegas.Paper.compiled_serialized_approximate_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.compiled_serialized_approximate_nash_iff
+
+/-- info: 'Vegas.Paper.public_submission_no_adequacy' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.public_submission_no_adequacy
+
+/-- info: 'Vegas.Paper.public_submission_approximation_lower_bound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.public_submission_approximation_lower_bound
+
+/-- info: 'Vegas.Paper.selective_abort_value_bound_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.selective_abort_value_bound_iff
+
+/-- info: 'Vegas.Paper.selective_abort_support_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.selective_abort_support_iff
+
+/-- info: 'Vegas.Paper.selective_abort_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.selective_abort_nash_iff
 
 /-- info: 'Vegas.Paper.utility_preservation_honest' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in

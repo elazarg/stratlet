@@ -8,5 +8,6 @@ import Vegas.Runtime.Implementation
 import Vegas.Runtime.DeviationAdequacy
 import Vegas.Runtime.TrustedRoles
 import Vegas.Runtime.KnownMediator
+import Vegas.Runtime.SelectiveAbort
 
 /-! Gradual runtime refinement, encoding, and strategic adequacy interfaces. -/
