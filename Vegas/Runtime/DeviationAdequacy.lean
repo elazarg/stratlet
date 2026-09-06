@@ -20,33 +20,21 @@ secure compilation in general.  It does not cover coalitions, target context
 composition, scheduler hyperproperties, timing, or liveness.  A lowering pass
 that introduces one of those surfaces needs a stronger pass-specific theorem.
 
-## What is and is not new here
+## Relation to implementation frameworks
 
-Relating deviation simulation to equilibrium preservation is not new, and the
-claim to make is narrower than that.
+Deviation simulation implies equilibrium preservation by the standard
+opponent-preserving comparison of utilities. This interface does not claim a
+new transfer principle. The theorem-level prior-work comparison and its limits
+are documented in `docs/submission-assessment.md`; the paper cites the primary
+sources. In particular, BitML's Agda development must not be described as a
+complete mechanization of computational soundness: the thesis explicitly leaves
+that proof incomplete. Computational pseudo-equilibrium is also not the same
+notion as the exact expected-utility Nash equilibrium used here.
 
-Halpern and Pass already relate mediator implementation, deviating machines,
-distribution preservation, and equilibrium preservation in a single
-game-theoretic framework with costly computation (ICS 2010).  BitML carries a
-symbolic strategic model through a computational-soundness argument for
-compilation to Bitcoin (Bartoletti and Zunino, CCS 2018), and that compilation
-has since been machine-checked in Agda, together with transfer of properties
-proved at the contract level down to transactions (Melkonian, Edinburgh, 2024).
-That last is the closest existing artifact to what this development attempts and
-is the right benchmark for any scope claim made about it.
-
-The two-tier reading here also has a direct analogue.  A *pseudo-Nash*
-equilibrium tolerates a deviation whose utility is indistinguishable from the
-equilibrium's, and transfers equilibria from ideal cryptography to real
-protocols on that basis (arXiv:2506.22089).  That is the same move as the
-permissive tier in `Vegas.Scheduled.Basic`, where an order-aware deviation is
-available and cannot pay.
-
-What is specific to this definition is that it is exact rather than asymptotic,
-finite rather than computational, and mechanized as an interface a compiler pass
-must discharge: `Considered` makes the deviation class a parameter, and
-`compiled_considered` stops the obligation from being satisfiable by a class too
-small to contain the compiled strategies.
+This certificate uses exact finite laws. `Considered` parameterizes the
+deviation class, and `compiled_considered` prevents restricting it below the
+compiled source strategies. The main concrete runtime results admit every
+original-player strategy in their specified target models.
 -/
 
 noncomputable section

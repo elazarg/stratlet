@@ -13,6 +13,12 @@ changes; the structural check complements, but cannot replace, mathematical
 review of the statements. Compiler preservation claims are generic in the
 game; concrete examples instantiate them or refute an all-game guarantee.
 
+For the manuscript's proof-reading route, dependency attribution, and reproduction
+commands, start with [ARTIFACT.md](ARTIFACT.md). The candid research positioning
+and submission criteria are in [docs/submission-assessment.md](docs/submission-assessment.md).
+GameTheory is the author's separately maintained, unpublished software library;
+this paper uses a pinned checked dependency, not a publication of its full corpus.
+
 ## Architecture
 
 ```text
