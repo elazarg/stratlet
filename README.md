@@ -19,6 +19,12 @@ and submission criteria are in [docs/submission-assessment.md](docs/submission-a
 GameTheory is the author's separately maintained, unpublished software library;
 this paper uses a pinned checked dependency, not a publication of its full corpus.
 
+The next research expansion is designed in
+[docs/ledger-expansion-design.md](docs/ledger-expansion-design.md) and sequenced in
+[docs/ledger-expansion-plan.md](docs/ledger-expansion-plan.md): public delivery and
+deadlines, reusable ledger/strategic layers, and an explicit path to a named
+blockchain realization. Proposed results there are not current guarantees.
+
 ## Architecture
 
 ```text

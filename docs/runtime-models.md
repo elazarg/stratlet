@@ -1,5 +1,10 @@
 # Request windows and public scheduling
 
+The proposed public-delivery expansion is specified in
+[ledger-expansion-design.md](ledger-expansion-design.md), with implementation
+gates in [ledger-expansion-plan.md](ledger-expansion-plan.md). These are plans;
+they do not change the proved boundary below.
+
 ## Mechanized composition
 
 `Vegas/Scheduled/Request.lean` combines private request windows with the actual
