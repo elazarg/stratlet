@@ -1,6 +1,8 @@
 # Ledger expansion: implementation and research gates
 
-Status: planned, not implemented. This is the execution plan for
+Status: research plan with a checked one-shot B0a kernel comparison; the
+frontend bridge and public-ledger compiler remain unimplemented. This is the
+execution plan for
 [ledger-expansion-design.md](ledger-expansion-design.md). Existing proof status
 is recorded separately in [runtime-models.md](runtime-models.md).
 
@@ -31,7 +33,7 @@ failed conjecture is useful evidence; a placeholder proof is not completion.
 
 ## B0. Prove a quitting abstraction, then connect one core encoding
 
-**Immediate next step:** the finite representation comparison described in
+**Kernel evidence:** the finite representation comparison described in
 [compiler-boundary.md](compiler-boundary.md#first-bounded-step-an-optional-disclosure-encoding).
 Keep public quit signals, malformed commitments, withheld openings, and
 cryptographic/application validation failures distinct. Compare a continuation
@@ -39,9 +41,13 @@ that can react between their different observation times with a barrier
 variant. Prove a distinguishing result or a precisely scoped positive
 comparison in existing finite protocol machinery. Settlement equality alone
 does not pass. No new core syntax, interchange framework, or ledger package
-is needed.
+is needed. The one-shot negative witness, no-mixture result, and generic
+barrier adequacy are checked in `VegasTests/FailureObservation.lean` and
+`Vegas/Runtime/FailureObservation.lean`. Their precise scope is recorded in
+[runtime-models.md](runtime-models.md#failure-observations-checked-one-shot-comparisons).
+This does not complete the event-level or frontend parts of B0.
 
-After that semantic contract is settled, try existing core constructors: a
+**Next bounded integration step:** try existing core constructors for a
 fresh optional opening constrained to the earlier binding or `none`, at the
 appropriate information checkpoint. Its extra commitment and disclosure events
 must satisfy the same contract, not be assumed equivalent to a cleartext quit.
@@ -58,8 +64,8 @@ without proving the affected results.
 **Gate:** the representation comparison and optional-disclosure pattern are
 checked with explicit policy/continuation scope and remaining frontend trust,
 or a precise failed obligation is documented. Test the encoding before
-generalizing it. The following extension checks persistent
-quitting at a second checkpoint. Only then build the smallest emitted-core
+generalizing it. The following extension checks persistent quitting at a second
+checkpoint. Only then build the smallest emitted-core
 bridge for that supported subset; no handler syntax crosses the boundary.
 
 An accepted core artifact is the common input to analysis and runtime

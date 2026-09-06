@@ -5,6 +5,9 @@ preservation theorem. The current proved boundary is in
 [runtime-models.md](runtime-models.md). This document fixes ownership and the
 first integration gate for the [expansion plan](ledger-expansion-plan.md);
 the [ledger design](ledger-expansion-design.md) specifies later target models.
+The checked one-shot B0a kernel comparisons and their limitations are recorded
+in [runtime-models.md](runtime-models.md#failure-observations-checked-one-shot-comparisons).
+They are not a frontend/core encoding or an implementation of failure handling.
 
 ## One small language boundary
 
@@ -199,6 +202,13 @@ with the exact missing information/control premise identified. If a uniform
 equivalence fails, retain the counterexample and seek the weakest useful
 compiler eligibility condition; do not add a universal runtime AST to explain
 away the failure. This precedes any production encoding change.
+
+The one-shot kernel deliverable is checked in
+`Vegas/Runtime/FailureObservation.lean` and `VegasTests/FailureObservation.lean`:
+a loss of Nash despite compiled-law equality, a no-mixture-backtranslation
+witness, and a generic barrier adequacy construction. Its barrier is part of
+the strategy carrier. Concrete event/observation semantics must still justify
+using that carrier for an implementation; six failure labels do not do so.
 
 ### B0b. Check one frontend/core encoding against that contract
 

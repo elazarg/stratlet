@@ -78,3 +78,49 @@ proving a different theorem for the additional behaviors.
 Kotlin nonresponse-handler elaboration, generated EVM-handler simulation, and
 cryptographic realization are also separate proof boundaries. Neither private
 window compilation nor the public serializer establishes them.
+
+## Failure observations: checked one-shot comparisons
+
+`Vegas/Runtime/FailureObservation.lean` and
+`VegasTests/FailureObservation.lean` compare finite strategic kernels, not
+transaction executions. They establish a bounded part of B0a in the expansion
+plan without changing the public-delivery boundary above.
+
+- `response_law_iff_factor`: for fixed observation maps and response policies,
+  equality of the joint raw-value/response law for every submitter distribution
+  is equivalent to equality of the response distributions at each raw value.
+  This tests a proposed policy translation; it does not assume all target
+  policies ignore extra observations.
+- `adequacy`: if a raw-value decoder has a section and the responder fixes its
+  action without observing the raw value, the one-shot raw game is
+  deviation-adequate for the decoded game. Both players may use arbitrary
+  finite-support randomized strategies. The submitter is backtranslated by
+  pushing its entire raw law through the decoder, independently of the
+  opponent. Utilities may be any function of decoded value and response.
+  The existing adequacy theorem consequently preserves and reflects Nash at
+  compiled profiles. The construction is generic in raw/value/action types,
+  imports no Vegas syntax, and allows submissions outside the compiler image.
+- `early_compiled_not_nash`: exposing the quit/continue bit before the response
+  changes a fair Nash profile into a non-equilibrium, although the complete
+  terminal law agrees for every compiled profile. A responder's payoff rises
+  from one half to one by copying the visible bit. Payoffs depend only on the
+  resolved bit and response, not on order. This refutes the specified
+  observation-erasing implementation, not every possible compiler or game.
+- `no_delayed_response_mixture`: even a profile-local finite mixture of delayed
+  responder replacements cannot reproduce that deviation against the unchanged
+  fair submitter.
+
+The positive example decodes six abstract failure labels to `none` and valid
+Boolean values to `some`. Those labels do not implement timeouts, validation,
+or cryptographic failure; their shared settlement is a parameter of this toy
+game. The theorem justifies their collapse only behind the specified response
+barrier, with no later decisions, fees, raw-dependent utilities, or environment
+ports. There is no proof here that a public ledger enforces that barrier or
+that arbitrary failure traffic has those semantics. The negative example
+compares early with delayed visibility of a quit/continue bit; it does not
+model selective opening of an earlier commitment.
+
+The next integration obligation is a concrete optional-disclosure core
+encoding and its actual observation/strategy correspondence, including an
+audit of `RevealComplete`. The later runtime obligation is to derive the
+relevant response barrier from execution rather than its strategy type.

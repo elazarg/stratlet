@@ -10,6 +10,7 @@ import VegasTests.ScheduledReplay
 import VegasTests.ScheduledEquilibrium
 import VegasTests.MatchingPenniesEquilibrium
 import VegasTests.RuntimeBoundaries
+import VegasTests.FailureObservation
 import VegasTests.ObservedAbort
 import VegasTests.DisclosureWindow
 import VegasTests.QuittingSource
