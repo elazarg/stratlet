@@ -1,4 +1,7 @@
 {
+  "thm:trace-utility": ["Vegas.Paper.Valuation.decoder_boundary", "Vegas.Paper.Valuation.trace_incentive", "Vegas.Paper.Valuation.trace_regret"],
+  "thm:adversarial-valuation": ["Vegas.Paper.Valuation.adversarial_bound", "Vegas.Paper.Valuation.context_bound", "Vegas.Paper.Valuation.trace_counterexample", "Vegas.Paper.Valuation.trace_harm"],
+  "prose:utility-parametric": ["Vegas.Paper.Valuation.nash_for_every_valuation", "Vegas.Paper.Valuation.serialized_valuation"],
   "thm:disclosure-correspondence": ["Vegas.Paper.Disclosure.policy_roundtrip", "Vegas.Paper.Disclosure.outcome_law", "Vegas.Paper.Disclosure.expected_payoffs", "Vegas.Paper.Disclosure.nash_correspondence"],
   "thm:sealed-offer": ["Vegas.Paper.Offer.source_nash", "Vegas.Paper.Offer.source_values", "Vegas.Paper.Offer.source_buyer_guarantee", "Vegas.Paper.Offer.source_buyer_best_response", "Vegas.Paper.Offer.source_seller_bound", "Vegas.Paper.Offer.runtime_nash", "Vegas.Paper.Offer.runtime_buyer_guarantee", "Vegas.Paper.Offer.disclosure_timeout"],
   "thm:source-adequacy": ["Vegas.Paper.source_payoff_adequacy"],

@@ -199,7 +199,7 @@ introduces no automatic scheduler or entropy implementation: a concrete caller
 can choose among concurrently enabled nodes, and exposing or controlling that
 ordering requires its own information/strategy preservation result.
 
-`Machine.Contract.initialStore` and `terminalOutcome?` close the state-only
+`Machine.Contract.initialStore` and `terminalPayout?` close the state-only
 contract lifecycle. Deployment is exactly the canonical raw encoding of
 `Machine.init`, with every action incomplete. Terminal readout rejects
 malformed or unfinished storage; on encoded reachable storage it evaluates

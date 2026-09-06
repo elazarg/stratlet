@@ -4,7 +4,7 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
-import GameTheory.Core.Utility
+import Vegas.Runtime.OutcomeSimulation
 
 /-!
 # Unilateral-deviation adequacy
@@ -71,35 +71,26 @@ structure DeviationAdequacyOn
     {Player : Type uPlayer} [DecidableEq Player]
     (source : UtilityGame.{uPlayer, uSourceStrategy, uSourceOutcome} Player)
     (target : UtilityGame.{uPlayer, uTargetStrategy, uTargetOutcome} Player)
-    (Considered : (who : Player) → target.form.sig.Strategy who → Prop) where
-  compileStrategy :
-    (who : Player) → source.form.sig.Strategy who →
-      target.form.sig.Strategy who
-  backtranslateStrategy :
-    (who : Player) → target.form.sig.Strategy who →
-      source.form.sig.Strategy who
-  decodeOutcome : target.form.sig.Outcome → source.form.sig.Outcome
+    (Considered : (who : Player) → target.form.sig.Strategy who → Prop)
+    extends OutcomeSimulationOn source.form target.form Considered where
   utility_eq :
     target.utility =
       fun outcome who => source.utility (decodeOutcome outcome) who
-  honest_law :
-    ∀ profile,
-      (target.form.play
-        (fun who => compileStrategy who (profile who))).map decodeOutcome =
-          source.form.play profile
-  /-- Every compiled source strategy is itself considered.  Without this the
-  restricted tier could be satisfied by an empty class. -/
-  compiled_considered :
-    ∀ who strategy, Considered who (compileStrategy who strategy)
-  deviation_law :
-    ∀ profile who replacement, Considered who replacement →
-      (target.form.play
-        (Profile.update
-          (fun player => compileStrategy player (profile player))
-          who replacement)).map decodeOutcome =
-        source.form.play
-          (Profile.update profile who
-            (backtranslateStrategy who replacement))
+
+/-- Interpret one outcome simulation with any source utility profile. Neither
+the compiler nor its strategy back-translation depends on that interpretation. -/
+def OutcomeSimulationOn.withUtility
+    {Player : Type uPlayer} [DecidableEq Player]
+    {source : GameForm.{uPlayer, uSourceStrategy, uSourceOutcome} Player}
+    {target : GameForm.{uPlayer, uTargetStrategy, uTargetOutcome} Player}
+    {Considered : (who : Player) → target.sig.Strategy who → Prop}
+    (simulation : OutcomeSimulationOn source target Considered)
+    (utility : source.sig.Outcome → Player → ℝ) :
+    DeviationAdequacyOn ⟨source, utility⟩
+      ⟨target, fun outcome who => utility (simulation.decodeOutcome outcome) who⟩
+      Considered where
+  toOutcomeSimulationOn := simulation
+  utility_eq := rfl
 
 /-- Adequacy against *every* technically available target strategy: the
 secure-compilation obligation, with no restriction on what a deviating player

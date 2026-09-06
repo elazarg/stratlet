@@ -72,6 +72,8 @@ module; inspect its definitions and proof, not only the theorem name.
 | Which game is analyzed? | `Vegas/Game.lean`; graph-derived frontier semantics, not an independent source game-tree input |
 | What does written-order source adequacy prove? | `Vegas/Compile/SourceAdequacy.lean`; endpoint and supported-run reconstruction |
 | What is the uniform certificate? | `Vegas/Runtime/DeviationAdequacy.lean`; `DeviationAdequacyOn`, unrestricted `DeviationAdequacy`, composition |
+| How are outcomes and utilities separated? | `Vegas/Runtime/OutcomeSimulation.lean`; `Machine.Program.outcomeGame`, `Vegas/Scheduled/Valuation.lean` |
+| What if opponents value runtime traces? | `Vegas/Runtime/TraceUtility.lean`, `VegasTests/TraceUtility.lean`; see [outcome and utility boundaries](docs/outcomes-and-utilities.md) |
 | Where is request memory reconstructed? | `Vegas/Runtime/RequestCompiler.lean`; `past_eq`, `replay`, `run_law`, `mixed_play_law` |
 | How are pure/mixed/behavioral policies connected? | `Vegas/Game/Kuhn.lean`; checked GameTheory laws plus Vegas-specific finite-site coverage |
 | How are order-aware deviations handled? | `Vegas/Scheduled/Replay.lean`, `Predraw.lean`, `Equilibrium.lean` |
@@ -88,19 +90,19 @@ of implementations still require human review.
 
 ### Validation snapshot
 
-The Lean sources at `f19dce4` and manuscript sources at `41aaaf5` were checked
-in a separate clean local checkout. The checkout rebuilt Vegas, VegasTests,
-Paper, and the pinned GameTheory sources; it reused revision-pinned third-party
-Lake packages and their caches after checking their source worktrees were clean.
-The full 3,259-job build passed with `LEAN_NUM_THREADS=2` and `--wfail`.
-The claim registry, documentation-reference and local-option audits, and all
-11 maintenance tests passed. The 16-page manuscript was rebuilt and its affected
-pages visually checked, with no LaTeX warnings or overfull boxes in the final log.
+The full 3,264-job default build passes with `--wfail`, including the independent
+outcome-valuation interface, trace-utility boundary, adversarial bound transfer,
+and the allocation/transfer example through requests and serialization.
+Validation used `LEAN_NUM_THREADS=4` in the development checkout with pinned
+dependency caches. The claim registry, documentation-reference and local-option
+audits, and all 11 maintenance tests pass. The manuscript is rebuilt and its
+affected pages visually checked; its final log has no LaTeX warnings or
+overfull boxes.
 
-This validates a separate source checkout on the development machine, not a
-fresh machine, a cold dependency download, an offline bundle, or a performance
-benchmark. The concurrency setting addresses memory pressure; it does not
-change any Lean declaration or proof-checking option.
+This validation checks the dependency-tracked build in the development
+environment. Fresh-machine reproduction, a cold dependency download, an offline
+bundle, and performance benchmarking are separate checks. The worker-pool
+setting controls resource use without changing Lean proof-checking options.
 
 ### Dependencies
 

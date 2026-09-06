@@ -346,21 +346,21 @@ theorem map_receive_oracle_fixedPolicy
         rfl
 
 /-- Terminal readout is available only when no oracle callback is pending. -/
-def terminalOutcome? (state : contract.State) : Option (Outcome Player) :=
+def terminalPayout? (state : contract.State) : Option (Payout Player) :=
   if state.pending.isSome then
     none
   else
-    Contract.terminalOutcome? program contract.codec state.store
+    Contract.terminalPayout? program contract.codec state.store
 
 /-- Terminal reachable machine state has exactly the retained payoff at the
 classical compiler endpoint. -/
-theorem terminalOutcome?_encodeState_of_terminal
+theorem terminalPayout?_encodeState_of_terminal
     (state : program.State) (terminal : program.terminal state) :
-    contract.terminalOutcome? (contract.encodeState state) =
+    contract.terminalPayout? (contract.encodeState state) =
       evalPayoffs? program.payoffs state.1.store := by
-  unfold terminalOutcome? encodeState OracleProtocol.idleState
+  unfold terminalPayout? encodeState OracleProtocol.idleState
   simp only [Option.isSome_none, Bool.false_eq_true, ↓reduceIte]
-  exact Contract.terminalOutcome?_encodeState_of_terminal
+  exact Contract.terminalPayout?_encodeState_of_terminal
     program contract.codec state terminal
 
 end ClassicalContract

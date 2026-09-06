@@ -16,7 +16,7 @@ open Vegas EventGraph GameTheory GameTheory.Protocol GameTheory.Math.Probability
 
 theorem terminal_payoff (state : program.State) (hterminal : program.terminal state)
     (who : TestPlayer) :
-    program.settledPlayerUtility state who = ObservedAbort.utility (decode state.1) who := by
+    program.payoutUtility state who = ObservedAbort.utility (decode state.1) who := by
   have reveal_value (index : Fin graph.nodeCount) (source : Nat)
       (hsem : (graph.nodeRow index).sem = .reveal source) :
       Store.getAs state.1.store (graph.nodeTarget index) (graph.nodeRow index).ty =
@@ -89,9 +89,9 @@ theorem terminal_payoff (state : program.State) (hterminal : program.terminal st
   change evalPayoffs? program.payoffs state.1.store = some (evalPayoffs compiled.sourcePayoffs env)
     at heval
   rw [henv] at heval
-  rw [Machine.Program.settledPlayerUtility, if_pos hterminal, heval]
+  rw [Machine.Program.payoutUtility, if_pos hterminal, heval]
   fin_cases who <;> simp [compiled, source, core, ToEventGraph.compile, ToEventGraph.compileCore,
-    evalPayoffs, payoff, same, signal, future, evalExpr, mkOutcome, payoffAt,
+    evalPayoffs, payoff, same, signal, future, evalExpr, mkPayout, payoffAt,
     VEnv.erasePubEnv, VEnv.get, VEnv.cons, Env.get, Env.cons, ObservedAbort.utility,
     ObservedAbort.sign, decode, hleft, hright]
   split_ifs <;> norm_num
@@ -192,9 +192,9 @@ theorem fair_serialized_deviation_payoff
     (program.serializedArena.information.runBehavioral
       (Function.update (program.compileSerializedBehavioralProfile scheduler fairProfile)
         (.player who) replacement) graph.nodeCount).expect
-          (fun history => program.settledPlayerUtility history.state.base victim) = 0 :=
+          (fun history => program.payoutUtility history.state.base victim) = 0 :=
   program.serializedDeviation_expect_eq scheduler fairProfile who
-    (fun state => program.settledPlayerUtility state victim) 0
+    (fun state => program.payoutUtility state victim) 0
     (fun alternative => fair_deviation_payoff who victim alternative) replacement
 
 /-- info: 'VegasTests.QuittingSource.decoded_law_eq_kernel' depends on axioms: [propext, Classical.choice, Quot.sound] -/

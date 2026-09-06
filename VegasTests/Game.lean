@@ -1230,14 +1230,14 @@ example (state : matchingPenniesMachine.State)
     ∃ sourceEnv :
         VEnv simpleExpr
           (ToEventGraph.compile matchingPenniesProgram.core).terminalCtx,
-      Machine.Contract.terminalOutcome? matchingPenniesMachine
+      Machine.Contract.terminalPayout? matchingPenniesMachine
           matchingPenniesStorageCodec
           (Machine.Contract.RawStore.encodeState
             matchingPenniesStorageCodec state) =
         some (evalPayoffs
           (ToEventGraph.compile matchingPenniesProgram.core).sourcePayoffs
           sourceEnv) := by
-  exact Machine.Contract.terminalOutcome?_compile_encodeState
+  exact Machine.Contract.terminalPayout?_compile_encodeState
     matchingPenniesProgram matchingPenniesStorageCodec state hterminal
 
 example (state : matchingPenniesMachine.State)

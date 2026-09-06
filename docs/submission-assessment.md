@@ -19,6 +19,14 @@ nonresponse, conditional-utility optimization at a quitting decision, or Kuhn's
 correspondence. A paper centered on those claims would have a weak novelty case.
 Counting Lean declarations or combining familiar words does not repair it.
 
+Outcome/utility separation uses established trace-relating secure-compilation
+ideas. Its utility-factorization characterization and trace-bonus calculation
+make the theorem's hypotheses precise; they do not supply a separate novelty
+claim. The [outcome/utility design](outcomes-and-utilities.md) relates honest
+policies to protected components and adversarial strategies to contexts, with
+quantitative properties of outcome laws as the observation class. No formal
+embedding into a general secure-compilation framework is claimed.
+
 The examined work does not establish that the exact Vegas construction is
 already available elsewhere. That is a bounded literature finding, not proof
 of priority. A plausible PL contribution remains in the construction and its
@@ -41,6 +49,7 @@ No formal embedding or subsumption theorem between these frameworks is proved.
 | [Psomas, Terzoglou, Wei, Zikas, pseudo-equilibria](https://arxiv.org/abs/2506.22089v2) | Definitions 3.1--3.3; Theorem 3.1; ideal-crypto replacement result | Different computational solution concept; not an equivalent description of our exact serializer theorem. |
 | [Jakobsen, Sørensen, Conitzer, timeability](https://arxiv.org/pdf/1502.03430) | Theorem 1 and Section 3 | Timing-based implementation obstructions have a substantial prior theory; our order model is not a timing completeness result. |
 | [Pauly, mechanism programming](https://doi.org/10.1093/logcom/exi014) | Operational game semantics and Hoare calculus | Deriving a game from a program is not new by itself. |
+| [Abate et al., trace-relating compilation](https://doi.org/10.1145/3460860) | Different source/target trace spaces, property translation, secure-compilation criteria | Outcome decoders and observer-relative preservation belong to this established framework; our exact finite-law and unilateral quantifiers must be compared explicitly. |
 | [CheckMate](https://pm.inf.ethz.ch/publications/BruggerKovacsKomelRainRawson23.pdf) | Game-model input, security encoding and evaluation | Automated strategic analysis is a separate contribution, not one supplied by this compiler theorem. |
 
 Search also covered verified/secure compilation, probabilistic and game

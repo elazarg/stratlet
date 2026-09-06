@@ -7,23 +7,25 @@ Authors: VegasCore contributors
 import Vegas.Foundation.Env
 
 /-!
-# Outcomes and payoff/guard evaluation
+# Integer payouts and payoff/guard evaluation
 
-`Outcome`, payoff construction (`payoffAt`, `mkOutcome`), and the program-facing
+`Payout`, payoff construction (`payoffAt`, `mkPayout`), and the program-facing
 `evalPayoffs` / `evalGuard` evaluators.
 -/
 
 namespace Vegas
 
-/-! ## Outcomes and payoff/guard evaluation -/
+/-! ## Payouts and payoff/guard evaluation -/
 
-/-- Canonical outcome type: finitely-supported integer payoffs per player.
+/-- A finitely-supported integer payout vector, not the game's outcome type
+or a compulsory utility model. An economic outcome may additionally describe
+allocation, disclosure, or other settlement data; utilities value that outcome.
 
 The `Finsupp` representation is load-bearing: it aggregates per-player
 contributions by summing on matching keys. Players absent from a `.support`
 default to payoff `0`, which matches the "only named players are paid"
 semantics. -/
-abbrev Outcome (Player : Type) [DecidableEq Player] := Player →₀ Int
+abbrev Payout (Player : Type) [DecidableEq Player] := Player →₀ Int
 
 /-- Sum of payoff contributions for player `p` across a payoff list.
 Duplicates of `p` in the list are added. Defined recursively so that
@@ -34,12 +36,12 @@ def payoffAt {Player : Type} [DecidableEq Player]
   | [] => 0
   | (q, v) :: rest => (if q = p then v else 0) + payoffAt p rest
 
-/-- Build an `Outcome` directly from a list of `(player, payoff)` entries,
+/-- Build a `Payout` directly from a list of `(player, payoff)` entries,
 summing duplicates. Sidesteps `Finsupp.single` and `Finsupp.(+)` (which
 are noncomputable in Mathlib despite `[DecidableEq]` being available) by
 constructing the underlying `Finsupp` record in one shot. -/
-def mkOutcome {Player : Type} [DecidableEq Player]
-    (entries : List (Player × Int)) : Outcome Player where
+def mkPayout {Player : Type} [DecidableEq Player]
+    (entries : List (Player × Int)) : Payout Player where
   support := (entries.map Prod.fst).toFinset.filter (fun p => payoffAt p entries ≠ 0)
   toFun p := payoffAt p entries
   mem_support_toFun p := by
@@ -59,12 +61,12 @@ def mkOutcome {Player : Type} [DecidableEq Player]
           rcases ih htail with ⟨entry, hmem, heq⟩
           exact ⟨entry, List.mem_cons_of_mem hd hmem, heq⟩
 
-/-- Evaluate a list of per-player payoff expressions into an outcome. -/
+/-- Evaluate a list of per-player payoff expressions into a payout vector. -/
 def evalPayoffs {Player : Type} [DecidableEq Player]
     {L : IExpr} {Γ : VCtx Player L}
     (payoffs : List (Player × L.Expr (erasePubVCtx Γ) L.int))
-    (env : VEnv L Γ) : Outcome Player :=
-  mkOutcome (payoffs.map
+    (env : VEnv L Γ) : Payout Player :=
+  mkPayout (payoffs.map
     (fun pe => (pe.1, L.toInt (L.eval pe.2 (VEnv.erasePubEnv env)))))
 
 /-- Evaluate a commit guard against a proposed action and an erased current

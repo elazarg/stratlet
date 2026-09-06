@@ -153,33 +153,34 @@ theorem compileSerializedBehavioralPolicy_initial
           (program.serializedInitialPlayerInformation who)) := by
   rfl
 
-/-- Player utility for a serialized history. The scheduler utility is allowed
-to inspect the complete target history; an original player's utility is the
-compiled source payoff of the settled graph state and ignores the order log. -/
-def settledPlayerUtility (program : Program Player L)
-    (state : program.State) (who : Player) : ℝ := by
-  classical
-  exact
-    if program.terminal state then
-      match EventGraph.evalPayoffs? program.payoffs state.1.store with
-      | some outcome => (outcome who : ℝ)
-      | none => 0
-    else
-      0
+/-- Any economic outcome interpretation of the settled source state can be
+valued independently of the payout expressions. The scheduler may value the
+full runtime history. Trace-sensitive original-player utilities can instead be
+attached directly to `serializedArena`; their preservation needs a separate
+utility relation, not merely an outcome decoder. -/
+def serializedOutcomeGame (program : Program Player L) {Outcome : Type}
+    (observe : program.State → Outcome) (valuation : Outcome → Player → ℝ)
+    (schedulerUtility : program.serializedArena.History → ℝ) :
+    Game (Participant Player) where
+  arena := program.serializedArena
+  utility history
+    | .scheduler => schedulerUtility history
+    | .player who => valuation (observe history.state.base) who
+  horizon := program.graph.nodeCount
+  bounded := Vegas.Compiled.serializedSystem_boundedHorizon
+    program.graph program.graphWF program.guardLive
 
 def serializedUtility (program : Program Player L)
     (schedulerUtility : program.serializedArena.History → ℝ) :
-    program.serializedArena.History → Participant Player → ℝ
-  | history, .scheduler => schedulerUtility history
-  | history, .player who =>
-      program.settledPlayerUtility history.state.base who
+    program.serializedArena.History → Participant Player → ℝ :=
+  (program.serializedOutcomeGame id program.payoutUtility schedulerUtility).utility
 
 @[simp] theorem serializedUtility_player
     (program : Program Player L)
     (schedulerUtility : program.serializedArena.History → ℝ)
     (history : program.serializedArena.History) (who : Player) :
     program.serializedUtility schedulerUtility history (.player who) =
-      program.settledPlayerUtility history.state.base who := by
+      program.payoutUtility history.state.base who := by
   rfl
 
 /-- Original-player utility cannot distinguish order logs, trace witnesses, or
@@ -198,12 +199,8 @@ theorem serializedUtility_player_eq_of_base_eq
 the canonical atomic game. -/
 def serializedGame (program : Program Player L)
     (schedulerUtility : program.serializedArena.History → ℝ) :
-    Game (Participant Player) where
-  arena := program.serializedArena
-  utility := program.serializedUtility schedulerUtility
-  horizon := program.graph.nodeCount
-  bounded := Vegas.Compiled.serializedSystem_boundedHorizon
-    program.graph program.graphWF program.guardLive
+    Game (Participant Player) :=
+  program.serializedOutcomeGame id program.payoutUtility schedulerUtility
 
 /-- The actual serialized arena has perfect recall, including for policies
 that condition on earlier public orders. -/

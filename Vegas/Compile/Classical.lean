@@ -84,14 +84,14 @@ theorem terminal_sourceOutcome
     (terminal : (Machine.compile source).terminal state) :
     ∃ sourceEnv :
         VEnv L (ToEventGraph.compile source.core).terminalCtx,
-      backend.compile.terminalOutcome?
+      backend.compile.terminalPayout?
           (backend.compile.encodeState state) =
         some (evalPayoffs
           (ToEventGraph.compile source.core).sourcePayoffs sourceEnv) := by
-  unfold ClassicalContract.terminalOutcome?
+  unfold ClassicalContract.terminalPayout?
     ClassicalContract.encodeState OracleProtocol.idleState
   simp only [Option.isSome_none, Bool.false_eq_true, ↓reduceIte]
-  exact Contract.terminalOutcome?_compile_encodeState
+  exact Contract.terminalPayout?_compile_encodeState
     source backend.codec state terminal
 
 /-- The compiled artifact retains the exact source payoff theorem through its
@@ -109,14 +109,14 @@ theorem terminal_sourceStar
           env := terminalEnv
           cont := .ret
             (ToEventGraph.compile source.core).sourcePayoffs } ∧
-      backend.compile.terminalOutcome?
+      backend.compile.terminalPayout?
           (backend.compile.encodeState state) =
         some (evalPayoffs
           (ToEventGraph.compile source.core).sourcePayoffs terminalEnv) := by
   rcases Machine.compile_sourceStar source state terminal with
     ⟨terminalEnv, star, payoff⟩
   refine ⟨terminalEnv, star, ?_⟩
-  rw [backend.compile.terminalOutcome?_encodeState_of_terminal state terminal]
+  rw [backend.compile.terminalPayout?_encodeState_of_terminal state terminal]
   exact payoff
 
 end Backend

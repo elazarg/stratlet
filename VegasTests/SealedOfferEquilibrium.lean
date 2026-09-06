@@ -166,7 +166,7 @@ theorem serialized_buyer_nonnegative
   obtain ⟨alternatives, hlaw⟩ := machine.serializedDeviation_eq_sourceMixture
     scheduler (compileProfile honestProfile) 0 replacement
   have hvalue := congrArg (fun law => law.expect
-    (fun state => machine.settledPlayerUtility state 1)) hlaw
+    (fun state => machine.payoutUtility state 1)) hlaw
   simp only [FinDist.expect_map, FinDist.expect_bind] at hvalue
   have hbound := FinDist.expect_mono (μ := alternatives) (u := fun _ => (0 : ℝ))
     (fun alternative _ => machine_buyer_nonnegative alternative)

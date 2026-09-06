@@ -38,3 +38,5 @@ import VegasTests.QuittingImplementation
 import VegasTests.QuittingWindow
 import VegasTests.RequestCompiler
 import VegasTests.ScheduledRequest
+import VegasTests.TraceUtility
+import VegasTests.OutcomeValuation

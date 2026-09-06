@@ -64,7 +64,7 @@ theorem utility_eq (data : RunData) (who : TestPlayer) :
   | some high =>
     cases high <;> cases signal <;> cases response <;> fin_cases who <;>
       norm_num [finiteUtility, payouts, sellerPayoff, buyerPayoff, highPrice,
-        utility, amount, evalPayoffs, evalExpr, mkOutcome, payoffAt,
+        utility, amount, evalPayoffs, evalExpr, mkPayout, payoffAt,
         terminalEnv, responseEnv, openingEnv, VEnv.erasePubEnv, VEnv.get,
         VEnv.cons, Env.get, Env.cons]
 

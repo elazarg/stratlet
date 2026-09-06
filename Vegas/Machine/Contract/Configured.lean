@@ -147,8 +147,8 @@ theorem execute?_encodeState_of_accepts
         contract.triggers contract.codec state call haccept
 
 /-- Read terminal settlement data through the configured contract. -/
-def terminalOutcome? (store : contract.Store) : Option (Outcome Player) :=
-  Contract.terminalOutcome? program contract.codec store
+def terminalPayout? (store : contract.Store) : Option (Payout Player) :=
+  Contract.terminalPayout? program contract.codec store
 
 /-- Constructor storage decodes to the initial finite graph state. -/
 @[simp] theorem decodeSnapshot_initialStore :
@@ -159,11 +159,11 @@ def terminalOutcome? (store : contract.Store) : Option (Outcome Player) :=
 
 /-- Terminal reachable storage exposes exactly the retained machine payoff
 through the configured contract. -/
-theorem terminalOutcome?_encodeState_of_terminal
+theorem terminalPayout?_encodeState_of_terminal
     (state : program.State) (hterminal : program.terminal state) :
-    contract.terminalOutcome? (RawStore.encodeState contract.codec state) =
+    contract.terminalPayout? (RawStore.encodeState contract.codec state) =
       evalPayoffs? program.payoffs state.1.store := by
-  exact Contract.terminalOutcome?_encodeState_of_terminal
+  exact Contract.terminalPayout?_encodeState_of_terminal
     program contract.codec state hterminal
 
 end ConfiguredContract

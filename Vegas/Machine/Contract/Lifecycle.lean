@@ -64,9 +64,9 @@ theorem allCompleted_eq_true_iff (program : Program Player L)
 
 /-- Decode terminal settlement data from canonical raw storage. Nonterminal or
 malformed storage has no outcome. -/
-def terminalOutcome? (program : Program Player L)
+def terminalPayout? (program : Program Player L)
     (codec : StorageCodec program)
-    (store : RawStore codec) : Option (Outcome Player) :=
+    (store : RawStore codec) : Option (Payout Player) :=
   match RawStore.decodeSnapshot (program := program) codec store with
   | none => none
   | some snapshot =>
@@ -77,57 +77,57 @@ def terminalOutcome? (program : Program Player L)
 
 /-- On an encoded reachable state, terminal outcome decoding is exactly the
 retained machine payoff evaluator, guarded only by machine terminality. -/
-theorem terminalOutcome?_encodeState
+theorem terminalPayout?_encodeState
     (program : Program Player L) (codec : StorageCodec program)
     (state : program.State) :
-    terminalOutcome? program codec (RawStore.encodeState codec state) =
+    terminalPayout? program codec (RawStore.encodeState codec state) =
       if allCompleted program (StateSnapshot.ofConfig state.1) then
         evalPayoffs? program.payoffs state.1.store
       else
         none := by
-  unfold terminalOutcome?
+  unfold terminalPayout?
   rw [RawStore.decodeSnapshot_encodeState]
   simp only
   rw [StateSnapshot.canonical_reachable program.graphWF state.2]
 
 /-- Terminal encoded reachable storage exposes exactly the machine payoff. -/
-theorem terminalOutcome?_encodeState_of_terminal
+theorem terminalPayout?_encodeState_of_terminal
     (program : Program Player L) (codec : StorageCodec program)
     (state : program.State) (hterminal : program.terminal state) :
-    terminalOutcome? program codec (RawStore.encodeState codec state) =
+    terminalPayout? program codec (RawStore.encodeState codec state) =
       evalPayoffs? program.payoffs state.1.store := by
   have hall :
       allCompleted program (StateSnapshot.ofConfig state.1) = true :=
     (allCompleted_eq_true_iff program
       (StateSnapshot.ofConfig state.1)).2 hterminal
-  rw [terminalOutcome?_encodeState, if_pos hall]
+  rw [terminalPayout?_encodeState, if_pos hall]
 
 /-- Terminal encoded reachable storage always has a settlement outcome. -/
-theorem terminalOutcome?_encodeState_isSome
+theorem terminalPayout?_encodeState_isSome
     (program : Program Player L) (codec : StorageCodec program)
     (state : program.State) (hterminal : program.terminal state) :
-    (terminalOutcome? program codec
+    (terminalPayout? program codec
       (RawStore.encodeState codec state)).isSome := by
   rcases program.existsPayoffOfTerminal state hterminal with
     ⟨outcome, houtcome⟩
-  rw [terminalOutcome?_encodeState_of_terminal program codec state hterminal,
+  rw [terminalPayout?_encodeState_of_terminal program codec state hterminal,
     houtcome]
   rfl
 
 /-- For a compiled source program, terminal contract storage exposes a payoff
 of an actual source terminal environment. -/
-theorem terminalOutcome?_compile_encodeState
+theorem terminalPayout?_compile_encodeState
     (source : WFProgram Player L)
     (codec : StorageCodec (Machine.compile source))
     (state : (Machine.compile source).State)
     (hterminal : (Machine.compile source).terminal state) :
     ∃ sourceEnv :
         VEnv L (ToEventGraph.compile source.core).terminalCtx,
-      terminalOutcome? (Machine.compile source) codec
+      terminalPayout? (Machine.compile source) codec
           (RawStore.encodeState codec state) =
         some (evalPayoffs
           (ToEventGraph.compile source.core).sourcePayoffs sourceEnv) := by
-  rw [terminalOutcome?_encodeState_of_terminal
+  rw [terminalPayout?_encodeState_of_terminal
     (Machine.compile source) codec state hterminal]
   exact Machine.compile_sourcePayoffOfTerminal source state hterminal
 

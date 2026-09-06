@@ -64,14 +64,14 @@ def IsTerminal (cfg : SourceConfig P L) : Prop :=
 
 /-- The outcome a configuration reports: the evaluated payoffs at a terminal
 `ret`, and nothing while the program is still running. -/
-def outcome? (cfg : SourceConfig P L) : Option (Outcome P) :=
+def payout? (cfg : SourceConfig P L) : Option (Payout P) :=
   match cfg.cont with
   | .ret payoffs => some (evalPayoffs payoffs cfg.env)
   | _ => none
 
-@[simp] theorem outcome?_ret {Γ : VCtx P L} {env : VEnv L Γ}
+@[simp] theorem payout?_ret {Γ : VCtx P L} {env : VEnv L Γ}
     (payoffs : List (P × L.Expr (erasePubVCtx Γ) L.int)) :
-    outcome? { ctx := Γ, env := env, cont := .ret payoffs } =
+    payout? { ctx := Γ, env := env, cont := .ret payoffs } =
       some (evalPayoffs payoffs env) := rfl
 
 end SourceConfig

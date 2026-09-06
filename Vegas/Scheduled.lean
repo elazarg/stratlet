@@ -11,6 +11,7 @@ import Vegas.Scheduled.History
 import Vegas.Scheduled.Replay
 import Vegas.Scheduled.Strategic
 import Vegas.Scheduled.Equilibrium
+import Vegas.Scheduled.Valuation
 import Vegas.Scheduled.PublicSubmission
 import Vegas.Scheduled.Request
 

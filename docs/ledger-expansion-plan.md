@@ -121,7 +121,7 @@ Test these event sequences with explicit local observations:
 | --- | --- |
 | Timely valid request censored until expiry | Does an environment-controlled outcome have a source-controlled counterpart? |
 | Last-slot submission | Can acceptance depend on an adversarial order after the deviator learns something source-invisible? |
-| Public malformed traffic | Can an arbitrary payload, length, or retry pattern influence the scheduler and another player's outcome? |
+| Public malformed traffic | Can an arbitrary payload, length, or retry pattern influence the scheduler and another player's payout? |
 | Early and late commitments with hidden values | Is the visible footprint simulable from the source information, even if values are hidden? |
 | One reveal observed before another opening decision | Does the full source include the actual informed quitting decision? |
 | Hidden invalid commitment | Where is the guard checked, and which source branch accounts for failure? |

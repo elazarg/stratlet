@@ -88,36 +88,50 @@ def arena (program : Machine.Program Player L) : FOSG.Game Player where
   execution := program.execution
   information := program.information
 
-/-- Evaluate the compiled payoff projection. Nonterminal histories have no
+/-- Evaluate the compiled integer payout as a real-valued score. This is the
+default monetary utility convention, not a restriction on other valuations.
+Nonterminal states have no
 source payoff yet and receive zero; the bounded-horizon certificate ensures
 that every history produced by either strategic form is terminal by the game
 horizon. -/
-def utility (program : Machine.Program Player L) :
-    program.arena.History → Player → ℝ :=
-  fun history who => by
+def payoutUtility (program : Machine.Program Player L) :
+    program.State → Player → ℝ :=
+  fun state who => by
     classical
     exact
-      if program.terminal history.state then
-        match EventGraph.evalPayoffs? program.payoffs history.state.1.store with
+      if program.terminal state then
+        match EventGraph.evalPayoffs? program.payoffs state.1.store with
         | some outcome => (outcome who : ℝ)
         | none => 0
       else
         0
+
+/-- The default history valuation uses the integer payout convention. -/
+def utility (program : Machine.Program Player L) : program.arena.History → Player → ℝ :=
+  fun history => program.payoutUtility history.state
 
 @[simp] theorem utility_of_not_terminal (program : Machine.Program Player L)
     (history : program.arena.History) (who : Player)
     (hterminal : ¬ program.terminal history.state) :
     program.utility history who = 0 := by
   classical
-  simp [utility, hterminal]
+  simp [utility, payoutUtility, hterminal]
+
+/-- Attach an economic interpretation and player utilities to the compiled
+execution. Neither the interpretation nor utility is executed by the contract,
+and neither changes legal actions, observations, or well-formedness. Utilities
+may depend on more than payouts, and need not be integer-valued or linear. -/
+def outcomeGame (program : Machine.Program Player L) {Outcome : Type}
+    (observe : program.State → Outcome) (valuation : Outcome → Player → ℝ) : Game Player where
+  arena := program.arena
+  utility history who := valuation (observe history.state) who
+  horizon := program.graph.nodeCount
+  bounded := program.boundedHorizon
 
 /-- A live compiled event graph, its observation model, payoff projection, and
 uniform termination proof form one Vegas game. -/
-def game (program : Machine.Program Player L) : Game Player where
-  arena := program.arena
-  utility := program.utility
-  horizon := program.graph.nodeCount
-  bounded := program.boundedHorizon
+def game (program : Machine.Program Player L) : Game Player :=
+  program.outcomeGame id program.payoutUtility
 
 end Machine.Program
 

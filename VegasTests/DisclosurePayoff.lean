@@ -98,12 +98,12 @@ theorem cfg_payoff (payouts : Payouts) (data : RunData) :
 
 theorem settled_payoff_cfg (payouts : Payouts) (data : RunData)
     (state : program.State) (hstate : state.1 = cfg data 8) (who : TestPlayer) :
-    (programWithPayoffs payouts).settledPlayerUtility state who =
+    (programWithPayoffs payouts).payoutUtility state who =
       finiteUtility payouts data who := by
   have hterminal : (programWithPayoffs payouts).terminal state := by
     change Terminal graph state.1
     rw [hstate, terminal_iff]
-  rw [Machine.Program.settledPlayerUtility, if_pos hterminal, hstate, cfg_payoff]
+  rw [Machine.Program.payoutUtility, if_pos hterminal, hstate, cfg_payoff]
   rfl
 
 /-- The correspondence uses the compiler's actual utility, for arbitrary
@@ -116,7 +116,7 @@ theorem expectedUtility_eq_finite (payouts : Payouts)
         ((finiteGame payouts).form.play (extractProfile profile)) := by
   have hlaw := terminal_law profile
   have hpayoff : ∀ state ∈ (program.terminalStateLaw profile program.execution.initHistory).support,
-      (programWithPayoffs payouts).settledPlayerUtility state who =
+      (programWithPayoffs payouts).payoutUtility state who =
         finiteUtility payouts (decodeConfig state.1) who := by
     intro state hstate
     have hmem : state.1 ∈
@@ -130,7 +130,7 @@ theorem expectedUtility_eq_finite (payouts : Payouts)
   have hstart : expectedUtility (programWithPayoffs payouts).game.behavioral.utility who
       ((programWithPayoffs payouts).game.behavioral.form.play profile) =
       (program.terminalStateLaw profile program.execution.initHistory).expect
-        (fun state => (programWithPayoffs payouts).settledPlayerUtility state who) := by
+        (fun state => (programWithPayoffs payouts).payoutUtility state who) := by
     rw [Machine.Program.terminalStateLaw, FinDist.expect_map]
     rfl
   rw [hstart, FinDist.expect_congr hpayoff]

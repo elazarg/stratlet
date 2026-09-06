@@ -337,8 +337,8 @@ theorem utility_eq_serializedUtility_of_state_eq (program : Program Player L)
     (schedulerUtility : program.serializedArena.History → ℝ) (who : Player) :
     program.utility source who =
       program.serializedUtility schedulerUtility target (.player who) := by
-  change program.settledPlayerUtility source.state who =
-    program.settledPlayerUtility target.state.base who
+  change program.payoutUtility source.state who =
+    program.payoutUtility target.state.base who
   rw [hstate]
 
 /-- Every actual runtime history has a source counterpart preserving both

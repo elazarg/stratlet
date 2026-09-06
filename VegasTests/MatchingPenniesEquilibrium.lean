@@ -202,7 +202,7 @@ theorem terminal_payoff (bits : TestPlayer → Bool) (state : program.State)
     (hterminal : program.terminal state)
     (hleft : Store.getAs state.1.store 0 .bool = some (bits 0))
     (hright : Store.getAs state.1.store 1 .bool = some (bits 1)) (who : TestPlayer) :
-    program.settledPlayerUtility state who = payoff bits who := by
+    program.payoutUtility state who = payoff bits who := by
   have reveal_value (node : Fin graph.nodeCount) (source : Nat)
       (hsem : (graph.nodeRow node).sem = .reveal source) :
       Store.getAs state.1.store (graph.nodeTarget node) (graph.nodeRow node).ty =
@@ -246,11 +246,11 @@ theorem terminal_payoff (bits : TestPlayer → Bool) (state : program.State)
   change evalPayoffs? program.payoffs state.1.store = some (evalPayoffs compiled.sourcePayoffs env)
     at heval
   rw [henv] at heval
-  rw [Machine.Program.settledPlayerUtility, if_pos hterminal, heval]
+  rw [Machine.Program.payoutUtility, if_pos hterminal, heval]
   fin_cases who <;> simp [payoff, compiled, matchingPenniesProgram, matchingPenniesCore,
     ToEventGraph.compile, ToEventGraph.compileCore, evalPayoffs,
     matchingPenniesLeftPayoff, matchingPenniesRightPayoff, matchingPenniesSame,
-    evalExpr, mkOutcome, payoffAt, VEnv.erasePubEnv, VEnv.get, VEnv.cons,
+    evalExpr, mkPayout, payoffAt, VEnv.erasePubEnv, VEnv.get, VEnv.cons,
     Env.get, Env.cons]
 
 theorem continuation_payoff
@@ -258,7 +258,7 @@ theorem continuation_payoff
     (bits : TestPlayer → Bool) (start : program.execution.History)
     (hstate : start.state = after bits) (who : TestPlayer) (observable : ℝ → ℝ) :
     (program.terminalStateLaw profile start).expect
-      (fun state => observable (program.settledPlayerUtility state who)) =
+      (fun state => observable (program.payoutUtility state who)) =
         observable (payoff bits who) := by
   rw [Machine.Program.terminalStateLaw, FinDist.expect_map]
   calc
@@ -302,10 +302,10 @@ theorem expectedPayoffObservable_eq
   have hterm : ¬ program.execution.terminal program.execution.init :=
     (matchingPenniesInitial_active 0).1
   change (program.information.runBehavioral profile graph.nodeCount).expect
-    (fun history => observable (program.settledPlayerUtility history.state who)) = _
+    (fun history => observable (program.payoutUtility history.state who)) = _
   rw [← FinDist.expect_map ExecutionProtocol.History.state
     (program.information.runBehavioral profile graph.nodeCount)
-    (fun state => observable (program.settledPlayerUtility state who))]
+    (fun state => observable (program.payoutUtility state who))]
   change (program.terminalStateLaw profile program.execution.initHistory).expect _ = _
   rw [program.terminalStateLaw_step profile _ hterm, FinDist.expect_bind,
     InformationModel.behavioralJoint, FinDist.expect_map, FinDist.pi_map, FinDist.expect_map]
@@ -463,9 +463,9 @@ theorem fair_serialized_deviation_payoff
     (program.serializedArena.information.runBehavioral
       (Function.update (program.compileSerializedBehavioralProfile scheduler fairPolicy)
         (.player who) replacement) graph.nodeCount).expect
-          (fun history => program.settledPlayerUtility history.state.base victim) = 0 :=
+          (fun history => program.payoutUtility history.state.base victim) = 0 :=
   program.serializedDeviation_expect_eq scheduler fairPolicy who
-    (fun state => program.settledPlayerUtility state victim) 0
+    (fun state => program.payoutUtility state victim) 0
     (fun alternative => fair_deviation_payoff who victim alternative) replacement
 
 /-- info: 'VegasTests.MatchingPenniesEquilibrium.fair_serialized_isPlayerNash' depends on axioms: [propext, Classical.choice, Quot.sound] -/

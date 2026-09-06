@@ -908,9 +908,9 @@ noncomputable def evalPayoffEntries? {Player : Type} [DecidableEq Player]
 /-- Evaluate graph payoff projections from a graph store. -/
 noncomputable def evalPayoffs? {Player : Type} [DecidableEq Player]
     {L : IExpr} (payoffs : List (Player × EventPayoff L))
-    (store : Store L) : Option (Outcome Player) := do
+    (store : Store L) : Option (Payout Player) := do
   let entries ← evalPayoffEntries? payoffs store
-  some (mkOutcome entries)
+  some (mkPayout entries)
 
 theorem evalPayoffEntries?_isSome_of_available
     {Player : Type} [DecidableEq Player] {L : IExpr}
@@ -962,7 +962,7 @@ theorem evalPayoffs?_isSome_of_available
   rcases evalPayoffEntries?_isSome_of_available
       payoffs store available with
     ⟨entries, hentries⟩
-  exact ⟨mkOutcome entries, by simp [evalPayoffs?, hentries]⟩
+  exact ⟨mkPayout entries, by simp [evalPayoffs?, hentries]⟩
 
 /-- Source-order publication barrier.
 

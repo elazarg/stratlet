@@ -9,6 +9,8 @@ import VegasTests.RuntimeBoundaries
 import VegasTests.QuittingWindow
 import VegasTests.DisclosureWindow
 import VegasTests.SealedOfferRuntime
+import VegasTests.TraceUtility
+import Vegas.Scheduled.Valuation
 
 /-! # Paper audit
 
@@ -28,6 +30,161 @@ noncomputable section
 namespace Vegas.Paper
 
 open GameTheory GameTheory.Math.Probability VegasTests
+
+namespace Valuation
+
+open Vegas.Runtime
+
+variable {Player : Type}
+variable {source target : GameForm Player}
+variable {Considered : (who : Player) → target.sig.Strategy who → Prop}
+
+theorem nash_for_every_valuation [DecidableEq Player]
+    (simulation : OutcomeSimulationOn source target (fun _ _ => True))
+    (value : source.sig.Outcome → Player → ℝ) (profile : Profile source.sig) :
+    IsNash target (euPreference (fun outcome who => value (simulation.decodeOutcome outcome) who))
+      (simulation.compileProfile profile) ↔ IsNash source (euPreference value) profile :=
+  (simulation.withUtility value).isNash_compileProfile_iff profile
+
+theorem decoder_boundary {Source Target : Type*} (decode : Target → Source)
+    (utility : Target → ℝ) :
+    (∀ first second : FinDist Target,
+      first.map decode = second.map decode → first.expect utility = second.expect utility) ↔
+      FactorsThrough decode utility :=
+  universal_expectation_iff decode utility
+
+theorem trace_incentive [DecidableEq Player]
+    (simulation : OutcomeSimulationOn source target Considered)
+    (profile : Profile source.sig) (who : Player) (replacement : target.sig.Strategy who)
+    (hconsidered : Considered who replacement)
+    (value : source.sig.Outcome → ℝ) (bonus : target.sig.Outcome → ℝ) :
+    (target.play (Profile.update (simulation.compileProfile profile) who replacement)).expect
+        (simulation.combinedUtility value bonus) ≤
+      (target.play (simulation.compileProfile profile)).expect
+        (simulation.combinedUtility value bonus) ↔
+    (target.play (Profile.update (simulation.compileProfile profile) who replacement)).expect
+        bonus - (target.play (simulation.compileProfile profile)).expect bonus ≤
+      (source.play profile).expect value -
+        (source.play (Profile.update profile who
+          (simulation.backtranslateStrategy who replacement))).expect value :=
+  simulation.combined_noGain_iff profile who replacement hconsidered value bonus
+
+theorem trace_regret [DecidableEq Player]
+    (simulation : OutcomeSimulationOn source target Considered)
+    (profile : Profile source.sig) (who : Player)
+    (value : source.sig.Outcome → ℝ) (bonus : target.sig.Outcome → ℝ) (ε : ℝ)
+    (hsource : ∀ alternative : source.sig.Strategy who,
+      (source.play (Profile.update profile who alternative)).expect value ≤
+        (source.play profile).expect value)
+    (hbonus : ∀ replacement : target.sig.Strategy who, Considered who replacement →
+      (target.play (Profile.update (simulation.compileProfile profile) who replacement)).expect
+          bonus - (target.play (simulation.compileProfile profile)).expect bonus ≤ ε)
+    (replacement : target.sig.Strategy who) (hconsidered : Considered who replacement) :
+    (target.play (Profile.update (simulation.compileProfile profile) who replacement)).expect
+        (simulation.combinedUtility value bonus) ≤
+      (target.play (simulation.compileProfile profile)).expect
+        (simulation.combinedUtility value bonus) + ε :=
+  simulation.combined_regret_bound profile who value bonus ε hsource hbonus replacement hconsidered
+
+theorem adversarial_bound [DecidableEq Player]
+    (simulation : OutcomeSimulationOn source target Considered)
+    (profile : Profile source.sig) (deviator : Player)
+    (value : source.sig.Outcome → ℝ) (bound : ℝ)
+    (hbound : ∀ replacement : source.sig.Strategy deviator,
+      bound ≤ (source.play (Profile.update profile deviator replacement)).expect value)
+    (replacement : target.sig.Strategy deviator) (hconsidered : Considered deviator replacement) :
+    bound ≤ (target.play
+      (Profile.update (simulation.compileProfile profile) deviator replacement)).expect
+        (fun outcome => value (simulation.decodeOutcome outcome)) :=
+  simulation.guarantee profile deviator value bound hbound replacement hconsidered
+
+theorem context_bound {Honest : Player → Prop}
+    (simulation : HonestContextSimulation source target Honest)
+    (profile : Profile source.sig) (value : source.sig.Outcome → ℝ) (bound : ℝ)
+    (hbound : ∀ alternative : Profile source.sig,
+      (∀ who, Honest who → alternative who = profile who) →
+        bound ≤ (source.play alternative).expect value)
+    (context : Profile target.sig)
+    (hcontext : ∀ who, Honest who →
+      context who = simulation.compileStrategy who (profile who)) :
+    bound ≤ (target.play context).expect
+      (fun outcome => value (simulation.decodeOutcome outcome)) :=
+  simulation.guarantee profile value bound hbound context hcontext
+
+theorem serialized_valuation [DecidableEq Player] [Fintype Player] {L : IExpr}
+    (program : Machine.Program Player L) {Outcome : Type}
+    (observe : program.State → Outcome) (value : Outcome → Player → ℝ)
+    (schedulerUtility : program.serializedArena.History → ℝ)
+    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : (who : Player) → program.information.BehavioralPolicy who) :
+    Scheduled.IsPlayerNash (program.serializedOutcomeGame observe value schedulerUtility).behavioral
+      (program.compileSerializedBehavioralProfile scheduler profile) ↔
+      IsNash (program.outcomeGame observe value).behavioral.form
+        (euPreference (program.outcomeGame observe value).utility) profile :=
+  program.serializedOutcomeGame_nash_iff observe value schedulerUtility scheduler profile
+
+theorem trace_counterexample :
+    IsNash TraceUtility.source.form (euPreference TraceUtility.source.utility)
+      TraceUtility.safeProfile ∧
+    (∀ profile who, expectedUtility TraceUtility.target.utility who
+      (TraceUtility.target.form.play (TraceUtility.simulation.compileProfile profile)) =
+      expectedUtility TraceUtility.source.utility who (TraceUtility.source.form.play profile)) ∧
+    (¬ IsNash TraceUtility.target.form (euPreference TraceUtility.target.utility)
+      (TraceUtility.simulation.compileProfile TraceUtility.safeProfile)) ∧
+    IsNash TraceUtility.target.form (euPreference TraceUtility.target.utility)
+      (Profile.update (TraceUtility.simulation.compileProfile TraceUtility.safeProfile) 1
+        (true, true)) :=
+  ⟨TraceUtility.source_nash, TraceUtility.compiled_utilities,
+    TraceUtility.target_not_nash, TraceUtility.harmful_target_nash⟩
+
+theorem trace_harm :
+    expectedUtility TraceUtility.target.utility 0
+      (TraceUtility.target.form.play
+        (TraceUtility.simulation.compileProfile TraceUtility.safeProfile)) = 1 ∧
+    expectedUtility TraceUtility.target.utility 0
+      (TraceUtility.target.form.play
+        (Profile.update (TraceUtility.simulation.compileProfile TraceUtility.safeProfile) 1
+          (true, true))) = 0 :=
+  TraceUtility.honest_payoff_drop
+
+end Valuation
+
+/-- info: 'Vegas.Paper.Valuation.nash_for_every_valuation' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Valuation.nash_for_every_valuation
+
+/-- info: 'Vegas.Paper.Valuation.decoder_boundary' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Valuation.decoder_boundary
+
+/-- info: 'Vegas.Paper.Valuation.trace_incentive' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Valuation.trace_incentive
+
+/-- info: 'Vegas.Paper.Valuation.trace_regret' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Valuation.trace_regret
+
+/-- info: 'Vegas.Paper.Valuation.adversarial_bound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Valuation.adversarial_bound
+
+/-- info: 'Vegas.Paper.Valuation.context_bound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Valuation.context_bound
+
+/-- info: 'Vegas.Paper.Valuation.serialized_valuation' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Valuation.serialized_valuation
+
+/-- info: 'Vegas.Paper.Valuation.trace_counterexample' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Valuation.trace_counterexample
+
+/-- info: 'Vegas.Paper.Valuation.trace_harm' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Valuation.trace_harm
+
 
 /-- A compiler whose target for the hidden-choice witness exposes the two
 choices sequentially cannot satisfy deviation adequacy for every core program. -/
@@ -63,7 +220,7 @@ theorem serialized_adversarial_payoff
     (program.serializedArena.information.runBehavioral
       (Function.update (program.compileSerializedBehavioralProfile scheduler fairPolicy)
         (.player who) replacement) graph.nodeCount).expect
-          (fun history => program.settledPlayerUtility history.state.base victim) = 0 :=
+          (fun history => program.payoutUtility history.state.base victim) = 0 :=
   fair_serialized_deviation_payoff scheduler who victim replacement
 
 theorem refund_value (last : TestPlayer) :
@@ -166,7 +323,7 @@ theorem serialized_adversarial_payoff
     (program.serializedArena.information.runBehavioral
       (Function.update (program.compileSerializedBehavioralProfile scheduler fairProfile)
         (.player who) replacement) graph.nodeCount).expect
-          (fun history => program.settledPlayerUtility history.state.base victim) = 0 :=
+          (fun history => program.payoutUtility history.state.base victim) = 0 :=
   fair_serialized_deviation_payoff scheduler who victim replacement
 
 theorem checkpoint_law (profile : ∀ who, program.information.BehavioralPolicy who) :

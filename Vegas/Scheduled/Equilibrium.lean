@@ -98,13 +98,13 @@ theorem expectedUtility_compileSerialized (program : Program Player L)
     expectedUtility program.game.behavioral.utility who
       (program.game.behavioral.form.play profile) := by
   have heq := congrArg
-    (fun law => law.expect (fun state => program.settledPlayerUtility state who))
+    (fun law => law.expect (fun state => program.payoutUtility state who))
     (program.runBehavioral_compileSerialized scheduler profile)
   change (program.serializedArena.information.runBehavioral
     (program.compileSerializedBehavioralProfile scheduler profile) program.graph.nodeCount).expect
-      (fun history => program.settledPlayerUtility history.state.base who) =
+      (fun history => program.payoutUtility history.state.base who) =
     (program.information.runBehavioral profile program.graph.nodeCount).expect
-      (fun history => program.settledPlayerUtility history.state who)
+      (fun history => program.payoutUtility history.state who)
   simpa only [FinDist.expect_map] using heq
 
 /-- Unilateral target deviations translate to unilateral source deviations:
@@ -146,12 +146,12 @@ theorem expectedUtility_backtranslateSerialized_update (program : Program Player
       (.player who) replacement) (by simp [Profile.update, compileSerializedBehavioralProfile])
   rw [program.backtranslateSerialized_update] at heq
   have hpay := congrArg
-    (fun law => law.expect (fun state => program.settledPlayerUtility state who))
+    (fun law => law.expect (fun state => program.payoutUtility state who))
     heq
   change (program.serializedArena.information.runBehavioral _ program.graph.nodeCount).expect
-      (fun history => program.settledPlayerUtility history.state.base who) =
+      (fun history => program.payoutUtility history.state.base who) =
     (program.information.runBehavioral _ program.graph.nodeCount).expect
-      (fun history => program.settledPlayerUtility history.state who)
+      (fun history => program.payoutUtility history.state who)
   simpa only [FinDist.expect_map] using hpay
 
 /-- Every unilateral runtime deviation has a terminal-state law which is a
@@ -290,7 +290,7 @@ theorem isPlayerNash_compileSerialized_of_isNash (program : Program Player L)
   intro who replacement _
   rw [program.expectedUtility_compileSerialized]
   exact program.serializedDeviation_expect_le scheduler profile who
-    (fun state => program.settledPlayerUtility state who) _
+    (fun state => program.payoutUtility state who) _
     (fun alternative => (isNash_iff (F := program.game.behavioral.form) profile).mp
       hnash who alternative) replacement
 
@@ -363,7 +363,7 @@ theorem serialized_approximate_nash_iff (program : Program Player L)
   apply forall_congr'
   intro who
   exact program.serializedDeviation_expect_bound_iff scheduler profile who
-    (fun state => program.settledPlayerUtility state who) _
+    (fun state => program.payoutUtility state who) _
 
 /-- **End-to-end behavioral Nash equivalence for the actual serializer.**
 For every public-data behavioral scheduler, compiled source profiles are Nash

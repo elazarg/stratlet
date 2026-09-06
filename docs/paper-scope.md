@@ -8,6 +8,14 @@ windows and public serialization. The contribution is the concrete construction
 and its mechanization, not the general principle that simulation of deviations
 transfers Nash equilibrium.
 
+Outcome simulation is independent of utility. The machine and serializer admit
+arbitrary real valuations of interpreted settled outcomes, with integer payouts
+as a default convention. The [outcome/utility boundary](outcomes-and-utilities.md)
+states exactly what extra trace preferences permit, and separates equilibrium
+preservation from utility-independent protection against adversarial strategies.
+Private-type compilation and actual multi-asset settlement are outside this
+scope.
+
 The runtime construction is the central theorem. A finite optional-disclosure
 case study connects an independently specified game and its full policy space
 to that construction. The sealed-offer instance binds an offer before public

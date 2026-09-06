@@ -6,6 +6,7 @@ Authors: VegasCore contributors
 
 import Vegas.Runtime.Implementation
 import Vegas.Runtime.DeviationAdequacy
+import Vegas.Runtime.TraceUtility
 import Vegas.Runtime.TrustedRoles
 import Vegas.Runtime.KnownMediator
 import Vegas.Runtime.SelectiveAbort
