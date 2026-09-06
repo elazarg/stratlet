@@ -1,4 +1,6 @@
 {
+  "thm:disclosure-correspondence": ["Vegas.Paper.Disclosure.policy_roundtrip", "Vegas.Paper.Disclosure.outcome_law", "Vegas.Paper.Disclosure.expected_payoffs", "Vegas.Paper.Disclosure.nash_correspondence"],
+  "thm:sealed-offer": ["Vegas.Paper.Offer.source_nash", "Vegas.Paper.Offer.source_values", "Vegas.Paper.Offer.source_buyer_guarantee", "Vegas.Paper.Offer.source_buyer_best_response", "Vegas.Paper.Offer.source_seller_bound", "Vegas.Paper.Offer.runtime_nash", "Vegas.Paper.Offer.runtime_buyer_guarantee", "Vegas.Paper.Offer.disclosure_timeout"],
   "thm:source-adequacy": ["Vegas.Paper.source_payoff_adequacy"],
   "thm:confluence": ["Vegas.Paper.execution_diamond", "Vegas.Paper.schedule_confluence", "Vegas.Paper.schedule_observation_confluence"],
   "thm:fence": ["Vegas.Paper.commit_reveal_barrier", "Vegas.Paper.ready_reveal_fence"],

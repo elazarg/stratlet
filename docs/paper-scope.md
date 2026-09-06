@@ -8,16 +8,22 @@ windows and public serialization. The contribution is the concrete construction
 and its mechanization, not the general principle that simulation of deviations
 transfers Nash equilibrium.
 
-The existing runtime construction is the central theorem. The missing technical
-endpoint is a complete source-level optional-disclosure case study whose full
-policy space, not just selected runs, reaches that theorem. A sealed-offer escrow
-provides an application: an offer is fixed before public market information,
-the owner later opens or quits, and the recipient responds after disclosure.
-Prove an equilibrium and a recipient guarantee against arbitrary owner policies.
-The analysis must include the initial offer and informed quitting deviations.
-It is not a novel auction mechanism or a scalability experiment.
+The runtime construction is the central theorem. A finite optional-disclosure
+case study connects an independently specified game and its full policy space
+to that construction. The sealed-offer instance binds an offer before public
+market information; the owner later opens or quits, and the recipient responds
+after disclosure. The checked equilibrium and recipient guarantee account for
+arbitrary initial-offer and informed-quitting deviations. This is not a novel
+auction mechanism or a scalability experiment.
 
-## Required work
+The source semantic object is `OptionalDisclosure.finiteForm`. Its connection
+to the eight-node graph, arbitrary public payoff lists, and concrete request/
+serializer instance is checked in `DisclosureCorrespondence`, `DisclosurePayoff`,
+and `SealedOfferRuntime`. The case does not claim equivalence with the richer
+Kotlin fixture: initial and buyer quitting, its different settlements, and
+persistent abandonment remain outside this finite source game.
+
+## Completion criteria
 
 1. Keep the source language and its well-formedness discipline unchanged.
    Follow the [quitting compilation contract](quitting-compilation-contract.md):

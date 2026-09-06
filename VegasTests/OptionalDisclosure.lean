@@ -42,7 +42,8 @@ def payoff : Expr PayoffContext .int :=
     (.ite (.eq (.getD (.var 5 (.there .here)) (.constBool false)) (.var 7 .here))
       (.constInt 1) (.constInt 0))
 
-def core : VegasCore TestPlayer simpleExpr [] :=
+def coreWithPayoffs (payouts : List (TestPlayer × Expr PayoffContext .int)) :
+    VegasCore TestPlayer simpleExpr [] :=
   .commit 0 0 (.constBool true)
     (.commit 1 0 (.notBool (.var 1 .here))
       (.reveal 2 0 1 .here
@@ -51,17 +52,19 @@ def core : VegasCore TestPlayer simpleExpr [] :=
           (.commit 4 0 openingGuard
             (.reveal 5 0 4 .here
               (.commit 6 1 (.constBool true)
-                (.reveal 7 1 6 .here (.ret [(0, payoff)]))))))))
+                (.reveal 7 1 6 .here (.ret payouts))))))))
+
+def core : VegasCore TestPlayer simpleExpr [] := coreWithPayoffs [(0, payoff)]
 
 def source : GraphProgram TestPlayer simpleExpr where
   Γ := []
   prog := core
   env := VEnv.empty simpleExpr
   wctx := by simp
-  fresh := by simp [core, FreshBindings, Fresh]
+  fresh := by simp [core, coreWithPayoffs, FreshBindings, Fresh]
 
 theorem legal : Legal source.prog := by
-  unfold source core
+  unfold source core coreWithPayoffs
   constructor
   · intro _; exact ⟨false, rfl⟩
   · constructor
@@ -240,7 +243,7 @@ theorem source_execution (secret signal : Bool) (opening : Option Bool) (respons
     (hopening : opening = none ∨ opening = some secret) :
     SmallStep.Star (SourceConfig.initial core)
       ⟨TerminalContext, terminalEnv secret signal opening response, .ret [(0, payoff)]⟩ := by
-  unfold SourceConfig.initial core
+  unfold SourceConfig.initial core coreWithPayoffs
   refine SmallStep.Star.trans (.single (.commit _ _ secret rfl)) ?_
   refine SmallStep.Star.trans (.single (.commit _ _ false rfl)) ?_
   refine SmallStep.Star.trans (.single (.reveal .here _)) ?_

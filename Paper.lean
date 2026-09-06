@@ -8,6 +8,7 @@ import Vegas.Paper
 import VegasTests.RuntimeBoundaries
 import VegasTests.QuittingWindow
 import VegasTests.DisclosureWindow
+import VegasTests.SealedOfferRuntime
 
 /-! # Paper audit
 
@@ -311,5 +312,132 @@ end Staged
 /-- info: 'Vegas.Paper.Staged.window_threshold' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.Staged.window_threshold
+
+
+namespace Disclosure
+
+open OptionalDisclosure
+
+theorem policy_roundtrip (who : TestPlayer) (strategy : Strategy who) :
+    extractPolicy who (compilePolicy who strategy) = strategy :=
+  extract_compile_policy who strategy
+
+theorem outcome_law (profile : Profile program.game.behavioral.form.sig) :
+    (program.game.behavioral.form.play profile).map decodeHistory =
+      finiteForm.play (extractProfile profile) :=
+  all_profile_law profile
+
+theorem expected_payoffs (payouts : Payouts)
+    (profile : Profile program.game.behavioral.form.sig) (who : TestPlayer) :
+    expectedUtility (programWithPayoffs payouts).game.behavioral.utility who
+        ((programWithPayoffs payouts).game.behavioral.form.play profile) =
+      expectedUtility (finiteGame payouts).utility who
+        ((finiteGame payouts).form.play (extractProfile profile)) :=
+  expectedUtility_eq_finite payouts profile who
+
+theorem nash_correspondence (payouts : Payouts)
+    (profile : Profile program.game.behavioral.form.sig) :
+    IsNash (programWithPayoffs payouts).game.behavioral.form
+        (euPreference (programWithPayoffs payouts).game.behavioral.utility) profile ↔
+      IsNash (finiteGame payouts).form (euPreference (finiteGame payouts).utility)
+        (extractProfile profile) :=
+  nash_iff_finite payouts profile
+
+end Disclosure
+
+namespace Offer
+
+open SealedOffer OptionalDisclosure
+
+theorem source_nash : IsNash game.form (euPreference game.utility) honestProfile :=
+  honest_isNash
+
+theorem source_values :
+    expectedUtility game.utility 0 (game.form.play honestProfile) = 1 ∧
+      expectedUtility game.utility 1 (game.form.play honestProfile) = 1 / 2 :=
+  ⟨honest_seller_value, honest_buyer_value⟩
+
+theorem source_buyer_guarantee (seller : SenderStrategy) :
+    0 ≤ expectedUtility game.utility 1 (game.form.play (pairProfile seller honestBuyer)) :=
+  honest_buyer_nonnegative seller
+
+theorem source_buyer_best_response (seller : SenderStrategy) (buyer : ResponderStrategy) :
+    expectedUtility game.utility 1 (game.form.play (pairProfile seller buyer)) ≤
+      expectedUtility game.utility 1 (game.form.play (pairProfile seller honestBuyer)) :=
+  honest_buyer_best_response seller buyer
+
+theorem source_seller_bound (seller : SenderStrategy) :
+    expectedUtility game.utility 0 (game.form.play (pairProfile seller honestBuyer)) ≤ 1 :=
+  seller_revenue_bound seller
+
+theorem runtime_nash
+    (schedulerUtility : machine.serializedArena.History → ℝ)
+    (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler) :
+    Scheduled.IsPlayerNash (runtimeGame schedulerUtility)
+      (runtimeProfile schedulerUtility scheduler) :=
+  runtime_honest_isPlayerNash schedulerUtility scheduler
+
+theorem runtime_buyer_guarantee
+    (schedulerUtility : machine.serializedArena.History → ℝ)
+    (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler)
+    (replacement : (runtimeGame schedulerUtility).form.sig.Strategy (.player 0)) :
+    0 ≤ expectedUtility (runtimeGame schedulerUtility).utility (.player 1)
+      ((runtimeGame schedulerUtility).form.play
+        (Profile.update (runtimeProfile schedulerUtility scheduler) (.player 0) replacement)) :=
+  runtime_buyer_nonnegative schedulerUtility scheduler replacement
+
+theorem disclosure_timeout (secret signal : Bool) :
+    (timeoutPolicy 0 (openingInfo secret signal)).1 = some (openingAction none) :=
+  timeout_disclosure secret signal
+
+end Offer
+
+/-- info: 'Vegas.Paper.Disclosure.policy_roundtrip' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Disclosure.policy_roundtrip
+
+/-- info: 'Vegas.Paper.Disclosure.outcome_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Disclosure.outcome_law
+
+/-- info: 'Vegas.Paper.Disclosure.expected_payoffs' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Disclosure.expected_payoffs
+
+/-- info: 'Vegas.Paper.Disclosure.nash_correspondence' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Disclosure.nash_correspondence
+
+/-- info: 'Vegas.Paper.Offer.source_nash' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Offer.source_nash
+
+/-- info: 'Vegas.Paper.Offer.source_values' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Offer.source_values
+
+/-- info: 'Vegas.Paper.Offer.source_buyer_guarantee' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Offer.source_buyer_guarantee
+
+/-- info: 'Vegas.Paper.Offer.source_buyer_best_response' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Offer.source_buyer_best_response
+
+/-- info: 'Vegas.Paper.Offer.source_seller_bound' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Offer.source_seller_bound
+
+/-- info: 'Vegas.Paper.Offer.runtime_nash' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Offer.runtime_nash
+
+/-- info: 'Vegas.Paper.Offer.runtime_buyer_guarantee' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Offer.runtime_buyer_guarantee
+
+/-- info: 'Vegas.Paper.Offer.disclosure_timeout' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Offer.disclosure_timeout
 
 end Vegas.Paper

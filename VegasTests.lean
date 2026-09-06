@@ -20,6 +20,13 @@ import VegasTests.DisclosureInformation
 import VegasTests.DisclosureResponse
 import VegasTests.DisclosureOpening
 import VegasTests.DisclosureLaw
+import VegasTests.DisclosureSites
+import VegasTests.DisclosurePolicy
+import VegasTests.DisclosureCorrespondence
+import VegasTests.DisclosurePayoff
+import VegasTests.SealedOffer
+import VegasTests.SealedOfferEquilibrium
+import VegasTests.SealedOfferRuntime
 import VegasTests.ObservedAbort
 import VegasTests.DisclosureWindow
 import VegasTests.QuittingSource

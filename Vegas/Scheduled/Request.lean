@@ -6,6 +6,7 @@ Authors: VegasCore contributors
 
 import Vegas.Scheduled.Equilibrium
 import Vegas.Compile.Request
+import Vegas.Runtime.FiniteRequest
 import Mathlib.Data.Fintype.List
 
 /-! # Private request windows followed by public serialization
@@ -71,6 +72,33 @@ def serializedRequestInterface (program : Program Player L)
     | .player who => fun info =>
         interface.slots who (program.eraseSerializedPlayerInformation who info)
 
+/-- Finite original-player action packets give finite serialized menus.
+The scheduler's legal orders are duplicate-free lists, not arbitrary lists. -/
+@[reducible] def serializedChoiceFintype (program : Program Player L)
+    (actions : ∀ who, Fintype (program.execution.Action who))
+    (who : Participant Player) (info : program.serializedArena.information.InfoState who) :
+    Fintype (program.serializedArena.information.Choice who info) := by
+  classical
+  cases who with
+  | player who =>
+      letI : Fintype (EventGraph.FrontierAction program.graph who) := actions who
+      letI : Fintype (program.information.Choice who
+          (program.eraseSerializedPlayerInformation who info)) :=
+        Fintype.ofInjective (β := Option (EventGraph.FrontierAction program.graph who))
+          (fun choice => (choice.1 : Option (EventGraph.FrontierAction program.graph who)))
+          (fun _ _ heq => Subtype.ext heq)
+      exact Fintype.ofEquiv _ (program.serializedPlayerChoiceEquiv who info)
+  | scheduler =>
+      let extract : program.serializedArena.information.Choice .scheduler info →
+          {order : List Player // order.Nodup} := fun choice =>
+        ⟨Classical.choose choice.2, (Classical.choose_spec choice.2).1.1⟩
+      apply Fintype.ofInjective extract
+      intro left right heq
+      apply Subtype.ext
+      exact (Classical.choose_spec left.2).2.trans
+        ((congrArg (fun order : {order : List Player // order.Nodup} => some order.1) heq).trans
+          (Classical.choose_spec right.2).2.symm)
+
 end Vegas.Machine.Program
 
 namespace Vegas.WFProgram
@@ -84,62 +112,12 @@ variable (source : WFProgram Player L) [FiniteDomains source]
 Thus the choice menus are finite without assuming that all order lists are. -/
 @[reducible] def serializedChoiceFintype (who : Participant Player)
     (info : (Machine.compile source).serializedArena.information.InfoState who) :
-    Fintype ((Machine.compile source).serializedArena.information.Choice who info) := by
-  classical
-  cases who with
-  | player who =>
-      letI : Fintype ((Machine.compile source).information.Choice who
-          ((Machine.compile source).eraseSerializedPlayerInformation who info)) :=
-        source.choiceFintype who
-          ((Machine.compile source).eraseSerializedPlayerInformation who info)
-      exact Fintype.ofEquiv _ ((Machine.compile source).serializedPlayerChoiceEquiv who info)
-  | scheduler =>
-      let extract : (Machine.compile source).serializedArena.information.Choice .scheduler info →
-          {order : List Player // order.Nodup} := fun choice =>
-        ⟨Classical.choose choice.2, (Classical.choose_spec choice.2).1.1⟩
-      apply Fintype.ofInjective extract
-      intro left right heq
-      apply Subtype.ext
-      exact (Classical.choose_spec left.2).2.trans
-        ((congrArg (fun order : {order : List Player // order.Nodup} => some order.1) heq).trans
-          (Classical.choose_spec right.2).2.symm)
+    Fintype ((Machine.compile source).serializedArena.information.Choice who info) :=
+  (Machine.compile source).serializedChoiceFintype source.actionFintype who info
 
 variable {Request : Participant Player → Type}
 variable (interface : RequestCompiler.Interface
   (Machine.compile source).serializedArena.information Request)
-
-def serializedFullSupport :
-    (who : Participant Player) →
-      (Machine.compile source).serializedArena.information.BehavioralPolicy who := by
-  intro who info
-  let := source.serializedChoiceFintype who info
-  let : Nonempty ((Machine.compile source).serializedArena.information.Choice who info) :=
-    ⟨(interface.gate who).timeoutAction info⟩
-  exact FinDist.uniformOfFintype
-
-theorem mem_serializedFullSupport (who : Participant Player)
-    (info : (Machine.compile source).serializedArena.information.InfoState who)
-    (choice : (Machine.compile source).serializedArena.information.Choice who info) :
-    choice ∈ (source.serializedFullSupport interface who info).support := by
-  let := source.serializedChoiceFintype who info
-  let : Nonempty ((Machine.compile source).serializedArena.information.Choice who info) :=
-    ⟨(interface.gate who).timeoutAction info⟩
-  exact FinDist.mem_support_uniformOfFintype choice
-
-def serializedRequestSites (who : Participant Player) :
-    Finset ((Machine.compile source).serializedArena.information.InfoState who) :=
-  (Machine.compile source).serializedArena.information.behavioralSupportSitesFrom
-    (source.serializedFullSupport interface) (Machine.compile source).graph.nodeCount
-    (Machine.compile source).serializedArena.execution.initHistory who
-
-theorem serializedRequestSites_cover :
-    (Machine.compile source).serializedArena.information.CoversInformationSites
-      (source.serializedRequestSites interface) (Machine.compile source).graph.nodeCount :=
-  (Machine.compile source).serializedArena.information
-    |>.behavioralSupportSitesFrom_covers_of_fullSupport
-    (source.serializedFullSupport interface) (Machine.compile source).graph.nodeCount
-    (Machine.compile source).serializedArena.execution.initHistory
-    (source.mem_serializedFullSupport interface)
 
 variable (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
 
@@ -153,11 +131,8 @@ certificate preserves its full history law, including all published orders. -/
 def serializedRequestAdequacy :
     DeviationAdequacy ((Machine.compile source).serializedGame schedulerUtility).behavioral
       (source.serializedRequestGame interface schedulerUtility) :=
-  ((Machine.compile source).serializedGame schedulerUtility).behavioralToMixedPureWithinAdequacy
-    (source.serializedRequestSites interface) (fun who => (interface.gate who).timeoutAction)
-    (source.serializedRequestSites_cover interface) (Machine.compile source).serializedPerfectRecall
-    |>.trans (RequestCompiler.mixedAdequacy _ interface
-      (Machine.compile source).serializedPerfectRecall _ _)
+  ((Machine.compile source).serializedGame schedulerUtility).requestAdequacy
+    source.serializedChoiceFintype (Machine.compile source).serializedPerfectRecall interface
 
 def compileSerializedRequestProfile
     (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)

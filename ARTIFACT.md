@@ -71,8 +71,9 @@ module; inspect its definitions and proof, not only the theorem name.
 | How are order-aware deviations handled? | `Vegas/Scheduled/Replay.lean`, `Predraw.lean`, `Equilibrium.lean` |
 | What closes the main composition? | `Vegas/Scheduled/Request.lean`; `serializedRequestInterface`, `serializedRequestAdequacy`, `serialized_request_deviation_law`, `serialized_request_approximate_nash_iff` |
 | Where are concrete integration witnesses? | `VegasTests/ScheduledRequest.lean`, `QuittingImplementation.lean`, `QuittingWindow.lean`, root `Paper.lean` |
+| Where does an independent disclosure game reach the runtime? | `VegasTests/DisclosureCorrespondence.lean`, `DisclosurePayoff.lean`, `SealedOfferEquilibrium.lean`, `SealedOfferRuntime.lean` |
 
-All 27 registered claim groups remain active, including the quitting appendix.
+The registry includes the finite disclosure case study and quitting appendix.
 The mapping checks structural coverage, not English/Lean semantic equivalence.
 Definitions, modeling adequacy, literature comparisons, and prose descriptions
 of implementations still require human review.

@@ -233,12 +233,41 @@ The policy-level encoding evidence is organized as follows:
   and informed reply. Extraction consults only the corresponding player's
   information-local policy at each decision.
 
-This full execution law is not yet a bidirectional strategy correspondence.
-Reverse policy lifting, its round-trip laws, the source-game payoff connection,
-and runtime-certificate composition remain explicit obligations. These supporting
-lemmas are not additional manuscript theorem claims. The encoding's initial
-menu is `Bool`, not the Kotlin frontend's additional initial quitting choice;
-it is not a full frontend-game equivalence.
+- `DisclosureSites` and `DisclosurePolicy` prove realizability and legal lifting
+  at every finite decision site, including off-path sites. Extraction after
+  lifting is the identity on each player's complete finite strategy.
+- `DisclosureCorrespondence.all_profile_law` identifies every behavioral
+  graph profile's decoded terminal law with an explicitly specified finite
+  disclosure game. The playerwise maps commute with unilateral replacement;
+  lifting after extraction preserves outcomes, not irrelevant off-site policy
+  code.
+- `DisclosurePayoff` proves expected-utility agreement using the actual
+  compiled evaluator for every terminal public payoff list. Nash is preserved
+  and reflected under extraction, for all graph behavioral profiles.
+
+The source semantic object here is the hand-specified `finiteForm`, not the
+Kotlin evaluator. The encoding's initial menu is `Bool`, not the Kotlin
+frontend's additional initial quitting choice; it is not a full frontend-game
+equivalence.
+
+`SealedOffer`, `SealedOfferEquilibrium`, and `SealedOfferRuntime` instantiate
+this correspondence with prices and public buyer values in `{1, 2}`. They
+prove a source equilibrium with expected utilities `(1, 1/2)`, an expected
+seller-revenue bound of one against the designated buyer even under joint
+binding/informed-quitting deviations, and the buyer's nonnegative expected
+utility against every seller policy. The equilibrium and buyer guarantee
+reach the actual private-request/public-serialization target. Runtime seller
+strategies range over all independent finite mixtures of request controllers,
+with private retry memory and public order observations. The scheduler is any
+admitted public-data behavioral policy, not a delivery/censorship controller.
+
+`Game.requestAdequacy` supplies the runtime step from finite menus and perfect
+recall without a `WFProgram` premise. The checked-core wrapper uses that same
+construction. The example's disclosure timeout is the existing quit action;
+initial and reply timeouts select existing actions, not new quit settlements.
+Its source utility expressions do not establish escrow funding, external-asset
+delivery, or ledger conservation. The example remains an ideal finite game,
+not a cryptographic or public-chain implementation.
 
 The view equality is not a claim that an observed quit carries no information:
 a player's decision to quit can depend on the secret. It states equality of
@@ -264,9 +293,8 @@ using that run as comprehensive frontend validation.
 
 These are parallel probes, not equivalent full programs: Kotlin also admits
 initial and responder quitting and uses its own branch-dependent settlements.
-The Lean marker and optional-copy events still need an information-local
-strategy comparison for arbitrary full-history graph policies. Source small-
-step reachability and projected-environment equalities do not supply that
-comparison. In particular, there is no new all-profile outcome-law, equilibrium,
-frontend-lowering, or public-delivery theorem for this encoding yet. The paper's
-existing compiler claims remain at their stated boundary.
+The Lean marker and optional-copy events are accounted for by the full-policy
+comparison above. The additional Kotlin decisions, handler settlements, and
+persistent abandonment are not. There is no frontend-lowering or public-delivery
+theorem for this encoding. The manuscript distinguishes its finite semantic
+instance from the executable frontend fixture.
