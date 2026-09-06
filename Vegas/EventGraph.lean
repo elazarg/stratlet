@@ -14,6 +14,7 @@ import Vegas.EventGraph.FiniteState
 import Vegas.EventGraph.Frontier
 import Vegas.EventGraph.Linearization
 import Vegas.EventGraph.Protocol
+import Vegas.EventGraph.Recall
 import Vegas.EventGraph.Sequential
 import Vegas.EventGraph.Validate
 import Vegas.EventGraph.VisibleOrder

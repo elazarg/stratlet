@@ -212,6 +212,34 @@ the unique ready node, internal/strategic phases, active player, and terminal
 phase along its eight-node configuration spine. These facts do not classify
 all reachable histories or establish a policy correspondence.
 
+The policy-level encoding evidence is organized as follows:
+
+- `DisclosureBinding` and `DisclosureCheckpoint` prove the exact law from
+  initialization to the informed disclosure decision for every behavioral
+  profile. They retain the store and full owner information, eliminate the
+  forced marker choice, and identify that information with the binding and
+  public signal.
+- `DisclosureOpening` proves that the graph's ideal guard permits exactly
+  `none` or the bound value, and executes the optional-copy choice and reveal.
+  It does not implement cryptographic validation of a private guard.
+- `DisclosureInformation` identifies the responder's complete information at
+  every actual history ending at the reply checkpoint: exactly the public
+  signal and optional opening. Its remembered decision record is empty by
+  `EventGraph.own_eq_nil_of_no_completed_choice`. The legal reply menu is
+  equivalent to `Bool`, with neither extra nor missing actions.
+- `DisclosureResponse` and `DisclosureLaw.terminal_law` compose the entire
+  execution. For every behavioral graph profile, the terminal-configuration law
+  equals the extracted finite process: binding, public chance, informed opening,
+  and informed reply. Extraction consults only the corresponding player's
+  information-local policy at each decision.
+
+This full execution law is not yet a bidirectional strategy correspondence.
+Reverse policy lifting, its round-trip laws, the source-game payoff connection,
+and runtime-certificate composition remain explicit obligations. These supporting
+lemmas are not additional manuscript theorem claims. The encoding's initial
+menu is `Bool`, not the Kotlin frontend's additional initial quitting choice;
+it is not a full frontend-game equivalence.
+
 The view equality is not a claim that an observed quit carries no information:
 a player's decision to quit can depend on the secret. It states equality of
 views for fixed public data, not statistical independence under every policy.

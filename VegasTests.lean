@@ -14,6 +14,12 @@ import VegasTests.FailureObservation
 import VegasTests.ConstantSignal
 import VegasTests.OptionalDisclosure
 import VegasTests.DisclosureTrace
+import VegasTests.DisclosureBinding
+import VegasTests.DisclosureCheckpoint
+import VegasTests.DisclosureInformation
+import VegasTests.DisclosureResponse
+import VegasTests.DisclosureOpening
+import VegasTests.DisclosureLaw
 import VegasTests.ObservedAbort
 import VegasTests.DisclosureWindow
 import VegasTests.QuittingSource
