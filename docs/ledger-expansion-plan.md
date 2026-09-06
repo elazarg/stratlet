@@ -7,6 +7,10 @@ execution plan for
 is recorded separately in [runtime-models.md](runtime-models.md).
 
 The ownership and integration contract is [compiler-boundary.md](compiler-boundary.md).
+The pinned [BitML and formal-quant comparison](research-comparisons.md) records
+operational distinctions, reusable proof and testing patterns, and limits of
+the inspected artifacts. Its recommendations refine the gates below; they are
+not implemented interfaces or discharged proof obligations.
 Kotlin retains its rich language; VegasCore remains the minimal semantic
 target. An optional value is the candidate abstraction of disclosure-or-
 quitting, not proof that public quit signals and failed openings are
@@ -46,6 +50,14 @@ barrier adequacy are checked in `VegasTests/FailureObservation.lean` and
 `Vegas/Runtime/FailureObservation.lean`. Their precise scope is recorded in
 [runtime-models.md](runtime-models.md#failure-observations-checked-one-shot-comparisons).
 This does not complete the event-level or frontend parts of B0.
+
+The constant-signal extension in `Vegas/Runtime/ConstantSignal.lean` proves
+profile-local unilateral laws and same-error Nash correspondence without a
+response barrier. A Boolean strictly dominated quit action yields the needed
+support condition at source Nash profiles. This compiler's honest responder
+ignores the added signal; raw public delivery and later reactions are not
+covered. Carry both positive routes into the core-encoding test rather than
+treating failure of all-profile equivalence as failure of equilibrium transfer.
 
 **Next bounded integration step:** try existing core constructors for a
 fresh optional opening constrained to the earlier binding or `none`, at the
@@ -96,6 +108,8 @@ Test these event sequences with explicit local observations:
 | One reveal observed before another opening decision | Does the full source include the actual informed quitting decision? |
 | Hidden invalid commitment | Where is the guard checked, and which source branch accounts for failure? |
 | Timeout enabled with no resolution caller | Does the contract actually settle, or merely permit someone to settle it? |
+| Reveal and timeout both enabled | Is expiry an alternative spend, a strict cutoff, or call-triggered resolution? |
+| Copied or related commitments | Does the commitment service justify the source's independent choices, beyond hiding and binding? |
 | Zero-payout deviation saving fees | Is a source indifference turned into a profitable target deviation? |
 | Reverted or orphaned reveal | Does the observer retain information after state rollback? |
 | Distinct recipient mempools | Was global common knowledge inadvertently substituted for local delivery? |
@@ -103,6 +117,14 @@ Test these event sequences with explicit local observations:
 The reorg test can be a small standalone model; it is not a claim that the
 initial final-ledger compiler already handles forks. Likewise, a finite stalled
 prefix is not a proof of infinite nontermination.
+
+For the first concrete slice, generate small cross-language semantic fixtures
+from Lean: local observations, available decisions, accepted/rejected events,
+successor state, and settlement. Replay them in Kotlin and check regeneration.
+Keep distinct failure causes in these fixtures until a proved abstraction
+justifies merging them. This tests the trusted implementation; agreement on
+fixtures is not frontend or backend refinement. Add a canonical codec only
+after this slice determines the smallest useful artifact schema.
 
 **Positive baseline:** compile the B0 core pattern into one public-delivery
 slice, using an intermediate protocol only if the concrete lowering needs it.
@@ -179,6 +201,13 @@ Prove:
 5. precise service lemmas for admitted, persistently valid, timely requests;
 6. which deadline margins imply inclusion/resolution, with units and boundary
    convention (strictly before versus at the cutoff) stated explicitly.
+
+Separate publication of an authorization or opening from execution of the
+authorized action. Prove persistence only while the published capability
+remains valid; do not equate an irrevocable authorization with an obligation
+to make every later source choice. Do not borrow a service rule that lets an
+honest pending action veto clock progress and call it censorship-tolerant
+blockchain inclusion.
 
 Implement an unrestricted instance and a named bounded-service instance over
 the same operational semantics. The latter must admit multiple delivery delays

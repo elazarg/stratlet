@@ -210,6 +210,16 @@ witness, and a generic barrier adequacy construction. Its barrier is part of
 the strategy carrier. Concrete event/observation semantics must still justify
 using that carrier for an implementation; six failure labels do not do so.
 
+`Vegas/Runtime/ConstantSignal.lean` also proves profile-local preservation when
+the extra signal is constant on the unchanged submitter's support, although
+target responders may inspect it and submitting deviations may change it.
+Its concrete compiler keeps honest responders signal-independent. This yields
+exact unilateral laws, approximate Nash equivalence, and adversarial observable
+bounds. Strictly dominated quitting supplies the support condition at Boolean
+source Nash profiles. Thus the varying-signal counterexample does not rule out
+preserving non-quitting equilibria without a response barrier. The same
+implementation and information premises still need proof for a public runtime.
+
 ### B0b. Check one frontend/core encoding against that contract
 
 Use one tiny, typechecked Kotlin fixture with a hidden Boolean binding, a later

@@ -124,3 +124,52 @@ The next integration obligation is a concrete optional-disclosure core
 encoding and its actual observation/strategy correspondence, including an
 audit of `RevealComplete`. The later runtime obligation is to derive the
 relevant response barrier from execution rather than its strategy type.
+
+## Profile-local preservation with an early signal
+
+`Vegas/Runtime/ConstantSignal.lean` gives a second positive route that does not
+require a response barrier. A submitter samples a value, a target responder
+observes a function of that value, and the compiled responder ignores that
+extra observation. Fix a source profile for which the observed function is
+constant on the submitter's support. The hidden value itself may vary.
+
+- `deviation_law` backtranslates every unilateral target replacement with the
+  same complete outcome law. A deviating responder sees a constant signal
+  because the submitter is unchanged. A deviating submitter may change the
+  signal, but faces the unchanged, signal-independent compiled responder.
+- `approximate_nash_iff` preserves and reflects same-error approximate Nash
+  at these profiles; `nash_iff` gives the exact special case. This is a
+  profile-local result, not an unrestricted adequacy certificate over every
+  source profile. Off-support behavior of the deviating responder is arbitrary.
+- `deviation_bound_iff` transports bounds on every terminal observable under
+  unilateral deviations, including harm to another player. This needs neither
+  source equilibrium nor an optimality assumption about the attacker.
+- `no_quit_of_completion_better` shows that, in the Boolean quit/continue
+  instance, a strict expected preference for completion against the designated
+  responder excludes quit from the support of a source Nash profile.
+  `nash_preserved_of_dominated_quit` derives preservation for every source Nash
+  profile when completion strictly beats quit against every response action.
+  That dominance assumption is sufficient, not necessary.
+
+`VegasTests/ConstantSignal.lean` checks a profile with both hidden Boolean
+values in support, a deviation that changes the quit signal, and a concrete
+strict-penalty equilibrium. The earlier fair quit/continue counterexample has
+a varying signal and is explicitly checked not to meet the new premise.
+
+The dominance corollary concerns exact source Nash. An approximate equilibrium
+may still put positive probability on a strictly dominated action; the
+same-error theorem therefore still requires its constant-signal hypothesis.
+There is no automatic extension to rare failures or arbitrary public metadata.
+
+Both players here have one strategic stage, and the target's compiled responder
+ignores the extra signal even off path. An implementation with further
+decisions, alternate responses to malformed traffic, or scheduler-controlled
+failure must justify a new comparison. Source dominance alone is not a proof
+of that implementation property. None of these results identifies a secret
+opening protocol with an optional source value.
+
+For a future model where exact deviation laws fail, an upper bound on the
+deviator's payoff by a source deviation may suffice for Nash preservation.
+That weaker requirement would not by itself transport bounds on harm to other
+players. The constant-signal result does transport them because it proves the
+stronger, complete unilateral outcome-law equality.

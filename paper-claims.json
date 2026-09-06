@@ -10,6 +10,8 @@
   "cor:no-public-compiler": ["Vegas.Paper.no_universal_public_submission_compiler"],
   "thm:observed-quitting": ["Vegas.Paper.observed_abort_value_bound_iff", "Vegas.Paper.observed_abort_optimal_rule", "Vegas.Paper.observed_abort_support_iff", "Vegas.Paper.observed_abort_information_mono"],
   "thm:quitting-nash": ["Vegas.Paper.observed_abort_nash_iff"],
+  "thm:constant-signal": ["Vegas.Paper.constant_signal_deviation_law", "Vegas.Paper.constant_signal_approximate_nash_iff"],
+  "prose:dominated-quit-signal": ["Vegas.Paper.constant_signal_dominated_quit"],
   "thm:quitting-causal": ["Vegas.Paper.observed_abort_causal_law"],
   "thm:request-compiler": ["Vegas.Paper.request_compiler_law", "Vegas.Paper.request_compiler_mixed_law", "Vegas.Paper.request_compiler_silence", "Vegas.Paper.checked_request_nash_iff"],
   "cor:scheduled-requests": ["Vegas.Paper.scheduled_request_honest_law", "Vegas.Paper.scheduled_request_deviation_law", "Vegas.Paper.scheduled_request_nash_iff", "Vegas.Paper.scheduled_request_approximate_nash_iff"],

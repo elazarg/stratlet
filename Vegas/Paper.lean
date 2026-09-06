@@ -1171,6 +1171,57 @@ theorem observed_abort_payoff_information
       law.expect (fun outcome => max (utility outcome) abortValue) :=
   Runtime.ObservedAbort.envelope_payoff_information law utility abortValue
 
+/-! ## Profile-local extra observations -/
+
+/-- Exact unilateral laws for the constant-signal one-shot model. -/
+theorem constant_signal_deviation_law
+    {Value Signal Action : Type} (observe : Value → Signal)
+    (profile : Profile (Runtime.ConstantSignal.sourceSignature Value Action)) (signal : Signal)
+    (hconstant : ∀ value ∈ (profile false).support, observe value = signal)
+    (who : Bool)
+    (replacement : (Runtime.ConstantSignal.targetSignature Value Signal Action).Strategy who) :
+    Runtime.ConstantSignal.targetPlay observe
+        (Profile.update (Runtime.ConstantSignal.compileProfile profile) who replacement) =
+      Runtime.FailureObservation.play id
+        (Profile.update profile who
+          (Runtime.ConstantSignal.backtranslate signal who replacement)) :=
+  Runtime.ConstantSignal.deviation_law observe profile signal hconstant who replacement
+
+/-- Same-error approximate Nash at constant-signal profiles, not all profiles. -/
+theorem constant_signal_approximate_nash_iff
+    {Value Signal Action : Type} (observe : Value → Signal)
+    (utility : Value × Action → Bool → ℝ)
+    (profile : Profile (Runtime.ConstantSignal.sourceSignature Value Action)) (signal : Signal)
+    (hconstant : ∀ value ∈ (profile false).support, observe value = signal) (ε : ℝ) :
+    IsεNash (Runtime.ConstantSignal.targetGame observe utility).form utility ε
+        (Runtime.ConstantSignal.compileProfile profile) ↔
+      IsεNash (Runtime.FailureObservation.game (Raw := Value) id utility).form utility ε profile :=
+  Runtime.ConstantSignal.approximate_nash_iff observe utility profile signal hconstant ε
+
+/-- Pointwise strict dominance of the Boolean quit action supplies the
+constant-signal premise at every source Nash profile. -/
+theorem constant_signal_dominated_quit
+    {Action : Type} (utility : Bool × Action → Bool → ℝ)
+    (hdominates : ∀ action, utility (true, action) false < utility (false, action) false)
+    (profile : Profile (Runtime.ConstantSignal.sourceSignature Bool Action))
+    (hnash : IsNash (Runtime.FailureObservation.game (Raw := Bool) id utility).form
+      (euPreference utility) profile) :
+    IsNash (Runtime.ConstantSignal.targetGame id utility).form (euPreference utility)
+      (Runtime.ConstantSignal.compileProfile profile) :=
+  Runtime.ConstantSignal.nash_preserved_of_dominated_quit utility hdominates profile hnash
+
+/-- info: 'Vegas.Paper.constant_signal_deviation_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.constant_signal_deviation_law
+
+/-- info: 'Vegas.Paper.constant_signal_approximate_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.constant_signal_approximate_nash_iff
+
+/-- info: 'Vegas.Paper.constant_signal_dominated_quit' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.constant_signal_dominated_quit
+
 /-! ## Scheduling -/
 
 /-- **Confluence of effects is not invisibility of order.**
