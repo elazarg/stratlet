@@ -241,8 +241,10 @@ An ordinary optional choice is a candidate abstraction of disclosure-or-quitting
 Public quitting, opaque malformed commitments, and cryptographic/application
 opening failures are not identified until a strategic comparison justifies
 their different observation times, signaling opportunities, and retry rights.
-General handlers remain frontend constructs. Check the existing
-`RevealComplete` theorem restriction before considering any syntax change.
+General handlers remain frontend constructs. Retain the checked-source
+`RevealComplete` restriction; weaker graph construction is not source acceptance.
+The [quitting compilation contract](quitting-compilation-contract.md) separates
+source obligations from representation and runtime proof obligations.
 Binding, information, and quit persistence are proof obligations of the
 encoding, not consequences of using an option type. The detailed B0 comparison
 is in [compiler-boundary.md](compiler-boundary.md).

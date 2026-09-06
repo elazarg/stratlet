@@ -79,6 +79,14 @@ def program : Machine.Program TestPlayer simpleExpr :=
 
 theorem not_reveal_complete : ¬ RevealComplete [] core := by decide
 
+/-- A live lower-level encoding does not thereby satisfy checked-source admission. -/
+theorem not_checked : ¬ ∃ checked : WFProgram TestPlayer simpleExpr,
+    checked.core = source := by
+  rintro ⟨checked, hcore⟩
+  have hreveals := checked.reveals
+  rw [hcore] at hreveals
+  exact not_reveal_complete hreveals
+
 theorem original_not_revealed : 0 ∉ RevealedSources core := by decide
 
 theorem opened_sources : RevealedSources core = [1, 4, 6] := by decide
@@ -267,6 +275,10 @@ theorem different_openings_after_signals (secret : Bool) :
 /-- info: 'VegasTests.OptionalDisclosure.source_execution' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms VegasTests.OptionalDisclosure.source_execution
+
+/-- info: 'VegasTests.OptionalDisclosure.not_checked' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms VegasTests.OptionalDisclosure.not_checked
 
 /-- info: 'VegasTests.OptionalDisclosure.original_absent_from_response' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in

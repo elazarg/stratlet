@@ -7,6 +7,8 @@ they do not change the proved boundary below.
 The [compiler boundary](compiler-boundary.md) keeps rich Kotlin lowering
 separate from the minimal core and identifies the optional-disclosure encoding
 as the first integration step, not an already proved frontend theorem.
+The [quitting compilation contract](quitting-compilation-contract.md) specifies
+how runtime failure accounting must preserve that existing source meaning.
 
 ## Mechanized composition
 
@@ -203,6 +205,12 @@ Checked evidence:
 - The term fails `RevealComplete`. No existing `WFProgram` requirement is
   removed, and this term is not covered merely by applying a theorem quantified
   over `WFProgram`.
+
+`OptionalDisclosure.not_checked` verifies that no `WFProgram` has this exact
+graph-program input. `VegasTests/DisclosureTrace.lean` additionally identifies
+the unique ready node, internal/strategic phases, active player, and terminal
+phase along its eight-node configuration spine. These facts do not classify
+all reachable histories or establish a policy correspondence.
 
 The view equality is not a claim that an observed quit carries no information:
 a player's decision to quit can depend on the secret. It states equality of

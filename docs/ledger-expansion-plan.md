@@ -20,6 +20,11 @@ frontend or a second production compiler.
 
 ## Scope of the next paper-sized result
 
+This section describes the public-ledger research expansion. The current
+manuscript instead follows the bounded [paper scope](paper-scope.md): complete
+explicit source disclosure and an application through the existing runtime
+construction before claiming a public-delivery compiler.
+
 Aim for a checked public-delivery compiler for a conservative finite core
 fragment, with lowered source quitting, environment capabilities, and
 information barriers; quantify outcome/incentive errors where execution can
@@ -80,11 +85,11 @@ frontend correspondence or exporting cross-language fixtures as one model.
 Check the actual Kotlin fixture and its information/choice structure. Prove
 the candidate core encoding's information-local, all-pure-profile law in the
 finite example, including unilateral replacements. Distinguish Lean evidence
-from differential tests of the trusted Kotlin evaluator. Audit the current
-`RevealComplete` requirement: it requires opening the original binding even
-when the new optional opening is `none`. Determine the smallest theorem-premise
-split needed; do not infer that core syntax must change or erase this premise
-without proving the affected results.
+from differential tests of the trusted Kotlin evaluator. Retain the current
+`RevealComplete` source discipline. An implementation graph may use the
+existing weaker graph boundary, but needs a correspondence certificate for its
+auxiliary bindings. Follow the [quitting compilation contract](quitting-compilation-contract.md);
+do not infer source acceptance from graph liveness.
 
 **Gate:** the representation comparison and optional-disclosure pattern are
 checked with explicit policy/continuation scope and remaining frontend trust,

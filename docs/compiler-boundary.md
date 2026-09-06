@@ -11,6 +11,11 @@ Those kernel comparisons are not an implementation of failure handling. The
 separate core probe below establishes syntax, guard, execution, and view facts,
 not their full strategic composition.
 
+The [quitting compilation contract](quitting-compilation-contract.md) fixes
+the key ownership rule: source quitting is already defined. Accounting for
+runtime refusals, invalid requests, and missed deadlines is the compiler's
+obligation, not a reason to weaken the programmer-facing source discipline.
+
 ## One small language boundary
 
 Kotlin Vegas owns the programmer-facing language. VegasCore is its intended
@@ -74,14 +79,14 @@ the correct information checkpoint. No new syntax is planned; proving this
 representation adequate is work, not a premise supplied by its option type.
 
 The remaining obligations concern the encoding's strategic semantics and the
-hypotheses of existing theorems. In particular, `WFProgram` requires `RevealComplete`:
-every original sealed binding is opened, not merely an optional public copy.
+hypotheses of existing theorems. `WFProgram` retains `RevealComplete`: every
+original sealed binding is opened, not merely an optional public copy.
 The graph compiler does not require this condition; it takes `GraphProgram`
 with scope/freshness evidence. The current well-formedness documentation also
-states that reveal-completeness is not needed for graph progress. Audit the
-actual theorem dependencies before generalizing checked-game interfaces. Do not
-silently drop it from an existing theorem, or disclose the original secret on
-the quit branch to satisfy it. `ToEventGraph.compile_guardLive` takes exactly
+states that reveal-completeness is not needed for graph progress. That weaker
+compiler prerequisite is not a replacement for the checked-source discipline.
+Do not drop it to admit an encoding, or disclose the original secret on the
+quit branch to satisfy it. `ToEventGraph.compile_guardLive` takes exactly
 `GraphProgram` and `Legal`; `Machine.ofCompiled` therefore accepts the probe
 without weakening `WFProgram`. The existing nullable-yield lowering and staged
 quitting examples are components, not a proof of general handler lowering.

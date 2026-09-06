@@ -2,6 +2,10 @@
 
 ## Assessment
 
+The maintained manuscript's technical completion gate is
+[paper-scope.md](paper-scope.md). The broader public-ledger expansion is a
+separate research target, not a prerequisite silently added to this paper.
+
 The defensible contribution is a mechanized compiler construction for finite
 imperfect-information games, with concrete back-translations for private
 request windows and public serialization. The main composed theorem has real
