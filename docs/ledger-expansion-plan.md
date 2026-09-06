@@ -1,6 +1,7 @@
 # Ledger expansion: implementation and research gates
 
-Status: research plan with a checked one-shot B0a kernel comparison; the
+Status: research plan with checked one-shot B0a kernels and an operational B0b
+optional-opening core probe; the
 frontend bridge and public-ledger compiler remain unimplemented. This is the
 execution plan for
 [ledger-expansion-design.md](ledger-expansion-design.md). Existing proof status
@@ -59,10 +60,22 @@ ignores the added signal; raw public delivery and later reactions are not
 covered. Carry both positive routes into the core-encoding test rather than
 treating failure of all-profile equivalence as failure of equilibrium transfer.
 
-**Next bounded integration step:** try existing core constructors for a
-fresh optional opening constrained to the earlier binding or `none`, at the
-appropriate information checkpoint. Its extra commitment and disclosure events
-must satisfy the same contract, not be assumed equivalent to a cleartext quit.
+**Core probe:** `VegasTests/OptionalDisclosure.lean` constructs a fresh optional
+opening constrained to the earlier binding or `none`, after a public signal.
+It checks graph dependencies, guard legality, source executions, and source
+views, and excludes direct reads of the original sealed field in the responder
+and public graph observations. It is accepted through `GraphProgram` plus
+`Legal`, but explicitly fails `RevealComplete`; `WFProgram` is unchanged.
+The Kotlin fixture checks the two opening choices and their visibility after
+each binding/signal pair. These are not yet equivalent complete games.
+
+**Next bounded integration step:** identify full graph information at the
+optional-opening and reply checkpoints, eliminate the forced marker and other
+administrative moves with information-local strategy maps, and prove the
+all-pure-profile law. The extra commitment/disclosure events must satisfy the
+same contract, not be assumed equivalent to a cleartext quit. Match the Kotlin
+fixture's additional initial/reply quitting and settlements before claiming
+frontend correspondence or exporting cross-language fixtures as one model.
 
 Check the actual Kotlin fixture and its information/choice structure. Prove
 the candidate core encoding's information-local, all-pure-profile law in the

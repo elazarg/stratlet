@@ -173,3 +173,64 @@ deviator's payoff by a source deviation may suffice for Nash preservation.
 That weaker requirement would not by itself transport bounds on harm to other
 players. The constant-signal result does transport them because it proves the
 stronger, complete unilateral outcome-law equality.
+
+## Optional-disclosure core probe
+
+`VegasTests/OptionalDisclosure.lean` uses only existing constructors and option
+expressions. An original hidden Boolean is followed by a forced marker, a
+public coin, a fresh optional opening, disclosure of that copy, and a responder
+choice. The original binding itself has no reveal node. The source guard
+permits exactly `none` or `some` of the binding; it is an ideal private guard,
+not a public cryptographic validator.
+
+Checked evidence:
+
+- Scope/freshness and guard legality produce a well-formed, live machine graph
+  through `ToEventGraph.compile_guardLive` and `Machine.ofCompiled`.
+- The graph dependencies place the signal after the binding, the optional
+  choice after the signal, and the reply after its disclosure.
+- Any legal optional opening and arbitrary Boolean reply have a written-order
+  source execution. A signal-dependent rule can quit after one signal and
+  open after the other; the opening need not be fixed at the initial binding.
+- Changing the bound value in an accepted opening is rejected by the guard.
+- Quitting and completion have distinct source payouts, and the reply can
+  affect completion's payoff; the terminal projection does not merge them.
+- The responder's source-visible environment is determined exactly by the
+  public signal and optional opening, apart from the fixed marker. At `none`,
+  changing the original Boolean leaves this environment unchanged.
+- Neither the public graph observation nor any responder decision footprint
+  directly exposes the original sealed field, at any graph configuration.
+- The term fails `RevealComplete`. No existing `WFProgram` requirement is
+  removed, and this term is not covered merely by applying a theorem quantified
+  over `WFProgram`.
+
+The view equality is not a claim that an observed quit carries no information:
+a player's decision to quit can depend on the secret. It states equality of
+views for fixed public data, not statistical independence under every policy.
+The graph field-secrecy result likewise does not hide a value deliberately
+disclosed through the optional public copy.
+
+The Kotlin probe is `src/test/resources/optional-disclosure.vg`, checked by
+`OptionalDisclosureTest.kt` in `../vegas`. It typechecks the real frontend
+syntax and enumerates the disclosure checkpoints after the two valid bindings
+and two public signals. Each offers exactly the bound opening and quitting;
+the owner sees the signal and binding, the responder sees the binding as
+opaque, and completed quitting becomes public without replacing that earlier
+opaque history by plaintext. This is executable Kotlin evidence, not Lean
+verification of the evaluator.
+
+Test-report coverage is a separate obligation. On the inspected Windows/JDK 25
+setup, a clean Kotlin Maven run succeeds with 48 reported tests but reports
+zero tests for 26 existing suites. The two new top-level disclosure tests are
+reported explicitly. A successful process exit is not evidence that every
+nested test in the broader Kotlin corpus executed; audit leaf discovery before
+using that run as comprehensive frontend validation.
+
+These are parallel probes, not equivalent full programs: Kotlin also admits
+initial and responder quitting and uses its own branch-dependent settlements.
+The Lean marker and optional-copy events still need an information-local
+strategy comparison for arbitrary full-history graph policies. Source small-
+step reachability and projected-environment equalities do not supply that
+comparison. In particular, there is no new all-profile outcome-law, equilibrium,
+frontend-lowering, or public-delivery theorem for this encoding yet. The paper's
+existing compiler claims remain at their stated boundary.

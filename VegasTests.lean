@@ -12,6 +12,7 @@ import VegasTests.MatchingPenniesEquilibrium
 import VegasTests.RuntimeBoundaries
 import VegasTests.FailureObservation
 import VegasTests.ConstantSignal
+import VegasTests.OptionalDisclosure
 import VegasTests.ObservedAbort
 import VegasTests.DisclosureWindow
 import VegasTests.QuittingSource

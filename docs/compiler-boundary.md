@@ -1,13 +1,15 @@
 # Minimal core, rich frontend, and runtime refinement
 
-Status: architectural design, not an implemented frontend bridge or a new
-preservation theorem. The current proved boundary is in
+Status: architectural design with a checked optional-opening core probe, not
+an implemented frontend bridge or a new preservation theorem. The proved boundary is in
 [runtime-models.md](runtime-models.md). This document fixes ownership and the
 first integration gate for the [expansion plan](ledger-expansion-plan.md);
 the [ledger design](ledger-expansion-design.md) specifies later target models.
 The checked one-shot B0a kernel comparisons and their limitations are recorded
 in [runtime-models.md](runtime-models.md#failure-observations-checked-one-shot-comparisons).
-They are not a frontend/core encoding or an implementation of failure handling.
+Those kernel comparisons are not an implementation of failure handling. The
+separate core probe below establishes syntax, guard, execution, and view facts,
+not their full strategic composition.
 
 ## One small language boundary
 
@@ -71,16 +73,18 @@ choice must constrain `some v` to match the binding, and locate the choice at
 the correct information checkpoint. No new syntax is planned; proving this
 representation adequate is work, not a premise supplied by its option type.
 
-The remaining obligations concern the encoding's semantics and the hypotheses
-of existing theorems. In particular, `WFProgram` requires `RevealComplete`:
+The remaining obligations concern the encoding's strategic semantics and the
+hypotheses of existing theorems. In particular, `WFProgram` requires `RevealComplete`:
 every original sealed binding is opened, not merely an optional public copy.
 The graph compiler does not require this condition; it takes `GraphProgram`
 with scope/freshness evidence. The current well-formedness documentation also
 states that reveal-completeness is not needed for graph progress. Audit the
 actual theorem dependencies before generalizing checked-game interfaces. Do not
 silently drop it from an existing theorem, or disclose the original secret on
-the quit branch to satisfy it. The existing nullable-yield lowering and staged
-quitting examples are components, not a proof of this general encoding.
+the quit branch to satisfy it. `ToEventGraph.compile_guardLive` takes exactly
+`GraphProgram` and `Legal`; `Machine.ofCompiled` therefore accepts the probe
+without weakening `WFProgram`. The existing nullable-yield lowering and staged
+quitting examples are components, not a proof of general handler lowering.
 
 First try ordinary values, guards, explicit dependencies, and payoff
 expressions. A proposed encoding must preserve information and unilateral
@@ -221,6 +225,15 @@ preserving non-quitting equilibria without a response barrier. The same
 implementation and information premises still need proof for a public runtime.
 
 ### B0b. Check one frontend/core encoding against that contract
+
+The finite probes are `VegasTests/OptionalDisclosure.lean` and, in Kotlin,
+`src/test/resources/optional-disclosure.vg` with `OptionalDisclosureTest.kt`.
+Their exact evidence and remaining differences are recorded in
+[runtime-models.md](runtime-models.md#optional-disclosure-core-probe).
+They are not yet a matched frontend/core artifact pair: Kotlin also admits
+initial and responder quitting, and its fixture has different settlements.
+The current checks compare the disclosure checkpoint after a valid binding;
+they do not prove equality of the complete games.
 
 Use one tiny, typechecked Kotlin fixture with a hidden Boolean binding, a later
 public signal, an optional disclosure decision, and a second player's

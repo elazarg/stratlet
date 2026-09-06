@@ -229,7 +229,7 @@ def compile
     {Player : Type} [DecidableEq Player] {L : IExpr}
     (source : WFProgram Player L) : Program Player L :=
   let compiled := ToEventGraph.compile source.core
-  ofCompiled compiled (ToEventGraph.compile_guardLive source)
+  ofCompiled compiled (ToEventGraph.compile_guardLive source.core source.legal)
 
 /-- The canonical machine compilation retains an exact source-level terminal
 payoff witness for every terminal reachable machine state. -/

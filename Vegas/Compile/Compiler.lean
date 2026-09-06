@@ -2273,21 +2273,22 @@ output fields. -/
       NodesFinite.nil
   exact fieldFintypeOfInitialAndNodes finiteInitial finiteNodes
 
-/-- Checked source guard legality compiles to graph-level guard liveness. -/
-theorem compile_guardLive (program : WFProgram P L) :
-    EventGraph.GuardLive (compile program.core).graph := by
+/-- Source guard legality compiles to graph-level guard liveness.
+Reveal-completeness is not a premise: unrevealed bindings do not block nodes
+that actually exist in the compiled graph. -/
+theorem compile_guardLive (program : GraphProgram P L) (legal : Legal program.prog) :
+    EventGraph.GuardLive (compile program).graph := by
   unfold compile
   exact
     compileCore_guardLive
-      program.core.prog
-      program.core.fresh
+      program.prog
+      program.fresh
       (BuildState.fromInitial
-        (initialState program.core.Γ program.core.env program.core.wctx))
+        (initialState program.Γ program.env program.wctx))
       (guardLive_empty
         (BuildState.fromInitial
-          (initialState program.core.Γ program.core.env
-            program.core.wctx)).initialFields)
-      program.legal
+          (initialState program.Γ program.env program.wctx)).initialFields)
+      legal
 
 end ToEventGraph
 
