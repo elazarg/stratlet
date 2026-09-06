@@ -586,7 +586,16 @@ This target keeps attempts private, freezes source observations during a window,
 guarantees delivery/deadline progress, and excludes request costs. It neither
 adds a missing source quit action nor turns an automatic source reveal into an
 optional disclosure. Kotlin handler elaboration, generated EVM handlers, and
-composition with the public serializer are separate, unproved boundaries.
+public scheduling of request delivery/deadlines are separate, unproved boundaries.
+
+`Scheduled.Request` composes private windows with the compiled public serializer.
+For every finite-domain checked program and arbitrary public-data behavioral
+scheduler, honest terminal laws agree and every unilateral request/order-aware
+deviation has a finite mixture of source deviations against unchanged opponents.
+Original-player Nash and same-error approximate Nash are preserved and reflected.
+The scheduler cannot observe private attempts or control delivery and expiration.
+See [runtime model boundaries](docs/runtime-models.md) for the explicit unproved
+delivery/deadline model and its required proof obligations.
 
 `VegasTests/ObservedAbort.lean` gives a finite multistage game with hidden
 choices, public chance, refusal, and future chance. It proves the fair source
@@ -640,9 +649,10 @@ history, including combined deviations in the underlying behavioral strategy.
 The fair immediate-completion profile is Nash exactly when the quitter's
 constant abort payoff is at most −1. This connects the compiled case study to
 the finite quitting/window model; it does not verify cryptographic commitments,
-transaction inclusion, fees, or new observations during a window. The public
-serializer results above concern the base game, not a composition of that
-serializer with the quitting window.
+transaction inclusion, fees, or new observations during a window. The general
+request/serializer composition implements existing source decisions; it does
+not automatically insert this case study's extra quitting checkpoint into the
+core program.
 
 ## Path to a blockchain backend
 

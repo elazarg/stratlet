@@ -12,6 +12,7 @@
   "thm:quitting-nash": ["Vegas.Paper.observed_abort_nash_iff"],
   "thm:quitting-causal": ["Vegas.Paper.observed_abort_causal_law"],
   "thm:request-compiler": ["Vegas.Paper.request_compiler_law", "Vegas.Paper.request_compiler_mixed_law", "Vegas.Paper.request_compiler_silence", "Vegas.Paper.checked_request_nash_iff"],
+  "cor:scheduled-requests": ["Vegas.Paper.scheduled_request_honest_law", "Vegas.Paper.scheduled_request_deviation_law", "Vegas.Paper.scheduled_request_nash_iff", "Vegas.Paper.scheduled_request_approximate_nash_iff"],
   "prose:frontier-structure": ["Vegas.Paper.compiled_perfect_recall", "Vegas.Paper.compiled_bounded_horizon"],
   "prose:serialization-corollaries": ["Vegas.Paper.compiled_serialized_loss_bound_iff", "Vegas.Paper.compiled_serialized_approximate_nash_iff"],
   "prose:matching-serialization": ["Vegas.Paper.Matching.fair_nash", "Vegas.Paper.Matching.serialized_nash", "Vegas.Paper.Matching.serialized_adversarial_payoff"],

@@ -1930,6 +1930,96 @@ theorem checked_request_nash_iff {Player : Type} [Fintype Player] [DecidableEq P
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.checked_request_nash_iff
 
+/-! ## Private windows composed with the public serializer -/
+
+theorem scheduled_request_honest_law
+    {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
+    (source : WFProgram Player L) [FiniteDomains source] {Request : Participant Player → Type}
+    (interface : Runtime.RequestCompiler.Interface
+      (Machine.compile source).serializedArena.information Request)
+    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
+    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : Profile source.game.behavioral.form.sig) :
+    ((source.serializedRequestGame interface schedulerUtility).form.play
+      (source.compileSerializedRequestProfile interface schedulerUtility scheduler profile)).map
+        (fun state => state.1.state.base) =
+    ((Machine.compile source).information.runBehavioral profile
+      (Machine.compile source).graph.nodeCount).map
+        GameTheory.Protocol.ExecutionProtocol.History.state :=
+  source.serialized_request_honest_law interface schedulerUtility scheduler profile
+
+theorem scheduled_request_deviation_law
+    {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
+    (source : WFProgram Player L) [FiniteDomains source] {Request : Participant Player → Type}
+    (interface : Runtime.RequestCompiler.Interface
+      (Machine.compile source).serializedArena.information Request)
+    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
+    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : Profile source.game.behavioral.form.sig) (who : Player)
+    (replacement : (source.serializedRequestGame interface schedulerUtility).form.sig.Strategy
+      (.player who)) :
+    ∃ alternatives : FinDist ((Machine.compile source).information.BehavioralPolicy who),
+      ((source.serializedRequestGame interface schedulerUtility).form.play
+        (Profile.update
+          (source.compileSerializedRequestProfile interface schedulerUtility scheduler profile)
+          (.player who) replacement)).map (fun state => state.1.state.base) =
+      alternatives.bind fun alternative =>
+        ((Machine.compile source).information.runBehavioral
+          (Function.update profile who alternative) (Machine.compile source).graph.nodeCount).map
+            GameTheory.Protocol.ExecutionProtocol.History.state :=
+  source.serialized_request_deviation_law
+    interface schedulerUtility scheduler profile who replacement
+
+theorem scheduled_request_nash_iff
+    {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
+    (source : WFProgram Player L) [FiniteDomains source] {Request : Participant Player → Type}
+    (interface : Runtime.RequestCompiler.Interface
+      (Machine.compile source).serializedArena.information Request)
+    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
+    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : Profile source.game.behavioral.form.sig) :
+    Scheduled.IsPlayerNash (source.serializedRequestGame interface schedulerUtility)
+      (source.compileSerializedRequestProfile interface schedulerUtility scheduler profile) ↔
+    IsNash source.game.behavioral.form (euPreference source.game.behavioral.utility) profile :=
+  source.serialized_request_nash_iff interface schedulerUtility scheduler profile
+
+theorem scheduled_request_approximate_nash_iff
+    {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
+    (source : WFProgram Player L) [FiniteDomains source] {Request : Participant Player → Type}
+    (interface : Runtime.RequestCompiler.Interface
+      (Machine.compile source).serializedArena.information Request)
+    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
+    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (profile : Profile source.game.behavioral.form.sig) (ε : ℝ) :
+    (∀ who replacement,
+      expectedUtility (source.serializedRequestGame interface schedulerUtility).utility
+        (.player who) ((source.serializedRequestGame interface schedulerUtility).form.play
+          (Profile.update
+            (source.compileSerializedRequestProfile interface schedulerUtility scheduler profile)
+            (.player who) replacement)) ≤
+      expectedUtility (source.serializedRequestGame interface schedulerUtility).utility
+        (.player who) ((source.serializedRequestGame interface schedulerUtility).form.play
+          (source.compileSerializedRequestProfile
+            interface schedulerUtility scheduler profile)) + ε) ↔
+    IsεNash source.game.behavioral.form source.game.behavioral.utility ε profile :=
+  source.serialized_request_approximate_nash_iff interface schedulerUtility scheduler profile ε
+
+/-- info: 'Vegas.Paper.scheduled_request_honest_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.scheduled_request_honest_law
+
+/-- info: 'Vegas.Paper.scheduled_request_deviation_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.scheduled_request_deviation_law
+
+/-- info: 'Vegas.Paper.scheduled_request_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.scheduled_request_nash_iff
+
+/-- info: 'Vegas.Paper.scheduled_request_approximate_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.scheduled_request_approximate_nash_iff
+
 end Paper
 
 end Vegas
