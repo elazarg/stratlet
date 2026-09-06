@@ -1865,6 +1865,71 @@ build fails here rather than silently widening what the paper is trusting.
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.observed_abort_payoff_information
 
+/-! ## Whole-protocol request compilation -/
+
+theorem request_compiler_law {Player : Type}
+    {E : GameTheory.Protocol.ExecutionProtocol Player}
+    (M : GameTheory.Protocol.InformationModel E) (recall : M.PerfectRecall)
+    {Request : Player → Type} (interface : Runtime.RequestCompiler.Interface M Request)
+    (horizon : Nat) (utility : E.History → Player → ℝ)
+    (profile : (who : Player) → Runtime.RequestCompiler.Policy M (Request := Request) who) :
+    ((Runtime.RequestCompiler.targetGame M interface horizon utility).form.play profile).map
+        Prod.fst =
+      (Runtime.RequestCompiler.sourceGame M horizon utility).form.play
+        (fun who => Runtime.RequestCompiler.backtranslate M interface who (profile who)) :=
+  Runtime.RequestCompiler.play_law M interface recall horizon utility profile
+
+theorem request_compiler_mixed_law {Player : Type} [Fintype Player]
+    {E : GameTheory.Protocol.ExecutionProtocol Player}
+    (M : GameTheory.Protocol.InformationModel E) (recall : M.PerfectRecall)
+    {Request : Player → Type} (interface : Runtime.RequestCompiler.Interface M Request)
+    (horizon : Nat) (utility : E.History → Player → ℝ)
+    (profile : (who : Player) → FinDist
+      (Runtime.RequestCompiler.Policy M (Request := Request) who)) :
+    ((Runtime.RequestCompiler.targetGame M interface horizon utility).mixed.form.play profile).map
+        Prod.fst =
+      (Runtime.RequestCompiler.sourceGame M horizon utility).mixed.form.play
+        (fun who => (profile who).map (Runtime.RequestCompiler.backtranslate M interface who)) :=
+  Runtime.RequestCompiler.mixed_play_law M interface recall horizon utility profile
+
+theorem request_compiler_silence {Player : Type}
+    {E : GameTheory.Protocol.ExecutionProtocol Player}
+    (M : GameTheory.Protocol.InformationModel E) (recall : M.PerfectRecall)
+    {Request : Player → Type} (interface : Runtime.RequestCompiler.Interface M Request)
+    (horizon : Nat) (utility : E.History → Player → ℝ) :
+    ((Runtime.RequestCompiler.targetGame M interface horizon utility).form.play
+      (fun _ _ _ _ => none)).map Prod.fst =
+    (Runtime.RequestCompiler.sourceGame M horizon utility).form.play
+      (fun who => (interface.gate who).timeoutAction) :=
+  Runtime.RequestCompiler.silence_law M interface recall horizon utility
+
+theorem checked_request_nash_iff {Player : Type} [Fintype Player] [DecidableEq Player]
+    {L : IExpr} (source : WFProgram Player L) [FiniteDomains source]
+    {Request : Player → Type}
+    (interface : Runtime.RequestCompiler.Interface source.game.arena.information Request)
+    (profile : Profile source.game.behavioral.form.sig) :
+    IsNash (source.requestGame interface).form
+      (euPreference (source.requestGame interface).utility)
+      ((source.behavioralRequestAdequacy interface).compileProfile profile) ↔
+    IsNash source.game.behavioral.form (euPreference source.game.behavioral.utility) profile :=
+  source.request_nash_iff interface profile
+
+/-- info: 'Vegas.Paper.request_compiler_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.request_compiler_law
+
+/-- info: 'Vegas.Paper.request_compiler_mixed_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.request_compiler_mixed_law
+
+/-- info: 'Vegas.Paper.request_compiler_silence' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.request_compiler_silence
+
+/-- info: 'Vegas.Paper.checked_request_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.checked_request_nash_iff
+
 end Paper
 
 end Vegas

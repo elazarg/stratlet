@@ -19,3 +19,4 @@ import VegasTests.QuittingEquilibrium
 import VegasTests.QuittingCheckpoint
 import VegasTests.QuittingImplementation
 import VegasTests.QuittingWindow
+import VegasTests.RequestCompiler

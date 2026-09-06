@@ -566,6 +566,28 @@ holds for arbitrary quit payoffs, including profitable quitting. A general
 proof from the Kotlin type checker's nonresponse semantics to this Lean game
 and onward to generated handlers is not supplied.
 
+`Runtime.RequestCompiler` implements whole informed protocols with private,
+nonempty bounded request windows at every active decision. A source-designated
+legal action resolves timeout; a validated request can select any source menu
+action. Controllers retain their complete own retry histories across windows.
+Perfect recall supplies a uniform replay/backtranslation, proving exact
+source-history laws for every controller profile and for independent finite
+mixtures of controllers. Persistent silence realizes the designated source
+policy. No assumption on quit utilities is used.
+
+`Compile.Request` instantiates this construction for every checked core program.
+For finite source domains, it composes the mixed request certificate with Kuhn
+adequacy to preserve and reflect behavioral Nash equilibrium against all target
+controller mixtures. `DeviationAdequacy.trans` checks this composition. The
+validator can be generated from source-menu membership and an explicit timeout
+policy; no operational simulation premise is assumed in the request theorem.
+
+This target keeps attempts private, freezes source observations during a window,
+guarantees delivery/deadline progress, and excludes request costs. It neither
+adds a missing source quit action nor turns an automatic source reveal into an
+optional disclosure. Kotlin handler elaboration, generated EVM handlers, and
+composition with the public serializer are separate, unproved boundaries.
+
 `VegasTests/ObservedAbort.lean` gives a finite multistage game with hidden
 choices, public chance, refusal, and future chance. It proves the fair source
 equilibrium and a sharp abort threshold of −1 despite supported completion

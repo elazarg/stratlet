@@ -297,4 +297,26 @@ theorem isNash_compileProfile_iff
 
 end DeviationAdequacyOn
 
+namespace DeviationAdequacy
+
+/-- Exact unrestricted deviation certificates compose. A target replacement
+is translated through both passes while the other players remain compiled. -/
+def trans {Player : Type*} [DecidableEq Player]
+    {first second third : UtilityGame Player}
+    (left : DeviationAdequacy first second) (right : DeviationAdequacy second third) :
+    DeviationAdequacy first third where
+  compileStrategy who strategy := right.compileStrategy who (left.compileStrategy who strategy)
+  backtranslateStrategy who strategy :=
+    left.backtranslateStrategy who (right.backtranslateStrategy who strategy)
+  decodeOutcome := left.decodeOutcome ∘ right.decodeOutcome
+  utility_eq := by rw [right.utility_eq, left.utility_eq]; rfl
+  compiled_considered _ _ := trivial
+  honest_law profile := by
+    rw [← FinDist.map_comp, right.honest_law, left.honest_law]
+  deviation_law profile who replacement _ := by
+    rw [← FinDist.map_comp, right.deviation_law _ _ _ trivial,
+      left.deviation_law _ _ _ trivial]
+
+end DeviationAdequacy
+
 end Vegas.Runtime
