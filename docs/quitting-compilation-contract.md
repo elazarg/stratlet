@@ -128,6 +128,11 @@ utilities cannot be erased if the claimed source utilities include them.
 
 ## Minimal implementation sequence
 
+The finite semantic comparison and runtime composition in steps 2--3 are
+checked by `DisclosureCorrespondence`, `DisclosurePayoff`, and
+`SealedOfferRuntime`. They retain the restricted, non-frontend boundary below.
+The remaining realization work is step 4, not a change to source admission.
+
 1. Keep the source language and `WFProgram` admission fixed. Use the existing
    lower-level graph boundary for encoding experiments.
 2. Finish one optional-disclosure comparison: initial binding, public chance,

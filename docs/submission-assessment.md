@@ -61,6 +61,7 @@ of every concurrency or mechanism-design formalization.
 | Request interface | Controller back-translation and exact all-profile history laws | Legal timeout choice, accepting encoder/decoder, finite window; private attempts and frozen information |
 | Serializer | Order replay and deviation-mixture law | All legal frontier choices resolve before ordering; no current-payload access; atomic internal closure |
 | Composition | Automatic interface lift, counterfactual finite-site cover, same-error Nash equivalence | Independently sampled finite private controller mixtures; fixed arbitrary behavioral scheduler compiled through its encoder |
+| Finite disclosure case | Full-policy outcome and payoff correspondence; sealed-offer equilibrium and adversarial buyer guarantee through the runtime | Hand-specified finite game, ideal private guard, no initial/buyer quitting or Kotlin semantic bridge |
 | Real contracts | Separate executable passes and component proofs | No proved bridge to public delivery/deadlines, cryptography, or whole generated handlers |
 
 Request back-translation is uniform in opponents. The serializer witness is
@@ -129,10 +130,11 @@ Before actual submission:
 4. Select a venue, apply its current page/anonymity/supplement rules, and verify
    the resulting PDF. The maintained manuscript is an identified reading copy,
    not a venue-compliant anonymized submission.
-5. If one bounded technical addition is affordable, prefer a finite auction or
-   escrow instantiation with explicit quitting and an adversarial-loss theorem
-   over another matching-pennies variant. No such larger verified application
-   is claimed now, and it is not necessary to make the existing theorem true.
+5. Present the sealed-offer instance as an integration of the proved compiler
+   boundary, not a novel mechanism or a verified deployed escrow. Its
+   full-policy comparison and actual compiled payoffs address the selected
+   technical completion gate. Another finite example would not resolve a
+   reviewer objection that the runtime model itself is too idealized.
 
 Public delivery/deadline scheduling, a Kotlin-to-Lean checker, cryptographic
 realization, coalition/sequential equilibrium, and EVM handler simulation are

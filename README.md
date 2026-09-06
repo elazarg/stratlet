@@ -671,6 +671,19 @@ core program.
 
 ## Path to a blockchain backend
 
+The finite disclosure integration is in `VegasTests/DisclosureCorrespondence.lean`:
+it translates complete behavioral policies between an independently specified
+binding/chance/open-or-quit/reply game and an eight-node implementation graph.
+`DisclosurePayoff.lean` connects every terminal public payoff list through the
+actual compiled evaluator. The sealed-offer instance in `SealedOfferRuntime.lean`
+preserves an equilibrium and a nonnegative buyer guarantee against arbitrary
+seller request-controller mixtures under admitted public-data scheduling.
+The source language is unchanged. This lower-level graph is not a `WFProgram`
+and is not proved equivalent to the richer Kotlin fixture; its private equality
+guard and request validation are ideal. See [the paper scope](docs/paper-scope.md)
+for the precise stopping condition and [the quitting compilation contract](docs/quitting-compilation-contract.md)
+for the frontend and runtime obligations.
+
 An EVM-class compiler can grow as a sequence like this:
 
 1. lower the `Machine.Contract.Manifest` code and logical slots to a backend

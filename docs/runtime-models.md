@@ -122,10 +122,11 @@ that arbitrary failure traffic has those semantics. The negative example
 compares early with delayed visibility of a quit/continue bit; it does not
 model selective opening of an earlier commitment.
 
-The next integration obligation is a concrete optional-disclosure core
-encoding and its actual observation/strategy correspondence, including an
-audit of `RevealComplete`. The later runtime obligation is to derive the
-relevant response barrier from execution rather than its strategy type.
+The optional-disclosure encoding below supplies a concrete graph-information
+and strategy correspondence without weakening `RevealComplete`. It does not
+realize these raw failure labels cryptographically. A public runtime must
+still derive the relevant response barrier from execution rather than its
+strategy type.
 
 ## Profile-local preservation with an early signal
 

@@ -237,8 +237,11 @@ Their exact evidence and remaining differences are recorded in
 [runtime-models.md](runtime-models.md#optional-disclosure-core-probe).
 They are not yet a matched frontend/core artifact pair: Kotlin also admits
 initial and responder quitting, and its fixture has different settlements.
-The current checks compare the disclosure checkpoint after a valid binding;
-they do not prove equality of the complete games.
+The Kotlin checks compare disclosure checkpoints after a valid binding. The
+Lean result additionally proves a full behavioral policy/outcome/payoff
+correspondence with the hand-specified `OptionalDisclosure.finiteForm`, and the
+sealed-offer instance reaches private requests plus public serialization.
+Neither result proves equality with the complete Kotlin game.
 
 Use one tiny, typechecked Kotlin fixture with a hidden Boolean binding, a later
 public signal, an optional disclosure decision, and a second player's
