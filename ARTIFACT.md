@@ -1,7 +1,7 @@
 # Vegas: proof and artifact guide
 
 This artifact supports the finite-model compiler results in *Vegas: Preserving
-Strategic Behavior through Compilation*. It is not an end-to-end verification
+Strategic Behavior through Compilation to Blockchain*. It is not an end-to-end verification
 of the Kotlin compiler or deployed contracts. For the research assessment see
 [docs/submission-assessment.md](docs/submission-assessment.md); for public
 delivery and deadline obligations see [docs/runtime-models.md](docs/runtime-models.md).
