@@ -19,6 +19,9 @@ and submission criteria are in [docs/submission-assessment.md](docs/submission-a
 GameTheory is the author's separately maintained, unpublished software library;
 this paper uses a pinned checked dependency, not a publication of its full corpus.
 
+The frontend/core ownership boundary and immediate integration step are in
+[docs/compiler-boundary.md](docs/compiler-boundary.md): Kotlin Vegas owns the
+rich language, while VegasCore stays a minimal checked semantic target.
 The next research expansion is designed in
 [docs/ledger-expansion-design.md](docs/ledger-expansion-design.md) and sequenced in
 [docs/ledger-expansion-plan.md](docs/ledger-expansion-plan.md): public delivery and

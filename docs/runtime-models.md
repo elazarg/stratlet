@@ -4,6 +4,9 @@ The proposed public-delivery expansion is specified in
 [ledger-expansion-design.md](ledger-expansion-design.md), with implementation
 gates in [ledger-expansion-plan.md](ledger-expansion-plan.md). These are plans;
 they do not change the proved boundary below.
+The [compiler boundary](compiler-boundary.md) keeps rich Kotlin lowering
+separate from the minimal core and identifies the optional-disclosure encoding
+as the first integration step, not an already proved frontend theorem.
 
 ## Mechanized composition
 

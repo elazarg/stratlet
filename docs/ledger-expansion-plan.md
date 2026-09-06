@@ -4,10 +4,17 @@ Status: planned, not implemented. This is the execution plan for
 [ledger-expansion-design.md](ledger-expansion-design.md). Existing proof status
 is recorded separately in [runtime-models.md](runtime-models.md).
 
+The ownership and integration contract is [compiler-boundary.md](compiler-boundary.md).
+Kotlin retains its rich language; VegasCore remains the minimal semantic
+target. An optional value is the candidate abstraction of disclosure-or-
+quitting, not proof that public quit signals and failed openings are
+strategically equivalent. This plan does not authorize building a rich Lean
+frontend or a second production compiler.
+
 ## Scope of the next paper-sized result
 
-Aim for a checked public-delivery compiler for a conservative finite phase
-fragment, with explicit source quitting, environment capabilities, and
+Aim for a checked public-delivery compiler for a conservative finite core
+fragment, with lowered source quitting, environment capabilities, and
 information barriers; quantify outcome/incentive errors where execution can
 fail; demonstrate reuse outside Vegas and one substantive Vegas application.
 
@@ -22,7 +29,50 @@ by the bounded gates below. At each gate, record the exact statements, admitted
 behavior, dependencies, evidence, failed conjectures, and next decision. A
 failed conjecture is useful evidence; a placeholder proof is not completion.
 
+## B0. Prove a quitting abstraction, then connect one core encoding
+
+**Immediate next step:** the finite representation comparison described in
+[compiler-boundary.md](compiler-boundary.md#first-bounded-step-an-optional-disclosure-encoding).
+Keep public quit signals, malformed commitments, withheld openings, and
+cryptographic/application validation failures distinct. Compare a continuation
+that can react between their different observation times with a barrier
+variant. Prove a distinguishing result or a precisely scoped positive
+comparison in existing finite protocol machinery. Settlement equality alone
+does not pass. No new core syntax, interchange framework, or ledger package
+is needed.
+
+After that semantic contract is settled, try existing core constructors: a
+fresh optional opening constrained to the earlier binding or `none`, at the
+appropriate information checkpoint. Its extra commitment and disclosure events
+must satisfy the same contract, not be assumed equivalent to a cleartext quit.
+
+Check the actual Kotlin fixture and its information/choice structure. Prove
+the candidate core encoding's information-local, all-pure-profile law in the
+finite example, including unilateral replacements. Distinguish Lean evidence
+from differential tests of the trusted Kotlin evaluator. Audit the current
+`RevealComplete` requirement: it requires opening the original binding even
+when the new optional opening is `none`. Determine the smallest theorem-premise
+split needed; do not infer that core syntax must change or erase this premise
+without proving the affected results.
+
+**Gate:** the representation comparison and optional-disclosure pattern are
+checked with explicit policy/continuation scope and remaining frontend trust,
+or a precise failed obligation is documented. Test the encoding before
+generalizing it. The following extension checks persistent
+quitting at a second checkpoint. Only then build the smallest emitted-core
+bridge for that supported subset; no handler syntax crosses the boundary.
+
+An accepted core artifact is the common input to analysis and runtime
+compilation. Initially, any existing Kotlin analysis/backend output is a
+differential reference, not covered by Lean simply because it uses `GameIR`.
+Unsupported syntax or target conditions receive an explicit diagnostic.
+Frontend lowering correctness and deployed-backend correctness remain separate
+obligations, neither discharged by core well-formedness.
+
 ## P0. Falsify the candidate discipline before building a framework
+
+**Depends on:** a concrete supported core pattern from B0 for the positive
+slice. Independent negative experiments need not wait for that proof.
 
 **Deliverables:** small executable finite instances, checked distinguishing
 laws/counterexamples, and a decision about the first positive source fragment.
@@ -48,23 +98,28 @@ The reorg test can be a small standalone model; it is not a claim that the
 initial final-ledger compiler already handles forks. Likewise, a finite stalled
 prefix is not a proof of infinite nontermination.
 
-**Positive baseline:** manually specify a source phase game and public-delivery
-instance with one hidden selection phase and an explicit disclosure/quit
-phase. Use a nonzero delay bound, at least two inclusion orders, a malformed
-request, and a genuinely later informed decision. Trace examples alone are
+**Positive baseline:** compile the B0 core pattern into one public-delivery
+slice, using an intermediate protocol only if the concrete lowering needs it.
+Use a nonzero delay bound, at least two inclusion orders, a malformed request,
+and the later optional disclosure/quit decision. Trace examples alone are
 insufficient: prove an all-policy or unilateral-law statement for this slice.
+Do not start with a detached phase language and postpone its core connection.
 
 **Gate:** choose one of three outcomes, supported by the tests:
 
 - The simpler source abstraction survives; proceed to its general compiler.
-- It survives only with extra source-visible control/information; specify that
-  source construct and revise the target theorem before proceeding.
+- It survives only for a smaller core fragment or a weaker, explicitly stated
+  theorem; revise eligibility or the theorem without silently extending the
+  source game. Any core expressiveness change requires the separate argument
+  in the boundary design.
 - The proposed discipline offers no meaningful abstraction over direct ledger
   play; stop and reassess the contribution. Do not hide the failed premise in
   an interface or continue adding infrastructure to defend it.
 
 The preferred hypothesis is fixed epochs plus barriers and bounded service.
-It is not assumed true until this gate passes.
+It is not assumed true until this gate passes. Implement only the public event
+surface required for this slice first. The remaining negative tests guide
+subsequent increments; a reorg model is not a prerequisite for the first proof.
 
 ## P1. Establish reusable ownership with two actual clients
 
@@ -131,7 +186,7 @@ participation can appear in the target theorem.
 
 ## P3. General strategic comparison for the concrete phase construction
 
-**Depends on:** P2 and the phase source selected at P0.
+**Depends on:** P2 and the concrete core-to-protocol construction selected at P0.
 
 Construct information-local source replacements for arbitrary runtime
 controllers, not just the compiler image. Prove T1 from the design, first for
@@ -162,22 +217,23 @@ or rationality premise for the attacker. Coalition results are separate.
 **Gate:** a concrete constructor discharges T1 for a nontrivial family of phase
 protocols. A record whose input fields are the two desired laws does not pass.
 
-## P4. Checked Vegas fragment and an application
+## P4. Generalize the supported core lowering and add an application
 
-**Depends on:** P3. The source syntax/interface work can begin after P0 settles
-the semantics, but the application theorem depends on the general comparison.
+**Depends on:** P3. The core encoding and thin frontend integration begin at
+B0, not at this application gate.
 
-Add explicit source constructs for the phase behavior actually needed: binding,
-disclosure, quitting, validation failure, and environmental failure when it
-cannot be abstracted away. Specify what later actions remain possible after
-each nonresponse branch. Keep these semantics independent of whether the
-programmer's incentives favor completion.
+Generalize only encoding patterns exercised by the application. Rich handlers
+remain in Kotlin; their core expansion uses ordinary optional choices, guards,
+dependencies, and outcomes wherever the encoding proof justifies it. Preserve
+later-choice restrictions after quitting. No syntax is added to VegasCore to
+mirror handler variants or runtime failure events.
 
-Implement a conservative executable checker producing a phase protocol and
-the compiler-specific structural proofs. List ledger capabilities separately
-as application obligations. Prove the relation from source choices and full
-information to the constructed protocol. Do not substitute terminal support
-reconstruction for a quantitative/strategic frontend theorem.
+Implement conservative runtime eligibility checking over the accepted core,
+producing the concrete protocol and structural evidence. List external ledger
+capabilities separately. Prove the relation from core choices and full
+information to the constructed protocol. General frontend translation
+validation remains a separate project; acceptance of the emitted core is not
+proof of Kotlin's lowering, and terminal support is not strategic equivalence.
 
 The preferred flagship application is a finite sealed-bid second-price auction
 with at least three bidders, a specified tie rule, private finite valuations,
@@ -198,9 +254,10 @@ Required evidence:
 - at least one analysis conclusion that is not merely the old fair-bit
   equilibrium transported through another wrapper.
 
-**Gate:** the compiler is generic over the checked fragment and the application
-uses it. A manually inserted application-only checkpoint is not the general
-source elaboration theorem.
+**Gate:** the compiler is generic over the checked core fragment and the
+application uses it through the emitted-core boundary. State which Kotlin
+lowering patterns remain trusted. A manually inserted application-only
+checkpoint is neither general core lowering nor a frontend correctness theorem.
 
 ## P5. Failure probabilities and cost error
 
@@ -259,7 +316,7 @@ ledger interfaces stabilize. They are not hidden prerequisites for P0.
 
 | Track | First bounded deliverable | Required to call the eventual path closed |
 | --- | --- | --- |
-| Frontend validation | checker for a finite Kotlin-emitted object including handlers | evidence that the actual source artifact denotes the checked game, with parser/trusted emitter assumptions stated |
+| Frontend validation | after the B0 thin core bridge, validate one Kotlin lowering pass outside VegasCore | source-to-core information/strategy correspondence, with parser/trusted emitter assumptions stated; no rich-language AST in core |
 | EVM lowering | whole four-handler Boolean simulation at a pinned execution revision | linked handlers and surrounding transaction semantics, including fees/failure/external effects admitted by the fragment |
 | Ledger service realization | map one published composable ledger functionality to our capabilities | proved correspondence for observations and admissible adversaries, not similar names for liveness |
 | Distributed Ethereum model | pinned fork, block validity, local tentative/final views and a retained-observation reorg test | network, fork choice, finality and inclusion realization under named stake/connectivity assumptions |

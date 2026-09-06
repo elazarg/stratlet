@@ -5,6 +5,13 @@ the existing implementation. The proved boundary remains
 [runtime-models.md](runtime-models.md). The execution plan and acceptance gates
 are in [ledger-expansion-plan.md](ledger-expansion-plan.md).
 
+The language/compiler boundary is fixed in
+[compiler-boundary.md](compiler-boundary.md): Kotlin owns the rich frontend,
+VegasCore remains a minimal semantic target, and the first step tests the
+strategic relation between explicit quitting and failed submissions/openings
+before certifying an optional-value encoding. Runtime expansion does not
+authorize surface-language growth in the core.
+
 ## 1. Research objective
 
 Extend strategic compilation from resolved private windows to protocols whose
@@ -110,12 +117,14 @@ ProtocolRuntime -------> LedgerRuntime -------> chain-specific adapters
 StrategicRuntime ------> LedgerGames
        ^                       |
        |                       v
-GameTheory.Core/Protocol      Vegas compiler and language
+GameTheory.Core/Protocol      VegasCore compiler
 ```
 
 `StrategicRuntime` depends on both `ProtocolRuntime` and GameTheory's game and
 protocol interfaces. `LedgerGames` combines it with `LedgerRuntime`. There are
 no reverse dependencies from GameTheory or the generic runtime into Vegas.
+The rich Kotlin frontend is an external producer of core artifacts, not part
+of the language-independent runtime dependency graph.
 
 | Owner | Responsibility | Forbidden dependency |
 | --- | --- | --- |
@@ -124,7 +133,8 @@ no reverse dependencies from GameTheory or the generic runtime into Vegas.
 | LedgerRuntime | raw transactions, recipient views, pending buffers, inclusion, clocks, receipts, settlement/expiry drivers, service guarantees | Vegas graphs, Nash, payoff syntax |
 | StrategicRuntime | adapters to canonical GameTheory protocols; concrete request/scheduling translations and opponent-preserving comparisons | Vegas or an Ethereum-specific execution model |
 | LedgerGames | strategy semantics and theorem instantiations for public ledger interaction | Vegas-specific syntax and graph compilation |
-| Vegas | source phases, quitting/validation handlers, executable checker, graph/phase compilation, application proofs | no generic ledger truth defined a second time |
+| Kotlin Vegas and frontend integration | surface checking, handler elaboration into core values/control, later translation validation | no rich frontend AST or duplicate typechecker in VegasCore |
+| VegasCore | minimal core checking, graph compilation, runtime eligibility, protocol lowering, application proofs | no generic ledger truth defined a second time; no handler syntax |
 | Chain adapters | a named ledger/VM/network/consensus realization and its proofs | source-language constructs |
 
 Application state is a parameter of the ledger. Auction phases, escrow rules,
@@ -208,16 +218,16 @@ for unresolved runs. Eventual infinite execution needs a later path-law layer.
 
 ## 5. Source discipline and the first compiler
 
-Introduce a generic **phase protocol** above the ledger, with finite menus,
-declared observations, legal nonparticipation outcomes, and explicit resolution
-checkpoints. Vegas constructs this object from a checked source fragment.
-It is not the old source game with runtime behaviors silently appended.
-Its game interpretation belongs to `StrategicRuntime`/`LedgerGames` and derives
-the existing GameTheory execution and information objects; it must not define
-another game evaluator. Freeze its data representation only after the P0
-examples determine the necessary control and observation fields.
+Use a **phase protocol** above the ledger only as needed by a concrete compiler
+output: finite menus, declared observations, nonparticipation outcomes, and
+resolution checkpoints. It is not a new rich source language. Kotlin lowers
+its existing language to the minimal core; core-to-protocol compilation must
+justify the target structure and its strategic relation to that core game.
+A protocol's game interpretation belongs to `StrategicRuntime`/`LedgerGames`
+and derives existing GameTheory execution/information objects, not another
+evaluator. Freeze its representation only after the B0/P0 examples need it.
 
-The source fragment must distinguish:
+The semantic comparison must distinguish, without necessarily adding syntax:
 
 1. selecting and binding a value;
 2. disclosing an already bound value, including the source-defined option not
@@ -225,6 +235,23 @@ The source fragment must distinguish:
 3. environmental delivery failure, if this influence cannot be abstracted away;
 4. validation failure and its specified settlement;
 5. public chance, available only at the source-prescribed checkpoint.
+
+An ordinary optional choice is a candidate abstraction of disclosure-or-quitting:
+`some v` must match the earlier binding; `none` denotes quit consequences.
+Public quitting, opaque malformed commitments, and cryptographic/application
+opening failures are not identified until a strategic comparison justifies
+their different observation times, signaling opportunities, and retry rights.
+General handlers remain frontend constructs. Check the existing
+`RevealComplete` theorem restriction before considering any syntax change.
+Binding, information, and quit persistence are proof obligations of the
+encoding, not consequences of using an option type. The detailed B0 comparison
+is in [compiler-boundary.md](compiler-boundary.md).
+
+Environmental failure need not be added to the minimal core. If it cannot be
+abstracted away for that core game, reject the target/fragment combination or
+state a different conditional/approximate result. A generic runtime-aware game
+can describe the failure for analysis without becoming a new VegasCore syntax
+or being passed off as preservation of the original source.
 
 The first positive candidate uses fixed public epochs and information barriers:
 
@@ -274,8 +301,9 @@ length, or arbitrary extra traffic from a deviating player.
 
 Do not assert that fixed epochs solve these issues. The candidate proof must
 show that each late/metadata-aware deviation induces only a source-admissible
-mixture using the same information. If not, retain the corresponding timing
-decision/environment event in the phase source or narrow the accepted fragment.
+mixture using the same information. If not, narrow the accepted core fragment
+or state the different runtime-aware game theorem without claiming it preserves
+the original core game.
 Never discard the deviation or assume the scheduler ignores its signal.
 
 ## 6. Target theorem statements and quantifiers
@@ -305,8 +333,10 @@ the second equation. The mixture may be profile-local; a uniform translator
 is a stronger result only if constructed. For a source without environmental
 influence, `e` must be proved inert, not chosen to repair the equation.
 
-First prove T1 for the concrete phase/ledger construction. Only then connect
-the phase source to the simpler graph game for the checked compatible fragment.
+First prove T1 for the concrete phase/ledger construction, with one checked
+core consumer already identified. Then prove its connection to the simpler
+graph game for the compatible core fragment. The intermediate protocol must
+not become a substitute rich language that leaves that connection optional.
 The environmental correspondence must come from causal local semantics; a
 post hoc simulator that sees future randomness or the opponents' private
 policies is not an admissible implementation.
@@ -343,14 +373,15 @@ controllers, an explicit security parameter, and the appropriate computational
 comparison, or change the claimed solution concept explicitly. Exact finite
 equilibrium against unbounded strategies is not a real-cryptography theorem.
 
-### T3. Source checking and concrete instantiation
+### T3. Core eligibility and concrete instantiation
 
-An executable checker constructs the well-formed phase protocol, maps source
-actions/observations, supplies protocol-specific barrier and validation proofs,
-and lists required ledger capabilities. Successful checking implies the
-compiler's structural premises. A separate ledger realization supplies the
-environment assumptions. Runtime controllers remain larger than compiled
-source policies.
+An executable checker consumes only the supported core representation, not
+Kotlin handler syntax. Core acceptance establishes well-formedness; a separate
+runtime eligibility check constructs the protocol, action/observation maps,
+barrier and validation evidence, and residual ledger requirements. Its
+soundness theorem supplies the compiler's structural premises. A ledger
+realization supplies environmental assumptions. Neither check proves Kotlin
+lowering correct. Runtime controllers remain larger than compiled policies.
 
 A language-independent protocol client and a compiled Vegas application must
 use the same T1/T2 proof modules. Without both, extraction has not demonstrated
@@ -386,8 +417,9 @@ revisions at the integration gate; do not prove against a moving label such as
 "current Ethereum". Earlier models remain reusable for other chains.
 
 ```text
-written source with explicit quitting / exposure / utility
-  -> checked generic phase protocol and strategic game
+written Vegas source (rich frontend owns its semantics and lowering)
+  -> checked minimal core artifact -> canonical strategic game
+  -> compiler-produced protocol with justified information/control correspondence
   -> public transaction protocol + ideal commitment/authentication services
   -> executable contract calls with costs, failures, and settlement
   -> linked bytecode in a named EVM transaction semantics
@@ -402,8 +434,9 @@ explicit adapter before they can be composed.
 
 | Boundary | Required work and evidence |
 | --- | --- |
-| Written source to phase semantics | Add source-controlled quitting/disclosure and failure constructs; prove support, quantitative law, and information correspondence rather than equating Kotlin and Lean by intention |
-| Kotlin frontend | Finite interchange plus Lean checker/translation validation, including handlers; parser correctness remains a stated trust boundary unless separately verified |
+| Written source to minimal core | Lower existing constructs, including optional disclosure and handler consequences, into core values/control; retain explicit trust in Kotlin until source-to-core strategic correspondence is proved or validated |
+| Core import and frontend validation | Check emitted core without handler syntax; reduce frontend trust pass by pass in separate integration tooling, not a rich-language extension of VegasCore |
+| Core to runtime protocol | Prove the concrete encoding and target eligibility conditions preserve the original core game's control and information; do not substitute a richer game silently |
 | Protocol to contract | Concrete admission, nonce replay protection, authentication, escrow, settlement, and keeper-triggered resolution; correct behavior for hostile inputs |
 | Contract to EVM | Close whole generated-handler and linking simulation; gas, exceptional halts, revert effects, balances, logs, external calls/reentrancy where allowed; existing Boolean component lemmas are inputs, not the finished proof |
 | VM to ledger | Transaction preconditions, fee/nonce accounting, block validity, ordering and timestamp constraints, receipts, persistent validity under interference |
