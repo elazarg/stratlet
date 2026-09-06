@@ -53,6 +53,13 @@ these gates pass. Submission formatting and expert evaluation remain author
 decisions; likely top-tier acceptance and novelty priority cannot be certified
 by the artifact.
 
+The finite-scope gates are met by the correspondence and runtime application
+above, the synchronized `Paper.lean` claim registry and manuscript, and the
+warning-free local and separate-checkout checks recorded in
+[ARTIFACT.md](../ARTIFACT.md#validation-snapshot). The appropriate next step for
+this manuscript is expert review and submission preparation, not an additional
+theorem family. The larger realization tasks below remain open.
+
 ## Deliberate exclusions
 
 No public pending-request delivery, censorship-tolerant deadline theorem,

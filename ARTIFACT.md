@@ -32,6 +32,12 @@ update` to reproduce a pinned revision: it may resolve different dependencies.
 The cache download is a build optimization, not evidence that our theorem
 statements have been checked; run the build afterward.
 
+On memory-constrained or busy machines, limit the build process's worker pool.
+In PowerShell, run `$env:LEAN_NUM_THREADS = '2'` before `lake --wfail build`;
+in a POSIX shell, run `LEAN_NUM_THREADS=2 lake --wfail build`. This controls
+build concurrency, not proof limits or warning suppression. A parallel clean
+build can exhaust memory even when the incremental development build passes.
+
 The manuscript is a **separate repository**, not a submodule fetched by those
 commands. Authors should provide its matching source snapshot under `overleaf/`
 or as a separate directory. Reviewers should not need an Overleaf account.
@@ -79,6 +85,24 @@ Definitions, modeling adequacy, literature comparisons, and prose descriptions
 of implementations still require human review.
 
 ## Trust and dependency boundary
+
+### Validation snapshot
+
+The Lean sources at `f19dce4` and manuscript sources at `41aaaf5` were checked
+in a separate clean local checkout. The checkout rebuilt Vegas, VegasTests,
+Paper, and the pinned GameTheory sources; it reused revision-pinned third-party
+Lake packages and their caches after checking their source worktrees were clean.
+The full 3,259-job build passed with `LEAN_NUM_THREADS=2` and `--wfail`.
+The claim registry, documentation-reference and local-option audits, and all
+11 maintenance tests passed. The 16-page manuscript was rebuilt and its affected
+pages visually checked, with no LaTeX warnings or overfull boxes in the final log.
+
+This validates a separate source checkout on the development machine, not a
+fresh machine, a cold dependency download, an offline bundle, or a performance
+benchmark. The concurrency setting addresses memory pressure; it does not
+change any Lean declaration or proof-checking option.
+
+### Dependencies
 
 GameTheory is the author's own separately maintained, unpublished GitHub
 software library, not a separately published premise and not the subject of
