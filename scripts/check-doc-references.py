@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import io
 import os
+from pathlib import Path
 import re
+import subprocess
 import sys
 
 ROOTS_DEFINING = ("Vegas", "VegasEVM", "Paper", "GameTheory/GameTheory")
@@ -47,6 +49,10 @@ CITED = re.compile(r"`([A-Za-z_][A-Za-z0-9_.']*)`")
 CONSTRUCTOR = re.compile(
     r"^\s*\|\s*([A-Za-z_][A-Za-z0-9_']*)(?:\s*(?::|\(|\{)|\s*$)"
 )
+PROJECT_PATH = re.compile(
+    r"`((?:Vegas|VegasEVM|VegasTests|Paper)(?:/[A-Za-z0-9_.-]+)*\.lean)(?::\d+)?`"
+)
+MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 
 
 def lean_files(roots):
@@ -92,14 +98,58 @@ def dangling(names):
     return findings
 
 
+def markdown_paths(root):
+    """Check exact local paths cited by tracked Markdown, never fuzzy names."""
+    if not (root / ".git").exists():
+        return [], False
+    try:
+        tracked = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "-z", "--", "*.md"],
+            check=True, capture_output=True,
+        ).stdout.split(b"\0")
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise RuntimeError(f"Cannot enumerate tracked Markdown: {error}") from error
+    findings = []
+    for encoded in sorted(filter(None, tracked)):
+        relative_source = encoded.decode("utf-8")
+        source = root / relative_source
+        if not source.is_file():
+            continue
+        for number, line in enumerate(source.read_text(encoding="utf-8").splitlines(), 1):
+            for cited in PROJECT_PATH.findall(line):
+                if not (root / cited).is_file():
+                    findings.append((relative_source, number, cited))
+            for destination in MARKDOWN_LINK.findall(line):
+                destination = destination.strip().strip("<>").split("#", 1)[0]
+                if not destination or "://" in destination or destination.startswith("/"):
+                    continue
+                destination = re.sub(r":\d+$", "", destination)
+                if Path(destination).suffix.lower() not in (".md", ".lean"):
+                    continue
+                target = (source.parent / destination).resolve()
+                if not target.is_relative_to(root.resolve()) or not target.is_file():
+                    findings.append((relative_source, number, destination))
+    return findings, True
+
+
 def main():
+    root = Path.cwd()
     names = index_declarations()
     findings = dangling(names)
     for path, number, cited in findings:
         print("%s:%d: docstring cites unknown name `%s`" % (path, number, cited))
-    if findings:
+    try:
+        path_findings, markdown_checked = markdown_paths(root)
+    except RuntimeError as error:
+        print(error)
+        return 1
+    if not markdown_checked:
+        print("No local Git metadata: Markdown path inventory was not checked.")
+    for path, number, cited in path_findings:
+        print("%s:%d: Markdown cites missing local file `%s`" % (path, number, cited))
+    if findings or path_findings:
         print("\n%d dangling documentation reference(s); %d names indexed."
-              % (len(findings), len(names)))
+              % (len(findings) + len(path_findings), len(names)))
         return 1
     print("No dangling documentation references (%d names indexed)." % len(names))
     return 0

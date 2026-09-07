@@ -875,6 +875,25 @@ theorem StraightRun.run_eq {program fragment : Assembly} {env : ExecutionEnv}
       rw [← hpc] at htail
       exact htail
 
+/-- A certified straight-line setup followed by a taken conditional jump runs
+as one composed fragment. -/
+theorem StraightRun.run_guardedJump {program setup : Assembly}
+    {env : ExecutionEnv} {state beforeJump : ExecutionState}
+    (hstraight : StraightRun program env setup state beforeJump)
+    (destination : Nat) (restStack : List Word)
+    (hsetup : Assembly.CodeAt program setup state.pc)
+    (hrunning : beforeJump.exit = none)
+    (hdestination : destination < 2 ^ 32)
+    (hstack : beforeJump.stack =
+      (PushData.nat32 destination).value :: 1 :: restStack)
+    (hjump : Assembly.CodeAt program [.jumpi] beforeJump.pc)
+    (htarget : Assembly.CodeAt program [.jumpdest] destination) :
+    run (setup.length + 1) program env state =
+      { beforeJump with pc := destination, stack := restStack } := by
+  rw [run_add, hstraight.run_eq hsetup]
+  exact Vegas.Machine.Contract.EVM.run_guardedJump destination restStack
+    hrunning hdestination hstack hjump htarget
+
 /-- The fixed dispatcher prefix extracts the high four calldata bytes and
 retains their zero-extended selector word on the stack. -/
 theorem run_classicalDispatchPrelude (whole : Assembly) (env : ExecutionEnv)
@@ -956,20 +975,15 @@ theorem run_classicalDispatchBranch_hit (whole : Assembly)
     simp [StraightRun, setup, beforeJump, stepInstruction, advance,
       hrunning, hstack, boolWord, ClassicalABI.selectorWord,
       Assembly.byteLength, Instruction.byteLength]
-  have hrunSetup : run setup.length whole env state = beforeJump :=
-    hstraight.run_eq hsetup
   have hbeforeRunning : beforeJump.exit = none := by
     simp [beforeJump, hrunning]
   have hjump' : Assembly.CodeAt whole [.jumpi] beforeJump.pc := by
     simpa [beforeJump] using hjump
-  have hrunJump : run 1 whole env beforeJump =
-      { state with pc := destination } := by
-    simpa [beforeJump, hstack] using
-      run_guardedJump destination
-        [ClassicalABI.selectorWord selector] hbeforeRunning hdestination
-        (by simp [beforeJump]) hjump' htarget
   rw [show 5 = setup.length + 1 by simp [setup]]
-  rw [run_add, hrunSetup, hrunJump]
+  simpa [beforeJump, hstack] using
+    hstraight.run_guardedJump destination
+      [ClassicalABI.selectorWord selector] hsetup hbeforeRunning hdestination
+      (by simp [beforeJump]) hjump' htarget
 
 /-- The linked `JUMPDEST; POP` block prefix restores the empty handler stack
 and enters the handler body two bytes after its public destination. -/

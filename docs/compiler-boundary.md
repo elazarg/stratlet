@@ -32,6 +32,14 @@ provide the global scope, freshness, reveal-completeness, and legality evidence
 required there. Nor does the translation currently have an operational-law or
 unilateral-strategy-preservation theorem.
 
+Core admission uses `Legal` from `Vegas/Core/Obligations.lean`: each commitment
+guard must admit an action in every environment of its declared visible type,
+including environments unreachable during execution. A frontend checker must
+establish this condition, not only reachable-state progress. The Lean payout
+evaluator in `Vegas/Foundation/Payoff.lean` sums duplicate entries for a player
+and assigns zero to omitted players. Any frontend with a different payout-list
+discipline must account for that difference at the translation boundary.
+
 ```text
 Kotlin Vegas program
   -> Kotlin checking and rich-language lowering             [frontend owner]

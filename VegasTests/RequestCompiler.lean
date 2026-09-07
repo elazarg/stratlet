@@ -4,7 +4,7 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
-import Vegas.Compile.Request
+import Vegas.Game.SourceRequest
 
 /-! # Request validation, retry memory, and source-designated timeout tests -/
 

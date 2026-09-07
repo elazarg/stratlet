@@ -424,6 +424,27 @@ def visibleFieldRefs
       state.fieldOf (VHasVar.ofViewVCtx h))
 
 omit [DecidableEq P] in
+private theorem fieldRefsOfCtx_forall
+    {Γ : VCtx P L}
+    (fieldOf : {name : VarId} → {bindTy : BindTy P L} →
+      VHasVar Γ name bindTy → Nat)
+    (property : FieldRef L → Prop)
+    (holds : ∀ {name bindTy} (h : VHasVar Γ name bindTy),
+      property { field := fieldOf h, ty := bindTy.base }) :
+    ∀ ref, ref ∈ fieldRefsOfCtx fieldOf → property ref := by
+  induction Γ with
+  | nil => simp [fieldRefsOfCtx]
+  | cons head tail ih =>
+      obtain ⟨_headName, _headTy⟩ := head
+      intro ref href
+      rcases (by simpa [fieldRefsOfCtx] using href) with hhead | htail
+      · subst ref
+        exact holds VHasVar.here
+      · exact ih
+          (fieldOf := fun {_name} {_bindTy} h => fieldOf (VHasVar.there h))
+          (fun h => holds (VHasVar.there h)) ref htail
+
+omit [DecidableEq P] in
 theorem fieldRefsOfCtx_available
     {Γ : VCtx P L}
     (fieldOf :
@@ -435,32 +456,8 @@ theorem fieldRefsOfCtx_available
         (h : VHasVar Γ name bindTy), availableAt (fieldOf h) = true)
     :
     ∀ ref, ref ∈ fieldRefsOfCtx fieldOf →
-      availableAt ref.field = true := by
-  induction Γ with
-  | nil =>
-      intro ref href
-      simp [fieldRefsOfCtx] at href
-  | cons head tail ih =>
-      obtain ⟨_headName, _headTy⟩ := head
-      intro ref href
-      have hmem :
-          ref = { field := fieldOf VHasVar.here, ty := _headTy.base } ∨
-            ref ∈
-              fieldRefsOfCtx
-                (fun {_name} {_bindTy} h =>
-                  fieldOf (VHasVar.there h)) := by
-        simpa [fieldRefsOfCtx] using href
-      rcases hmem with hhead | htail
-      · subst ref
-        exact havailable VHasVar.here
-      · exact
-          ih
-            (fieldOf := fun {_name} {_bindTy} h =>
-              fieldOf (VHasVar.there h))
-            (by
-              intro name bindTy h
-              exact havailable (VHasVar.there h))
-            ref htail
+      availableAt ref.field = true :=
+  fieldRefsOfCtx_forall fieldOf _ havailable
 
 omit [DecidableEq P] in
 theorem fieldRefsOfCtx_store_available
@@ -475,32 +472,8 @@ theorem fieldRefsOfCtx_store_available
         ∃ value, Store.getAs store (fieldOf h) bindTy.base = some value)
     :
     ∀ ref, ref ∈ fieldRefsOfCtx fieldOf →
-      ∃ value, Store.getAs store ref.field ref.ty = some value := by
-  induction Γ with
-  | nil =>
-      intro ref href
-      simp [fieldRefsOfCtx] at href
-  | cons head tail ih =>
-      obtain ⟨_headName, _headTy⟩ := head
-      intro ref href
-      have hmem :
-          ref = { field := fieldOf VHasVar.here, ty := _headTy.base } ∨
-            ref ∈
-              fieldRefsOfCtx
-                (fun {_name} {_bindTy} h =>
-                  fieldOf (VHasVar.there h)) := by
-        simpa [fieldRefsOfCtx] using href
-      rcases hmem with hhead | htail
-      · subst ref
-        exact available VHasVar.here
-      · exact
-          ih
-            (fieldOf := fun {_name} {_bindTy} h =>
-              fieldOf (VHasVar.there h))
-            (by
-              intro name bindTy h
-              exact available (VHasVar.there h))
-            ref htail
+      ∃ value, Store.getAs store ref.field ref.ty = some value :=
+  fieldRefsOfCtx_forall fieldOf _ available
 
 theorem fieldRefsOfCtx_visible
     {Γ : VCtx P L}
@@ -521,38 +494,10 @@ theorem fieldRefsOfCtx_visible
     :
     ∀ ref, ref ∈ fieldRefsOfCtx fieldOf →
       graph.fieldRefVisibleTo who ref := by
-  induction Γ with
-  | nil =>
-      intro ref href
-      simp [fieldRefsOfCtx] at href
-  | cons head tail ih =>
-      obtain ⟨_headName, _headTy⟩ := head
-      intro ref href
-      have hmem :
-          ref = { field := fieldOf VHasVar.here, ty := _headTy.base } ∨
-            ref ∈
-              fieldRefsOfCtx
-                (fun {_name} {_bindTy} h =>
-                  fieldOf (VHasVar.there h)) := by
-        simpa [fieldRefsOfCtx] using href
-      rcases hmem with hhead | htail
-      · subst ref
-        rcases hspec VHasVar.here with ⟨spec, hfield, hty, howner⟩
-        exact
-          ⟨spec, hfield, hty,
-            by
-              rw [howner]
-              exact visible VHasVar.here⟩
-      · exact ih
-          (fieldOf := fun {_name} {_bindTy} h =>
-            fieldOf (VHasVar.there h))
-          (by
-            intro name bindTy h
-            exact hspec (VHasVar.there h))
-          (by
-            intro name bindTy h
-            exact visible (VHasVar.there h))
-          ref htail
+  apply fieldRefsOfCtx_forall fieldOf
+  intro name bindTy h
+  rcases hspec h with ⟨spec, hfield, hty, howner⟩
+  exact ⟨spec, hfield, hty, by rw [howner]; exact visible h⟩
 
 omit [DecidableEq P] in
 theorem fieldRefOfCtx_mem

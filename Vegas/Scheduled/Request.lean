@@ -5,7 +5,7 @@ Authors: VegasCore contributors
 -/
 
 import Vegas.Scheduled.Equilibrium
-import Vegas.Compile.Request
+import Vegas.Game.SourceRequest
 import Vegas.Game.Request
 import Mathlib.Data.Fintype.List
 

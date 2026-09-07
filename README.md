@@ -596,7 +596,7 @@ source-history laws for every controller profile and for independent finite
 mixtures of controllers. Persistent silence realizes the designated source
 policy. No assumption on quit utilities is used.
 
-`Compile.Request` instantiates this construction for every checked core program.
+`Game.SourceRequest` instantiates this construction for every checked core program.
 For finite source domains, it composes the mixed request certificate with Kuhn
 adequacy to preserve and reflect behavioral Nash equilibrium against all target
 controller mixtures. `DeviationAdequacy.trans` checks this composition. The

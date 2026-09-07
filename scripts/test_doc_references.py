@@ -46,6 +46,67 @@ class DocReferenceTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("unknown name `missing.name`", result.stdout)
 
+    def test_tracked_markdown_rejects_nonexistent_exact_project_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "Vegas/Scheduled").mkdir(parents=True)
+            (root / "Vegas/Scheduled/Compiled.lean").write_text(
+                "namespace EventGraph\nend EventGraph\n", encoding="utf-8"
+            )
+            (root / "README.md").write_text(
+                "See `Vegas/Scheduled/EventGraph.lean`.", encoding="utf-8"
+            )
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(["git", "-C", str(root), "add", "README.md"], check=True)
+            result = subprocess.run([sys.executable, str(SCRIPT)], cwd=root,
+                                    capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing local file `Vegas/Scheduled/EventGraph.lean`", result.stdout)
+
+    def test_relative_markdown_links_resolve_from_source_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "docs/guide.md").write_text(
+                "[root](../README.md) [missing](missing.md)", encoding="utf-8"
+            )
+            (root / "README.md").write_text("root", encoding="utf-8")
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(["git", "-C", str(root), "add", "README.md", "docs/guide.md"],
+                           check=True)
+            result = subprocess.run([sys.executable, str(SCRIPT)], cwd=root,
+                                    capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing local file `missing.md`", result.stdout)
+        self.assertNotIn("missing local file `../README.md`", result.stdout)
+
+    def test_untracked_markdown_is_excluded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text("No local paths.", encoding="utf-8")
+            (root / "notes.md").write_text(
+                "See `Vegas/Scheduled/DoesNotExist.lean`.", encoding="utf-8"
+            )
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(["git", "-C", str(root), "add", "README.md"], check=True)
+            result = subprocess.run([sys.executable, str(SCRIPT)], cwd=root,
+                                    capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_non_git_run_announces_markdown_omission(self):
+        result = self.run_checker("/-! No cited declarations. -/\n")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn("Markdown path inventory was not checked", result.stdout)
+
+    def test_broken_git_inventory_is_a_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".git").mkdir()
+            result = subprocess.run([sys.executable, str(SCRIPT)], cwd=root,
+                                    capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Cannot enumerate tracked Markdown", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

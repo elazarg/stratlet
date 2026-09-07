@@ -106,19 +106,14 @@ theorem run_calldataSizeEq_reject
     simp [StraightRun, setup, beforeJump, stepInstruction, advance,
       hrunning, hwordNe, boolWord]
     norm_num [Assembly.byteLength, Instruction.byteLength]
-  have hrunSetup : run setup.length whole env state = beforeJump :=
-    hstraight.run_eq hsetup
   have hbeforeRunning : beforeJump.exit = none := by
     simp [beforeJump, hrunning]
   have hjump' : Assembly.CodeAt whole [.jumpi] beforeJump.pc := by
     simpa [beforeJump] using hjump
-  have hrunJump : run 1 whole env beforeJump =
-      { state with pc := rejectDestination } := by
-    simpa [beforeJump] using
-      run_guardedJump rejectDestination state.stack hbeforeRunning
-        hdestination (by simp [beforeJump]) hjump' htarget
-  rw [show 6 = setup.length + 1 by simp [setup], run_add,
-    hrunSetup, hrunJump]
+  rw [show 6 = setup.length + 1 by simp [setup]]
+  simpa [beforeJump] using
+    hstraight.run_guardedJump rejectDestination state.stack hsetup
+      hbeforeRunning hdestination (by simp [beforeJump]) hjump' htarget
 
 /-- Resolved comparison for one canonical node route. -/
 def nodeRouteAssembly (nodeOffset node rejectDestination : Nat) : Assembly :=
@@ -204,19 +199,14 @@ theorem run_nodeRoute_hit
       stepInstruction, advance, hrunning,
       Nat.mod_eq_of_lt hoffsetMod, hload, boolWord]
     norm_num [Assembly.byteLength, Instruction.byteLength]
-  have hrunSetup : run setup.length whole env state = beforeJump :=
-    hstraight.run_eq hsetup
   have hbeforeRunning : beforeJump.exit = none := by
     simp [beforeJump, hrunning]
   have hjump' : Assembly.CodeAt whole [.jumpi] beforeJump.pc := by
     simpa [beforeJump] using hjump
-  have hrunJump : run 1 whole env beforeJump =
-      { state with pc := destination } := by
-    simpa [beforeJump] using
-      run_guardedJump destination state.stack hbeforeRunning hdestination
-        (by simp [beforeJump]) hjump' htarget
-  rw [show 6 = setup.length + 1 by simp [setup, loadCalldataWord],
-    run_add, hrunSetup, hrunJump]
+  rw [show 6 = setup.length + 1 by simp [setup, loadCalldataWord]]
+  simpa [beforeJump] using
+    hstraight.run_guardedJump destination state.stack hsetup hbeforeRunning
+      hdestination (by simp [beforeJump]) hjump' htarget
 
 /-- Resolved caller-authentication check. -/
 def callerEqAssembly (expected : AddressWord) (rejectDestination : Nat) :
@@ -295,19 +285,14 @@ theorem run_callerEq_reject
     simp [StraightRun, setup, beforeJump, stepInstruction, advance,
       hrunning, hwordNe, boolWord]
     norm_num [Assembly.byteLength, Instruction.byteLength]
-  have hrunSetup : run setup.length whole env state = beforeJump :=
-    hstraight.run_eq hsetup
   have hbeforeRunning : beforeJump.exit = none := by
     simp [beforeJump, hrunning]
   have hjump' : Assembly.CodeAt whole [.jumpi] beforeJump.pc := by
     simpa [beforeJump] using hjump
-  have hrunJump : run 1 whole env beforeJump =
-      { state with pc := destination } := by
-    simpa [beforeJump] using
-      run_guardedJump destination state.stack hbeforeRunning hdestination
-        (by simp [beforeJump]) hjump' htarget
-  rw [show 6 = setup.length + 1 by simp [setup], run_add,
-    hrunSetup, hrunJump]
+  rw [show 6 = setup.length + 1 by simp [setup]]
+  simpa [beforeJump] using
+    hstraight.run_guardedJump destination state.stack hsetup hbeforeRunning
+      hdestination (by simp [beforeJump]) hjump' htarget
 
 /-- Resolved equality assertion for an arbitrary calldata word. -/
 def calldataWordEqAssembly (offset : Nat) (expected : Word)
@@ -393,19 +378,14 @@ theorem run_calldataWordEq_reject
       stepInstruction, advance, hrunning,
       Nat.mod_eq_of_lt hoffsetMod, hload, boolWord]
     norm_num [Assembly.byteLength, Instruction.byteLength]
-  have hrunSetup : run setup.length whole env state = beforeJump :=
-    hstraight.run_eq hsetup
   have hbeforeRunning : beforeJump.exit = none := by
     simp [beforeJump, hrunning]
   have hjump' : Assembly.CodeAt whole [.jumpi] beforeJump.pc := by
     simpa [beforeJump] using hjump
-  have hrunJump : run 1 whole env beforeJump =
-      { state with pc := destination } := by
-    simpa [beforeJump] using
-      run_guardedJump destination state.stack hbeforeRunning hdestination
-        (by simp [beforeJump]) hjump' htarget
-  rw [show 7 = setup.length + 1 by simp [setup, loadCalldataWord],
-    run_add, hrunSetup, hrunJump]
+  rw [show 7 = setup.length + 1 by simp [setup, loadCalldataWord]]
+  simpa [beforeJump] using
+    hstraight.run_guardedJump destination state.stack hsetup hbeforeRunning
+      hdestination (by simp [beforeJump]) hjump' htarget
 
 /-- Resolved canonical-Boolean action validation. -/
 def canonicalBoolActionAssembly (rejectDestination : Nat) : Assembly :=
@@ -499,20 +479,15 @@ theorem run_canonicalBoolAction_reject
       loadCalldataWord, stepInstruction, advance, hrunning, hload,
       hzeroWord, honeWord, boolWord]
     norm_num [Assembly.byteLength, Instruction.byteLength]
-  have hrunSetup : run setup.length whole env state = beforeJump :=
-    hstraight.run_eq hsetup
   have hbeforeRunning : beforeJump.exit = none := by
     simp [beforeJump, hrunning]
   have hjump' : Assembly.CodeAt whole [.jumpi] beforeJump.pc := by
     simpa [beforeJump] using hjump
-  have hrunJump : run 1 whole env beforeJump =
-      { state with pc := destination, stack := value :: state.stack } := by
-    simpa [beforeJump] using
-      run_guardedJump destination (value :: state.stack) hbeforeRunning
-        hdestination (by simp [beforeJump]) hjump' htarget
   rw [show 12 = setup.length + 1 by
-      simp [setup, playerActionWord, loadCalldataWord],
-    run_add, hrunSetup, hrunJump]
+    simp [setup, playerActionWord, loadCalldataWord]]
+  simpa [beforeJump] using
+    hstraight.run_guardedJump destination (value :: state.stack) hsetup
+      hbeforeRunning hdestination (by simp [beforeJump]) hjump' htarget
 
 /-- Concrete accepted-path assembly produced for a Boolean player commit once
 the retained guard has been lowered. -/

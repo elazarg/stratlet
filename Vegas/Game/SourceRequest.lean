@@ -7,7 +7,7 @@ Authors: VegasCore contributors
 import Vegas.Game.Kuhn
 import Vegas.Runtime.RequestCompiler
 
-/-! # Checked programs implemented by private request windows
+/-! # Request-game certificates for checked source programs
 
 The compiler covers every decision of every checked core program. A source
 timeout policy must supply an existing legal action at each information state.

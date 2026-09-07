@@ -22,6 +22,13 @@ obligation, nor do they establish strategic preservation on deployed bytecode.
 Keeping the backend in the full default build checks its existing proofs while
 allowing consumers of `Vegas` to avoid importing this development.
 
+`VegasEVM/Contract/EVMExecution.lean` supplies a gas-free semantics for the
+emitted instruction subset. It is not validated against Ethereum's conformance
+suite; code-generation proofs are relative to that model. `IdealVisibility`
+supplies semantic hiding, not cryptographic commitments in public EVM storage.
+Terminal payout readout does not prove asset movement. These modeling and
+deployment obligations remain even after local handler proofs are checked.
+
 ## Carrier definitions and compiler edges
 
 `Vegas/Machine/Program.lean` defines the backend-neutral machine carrier and
@@ -32,8 +39,10 @@ The machine carrier does not import its compiler.
 `Vegas/Game/Basic.lean` defines games and their graph-derived instances.
 `Vegas/Game/Kuhn.lean` supplies strategy-representation certificates, and
 `Vegas/Game/Request.lean` instantiates generic request compilation for games.
-`Vegas/Game.lean` imports all three. The runtime interfaces do not import the
-game-specific adapters.
+`Vegas/Game/SourceRequest.lean` specializes the request certificates to checked
+source programs. `Vegas/Game.lean` imports all four. These strategic adapters
+depend on source-to-machine lowering; the lowering does not depend on games.
+The runtime interfaces do not import the game-specific adapters.
 
 `Vegas/Language/Basic.lean` owns surface syntax; `Vegas/Language/ToCore.lean`
 owns its typed lowering. The lowering returns core syntax, not a `WFProgram`
@@ -63,8 +72,18 @@ no explicit callers outside their defining file.
 
 `scripts/check-module-boundaries.py` checks local import resolution, default-root
 coverage, complete game/runtime aggregators, and the dependency directions
-above. It scans configured library trees, not temporary research checkouts.
+above. It also rejects cycles in the local module graph and between sibling
+directory layers at every nesting depth, reporting the imports that form each
+cycle. Aggregators belong to the directory they represent; imports between
+ancestors and descendants stay within that layer. The direction rules remain
+necessary because an acyclic import can still cross an architectural boundary.
+The checker scans configured library trees, not temporary research checkouts.
 The warning-free Lean build remains the check that imports and proofs elaborate.
+
+`scripts/check-doc-references.py` also checks exact Lean file paths in tracked
+Markdown and relative Markdown/Lean links, separately from declaration-name
+citations in Lean sources. A valid namespace does not establish that a cited
+file exists.
 
 The paper audit lives in `Paper/General.lean` and root `Paper.lean`; tests use
 the owning mathematical theorems directly rather than importing audit wrappers.

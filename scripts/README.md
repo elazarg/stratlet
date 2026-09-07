@@ -3,8 +3,10 @@
 Run these tools from the repository root.
 
 - `python scripts/check-module-boundaries.py` checks local import resolution,
-  default-build reachability, complete game/runtime aggregators, and the
-  core/backend/test/audit dependency directions.
+  default-build reachability, complete game/runtime aggregators, cycles in the
+  module and sibling-directory dependency graphs, and the
+  core/backend/test/audit dependency directions. Cycle reports include witness
+  imports; acyclicity supplements rather than replaces the direction rules.
 
 - `lake --wfail build Paper` checks the paper audit, including the generic
   claims in `Paper/General.lean` and the concrete witnesses in root `Paper.lean`.
@@ -45,5 +47,11 @@ Run these tools from the repository root.
   does the work, which hypothesis a result needs, which witness refutes a
   converse -- and a citation that stops resolving after a rename turns that
   guidance into misdirection with nothing in the build noticing. It checks
-  backticked tokens shaped like our own names (lower-case, underscored), so
-  type names, tactics, and prose are untouched.
+  backticked tokens whose last component is lower-case and whose name is
+  qualified or underscored; type names, tactics, and prose are untouched.
+  In tracked Markdown it also checks exact root-qualified Lean file paths in
+  inline code and relative `.md`/`.lean` links. Abbreviated paths, link anchors,
+  and external resources are outside this check; it is not a full Markdown
+  parser or a line-number accuracy audit.
+  A non-Git export explicitly reports that the tracked Markdown inventory is
+  unavailable; a Git inventory failure in a checkout is an error.

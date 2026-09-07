@@ -27,6 +27,32 @@ open EventGraph
 
 variable {P : Type} [DecidableEq P] {L : IExpr}
 
+private theorem compiledHead_semantic
+    {Γ : VCtx P L} (state : BuildState P L Γ)
+    (result : BuildResult P L) (event : EventNode P L)
+    (hprefix : state.nodes ++ [event] <+: result.nodes)
+    (cfg : Config result.graph) (reachable : Reachable result.graph cfg)
+    (terminal : Terminal result.graph cfg) :
+    ∃ node : Fin result.graph.nodeCount,
+      (node : Nat) = state.nodes.length ∧
+      result.graph.nodes[node]? = some event ∧
+      NodeValueValid result.graph cfg node := by
+  have hnodeLt : state.nodes.length < result.nodes.length := by
+    rcases hprefix with ⟨suffix, hsuffix⟩
+    rw [← hsuffix]
+    simp
+  let node : Fin result.graph.nodeCount :=
+    ⟨state.nodes.length, by
+      simpa [BuildResult.graph, Graph.nodeCount] using hnodeLt⟩
+  have hrow : result.graph.nodes[(node : Nat)]? = some event := by
+    change result.nodes[(node : Nat)]? = some event
+    rcases hprefix with ⟨suffix, hsuffix⟩
+    rw [← hsuffix]
+    simp [node]
+  exact
+    ⟨node, rfl, hrow,
+      reachable_validDoneValues result.graphWF reachable node (terminal node)⟩
+
 /-- Compiling a suffix only appends graph nodes. -/
 theorem compileCore_nodes_prefix :
     {Γ : VCtx P L} → (prog : VegasCore P L Γ) →
@@ -200,23 +226,11 @@ theorem compileCore_sourceStar :
       let result := compileCore tail fresh.2 added.1
       have hprefix : added.1.nodes <+: result.nodes :=
         compileCore_nodes_prefix tail fresh.2 added.1
-      have hnodeLt : state.nodes.length < result.nodes.length := by
-        rcases hprefix with ⟨suffix, hsuffix⟩
-        rw [← hsuffix]
-        simp [added]
-      let node : Fin result.graph.nodeCount :=
-        ⟨state.nodes.length, by
-          simpa [BuildResult.graph, Graph.nodeCount] using hnodeLt⟩
-      have hrow : result.graph.nodes[(node : Nat)]? = some event := by
-        change result.nodes[(node : Nat)]? = some event
-        rcases hprefix with ⟨suffix, hsuffix⟩
-        rw [← hsuffix]
-        simp [node, added, event]
-      have hvalid : NodeValueValid result.graph cfg node :=
-        reachable_validDoneValues result.graphWF reachable node (terminal node)
-      rcases hvalid with ⟨row, hrow', hsem⟩
-      have hrowEq : row = event :=
-        Option.some.inj (hrow'.symm.trans hrow)
+      have hheadPrefix : state.nodes ++ [event] <+: result.nodes := by
+        simpa [added, event] using hprefix
+      rcases compiledHead_semantic state result event hheadPrefix cfg reachable terminal with
+        ⟨node, hnode, hrow, row, hrow', hsem⟩
+      have : row = event := Option.some.inj (hrow'.symm.trans hrow)
       subst row
       dsimp [event, BuildState.sampleEvent] at hsem
       rcases hsem with ⟨value, htarget, readEnv, hreadEnv, hsupport⟩
@@ -257,7 +271,7 @@ theorem compileCore_sourceStar :
         exact hsupport
       have htargetField :
           result.graph.nodeTarget node = added.1.fieldOf VHasVar.here := by
-        simp [result, BuildResult.graph, Graph.nodeTarget, node, added,
+        simp [result, BuildResult.graph, Graph.nodeTarget, hnode, added,
           BuildState.nextField, BuildState.nextNode,
           compileCore_initialFields]
       let nextEnv : VEnv L ((name, .pub ty) :: Γ) :=
@@ -297,23 +311,11 @@ theorem compileCore_sourceStar :
       let result := compileCore tail fresh.2 added.1
       have hprefix : added.1.nodes <+: result.nodes :=
         compileCore_nodes_prefix tail fresh.2 added.1
-      have hnodeLt : state.nodes.length < result.nodes.length := by
-        rcases hprefix with ⟨suffix, hsuffix⟩
-        rw [← hsuffix]
-        simp [added]
-      let node : Fin result.graph.nodeCount :=
-        ⟨state.nodes.length, by
-          simpa [BuildResult.graph, Graph.nodeCount] using hnodeLt⟩
-      have hrow : result.graph.nodes[(node : Nat)]? = some event := by
-        change result.nodes[(node : Nat)]? = some event
-        rcases hprefix with ⟨suffix, hsuffix⟩
-        rw [← hsuffix]
-        simp [node, added, event]
-      have hvalid : NodeValueValid result.graph cfg node :=
-        reachable_validDoneValues result.graphWF reachable node (terminal node)
-      rcases hvalid with ⟨row, hrow', hsem⟩
-      have hrowEq : row = event :=
-        Option.some.inj (hrow'.symm.trans hrow)
+      have hheadPrefix : state.nodes ++ [event] <+: result.nodes := by
+        simpa [added, event] using hprefix
+      rcases compiledHead_semantic state result event hheadPrefix cfg reachable terminal with
+        ⟨node, hnode, hrow, row, hrow', hsem⟩
+      have : row = event := Option.some.inj (hrow'.symm.trans hrow)
       subst row
       dsimp [event, BuildState.commitEvent] at hsem
       rcases hsem with ⟨value, htarget, readEnv, hreadEnv, hguard⟩
@@ -340,7 +342,7 @@ theorem compileCore_sourceStar :
           state who guard value readEnv).symm.trans hguard
       have htargetField :
           result.graph.nodeTarget node = added.1.fieldOf VHasVar.here := by
-        simp [result, BuildResult.graph, Graph.nodeTarget, node, added,
+        simp [result, BuildResult.graph, Graph.nodeTarget, hnode, added,
           BuildState.nextField, BuildState.nextNode,
           compileCore_initialFields]
       let nextEnv :
@@ -379,23 +381,11 @@ theorem compileCore_sourceStar :
       let result := compileCore tail fresh.2 added.1
       have hprefix : added.1.nodes <+: result.nodes :=
         compileCore_nodes_prefix tail fresh.2 added.1
-      have hnodeLt : state.nodes.length < result.nodes.length := by
-        rcases hprefix with ⟨suffix, hsuffix⟩
-        rw [← hsuffix]
-        simp [added]
-      let node : Fin result.graph.nodeCount :=
-        ⟨state.nodes.length, by
-          simpa [BuildResult.graph, Graph.nodeCount] using hnodeLt⟩
-      have hrow : result.graph.nodes[(node : Nat)]? = some event := by
-        change result.nodes[(node : Nat)]? = some event
-        rcases hprefix with ⟨suffix, hsuffix⟩
-        rw [← hsuffix]
-        simp [node, added, event]
-      have hvalid : NodeValueValid result.graph cfg node :=
-        reachable_validDoneValues result.graphWF reachable node (terminal node)
-      rcases hvalid with ⟨row, hrow', hsem⟩
-      have hrowEq : row = event :=
-        Option.some.inj (hrow'.symm.trans hrow)
+      have hheadPrefix : state.nodes ++ [event] <+: result.nodes := by
+        simpa [added, event] using hprefix
+      rcases compiledHead_semantic state result event hheadPrefix cfg reachable terminal with
+        ⟨node, hnode, hrow, row, hrow', hsem⟩
+      have : row = event := Option.some.inj (hrow'.symm.trans hrow)
       subst row
       dsimp [event, BuildState.revealEvent] at hsem
       rcases hsem with ⟨value, htarget, hsource⟩
@@ -405,7 +395,7 @@ theorem compileCore_sourceStar :
         Option.some.inj (hsource.symm.trans (hagrees sourceProof))
       have htargetField :
           result.graph.nodeTarget node = added.1.fieldOf VHasVar.here := by
-        simp [result, BuildResult.graph, Graph.nodeTarget, node, added,
+        simp [result, BuildResult.graph, Graph.nodeTarget, hnode, added,
           BuildState.nextField, BuildState.nextNode,
           compileCore_initialFields]
       let nextEnv : VEnv L ((name, .pub ty) :: Γ) :=

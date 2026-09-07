@@ -7,5 +7,6 @@ Authors: VegasCore contributors
 import Vegas.Game.Basic
 import Vegas.Game.Kuhn
 import Vegas.Game.Request
+import Vegas.Game.SourceRequest
 
 /-! # Games, strategy representations, and request implementations -/

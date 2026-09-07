@@ -45,6 +45,56 @@ def under(module: str, root: str) -> bool:
     return module == root or module.startswith(root + ".")
 
 
+def cycle(graph: dict[str, set[str]]) -> list[str] | None:
+    """Return a deterministic directed cycle, including its repeated start."""
+    active: set[str] = set()
+    done: set[str] = set()
+    stack: list[str] = []
+
+    def visit(node: str) -> list[str] | None:
+        if node in active:
+            start = stack.index(node)
+            return stack[start:] + [node]
+        if node in done:
+            return None
+        active.add(node)
+        stack.append(node)
+        for successor in sorted(graph.get(node, set())):
+            if found := visit(successor):
+                return found
+        stack.pop()
+        active.remove(node)
+        done.add(node)
+        return None
+
+    for node in sorted(graph):
+        if found := visit(node):
+            return found
+    return None
+
+
+def layer_edge(source: str, target: str, modules: set[str]) -> tuple[str, str] | None:
+    """Project an import onto sibling directory layers at their divergence.
+
+    A module with descendants is its directory's aggregator. Other modules
+    belong to their parent directory. Ancestor/descendant imports therefore
+    remain inside one layer and do not manufacture aggregator cycles.
+    """
+    def owner(module: str) -> list[str]:
+        parts = module.split(".")
+        if any(other.startswith(module + ".") for other in modules):
+            return parts
+        return parts[:-1]
+
+    left, right = owner(source), owner(target)
+    common = 0
+    while common < min(len(left), len(right)) and left[common] == right[common]:
+        common += 1
+    if common == len(left) or common == len(right):
+        return None
+    return ".".join(left[:common + 1]), ".".join(right[:common + 1])
+
+
 def check(root: Path) -> list[str]:
     config = tomllib.loads((root / "lakefile.toml").read_text(encoding="utf-8"))
     libraries = config.get("lean_lib", [])
@@ -86,6 +136,37 @@ def check(root: Path) -> list[str]:
                 failures.append(f"{filename}: tracked source outside configured libraries")
 
     local_roots = [item for roots in library_roots.values() for item in roots]
+    local_graph = {
+        module: {dependency for dependency in sorted(dependencies) if dependency in modules}
+        for module, dependencies in sorted(modules.items())
+    }
+    if found := cycle(local_graph):
+        witnesses = "; ".join(
+            f"{source} imports {target}" for source, target in zip(found, found[1:])
+        )
+        failures.append(f"local module import cycle: {' -> '.join(found)}; {witnesses}")
+
+    layer_graph: dict[str, set[str]] = {}
+    layer_witness: dict[tuple[str, str], tuple[str, str]] = {}
+    module_names = set(modules)
+    for module, dependencies in sorted(local_graph.items()):
+        for dependency in sorted(dependencies):
+            if edge := layer_edge(module, dependency, module_names):
+                layer_graph.setdefault(edge[0], set()).add(edge[1])
+                layer_graph.setdefault(edge[1], set())
+                layer_witness.setdefault(edge, (module, dependency))
+    if found := cycle(layer_graph):
+        edges = list(zip(found, found[1:]))
+        parent = ".".join(found[0].split(".")[:-1]) or "<root>"
+        witnesses = "; ".join(
+            f"{layer_witness[edge][0]} imports {layer_witness[edge][1]}"
+            for edge in edges
+        )
+        failures.append(
+            f"sibling layer import cycle under {parent}: {' -> '.join(found)}; "
+            f"witness imports: {witnesses}"
+        )
+
     for module, dependencies in modules.items():
         for dependency in dependencies:
             if any(under(dependency, prefix) for prefix in local_roots) and dependency not in modules:

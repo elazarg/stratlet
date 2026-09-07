@@ -94,6 +94,12 @@ active player supplies a `FrontierAction` containing values for its ready commit
 nodes. The joint frontier is simultaneous in the strategic semantics; its
 independent writes commute.
 
+The canonical interpretation is noncomputable: when internal nodes are ready,
+`EventGraph.toExecutionProtocol` selects one with `Classical.choose`. Its
+strategic guarantees concern this mathematical execution model. Executable
+node selection and a proof-producing syntax-to-`WFProgram` checker are separate
+implementation obligations.
+
 Availability is state- and guard-dependent. Illegal values are absent from the
 menu and therefore absent from the strategy and deviation space. Guard
 liveness proves progress. Every realized round strictly grows the completed

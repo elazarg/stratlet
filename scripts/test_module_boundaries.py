@@ -91,6 +91,87 @@ class ModuleBoundaryTests(unittest.TestCase):
                                 '[[lean_lib]]\nname = "Duplicate"\nroots = ["Vegas.Core"]\n')
             self.assertTrue(any("belongs to both" in error for error in CHECKER.check(root)))
 
+    def test_two_layer_cycle_reports_import_witnesses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory, {
+                "Vegas": "import Vegas.Alpha.One Vegas.Beta.Two",
+                "Vegas.Alpha.One": "import Vegas.Beta.One",
+                "Vegas.Alpha.Two": "",
+                "Vegas.Beta.One": "",
+                "Vegas.Beta.Two": "import Vegas.Alpha.Two",
+            })
+            errors = CHECKER.check(root)
+            report = next(error for error in errors if "sibling layer import cycle" in error)
+            self.assertIn("Vegas.Alpha.One imports Vegas.Beta.One", report)
+            self.assertIn("Vegas.Beta.Two imports Vegas.Alpha.Two", report)
+
+    def test_three_module_cycle_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory, {
+                "Vegas": "import Vegas.Core.A",
+                "Vegas.Core.A": "import Vegas.Core.B",
+                "Vegas.Core.B": "import Vegas.Core.C",
+                "Vegas.Core.C": "import Vegas.Core.A",
+            })
+            errors = CHECKER.check(root)
+            report = next(error for error in errors if "local module import cycle" in error)
+            self.assertIn("Vegas.Core.A imports Vegas.Core.B", report)
+            self.assertIn("Vegas.Core.C imports Vegas.Core.A", report)
+
+    def test_acyclic_diamond_is_accepted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory, {
+                "Vegas": "import Vegas.Top",
+                "Vegas.Top": "import Vegas.Left Vegas.Right",
+                "Vegas.Left": "import Vegas.Bottom",
+                "Vegas.Right": "import Vegas.Bottom",
+                "Vegas.Bottom": "",
+            })
+            self.assertEqual(CHECKER.check(root), [])
+
+    def test_aggregators_nested_siblings_and_external_imports(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory, {
+                "Vegas": "import Vegas.Game Mathlib.Data.Nat.Basic",
+                "Vegas.Game": "import Vegas.Game.Basic Vegas.Game.Deep.Left.A "
+                              "Vegas.Game.Deep.Right.B",
+                "Vegas.Game.Basic": "",
+                "Vegas.Game.Deep.Left.A": "import Vegas.Game.Shared.Value",
+                "Vegas.Game.Deep.Right.B": "import Vegas.Game.Deep.Left.A",
+                "Vegas.Game.Shared.Value": "",
+            })
+            self.assertEqual(CHECKER.check(root), [])
+
+    def test_three_layer_cycle_with_acyclic_module_graph(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory, {
+                "Vegas": "import Vegas.Alpha.A Vegas.Beta.B Vegas.Gamma.C",
+                "Vegas.Alpha.A": "import Vegas.Beta.Leaf",
+                "Vegas.Beta.B": "import Vegas.Gamma.Leaf",
+                "Vegas.Beta.Leaf": "",
+                "Vegas.Gamma.C": "import Vegas.Alpha.Leaf",
+                "Vegas.Gamma.Leaf": "",
+                "Vegas.Alpha.Leaf": "",
+            })
+            errors = CHECKER.check(root)
+            self.assertFalse(any("local module import cycle" in error for error in errors))
+            self.assertTrue(any("Vegas.Alpha -> Vegas.Beta -> Vegas.Gamma -> Vegas.Alpha"
+                                in error for error in errors))
+
+    def test_nested_sibling_cycle_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory, {
+                "Vegas": "import Vegas.Game",
+                "Vegas.Game": "import Vegas.Game.Deep.Left.A Vegas.Game.Deep.Right.B",
+                "Vegas.Game.Deep.Left.A": "import Vegas.Game.Deep.Right.Leaf",
+                "Vegas.Game.Deep.Left.Leaf": "",
+                "Vegas.Game.Deep.Right.B": "import Vegas.Game.Deep.Left.Leaf",
+                "Vegas.Game.Deep.Right.Leaf": "",
+            })
+            errors = CHECKER.check(root)
+            self.assertTrue(any("sibling layer import cycle under Vegas.Game.Deep" in error
+                                for error in errors))
+
 
 if __name__ == "__main__":
     unittest.main()
