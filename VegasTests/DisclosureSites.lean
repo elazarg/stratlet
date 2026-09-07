@@ -64,7 +64,7 @@ theorem opening_choice_exhaustive (history : program.execution.History) (data : 
       choice.1 = some (openingAction opening) := by
   have hlocal := (program.information.menu_adequate 0 history.trace choice.1).mp choice.2
   have hactive : program.execution.active history.state 0 := by
-    change Compiled.ActiveAt graph history.state.1 0
+    change EventGraph.ActiveAt graph history.state.1 0
     rw [hstate, active_iff]
     simp
   obtain ⟨packet, hpacket⟩ := LegalOption.exists_eq_some_of_active choice.1 hlocal hactive
@@ -131,7 +131,7 @@ theorem response_site_realizable (signal : Bool) (opening : Option Bool) :
       exact hlocal
     · simp only [joint, ExecutionProtocol.singletonJoint_of_ne _ _ _ heq]
       intro hactive
-      have hactive' : Compiled.ActiveAt graph (cfg data 4) who := hstate ▸ hactive
+      have hactive' : EventGraph.ActiveAt graph (cfg data 4) who := hstate ▸ hactive
       have heq' : who = 0 := by simpa [active_iff] using hactive'
       exact heq heq'
   let command := (⟨joint, hlegal⟩ : {joint // program.execution.Legal history.state joint})

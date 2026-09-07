@@ -39,7 +39,8 @@ The equilibrium test includes every order-aware private request-controller mixtu
 theorem fair_nash
     (schedulerUtility : program.serializedArena.History → ℝ)
     (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler) :
-    Scheduled.IsPlayerNash (matchingPenniesProgram.serializedRequestGame interface schedulerUtility)
+    Participant.IsPlayerNash
+      (matchingPenniesProgram.serializedRequestGame interface schedulerUtility)
       (matchingPenniesProgram.compileSerializedRequestProfile
         interface schedulerUtility scheduler fairPolicy) :=
   (matchingPenniesProgram.serialized_request_nash_iff

@@ -21,7 +21,7 @@ theorem response_command (data : RunData) (state : program.State)
     (command : {joint // program.execution.Legal state joint}) :
     command.1 = responseJoint (responseBit (command.1 1)) := by
   have hactive (who : TestPlayer) : program.execution.active state who ↔ who = 1 := by
-    change Compiled.ActiveAt graph state.1 who ↔ _
+    change EventGraph.ActiveAt graph state.1 who ↔ _
     rw [hstate, active_iff]
     simp
   have hlocal := program.execution.legalOption_of_legal command.2 1
@@ -53,14 +53,14 @@ theorem response_step (data : RunData) (state : program.State)
     (hstate ▸ no_internal data 6 (by simp)), FinDist.map_pure]
   have horder : [1] ∈ program.serializedSystem.schedules (publicObserve graph state.1) := by
     change [1].Nodup ∧ ∀ who : TestPlayer, who ∈ [1] ↔
-      Compiled.ActiveAtView graph (publicObserve graph state.1) who
+      EventGraph.ActiveAtView graph (publicObserve graph state.1) who
     refine ⟨by simp, ?_⟩
     intro who
-    rw [Compiled.activeAtView_iff, hstate, active_iff]
+    rw [EventGraph.activeAtView_iff, hstate, active_iff]
     simp
-  rw [← Compiled.applySerializedOrder_eq_applyFrontier graph program.graphWF program.guardLive
+  rw [← EventGraph.applySerializedOrder_eq_applyFrontier graph program.graphWF program.guardLive
     state command.1 command.2 horder]
-  rw [Compiled.applySerializedOrder_val program.graphWF command.1 state
+  rw [EventGraph.applySerializedOrder_val program.graphWF command.1 state
     (fun who packet heq => by
       have hlocal := command.2.2 who
       rw [heq] at hlocal
@@ -112,9 +112,9 @@ theorem final_protocol_step (data : RunData) (state : program.State)
       (final_reveal_step data state.1 hstate event step)
   change ((toExecutionProtocol graph program.graphWF program.guardLive).step state command).map
     Subtype.val = _
-  rw [Compiled.toExecutionProtocol_step_eq_stepReadyInternal graph program.graphWF
+  rw [EventGraph.toExecutionProtocol_step_eq_stepReadyInternal graph program.graphWF
     program.guardLive state command hinternal]
-  unfold Compiled.stepReadyInternal
+  unfold EventGraph.stepReadyInternal
   exact hkernel _ _
 
 theorem final_terminal_law

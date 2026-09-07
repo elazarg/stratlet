@@ -10,7 +10,7 @@ def main() -> int:
     local_option = re.compile(r"^\s*set_option\b")
     failures = []
     paths = list(root.glob("*.lean"))
-    for directory in ("Vegas", "VegasTests"):
+    for directory in ("Vegas", "VegasEVM", "VegasTests", "Paper"):
         paths.extend((root / directory).rglob("*.lean"))
     for path in sorted(paths):
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -20,7 +20,7 @@ def main() -> int:
         print("Configure Lean options in lakefile.toml, not in source files:")
         print("\n".join(failures))
         return 1
-    print("No source-local Lean option directives in Vegas or VegasTests.")
+    print("No source-local Lean option directives in project Lean sources.")
     return 0
 
 

@@ -130,7 +130,7 @@ other.  `Expr.nullableCommitGuard` accepts it unconditionally
 
 *Absence* is `IsLegalJoint`'s `none`: no submission at all.  It is legal only
 for an inactive participant, so the model forbids what no public runtime can
-(`active_participation_is_forced`).  `AllowsSilence` names that gap, and
+(`LegalOption.exists_eq_some_of_active`).  `AllowsSilence` names that gap, and
 `silence_inert` is what makes it a gap rather than a decline — the silent
 player's action moves nothing, so the player-controlled phase cannot distinguish
 it from one never asked.  Independent automatic settlement may still run.
@@ -462,8 +462,8 @@ theorem step_ne_of_order_ne
 An order-aware player deviation must be included in a robust equilibrium
 claim.  The elementary fixed-signal case is harmless: fix the adversarial
 signal and back-translate the contingent player policy at that signal, as
-`Scheduled.PlayerDeviationAdequacyOn` requires. Random independent signals
-are handled by `Scheduled.RandomIndependentSignal.isPlayerNash_iff`.
+`Participant.PlayerDeviationAdequacyOn` requires. Random independent signals
+are handled by `Participant.RandomIndependentSignal.isPlayerNash_iff`.
 A scheduler reacting to public history requires an additional causal
 back-translation: fixing its randomness does not fix its realized orders.
 
@@ -634,7 +634,7 @@ This is the permissive runtime's counterpart to `step_eq_of_enforcesOrder`, and
 it is what lets such a runtime keep its parallelism and still support a
 preservation claim.  Real-player deviations may read the order signal.  Such a
 contingent deviation must be back-translated to an ordinary source deviation;
-`Scheduled.PlayerDeviationAdequacyOn` states that obligation.  The generic
+`Participant.PlayerDeviationAdequacyOn` states that obligation.  The generic
 signal theorems prove averaging over independent signals. Applying that
 argument to an executing public-history scheduler also requires a source
 strategy construction for each fixed scheduler random seed. Enforcement buys
@@ -1254,7 +1254,7 @@ and by `liftPolicy_orderOblivious` no schedule-free policy induces it.
 
 This is not a counterexample to player-equilibrium preservation: distinct
 policies can have the same payoff. Independent-signal Nash preservation is
-proved in `Scheduled.RandomIndependentSignal.isPlayerNash_iff`; applying it
+proved in `Participant.RandomIndependentSignal.isPlayerNash_iff`; applying it
 to an executing scheduler requires a separate source-policy construction.
 This example only proves that a single order-oblivious policy cannot
 reproduce both action branches. -/

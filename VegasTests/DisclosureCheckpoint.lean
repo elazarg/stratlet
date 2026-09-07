@@ -66,7 +66,7 @@ theorem marker_command (data : RunData) (state : program.State)
   funext who
   have hlocal := command.2.2 who
   have hactive : program.execution.active state who ↔ who = 0 := by
-    change Compiled.ActiveAt graph state.1 who ↔ _
+    change EventGraph.ActiveAt graph state.1 who ↔ _
     rw [hstate, active_iff]
     simp
   cases hchoice : command.1 who with
@@ -93,14 +93,14 @@ theorem marker_step (data : RunData) (state : program.State)
     (hstate ▸ no_internal data 1 (by simp)), FinDist.map_pure]
   have horder : [0] ∈ program.serializedSystem.schedules (publicObserve graph state.1) := by
     change [0].Nodup ∧ ∀ who : TestPlayer, who ∈ [0] ↔
-      Compiled.ActiveAtView graph (publicObserve graph state.1) who
+      EventGraph.ActiveAtView graph (publicObserve graph state.1) who
     refine ⟨by simp, ?_⟩
     intro who
-    rw [Compiled.activeAtView_iff, hstate, active_iff]
+    rw [EventGraph.activeAtView_iff, hstate, active_iff]
     simp
-  rw [← Compiled.applySerializedOrder_eq_applyFrontier graph program.graphWF program.guardLive
+  rw [← EventGraph.applySerializedOrder_eq_applyFrontier graph program.graphWF program.guardLive
     state command.1 command.2 horder]
-  rw [Compiled.applySerializedOrder_val program.graphWF command.1 state
+  rw [EventGraph.applySerializedOrder_val program.graphWF command.1 state
     (fun who packet heq => by
       have hlocal := command.2.2 who
       rw [heq] at hlocal
@@ -174,9 +174,9 @@ theorem internal_step_law (state : program.State)
     (map_val_stepAvailable graph state (.internal event step)).trans (hlaw event step)
   change ((toExecutionProtocol graph program.graphWF program.guardLive).step state command).map
     Subtype.val = _
-  rw [Compiled.toExecutionProtocol_step_eq_stepReadyInternal graph program.graphWF
+  rw [EventGraph.toExecutionProtocol_step_eq_stepReadyInternal graph program.graphWF
     program.guardLive state command hinternal]
-  unfold Compiled.stepReadyInternal
+  unfold EventGraph.stepReadyInternal
   exact hkernel _ _
 
 theorem internal_command (state : program.State)

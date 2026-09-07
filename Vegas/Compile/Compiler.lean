@@ -81,7 +81,7 @@ theorem fieldOf_lt (state : InitialState P L Γ)
   rcases state.fieldOf_spec h with ⟨_spec, hget, _hty, _howner⟩
   exact (List.getElem?_eq_some_iff.mp hget).1
 
-def consFieldOf (state : InitialState P L Γ) (field : Nat)
+private def consFieldOf (state : InitialState P L Γ) (field : Nat)
     {name : VarId} {bindTy : BindTy P L} :
     {query : VarId} → {queryTy : BindTy P L} →
       VHasVar ((name, bindTy) :: Γ) query queryTy → Nat
@@ -209,7 +209,7 @@ theorem fieldOf_eq_of_nodup (state : BuildState P L Γ)
   cases hproof
   rfl
 
-def consFieldOf (state : BuildState P L Γ) (field : Nat)
+private def consFieldOf (state : BuildState P L Γ) (field : Nat)
     {name : VarId} {bindTy : BindTy P L} :
     {query : VarId} → {queryTy : BindTy P L} →
       VHasVar ((name, bindTy) :: Γ) query queryTy → Nat
@@ -2184,12 +2184,6 @@ certificate at the compilation boundary lets later stages state source-to-
 machine payoff correctness without reconstructing compiler internals. -/
 abbrev CompiledProgram (P : Type) [DecidableEq P] (L : IExpr) :=
   BuildResult P L
-
-/-- Compile a graph-program to graph data plus the terminal source context
-certificate used by source-level adequacy theorems. -/
-noncomputable def buildResult (g : GraphProgram P L) : BuildResult P L :=
-  let init := initialState g.Γ g.env g.wctx
-  compileCore g.prog g.fresh (BuildState.fromInitial init)
 
 /-- Compile a graph-program to the canonical event graph representation. -/
 noncomputable def compile (g : GraphProgram P L) : CompiledProgram P L :=

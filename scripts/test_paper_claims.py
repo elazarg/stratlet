@@ -3,8 +3,10 @@
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
+import zipfile
 
 
 SPEC = importlib.util.spec_from_file_location(
@@ -20,9 +22,9 @@ class PaperClaimsTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.paper = self.root / "overleaf"
-        (self.root / "Vegas").mkdir()
+        (self.root / "Paper").mkdir()
         self.paper.mkdir()
-        (self.root / "Vegas/Paper.lean").write_text("", encoding="utf-8")
+        (self.root / "Paper/General.lean").write_text("", encoding="utf-8")
         self.audit = self.root / "Paper.lean"
         self.audit.write_text(
             "namespace Vegas.Paper\n"
@@ -38,11 +40,20 @@ class PaperClaimsTests(unittest.TestCase):
         self.main.write_text(
             r"\begin{theorem}\label{thm:witness}Claim.\end{theorem}", encoding="utf-8"
         )
+        self.write_snapshot()
+
+    def write_snapshot(self, extra=None):
+        files = {"main.tex": CHECKER.sha256(self.main)}
+        if extra:
+            files.update(extra)
+        (self.root / CHECKER.SNAPSHOT_FILE).write_text(json.dumps({
+            "revision": "abc123", "files": files,
+        }), encoding="utf-8")
 
     def check(self):
         return CHECKER.check(self.root, self.paper)
 
-    def test_valid_registry(self):
+    def test_valid_plain_export(self):
         self.assertEqual(self.check(), [])
 
     def test_numbered_claim_requires_mapping(self):
@@ -78,6 +89,7 @@ class PaperClaimsTests(unittest.TestCase):
         (self.paper / "archive.tex").write_text(r"\begin{theorem}Old.\end{theorem}",
                                                 encoding="utf-8")
         self.main.write_text("\\input{section}\n% \\input{archive}\n", encoding="utf-8")
+        self.write_snapshot({"section.tex": CHECKER.sha256(self.paper / "section.tex")})
         self.assertEqual(self.check(), [])
 
     def test_prose_tags_are_checked(self):
@@ -93,6 +105,58 @@ class PaperClaimsTests(unittest.TestCase):
     def test_missing_checkout_fails_by_default(self):
         self.assertTrue(any("Missing active paper" in error for error in
                             CHECKER.check(self.root, self.root / "missing")))
+
+    def test_tampered_export_fails(self):
+        self.main.write_text("tampered", encoding="utf-8")
+        self.assertTrue(any("digest mismatch" in error for error in self.check()))
+
+    def test_missing_manifest_file_fails(self):
+        self.write_snapshot({"missing.tex": "0" * 64})
+        self.assertTrue(any("snapshot file missing" in error for error in self.check()))
+
+    def test_untracked_active_input_fails(self):
+        child = self.paper / "extra.tex"
+        child.write_text(r"\begin{theorem}\label{thm:witness}Claim.\end{theorem}",
+                         encoding="utf-8")
+        self.main.write_text(r"\input{extra}", encoding="utf-8")
+        self.write_snapshot()
+        self.assertTrue(any("absent from snapshot manifest" in error for error in self.check()))
+
+    def test_wrong_git_revision_fails(self):
+        subprocess.run(["git", "init", "-q", str(self.paper)], check=True)
+        subprocess.run(["git", "-C", str(self.paper), "config", "user.email",
+                        "test@example.invalid"], check=True)
+        subprocess.run(["git", "-C", str(self.paper), "config", "user.name", "Test"],
+                       check=True)
+        subprocess.run(["git", "-C", str(self.paper), "add", "main.tex"], check=True)
+        subprocess.run(["git", "-C", str(self.paper), "commit", "-qm", "fixture"],
+                       check=True)
+        errors = self.check()
+        self.assertTrue(any("Paper revision mismatch" in error for error in errors), errors)
+
+    def test_plain_git_archive_validates(self):
+        source = self.root / "source"
+        source.mkdir()
+        (source / "main.tex").write_text(self.main.read_text(encoding="utf-8"),
+                                          encoding="utf-8")
+        subprocess.run(["git", "init", "-q", str(source)], check=True)
+        subprocess.run(["git", "-C", str(source), "config", "user.email",
+                        "test@example.invalid"], check=True)
+        subprocess.run(["git", "-C", str(source), "config", "user.name", "Test"],
+                       check=True)
+        subprocess.run(["git", "-C", str(source), "add", "main.tex"], check=True)
+        subprocess.run(["git", "-C", str(source), "commit", "-qm", "fixture"],
+                       check=True)
+        (self.root / CHECKER.SNAPSHOT_FILE).write_text(
+            json.dumps(CHECKER.make_snapshot(source)), encoding="utf-8"
+        )
+        archive = self.root / "paper.zip"
+        export = self.root / "export"
+        subprocess.run(["git", "-C", str(source), "archive", "--format=zip",
+                        f"--output={archive}", "HEAD"], check=True)
+        with zipfile.ZipFile(archive) as zipped:
+            zipped.extractall(export)
+        self.assertEqual(CHECKER.check(self.root, export), [])
 
 
 if __name__ == "__main__":

@@ -46,12 +46,13 @@ theorem serializedOutcomeGame_nash_iff (program : Program Player L) {Outcome : T
     (schedulerUtility : program.serializedArena.History → ℝ)
     (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) :
-    Scheduled.IsPlayerNash
+    Participant.IsPlayerNash
       (program.serializedOutcomeGame observe valuation schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler profile) ↔
       IsNash (program.outcomeGame observe valuation).behavioral.form
         (euPreference (program.outcomeGame observe valuation).utility) profile := by
-  simp only [Scheduled.IsPlayerNash, Scheduled.IsPlayerNashAgainst, true_implies]
+  simp only [Participant.IsPlayerNash, Participant.IsPlayerNashAgainst,
+    true_implies]
   rw [isNash_iff]
   change (∀ who replacement,
     expectedUtility (program.serializedOutcomeGame observe valuation schedulerUtility).utility

@@ -185,9 +185,9 @@ theorem after_val (bits : TestPlayer → Bool) :
     (after bits).1 = ((Config.initial graph).completeNode matchingPenniesNode0
       ⟨.bool, bits 0⟩).completeNode matchingPenniesNode1 ⟨.bool, bits 1⟩ := by
   unfold after
-  rw [← Compiled.applySerializedOrder_eq_applyFrontier graph program.graphWF program.guardLive
+  rw [← EventGraph.applySerializedOrder_eq_applyFrontier graph program.graphWF program.guardLive
     program.execution.init (joint bits) (joint_legal bits) matchingPennies_zeroFirst_mem_schedules]
-  rw [Compiled.applySerializedOrder_val program.graphWF (joint bits) program.execution.init
+  rw [EventGraph.applySerializedOrder_val program.graphWF (joint bits) program.execution.init
     (fun who packet heq => by
       have hp : packet = action who (bits who) := (Option.some.inj heq).symm
       subst packet
@@ -450,7 +450,7 @@ actual order-revealing implementation, against all behavioral player deviations.
 theorem fair_serialized_isPlayerNash
     (schedulerUtility : program.serializedArena.History → ℝ)
     (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler) :
-    Scheduled.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler fairPolicy) :=
   program.isPlayerNash_compileSerialized_of_isNash schedulerUtility scheduler fairPolicy fair_isNash
 

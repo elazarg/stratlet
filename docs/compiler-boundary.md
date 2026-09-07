@@ -24,6 +24,14 @@ language. No Kotlin AST, macro system, handler syntax, or duplicate surface
 typechecker belongs in the core. The existing Lean `VegasLang` convenience
 layer is not a commitment to reproduce the Kotlin language.
 
+`VegasLang.lower` is an intrinsically typed translation into `VegasCore`: its
+result is well typed by construction, administrative lets are substituted,
+and each surface yield becomes a nullable commitment followed by a reveal.
+This does not admit the result as a `WFProgram`; the caller must separately
+provide the global scope, freshness, reveal-completeness, and legality evidence
+required there. Nor does the translation currently have an operational-law or
+unilateral-strategy-preservation theorem.
+
 ```text
 Kotlin Vegas program
   -> Kotlin checking and rich-language lowering             [frontend owner]

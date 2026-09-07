@@ -5,6 +5,8 @@ Authors: VegasCore contributors
 -/
 
 import VegasTests.Game
+import VegasTests.Language
+import VegasTests.CoreFinite
 import VegasTests.Machine
 import VegasTests.ScheduledReplay
 import VegasTests.ScheduledEquilibrium

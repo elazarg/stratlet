@@ -2,10 +2,15 @@
 
 Run these tools from the repository root.
 
+- `python scripts/check-module-boundaries.py` checks local import resolution,
+  default-build reachability, complete game/runtime aggregators, and the
+  core/backend/test/audit dependency directions.
+
 - `lake --wfail build Paper` checks the paper audit, including the generic
-  claims in `Vegas/Paper.lean` and the concrete witnesses in root `Paper.lean`.
+  claims in `Paper/General.lean` and the concrete witnesses in root `Paper.lean`.
   This is also a default build target. Every audit theorem has an axiom pin.
-- `python scripts/check-paper-claims.py` checks the active `overleaf/main.tex`
+- `python scripts/check-paper-claims.py --paper-dir PATH` checks the supplied
+  manuscript's `main.tex`
   and its inputs against `paper-claims.json`. Every numbered mathematical
   statement needs a label and a mapping; unnumbered results use a
   `% lean-claim: ID` comment. Add or update the corresponding Lean statements
@@ -14,7 +19,11 @@ Run these tools from the repository root.
   The checker verifies structural coverage, not equivalence of English and
   Lean. CI without the separately managed Overleaf checkout explicitly uses
   `--allow-missing-paper` and checks only the Lean side of the registry; the
-  full local check is required for paper edits.
+  full check is required for paper edits. `paper-snapshot.json` binds every
+  tracked manuscript file to its Git revision by SHA-256. A clean checkout at
+  that revision and a plain `git archive` both validate; untracked active
+  inputs do not. Authors explicitly refresh the manifest from a clean checkout
+  with `--refresh-snapshot`.
 - `python -m unittest discover -s scripts -p 'test_*.py'` checks the maintenance
   tooling, including missing claims, stale mappings, missing axiom pins, and
   active-paper input discovery.

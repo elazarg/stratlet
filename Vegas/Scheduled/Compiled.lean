@@ -73,138 +73,8 @@ open EventGraph
 
 variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
 
-namespace Compiled
+namespace EventGraph
 
-/-! ## Explicit serialized writes
-
-The graph protocol deliberately hides its canonical serialization behind an
-atomic frontier operation.  A serialized runtime needs the opposite interface:
-the writes of each submitted frontier must be visible so that their order can
-be compared. -/
-
-/-- The writes selected by one player's frontier, in canonical graph-node
-order. -/
-abbrev actionWrites {G : Graph Player L} {who : Player}
-    (action : FrontierAction G who) :
-    List (Fin G.nodeCount × TypedValue L) :=
-  EventGraph.actionWrites action
-
-omit [Fintype Player] in
-@[simp] theorem mem_actionWrites_iff {G : Graph Player L} {who : Player}
-    (action : FrontierAction G who)
-    (step : Fin G.nodeCount × TypedValue L) :
-    step ∈ actionWrites action ↔
-      ∃ value, action.value? step.1 = some value ∧
-        step.2 = G.nodeTypedValue step.1 value :=
-  EventGraph.mem_actionWrites_iff action step
-
-omit [Fintype Player] in
-theorem actionWrites_nodes_nodup {G : Graph Player L} {who : Player}
-    (action : FrontierAction G who) :
-    ((actionWrites action).map Prod.fst).Nodup :=
-  EventGraph.actionWrites_nodes_nodup action
-
-omit [Fintype Player] in
-theorem commitAvailable_of_mem_actionWrites
-    {G : Graph Player L} {cfg : Config G} {who : Player}
-    {action : FrontierAction G who}
-    (havailable : FrontierAction.Available G cfg who action)
-    {step : Fin G.nodeCount × TypedValue L}
-    (hstep : step ∈ actionWrites action) :
-    CommitAvailable G cfg who { node := step.1, value := step.2 } :=
-  EventGraph.commitAvailable_of_mem_actionWrites havailable hstep
-
-omit [Fintype Player] in
-theorem readyCommitNode_of_mem_actionWrites
-    {G : Graph Player L} {cfg : Config G} {who : Player}
-    {action : FrontierAction G who}
-    (havailable : FrontierAction.Available G cfg who action)
-    {step : Fin G.nodeCount × TypedValue L}
-    (hstep : step ∈ actionWrites action) :
-    ReadyCommitNode G cfg who step.1 :=
-  EventGraph.readyCommitNode_of_mem_actionWrites havailable hstep
-
-/-- The writes contributed by one player coordinate. -/
-abbrev playerWrites {G : Graph Player L}
-    (joint : ∀ who, Option (FrontierAction G who)) (who : Player) :
-    List (Fin G.nodeCount × TypedValue L) :=
-  EventGraph.playerWrites joint who
-
-omit [Fintype Player] in
-@[simp] theorem mem_playerWrites_iff {G : Graph Player L}
-    (joint : ∀ who, Option (FrontierAction G who)) (who : Player)
-    (step : Fin G.nodeCount × TypedValue L) :
-    step ∈ playerWrites joint who ↔
-      ∃ action, joint who = some action ∧ step ∈ actionWrites action :=
-  EventGraph.mem_playerWrites_iff joint who step
-
-/-- All player writes in a proposed serialization order. -/
-abbrev roundWrites {G : Graph Player L}
-    (joint : ∀ who, Option (FrontierAction G who))
-    (order : List Player) : List (Fin G.nodeCount × TypedValue L) :=
-  EventGraph.roundWrites joint order
-
-omit [Fintype Player] in
-@[simp] theorem roundWrites_append {G : Graph Player L}
-    (joint : ∀ who, Option (FrontierAction G who))
-    (left right : List Player) :
-    roundWrites joint (left ++ right) =
-      roundWrites joint left ++ roundWrites joint right :=
-  EventGraph.roundWrites_append joint left right
-
-omit [Fintype Player] in
-@[simp] theorem mem_roundWrites_iff {G : Graph Player L}
-    (joint : ∀ who, Option (FrontierAction G who))
-    (order : List Player) (step : Fin G.nodeCount × TypedValue L) :
-    step ∈ roundWrites joint order ↔
-      ∃ who ∈ order, step ∈ playerWrites joint who :=
-  EventGraph.mem_roundWrites_iff joint order step
-
-omit [Fintype Player] in
-/-- Legal player submissions contribute pairwise distinct graph nodes, even
-across player coordinates. -/
-theorem roundWrites_nodes_nodup {G : Graph Player L} {cfg : Config G}
-    {joint : ∀ who, Option (FrontierAction G who)}
-    (hlegal : ∀ who action, joint who = some action →
-      FrontierAction.Available G cfg who action)
-    {order : List Player} (horder : order.Nodup) :
-    ((roundWrites joint order).map Prod.fst).Nodup :=
-  EventGraph.roundWrites_nodes_nodup hlegal horder
-
-omit [Fintype Player] in
-theorem commitAvailable_of_mem_roundWrites
-    {G : Graph Player L} {cfg : Config G}
-    {joint : ∀ who, Option (FrontierAction G who)}
-    (hlegal : ∀ who action, joint who = some action →
-      FrontierAction.Available G cfg who action)
-    {order : List Player} {step : Fin G.nodeCount × TypedValue L}
-    (hstep : step ∈ roundWrites joint order) :
-    ∃ who, CommitAvailable G cfg who
-      { node := step.1, value := step.2 } :=
-  EventGraph.commitAvailable_of_mem_roundWrites hlegal hstep
-
-omit [Fintype Player] in
-theorem roundWrites_perm {G : Graph Player L}
-    (joint : ∀ who, Option (FrontierAction G who))
-    {left right : List Player} (hperm : left.Perm right) :
-    (roundWrites joint left).Perm (roundWrites joint right) :=
-  EventGraph.roundWrites_perm joint hperm
-
-omit [Fintype Player] in
-/-- A duplicate-free list of commits that are all available at one checkpoint
-can be executed in the listed order.  Availability persists because distinct
-ready nodes cannot read one another's output fields. -/
-theorem reachable_completeNodes_of_commitAvailable
-    {G : Graph Player L} (hwf : G.WF) {cfg : Config G}
-    (hreachable : Reachable G cfg)
-    {steps : List (Fin G.nodeCount × TypedValue L)}
-    (hnodup : (steps.map Prod.fst).Nodup)
-    (havailable : ∀ step ∈ steps,
-      ∃ who, CommitAvailable G cfg who
-        { node := step.1, value := step.2 }) :
-    Reachable G (cfg.completeNodes steps) :=
-  EventGraph.reachable_completeNodes_of_commitAvailable
-    hwf hreachable hnodup havailable
 
 /-- Apply exactly the writes selected by one frontier action.  The reachability
 check only totalizes the function on malformed calls; legal serialized rounds
@@ -745,7 +615,6 @@ theorem applySerializedOrder_val_aux
                 (roundWrites joint (processed ++ [who])) := by
             rw [roundWrites_append]
             have hempty : roundWrites joint [who] = [] := by
-              change EventGraph.roundWrites joint [who] = []
               simp [EventGraph.roundWrites, EventGraph.playerWrites, haction]
             rw [hempty]
             simpa using hcurrent
@@ -1448,6 +1317,6 @@ theorem serializedSystem_effectsCommute
   unfold ScheduledSystem.resolveOrder
   rw [happly]
 
-end Compiled
+end EventGraph
 
 end Vegas

@@ -4,7 +4,7 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
-import Vegas.Paper
+import Paper.General
 import VegasTests.RuntimeBoundaries
 import VegasTests.QuittingWindow
 import VegasTests.DisclosureWindow
@@ -117,7 +117,8 @@ theorem serialized_valuation [DecidableEq Player] [Fintype Player] {L : IExpr}
     (schedulerUtility : program.serializedArena.History → ℝ)
     (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) :
-    Scheduled.IsPlayerNash (program.serializedOutcomeGame observe value schedulerUtility).behavioral
+    Participant.IsPlayerNash
+      (program.serializedOutcomeGame observe value schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler profile) ↔
       IsNash (program.outcomeGame observe value).behavioral.form
         (euPreference (program.outcomeGame observe value).utility) profile :=
@@ -190,10 +191,10 @@ end Valuation
 choices sequentially cannot satisfy deviation adequacy for every core program. -/
 theorem no_universal_public_submission_compiler
     (target : WFProgram TestPlayer simpleExpr → UtilityGame (Participant TestPlayer))
-    (schedulerUtility : Scheduled.PublicSubmission.Values → ℝ)
-    (hwitness : target matchingPenniesProgram = Scheduled.PublicSubmission.game schedulerUtility) :
+    (schedulerUtility : PublicSubmission.Values → ℝ)
+    (hwitness : target matchingPenniesProgram = PublicSubmission.game schedulerUtility) :
     ¬ (∀ source : WFProgram TestPlayer simpleExpr,
-      Nonempty (Scheduled.PlayerDeviationAdequacy (Machine.compile source).game.behavioral
+      Nonempty (Participant.PlayerDeviationAdequacy (Machine.compile source).game.behavioral
         (target source))) :=
   RuntimeBoundaries.no_universal_public_submission_compiler target schedulerUtility hwitness
 
@@ -209,7 +210,7 @@ theorem fair_nash :
 theorem serialized_nash
     (schedulerUtility : program.serializedArena.History → ℝ)
     (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler) :
-    Scheduled.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler fairPolicy) :=
   fair_serialized_isPlayerNash schedulerUtility scheduler
 
@@ -312,7 +313,7 @@ theorem nash_correspondence (profile : ∀ who, program.information.BehavioralPo
 theorem serialized_nash
     (schedulerUtility : program.serializedArena.History → ℝ)
     (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler) :
-    Scheduled.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler fairProfile) :=
   fair_serialized_isPlayerNash schedulerUtility scheduler
 
@@ -530,7 +531,7 @@ theorem source_seller_bound (seller : SenderStrategy) :
 theorem runtime_nash
     (schedulerUtility : machine.serializedArena.History → ℝ)
     (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler) :
-    Scheduled.IsPlayerNash (runtimeGame schedulerUtility)
+    Participant.IsPlayerNash (runtimeGame schedulerUtility)
       (runtimeProfile schedulerUtility scheduler) :=
   runtime_honest_isPlayerNash schedulerUtility scheduler
 

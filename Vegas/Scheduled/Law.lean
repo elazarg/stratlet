@@ -156,7 +156,7 @@ theorem executionStep_extends (program : Program Player L) (state : program.Stat
   change next ∈ ((toExecutionProtocol program.graph program.graphWF program.guardLive).step
     state command).support at hnext
   by_cases hinternal : (readyInternalNodes program.graph state.1).Nonempty
-  · rw [Compiled.toExecutionProtocol_step_eq_stepReadyInternal
+  · rw [EventGraph.toExecutionProtocol_step_eq_stepReadyInternal
       program.graph program.graphWF program.guardLive state command hinternal] at hnext
     exact extends_of_stepReadyInternal program.graphWF state hinternal hnext
   · rw [toExecutionProtocol_step_eq_pure_applyFrontier
@@ -284,7 +284,7 @@ theorem settleHistory_terminalStateLaw (program : Program Player L)
       split
       next hinternal =>
         rw [FinDist.bind_bindOnSupport]
-        have hterm := (Compiled.sourceInternalCommand
+        have hterm := (EventGraph.sourceInternalCommand
           program.graphWF program.guardLive history.state hinternal).2.1
         rw [program.terminalStateLaw_step profile history hterm,
           InformationModel.behavioralJoint_eq_pure_of_no_active _ _ _ hterm

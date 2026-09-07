@@ -55,13 +55,13 @@ theorem stepReadyInternal_done {G : Graph Player L} (hwf : G.WF)
     (state : ReachableConfig G)
     (hinternal : (readyInternalNodes G state.1).Nonempty)
     {next : ReachableConfig G}
-    (hnext : next ∈ (Compiled.stepReadyInternal hwf state hinternal).support) :
+    (hnext : next ∈ (EventGraph.stepReadyInternal hwf state hinternal).support) :
     next.1.done = insert (Classical.choose hinternal) state.1.done := by
   have hraw : next.1 ∈
-      ((Compiled.stepReadyInternal hwf state hinternal).map Subtype.val).support := by
+      ((EventGraph.stepReadyInternal hwf state hinternal).map Subtype.val).support := by
     rw [FinDist.support_map]
     exact ⟨next, hnext, rfl⟩
-  unfold Compiled.stepReadyInternal at hraw
+  unfold EventGraph.stepReadyInternal at hraw
   simp only [map_val_stepAvailable] at hraw
   obtain ⟨written, hwritten⟩ := stepAvailableEvent_support_completeNode _ hraw
   rw [hwritten]
@@ -69,18 +69,18 @@ theorem stepReadyInternal_done {G : Graph Player L} (hwf : G.WF)
 
 theorem settleInternal_done {G : Graph Player L} (hwf : G.WF)
     (fuel : Nat) (state : ReachableConfig G) {next : ReachableConfig G}
-    (hnext : next ∈ (Compiled.settleInternal hwf fuel state).support) :
+    (hnext : next ∈ (EventGraph.settleInternal hwf fuel state).support) :
     next.1.done = settleDone G fuel state.1.done := by
   induction fuel generalizing state with
   | zero =>
-      rw [Compiled.settleInternal_zero, FinDist.mem_support_pure] at hnext
+      rw [EventGraph.settleInternal_zero, FinDist.mem_support_pure] at hnext
       subst next
       rfl
   | succ fuel ih =>
       have hready : readyInternalNodes G state.1 =
           readyInternalNodes G (skeletonConfig G state.1.done) :=
         readyInternalNodes_eq_of_done_eq rfl
-      unfold Compiled.settleInternal at hnext
+      unfold EventGraph.settleInternal at hnext
       split at hnext
       next hinternal =>
         rw [FinDist.support_bind] at hnext
@@ -271,7 +271,7 @@ theorem serializedTrace_done_ne_of_lt (program : Program Player L)
         omega
       have hsubset := serializedDoneAt_monotone program.graph hle
       rw [← program.serializedTrace_done prior] at hsubset
-      have hstrict := Compiled.serializedSystem_step_done_ssubset
+      have hstrict := EventGraph.serializedSystem_step_done_ssubset
         program.graph program.graphWF program.guardLive _ ⟨joint, legal⟩ realized
       exact (Finset.ssubset_of_subset_of_ssubset hsubset hstrict).ne
 

@@ -199,9 +199,9 @@ theorem completionLaw_step (state : program.State)
           congrArg (fun law => law.bind completionLaw)
             (map_val_stepAvailable graph state (.internal event step))
         _ = completionLaw state.1 := completionLaw_internal state.1 event step
-    rw [Compiled.toExecutionProtocol_step_eq_stepReadyInternal graph program.graphWF
+    rw [EventGraph.toExecutionProtocol_step_eq_stepReadyInternal graph program.graphWF
       program.guardLive state command hinternal]
-    unfold Compiled.stepReadyInternal
+    unfold EventGraph.stepReadyInternal
     exact hkernel _ _
   · rw [toExecutionProtocol_step_eq_pure_applyFrontier graph program.graphWF program.guardLive
       state command (Finset.not_nonempty_iff_eq_empty.mp hinternal), FinDist.pure_bind]

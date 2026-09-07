@@ -19,10 +19,10 @@ open Vegas GameTheory GameTheory.Math.Probability MatchingPenniesEquilibrium
 /-- The obstruction applies to the actual compiled source game, not merely an
 unrelated matching-pennies payoff matrix or a particular failed translator. -/
 theorem no_public_submission_adequacy
-    (schedulerUtility : Scheduled.PublicSubmission.Values → ℝ) :
-    ¬ Nonempty (Scheduled.PlayerDeviationAdequacy program.game.behavioral
-      (Scheduled.PublicSubmission.game schedulerUtility)) :=
-  Scheduled.PublicSubmission.no_adequacy_of_zero_equilibrium program.game.behavioral fairPolicy
+    (schedulerUtility : PublicSubmission.Values → ℝ) :
+    ¬ Nonempty (Participant.PlayerDeviationAdequacy program.game.behavioral
+      (PublicSubmission.game schedulerUtility)) :=
+  PublicSubmission.no_adequacy_of_zero_equilibrium program.game.behavioral fairPolicy
     fair_isNash (fun who => expectedUtility_eq_zero_of_opponent_fair fairPolicy who
       (fun other _ => initialLaw_fair other)) schedulerUtility
 
@@ -32,10 +32,10 @@ The target assignment is otherwise arbitrary: the obstruction concerns a
 universal compiler guarantee, not a claim that every game needs secrecy. -/
 theorem no_universal_public_submission_compiler
     (target : WFProgram TestPlayer simpleExpr → UtilityGame (Participant TestPlayer))
-    (schedulerUtility : Scheduled.PublicSubmission.Values → ℝ)
-    (hwitness : target matchingPenniesProgram = Scheduled.PublicSubmission.game schedulerUtility) :
+    (schedulerUtility : PublicSubmission.Values → ℝ)
+    (hwitness : target matchingPenniesProgram = PublicSubmission.game schedulerUtility) :
     ¬ (∀ source : WFProgram TestPlayer simpleExpr,
-      Nonempty (Scheduled.PlayerDeviationAdequacy (Machine.compile source).game.behavioral
+      Nonempty (Participant.PlayerDeviationAdequacy (Machine.compile source).game.behavioral
         (target source))) := by
   intro hall
   have hw := hall matchingPenniesProgram

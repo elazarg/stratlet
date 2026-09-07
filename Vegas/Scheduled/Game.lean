@@ -4,7 +4,7 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
-import Vegas.Game
+import Vegas.Game.Basic
 import Vegas.Scheduled.Compiled
 
 /-!
@@ -38,7 +38,7 @@ variable {L : IExpr}
 program. -/
 @[reducible] def serializedSystem (program : Program Player L) :
     ScheduledSystem Player :=
-  Compiled.serializedSystem program.graph program.graphWF program.guardLive
+  EventGraph.serializedSystem program.graph program.graphWF program.guardLive
 
 /-- The informed game arena of the actual serializer. The published order is
 retained in each participant's information state, together with perfect recall
@@ -72,7 +72,7 @@ theorem serializedPlayerMenu_eq (program : Program Player L) (who : Player)
       { current := info.current,
         own := info.own.map fun remembered =>
           (remembered.1.1, remembered.2) }
-  exact Vegas.Compiled.serializedSystem_playerMenu_eq_localMenu
+  exact Vegas.EventGraph.serializedSystem_playerMenu_eq_localMenu
     program.graph program.graphWF program.guardLive who info.current _
 
 /-- Source and serialized choices are equivalent at corresponding player
@@ -167,7 +167,7 @@ def serializedOutcomeGame (program : Program Player L) {Outcome : Type}
     | .scheduler => schedulerUtility history
     | .player who => valuation (observe history.state.base) who
   horizon := program.graph.nodeCount
-  bounded := Vegas.Compiled.serializedSystem_boundedHorizon
+  bounded := Vegas.EventGraph.serializedSystem_boundedHorizon
     program.graph program.graphWF program.guardLive
 
 def serializedUtility (program : Program Player L)
@@ -222,7 +222,7 @@ theorem serializedSchedulerInfo_eq_fromPlayer
           (.player who) trace) =
       program.serializedSystem.revealingSignals.infoOf
         (.scheduler : Participant Player) trace :=
-  Compiled.serializedSystem_schedulerInfo_eq_fromPlayer
+  EventGraph.serializedSystem_schedulerInfo_eq_fromPlayer
     program.graph program.graphWF program.guardLive who trace
 
 /-- The actual serialized game is bounded independently of the scheduler

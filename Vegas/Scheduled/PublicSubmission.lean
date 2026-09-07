@@ -24,7 +24,7 @@ cryptographic commitment phase is present in this model.
 
 noncomputable section
 
-namespace Vegas.Scheduled.PublicSubmission
+namespace Vegas.PublicSubmission
 
 open GameTheory GameTheory.Math.Probability
 
@@ -111,7 +111,7 @@ theorem not_nash_of_zero_payoff (schedulerUtility : Values → ℝ)
     (horder : profile .scheduler = FinDist.pure first)
     (hpayoff : expectedUtility (game schedulerUtility).utility (.player (other first))
       ((game schedulerUtility).form.play profile) = 0) :
-    ¬ IsPlayerNash (game schedulerUtility) profile := by
+    ¬ Participant.IsPlayerNash (game schedulerUtility) profile := by
   intro hnash
   have hdev := hnash (other first) (winningPolicy (other first)) trivial
   rw [winning_deviation schedulerUtility profile first horder, hpayoff] at hdev
@@ -125,13 +125,14 @@ theorem no_adequacy_of_zero_equilibrium (source : UtilityGame Player)
     (hnash : IsNash source.form (euPreference source.utility) profile)
     (hzero : ∀ who, expectedUtility source.utility who (source.form.play profile) = 0)
     (schedulerUtility : Values → ℝ) :
-    ¬ Nonempty (PlayerDeviationAdequacy source (game schedulerUtility)) := by
+    ¬ Nonempty (Participant.PlayerDeviationAdequacy source
+      (game schedulerUtility)) := by
   rintro ⟨adequacy⟩
   let compiled := adequacy.compileProfile (FinDist.pure 0) profile
-  have htarget : IsPlayerNash (game schedulerUtility) compiled :=
+  have htarget : Participant.IsPlayerNash (game schedulerUtility) compiled :=
     (adequacy.isPlayerNash_compileProfile_iff (FinDist.pure 0) profile).mpr hnash
   apply not_nash_of_zero_payoff schedulerUtility compiled 0 rfl _ htarget
   exact (adequacy.expectedUtility_compileProfile (FinDist.pure 0) profile (other 0)).trans
     (hzero _)
 
-end Vegas.Scheduled.PublicSubmission
+end Vegas.PublicSubmission

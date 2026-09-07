@@ -7,10 +7,11 @@ converse. A citation that silently stops resolving -- because the target was
 renamed, or was never written -- turns that guidance into misdirection, and
 nothing in the build notices. This checks the ones shaped like our own names.
 
-A token is checked when it is backticked, lower-case, and contains an
-underscore, which is the shape of a theorem or definition name here. Type names,
-tactics, and prose survive that filter untouched; `ALLOWED` carries the few
-lower-case underscored names that are legitimately not declarations.
+A token is checked when its final component is lower-case and it either contains
+an underscore or is qualified. Those are the shapes of theorem and definition names
+here. Type names, tactics, and prose survive that filter untouched; `ALLOWED`
+carries the few lower-case underscored names that are legitimately not
+declarations.
 """
 
 from __future__ import annotations
@@ -20,8 +21,8 @@ import os
 import re
 import sys
 
-ROOTS_DEFINING = ("Vegas", "GameTheory/GameTheory")
-ROOTS_CITING = ("Vegas",)
+ROOTS_DEFINING = ("Vegas", "VegasEVM", "Paper", "GameTheory/GameTheory")
+ROOTS_CITING = ("Vegas", "VegasEVM", "Paper")
 
 # Lean tactics and attributes that look like our identifiers but are not
 # declarations we can index.
@@ -43,6 +44,9 @@ DECL = re.compile(
 # A structure or class field: indented, an identifier, then a colon.
 FIELD = re.compile(r"^\s+([a-z][A-Za-z0-9_']*)\s*:[^=]")
 CITED = re.compile(r"`([A-Za-z_][A-Za-z0-9_.']*)`")
+CONSTRUCTOR = re.compile(
+    r"^\s*\|\s*([A-Za-z_][A-Za-z0-9_']*)(?:\s*(?::|\(|\{)|\s*$)"
+)
 
 
 def lean_files(roots):
@@ -67,6 +71,9 @@ def index_declarations():
             match = FIELD.match(line)
             if match:
                 names.add(match.group(1))
+            match = CONSTRUCTOR.match(line)
+            if match:
+                names.add(match.group(1))
     return names
 
 
@@ -75,10 +82,12 @@ def dangling(names):
     for path in lean_files(ROOTS_CITING):
         for number, line in enumerate(io.open(path, encoding="utf-8"), 1):
             for cited in CITED.findall(line):
+                if cited.endswith(".lean"):
+                    continue
                 last = cited.split(".")[-1]
                 if last in names or cited in names or last in ALLOWED:
                     continue
-                if "_" in last and last.islower():
+                if last.islower() and ("_" in last or "." in cited):
                     findings.append((path.replace(os.sep, "/"), number, cited))
     return findings
 

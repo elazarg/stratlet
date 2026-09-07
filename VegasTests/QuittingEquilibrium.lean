@@ -180,7 +180,7 @@ theorem fair_deviation_payoff (who victim : TestPlayer)
 theorem fair_serialized_isPlayerNash
     (schedulerUtility : program.serializedArena.History → ℝ)
     (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler) :
-    Scheduled.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler fairProfile) :=
   program.isPlayerNash_compileSerialized_of_isNash
     schedulerUtility scheduler fairProfile fair_isNash

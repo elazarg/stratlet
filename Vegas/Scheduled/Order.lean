@@ -16,7 +16,7 @@ backend with a finite linearly ordered player representation can execute
 `fixedOrder` directly.
 -/
 
-namespace Vegas.Compiled
+namespace Vegas.EventGraph
 
 open EventGraph
 
@@ -83,4 +83,4 @@ def fixedOrder [Fintype Player] [LinearOrder Player]
   ((Finset.univ : Finset Player).filter
     (ActiveAtPublicView G seen)).sort (· ≤ ·)
 
-end Vegas.Compiled
+end Vegas.EventGraph

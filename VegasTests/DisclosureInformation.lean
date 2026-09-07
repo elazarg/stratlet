@@ -174,7 +174,7 @@ theorem response_choice_exhaustive (history : program.execution.History) (data :
     ∃ bit, choice.1 = some (responseAction bit) := by
   have hlocal := (program.information.menu_adequate 1 history.trace choice.1).mp choice.2
   have hactive : program.execution.active history.state 1 := by
-    change Compiled.ActiveAt graph history.state.1 1
+    change EventGraph.ActiveAt graph history.state.1 1
     rw [hstate, active_iff]
     simp
   obtain ⟨packet, hpacket⟩ := LegalOption.exists_eq_some_of_active choice.1 hlocal hactive

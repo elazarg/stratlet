@@ -114,7 +114,7 @@ theorem no_internal (data : RunData) (phase : Fin 9)
   rcases hphase with rfl | rfl | rfl | rfl <;> simp
 
 theorem active_iff (data : RunData) (phase : Fin 9) (who : TestPlayer) :
-    Compiled.ActiveAt graph (cfg data phase) who ↔
+    EventGraph.ActiveAt graph (cfg data phase) who ↔
       (who = 0 ∧ (phase = 0 ∨ phase = 1 ∨ phase = 4)) ∨ (who = 1 ∧ phase = 6) := by
   classical
   constructor

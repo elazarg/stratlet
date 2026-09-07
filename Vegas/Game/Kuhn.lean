@@ -5,7 +5,7 @@ Authors: VegasCore contributors
 -/
 
 import GameTheory.Languages.FOSG.Kuhn
-import Vegas.Game
+import Vegas.Game.Basic
 import Vegas.Runtime.DeviationAdequacy
 
 /-!

@@ -23,10 +23,12 @@ jobs:
         run: python scripts/check-doc-references.py
       - name: Require centralized Lean options
         run: python scripts/check-lean-options.py
-      - name: Check paper claim registry
+      - name: Check Lean side of paper registry (manuscript unavailable)
         run: python scripts/check-paper-claims.py --allow-missing-paper
       - name: Test paper claim checker
         run: python -m unittest discover -s scripts -p 'test_*.py'
+      - name: Check module boundaries and build reachability
+        run: python scripts/check-module-boundaries.py
       - uses: leanprover/lean-action@v1
       - name: Require a warning-free Lean build
         run: lake --wfail build

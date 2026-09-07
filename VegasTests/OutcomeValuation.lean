@@ -84,7 +84,7 @@ theorem runtime_nash (buyerValue sellerCost : ℝ)
     (profile : Profile (graphGame buyerValue sellerCost).behavioral.form.sig)
     (hnash : IsNash (graphGame buyerValue sellerCost).behavioral.form
       (euPreference (graphGame buyerValue sellerCost).utility) profile) :
-    Scheduled.IsPlayerNash (runtimeGame buyerValue sellerCost schedulerUtility)
+    Participant.IsPlayerNash (runtimeGame buyerValue sellerCost schedulerUtility)
       ((certificate buyerValue sellerCost schedulerUtility).compileProfile
         (SealedOffer.machine.compileSerializedBehavioralProfile scheduler profile)) := by
   have hs := (SealedOffer.machine.serializedOutcomeGame_nash_iff observe

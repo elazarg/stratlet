@@ -51,10 +51,10 @@ Most ingredients are already proved:
 
 - Terminal source-payoff reconstruction: Vegas/Compile/SourceAdequacy.lean:441
 - Bounded horizon and perfect recall: Vegas/EventGraph/Protocol.lean:381, Vegas/Machine/Program.lean:122
-- A finite-domain game construction: Vegas/Game.lean:36
+- A finite-domain game construction: Vegas/Game/Basic.lean
 - Behavioral↔mixed-pure deviation-adequacy certificates: Vegas/Game/Kuhn.lean:360
 - Nash preservation/reflection from deviation adequacy: Vegas/Runtime/DeviationAdequacy.lean:236
-- Exact serialized-round implementation and the scheduler information boundary: Vegas/Scheduled/Compiled.lean
+- Exact serialized-round implementation and the scheduler information boundary: Vegas/Scheduled/EventGraph.lean
 - Source-history expansion and exact one-round information laws: Vegas/Scheduled/History.lean
 - Executed scheduler replay and exact full behavioral-history laws: Vegas/Scheduled/Replay.lean
 - Compact information sufficiency on all legal runtime histories: Vegas/Scheduled/Information.lean
@@ -103,7 +103,7 @@ The project currently has five strong layers:
 
 5. Player-only strategic scheduling adequacy
 
-    `Scheduled.PlayerDeviationAdequacyOn` fixes an arbitrary scheduler strategy and quantifies over unilateral deviations
+    `Participant.PlayerDeviationAdequacyOn` fixes an arbitrary scheduler strategy and quantifies over unilateral deviations
     only by the source game's players. The independent-signal constructions permit arbitrary scheduler utility and
     arbitrary signal-aware player deviations. Their expected payoff averages ordinary source-deviation payoffs, proving
     Nash preservation and reflection at lifted source profiles. Matching pennies instantiates these auxiliary games.
@@ -227,7 +227,7 @@ the full behavioral-strategy and observation correspondence with the smaller mul
   raw-syntax strategic preservation theorem at that boundary.
 
 - The “native frontier game to FOSG” translation is not a separate proved translation: the Vegas arena is directly
-defined as a FOSG in Vegas/Game.lean:86. The EFG result is substantial, but imported from GameTheory and should be
+defined as a FOSG in Vegas/Game/Basic.lean. The EFG result is substantial, but imported from GameTheory and should be
 attributed as such.
 
 - The paper-facing `schedule_confluence` theorem is algebraic permutation invariance for a fixed assignment. The
@@ -237,6 +237,11 @@ runtime order-independence and should still say that the public schedule log dif
 - “Checked program” currently means a manually constructed proof-carrying WFProgram: Vegas/Core/WellFormed.lean:56. The
 core compiler is noncomputable, and there is no raw Vegas syntax→WFProgram proof-producing checker. Calling the Lean
 side an “executable graph compiler” is therefore misleading.
+
+- `VegasLang.lower` does produce an intrinsically typed `VegasCore` term and its
+  administrative-let and nullable-yield equations are checked. It does not
+  produce `WFProgram` admission evidence, an operational correspondence, or a
+  strategic-preservation theorem. Those are separate obligations.
 
 - The language descriptions disagree in small but semantically meaningful ways. For example, Lean payoffs may omit a
 player or contain duplicate entries, which are summed: Vegas/Foundation/Payoff.lean:20. The Kotlin IR instead claims
@@ -253,11 +258,11 @@ facts—not strategic preservation to a public blockchain.
 
 The decisive gaps are:
 
-- BooleanCompilationCorrect is stated but unproved: Vegas/Compile/EVMRefinement.lean:192.
+- BooleanCompilationCorrect is stated but unproved: VegasEVM/Compile/EVMRefinement.lean:192.
 - The EVM semantics is gas-free, partial, and explicitly not validated against Ethereum’s conformance suite: Vegas/
 Machine/Contract/EVMExecution.lean:11.
 
-- IdealVisibility explicitly models hiding that public EVM storage does not provide: Vegas/Machine/Contract/
+- IdealVisibility explicitly models hiding that public EVM storage does not provide: VegasEVM/Contract/
 IdealVisibility.lean:12.
 
 - The Lean EVM path does not cryptographically realize sealed commitments; the supported handlers store typed action
@@ -274,7 +279,7 @@ validator.
 of commit–reveal. Those claims are materially stronger than either artifact establishes.
 
 The concise draft under overleaf/main.tex states the paper's claims. The Long directory is extended design material,
-not an authoritative synchronized theorem ledger; Vegas/Paper.lean is the checked claim surface.
+not an authoritative synchronized theorem ledger; Paper/General.lean is the checked claim surface.
 
 ## Artifact and positioning problems
 

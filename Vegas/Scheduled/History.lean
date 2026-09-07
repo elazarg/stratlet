@@ -29,7 +29,7 @@ def settleHistory (program : Program Player L) :
   | 0, history => FinDist.pure history
   | fuel + 1, history =>
       if hinternal : (readyInternalNodes program.graph history.state.1).Nonempty then
-        let command := Compiled.sourceInternalCommand
+        let command := EventGraph.sourceInternalCommand
           program.graphWF program.guardLive history.state hinternal
         (program.execution.step history.state command).bindOnSupport
           fun _ realized => program.settleHistory fuel
@@ -40,7 +40,7 @@ def settleHistory (program : Program Player L) :
 theorem settleHistory_map_state (program : Program Player L) (fuel : Nat)
     (history : program.execution.History) :
     (program.settleHistory fuel history).map ExecutionProtocol.History.state =
-      Compiled.settleInternal program.graphWF fuel history.state := by
+      EventGraph.settleInternal program.graphWF fuel history.state := by
   induction fuel generalizing history with
   | zero => exact FinDist.map_pure _ _
   | succ fuel ih =>
@@ -48,12 +48,12 @@ theorem settleHistory_map_state (program : Program Player L) (fuel : Nat)
       split
       next hinternal =>
         rw [FinDist.map_bindOnSupport,
-          Compiled.settleInternal_succ_eq_source_step
+          EventGraph.settleInternal_succ_eq_source_step
             program.graphWF program.guardLive fuel history.state hinternal]
         exact FinDist.bindOnSupport_eq_bind_of_eq_on_support
           (fun _next _realized => ih _)
       next hinternal =>
-        rw [Compiled.settleInternal_of_no_internal program.graphWF (fuel + 1)
+        rw [EventGraph.settleInternal_of_no_internal program.graphWF (fuel + 1)
           history.state (Finset.not_nonempty_iff_eq_empty.mp hinternal)]
         exact FinDist.map_pure _ _
 
@@ -166,7 +166,7 @@ theorem expandRound_map_state (program : Program Player L)
     rw [FinDist.bindOnSupport_eq_bind]
     change ((toExecutionProtocol program.graph program.graphWF program.guardLive).step
       history.state ⟨joint, hlegal⟩).bind
-        (Compiled.settleInternal program.graphWF program.graph.nodeCount) = _
+        (EventGraph.settleInternal program.graphWF program.graph.nodeCount) = _
     rw [EventGraph.toExecutionProtocol_step_eq_pure_applyFrontier
       program.graph program.graphWF program.guardLive history.state
       ⟨joint, hlegal⟩ (Finset.not_nonempty_iff_eq_empty.mp hinternal),
@@ -228,7 +228,7 @@ theorem expandRound_map_state_eq_serialized_step (program : Program Player L)
   have horder : order ∈ program.serializedSystem.schedules
       (publicObserve program.graph history.state.1) :=
     program.serializedSystem.scheduledOrder_mem_schedules command
-  have hresolve := Compiled.serializedSystem_resolveOrder_eq_settle_atomicFrontier
+  have hresolve := EventGraph.serializedSystem_resolveOrder_eq_settle_atomicFrontier
     program.graph program.graphWF program.guardLive history.state players hplayers horder
   have hcongr := program.serializedSystem.resolveOrder_congr
     (left := command.1)

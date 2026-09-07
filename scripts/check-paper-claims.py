@@ -11,13 +11,16 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 
-AUDIT_FILES = ("Vegas/Paper.lean", "Paper.lean")
+AUDIT_FILES = ("Paper/General.lean", "Paper.lean")
+SNAPSHOT_FILE = "paper-snapshot.json"
 THEOREM = re.compile(
     r"\\begin\{(theorem|lemma|corollary|proposition)\}(.*?)\\end\{\1\}", re.S
 )
@@ -108,6 +111,88 @@ def active_sources(paper: Path) -> dict[Path, str]:
     return result
 
 
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def git_blob_sha256(paper: Path, revision: str, name: str) -> str:
+    blob = subprocess.run(
+        ["git", "-C", str(paper), "show", f"{revision}:{name}"],
+        check=True, capture_output=True,
+    ).stdout
+    return hashlib.sha256(blob).hexdigest()
+
+
+def git_checkout_revision(paper: Path) -> str | None:
+    """Return HEAD for a clean standalone checkout, or None for a plain export."""
+    try:
+        top = subprocess.run(
+            ["git", "-C", str(paper), "rev-parse", "--show-toplevel"],
+            check=True, capture_output=True, text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    if not Path(top.stdout.strip()).samefile(paper):
+        return None
+    status = subprocess.run(
+        ["git", "-C", str(paper), "status", "--porcelain", "--untracked-files=no"],
+        check=True, capture_output=True, text=True,
+    )
+    if status.stdout.strip():
+        raise ValueError("Paper checkout has tracked modifications; validate a clean revision")
+    return subprocess.run(
+        ["git", "-C", str(paper), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+
+
+def make_snapshot(paper: Path) -> dict[str, object]:
+    """Describe every tracked byte in a clean standalone manuscript checkout."""
+    revision = git_checkout_revision(paper)
+    if revision is None:
+        raise ValueError("Snapshot refresh requires a standalone Git checkout")
+    output = subprocess.run(
+        ["git", "-C", str(paper), "ls-files", "-z"],
+        check=True, capture_output=True,
+    ).stdout
+    names = [name.decode("utf-8") for name in output.split(b"\0") if name]
+    return {
+        "revision": revision,
+        "files": {
+            name: git_blob_sha256(paper, revision, name) for name in sorted(names)
+        },
+    }
+
+
+def validate_snapshot(root: Path, paper: Path) -> tuple[dict[str, str], list[str]]:
+    snapshot = json.loads((root / SNAPSHOT_FILE).read_text(encoding="utf-8"))
+    revision = snapshot.get("revision")
+    files = snapshot.get("files")
+    if not isinstance(revision, str) or not revision or not isinstance(files, dict):
+        return {}, [f"Malformed {SNAPSHOT_FILE}"]
+    failures = []
+    checkout_revision = git_checkout_revision(paper)
+    if checkout_revision is not None and checkout_revision != revision:
+        failures.append(
+            f"Paper revision mismatch: expected {revision}, got {checkout_revision}"
+        )
+    valid_files: dict[str, str] = {}
+    for name, expected in files.items():
+        relative = Path(name)
+        if (not isinstance(name, str) or not isinstance(expected, str)
+                or relative.is_absolute() or ".." in relative.parts):
+            failures.append(f"Invalid paper snapshot entry: {name!r}")
+            continue
+        valid_files[relative.as_posix()] = expected
+        path = paper / relative
+        if not path.is_file():
+            failures.append(f"Paper snapshot file missing: {name}")
+        elif ((git_blob_sha256(paper, checkout_revision, name)
+               if checkout_revision is not None else sha256(path)) != expected):
+            failures.append(f"Paper snapshot digest mismatch: {name}")
+    return valid_files, failures
+
+
 def check(root: Path, paper: Path, allow_missing: bool = False) -> list[str]:
     registry = json.loads((root / "paper-claims.json").read_text(encoding="utf-8"))
     names, pins = set(), set()
@@ -133,8 +218,18 @@ def check(root: Path, paper: Path, allow_missing: bool = False) -> list[str]:
         else:
             failures.append(f"Missing active paper: {paper / 'main.tex'}")
         return failures
+    try:
+        snapshot_files, snapshot_failures = validate_snapshot(root, paper)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        failures.append(str(error))
+        return failures
+    failures.extend(snapshot_failures)
     claims = []
-    for path, text in active_sources(paper).items():
+    sources = active_sources(paper)
+    for path, text in sources.items():
+        relative = path.relative_to(paper.resolve()).as_posix()
+        if relative not in snapshot_files:
+            failures.append(f"Active paper input is absent from snapshot manifest: {relative}")
         claims.extend(TAG.findall(text))
         uncommented = re.sub(r"(?<!\\)%[^\n]*", "", text)
         for match in THEOREM.finditer(uncommented):
@@ -159,10 +254,25 @@ def main() -> int:
     parser.add_argument("--paper-dir", type=Path)
     parser.add_argument("--allow-missing-paper", action="store_true",
                         help="CI without the separate Overleaf checkout checks only the Lean registry")
+    parser.add_argument("--refresh-snapshot", action="store_true",
+                        help=f"replace {SNAPSHOT_FILE} from a clean manuscript Git checkout")
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
+    paper = args.paper_dir or root / "overleaf"
+    if args.refresh_snapshot:
+        try:
+            snapshot = make_snapshot(paper.resolve())
+            (root / SNAPSHOT_FILE).write_text(
+                json.dumps(snapshot, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8", newline="\n"
+            )
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(error)
+            return 1
+        print(f"Refreshed {SNAPSHOT_FILE} at {snapshot['revision']}.")
+        return 0
     try:
-        failures = check(root, args.paper_dir or root / "overleaf", args.allow_missing_paper)
+        failures = check(root, paper, args.allow_missing_paper)
     except (OSError, ValueError) as error:
         failures = [str(error)]
     if failures:

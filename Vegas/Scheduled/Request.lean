@@ -6,7 +6,7 @@ Authors: VegasCore contributors
 
 import Vegas.Scheduled.Equilibrium
 import Vegas.Compile.Request
-import Vegas.Runtime.FiniteRequest
+import Vegas.Game.Request
 import Mathlib.Data.Fintype.List
 
 /-! # Private request windows followed by public serialization
@@ -146,13 +146,13 @@ arbitrary, may use public game data, and need not optimize any utility. -/
 theorem serialized_request_nash_iff
     (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
     (profile : Profile source.game.behavioral.form.sig) :
-    Scheduled.IsPlayerNash (source.serializedRequestGame interface schedulerUtility)
+    Participant.IsPlayerNash (source.serializedRequestGame interface schedulerUtility)
       (source.compileSerializedRequestProfile interface schedulerUtility scheduler profile) ↔
     IsNash source.game.behavioral.form (euPreference source.game.behavioral.utility) profile := by
   let certificate := source.serializedRequestAdequacy interface schedulerUtility
   refine Iff.trans ?_
     ((Machine.compile source).isPlayerNash_compileSerialized_iff schedulerUtility scheduler profile)
-  change Scheduled.IsPlayerNash _ (certificate.compileProfile _) ↔ _
+  change Participant.IsPlayerNash _ (certificate.compileProfile _) ↔ _
   constructor
   · intro hnash who replacement _
     have h := hnash who (certificate.compileStrategy (.player who) replacement) trivial

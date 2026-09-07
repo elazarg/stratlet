@@ -21,7 +21,8 @@ example
     (schedulerUtility : matchingPenniesMachine.serializedArena.History → ℝ)
     (scheduler : matchingPenniesMachine.serializedArena.information.BehavioralPolicy .scheduler)
     (profile : (who : TestPlayer) → matchingPenniesMachine.information.BehavioralPolicy who) :
-    Scheduled.IsPlayerNash (matchingPenniesMachine.serializedGame schedulerUtility).behavioral
+    Participant.IsPlayerNash
+      (matchingPenniesMachine.serializedGame schedulerUtility).behavioral
       (matchingPenniesMachine.compileSerializedBehavioralProfile scheduler profile) ↔
     IsNash matchingPenniesGame.behavioral.form
       (euPreference matchingPenniesGame.behavioral.utility) profile :=

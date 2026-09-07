@@ -85,7 +85,7 @@ combined changes to game decisions, retry behavior, and use of public orders. -/
 theorem runtime_honest_isPlayerNash
     (schedulerUtility : machine.serializedArena.History → ℝ)
     (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler) :
-    Scheduled.IsPlayerNash (runtimeGame schedulerUtility)
+    Participant.IsPlayerNash (runtimeGame schedulerUtility)
       (runtimeProfile schedulerUtility scheduler) := by
   intro who replacement _
   change expectedUtility _ _ ((runtimeGame schedulerUtility).form.play

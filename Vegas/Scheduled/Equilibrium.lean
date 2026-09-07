@@ -268,7 +268,7 @@ theorem isPlayerNash_compileSerialized_pureScheduler (program : Program Player L
     (profile : (who : Player) → program.information.BehavioralPolicy who)
     (hnash : IsNash program.game.behavioral.form
       (euPreference program.game.behavioral.utility) profile) :
-    Scheduled.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler.toBehavioral profile) := by
   intro who replacement _
   rw [program.expectedUtility_backtranslateSerialized_update,
@@ -285,7 +285,7 @@ theorem isPlayerNash_compileSerialized_of_isNash (program : Program Player L)
     (profile : (who : Player) → program.information.BehavioralPolicy who)
     (hnash : IsNash program.game.behavioral.form
       (euPreference program.game.behavioral.utility) profile) :
-    Scheduled.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler profile) := by
   intro who replacement _
   rw [program.expectedUtility_compileSerialized]
@@ -374,7 +374,7 @@ theorem isPlayerNash_compileSerialized_iff (program : Program Player L)
     (schedulerUtility : program.serializedArena.History → ℝ)
     (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) :
-    Scheduled.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler profile) ↔
     IsNash program.game.behavioral.form (euPreference program.game.behavioral.utility) profile := by
   constructor

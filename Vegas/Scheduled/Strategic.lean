@@ -43,7 +43,12 @@ behavioral Nash equivalence, including scheduler-only predrawing, is in
 
 noncomputable section
 
-namespace Vegas.Scheduled
+namespace Vegas.Participant
+
+/-! These declarations govern games whose player type is `Participant Player`.
+The independent-signal constructions below are strategic instances of that
+participant-indexed interface; the `Vegas.Scheduled` modules consume them when
+reasoning about concrete schedulers. -/
 
 open GameTheory
 open GameTheory.Math.Probability
@@ -126,7 +131,7 @@ structure PlayerDeviationAdequacyOn
           (fun participant =>
             match participant with
             | .scheduler => scheduler
-            | .player player => compileStrategy player (profile player))
+            | .player actor => compileStrategy actor (profile actor))
           (.player who) replacement)).map decodeOutcome =
         source.form.play
           (Profile.update profile who
@@ -222,8 +227,8 @@ theorem expectedUtility_compileProfile
                 (fun participant =>
                   match participant with
                   | .scheduler => scheduler
-                  | .player player =>
-                      adequacy.compileStrategy player (profile player))).map
+                  | .player actor =>
+                      adequacy.compileStrategy actor (profile actor))).map
                 adequacy.decodeOutcome) =
             expectedUtility source.utility who (source.form.play profile)
           rw [adequacy.honest_law]
@@ -275,8 +280,8 @@ theorem expectedUtility_deviation
                   (fun participant =>
                     match participant with
                     | .scheduler => scheduler
-                    | .player player =>
-                        adequacy.compileStrategy player (profile player))
+                    | .player actor =>
+                        adequacy.compileStrategy actor (profile actor))
                   (.player who) replacement)).map adequacy.decodeOutcome) =
             expectedUtility source.utility who
               (source.form.play
@@ -716,4 +721,4 @@ theorem isPlayerNash_iff
 
 end RandomIndependentSignal
 
-end Vegas.Scheduled
+end Vegas.Participant

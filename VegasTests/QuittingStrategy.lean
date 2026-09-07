@@ -40,7 +40,7 @@ theorem ready_initial_iff (who : TestPlayer) (index : Fin graph.nodeCount) :
       exact ⟨_, _, rfl, rfl, (ready_initial _).mpr (Or.inr rfl)⟩
 
 theorem initial_active (who : TestPlayer) :
-    Compiled.ActiveAt graph (Config.initial graph) who := by
+    EventGraph.ActiveAt graph (Config.initial graph) who := by
   classical
   refine ⟨?_, ?_, ?_⟩
   · intro hterminal
@@ -159,17 +159,17 @@ theorem after_val (bits : TestPlayer → Bool) :
   have horder : [0, 1] ∈ program.serializedSystem.schedules
       (publicObserve graph (Config.initial graph)) := by
     change [0, 1].Nodup ∧ ∀ who : TestPlayer, who ∈ [0, 1] ↔
-      Compiled.ActiveAtView graph (publicObserve graph (Config.initial graph)) who
+      EventGraph.ActiveAtView graph (publicObserve graph (Config.initial graph)) who
     refine ⟨by decide, ?_⟩
     intro who
     constructor
     · intro _
-      exact (Compiled.activeAtView_iff _ _).mpr (initial_active who)
+      exact (EventGraph.activeAtView_iff _ _).mpr (initial_active who)
     · intro _
       fin_cases who <;> simp
-  rw [← Compiled.applySerializedOrder_eq_applyFrontier graph program.graphWF program.guardLive
+  rw [← EventGraph.applySerializedOrder_eq_applyFrontier graph program.graphWF program.guardLive
     program.execution.init (joint bits) (joint_legal bits) horder]
-  rw [Compiled.applySerializedOrder_val program.graphWF (joint bits) program.execution.init
+  rw [EventGraph.applySerializedOrder_val program.graphWF (joint bits) program.execution.init
     (fun who packet heq => by
       have hp : packet = action who (bits who) := (Option.some.inj heq).symm
       subst packet

@@ -150,7 +150,7 @@ theorem machine_buyer_nonnegative (replacement : program.information.BehavioralP
 theorem serialized_honest_isPlayerNash
     (schedulerUtility : machine.serializedArena.History → ℝ)
     (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler) :
-    Scheduled.IsPlayerNash (machine.serializedGame schedulerUtility).behavioral
+    Participant.IsPlayerNash (machine.serializedGame schedulerUtility).behavioral
       (machine.compileSerializedBehavioralProfile scheduler (compileProfile honestProfile)) :=
   machine.isPlayerNash_compileSerialized_of_isNash schedulerUtility scheduler _
     compiled_honest_isNash

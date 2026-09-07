@@ -97,13 +97,13 @@ theorem extends_of_stepReadyInternal {G : Graph Player L} (hwf : G.WF)
     (state : ReachableConfig G)
     (hinternal : (readyInternalNodes G state.1).Nonempty)
     {next : ReachableConfig G}
-    (hnext : next ∈ (Compiled.stepReadyInternal hwf state hinternal).support) :
+    (hnext : next ∈ (EventGraph.stepReadyInternal hwf state hinternal).support) :
     state.1.Extends next.1 := by
   have hraw : next.1 ∈
-      ((Compiled.stepReadyInternal hwf state hinternal).map Subtype.val).support := by
+      ((EventGraph.stepReadyInternal hwf state hinternal).map Subtype.val).support := by
     rw [FinDist.support_map]
     exact ⟨next, hnext, rfl⟩
-  unfold Compiled.stepReadyInternal at hraw
+  unfold EventGraph.stepReadyInternal at hraw
   simp only [map_val_stepAvailable] at hraw
   obtain ⟨written, hwritten⟩ := stepAvailableEvent_support_completeNode _ hraw
   rw [hwritten]
@@ -113,15 +113,15 @@ theorem extends_of_stepReadyInternal {G : Graph Player L} (hwf : G.WF)
 
 theorem extends_of_settleInternal {G : Graph Player L} (hwf : G.WF)
     (fuel : Nat) (state : ReachableConfig G) {next : ReachableConfig G}
-    (hnext : next ∈ (Compiled.settleInternal hwf fuel state).support) :
+    (hnext : next ∈ (EventGraph.settleInternal hwf fuel state).support) :
     state.1.Extends next.1 := by
   induction fuel generalizing state with
   | zero =>
-      rw [Compiled.settleInternal_zero, FinDist.mem_support_pure] at hnext
+      rw [EventGraph.settleInternal_zero, FinDist.mem_support_pure] at hnext
       subst next
       exact Config.Extends.refl _
   | succ fuel ih =>
-      unfold Compiled.settleInternal at hnext
+      unfold EventGraph.settleInternal at hnext
       split at hnext
       next hinternal =>
         rw [FinDist.support_bind] at hnext
@@ -266,7 +266,7 @@ theorem ReadyCommitNode.after_stepReadyInternal {G : Graph Player L} (hwf : G.WF
     (hcommit : ReadyCommitNode G state.1 who node)
     (hinternal : (readyInternalNodes G state.1).Nonempty)
     {next : ReachableConfig G}
-    (hnext : next ∈ (Compiled.stepReadyInternal hwf state hinternal).support) :
+    (hnext : next ∈ (EventGraph.stepReadyInternal hwf state hinternal).support) :
     ReadyCommitNode G next.1 who node := by
   have hgrow := extends_of_stepReadyInternal hwf state hinternal hnext
   have hdone := stepReadyInternal_done hwf state hinternal hnext
@@ -281,15 +281,15 @@ theorem ReadyCommitNode.after_settleInternal {G : Graph Player L} (hwf : G.WF)
     (fuel : Nat) {state : ReachableConfig G} {who : Player} {node : Fin G.nodeCount}
     (hcommit : ReadyCommitNode G state.1 who node)
     {next : ReachableConfig G}
-    (hnext : next ∈ (Compiled.settleInternal hwf fuel state).support) :
+    (hnext : next ∈ (EventGraph.settleInternal hwf fuel state).support) :
     ReadyCommitNode G next.1 who node := by
   induction fuel generalizing state with
   | zero =>
-      rw [Compiled.settleInternal_zero, FinDist.mem_support_pure] at hnext
+      rw [EventGraph.settleInternal_zero, FinDist.mem_support_pure] at hnext
       subst next
       exact hcommit
   | succ fuel ih =>
-      unfold Compiled.settleInternal at hnext
+      unfold EventGraph.settleInternal at hnext
       split at hnext
       next hinternal =>
         rw [FinDist.support_bind] at hnext
@@ -365,7 +365,7 @@ theorem serializedStep_settle_support (program : Program Player L)
     (command : {joint // program.serializedArena.execution.Legal ⟨source.state, log⟩ joint})
     {next : program.serializedArena.execution.State}
     (hnext : next ∈ (program.serializedArena.execution.step ⟨source.state, log⟩ command).support) :
-    next.base ∈ (Compiled.settleInternal program.graphWF program.graph.nodeCount
+    next.base ∈ (EventGraph.settleInternal program.graphWF program.graph.nodeCount
       (applyFrontier program.graph program.graphWF source.state
         (fun who => command.1 (.player who)))).support := by
   have hbase : next.base ∈
@@ -449,7 +449,7 @@ theorem serializedStep_compact_injective (program : Program Player L) (who : Pla
     program.eraseSerializedPlayerInformation_push] at hcompact
   have hactive : program.serializedSystem.active left.base who ↔
       program.serializedSystem.active right.base who :=
-    Compiled.activeAt_iff_of_done_eq hdone
+    EventGraph.activeAt_iff_of_done_eq hdone
   have hlocalLeft := leftCommand.2.2 (.player who)
   have hlocalRight := rightCommand.2.2 (.player who)
   have hown := congrArg PlayerInformation.own hcompact

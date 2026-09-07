@@ -6,10 +6,7 @@ Authors: VegasCore contributors
 
 import Vegas.Compile.Compiler
 import Vegas.Compile.SourceAdequacy
-import Vegas.Compile.Classical
-import Vegas.Compile.ClassicalEVM
-import Vegas.Compile.BooleanEVM
-import Vegas.Compile.EVMRefinement
+import Vegas.Compile.Machine
 import Vegas.Compile.Request
 
 /-!

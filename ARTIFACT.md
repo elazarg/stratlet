@@ -8,7 +8,7 @@ delivery and deadline obligations see [docs/runtime-models.md](docs/runtime-mode
 
 ## Reproduction
 
-Prerequisites are Git, Python 3.10 or later, and Lean's `elan`/Lake toolchain
+Prerequisites are Git, Python 3.11 or later, and Lean's `elan`/Lake toolchain
 manager. The repository pins Lean 4.33.1 in `lean-toolchain`; Lake uses
 `lake-manifest.json` for dependency revisions. Network access is needed to
 obtain the toolchain, submodules, and dependency/cache downloads. No EVM node,
@@ -22,11 +22,12 @@ git submodule update --init --recursive
 lake exe cache get
 python scripts/check-doc-references.py
 python scripts/check-lean-options.py
+python scripts/check-module-boundaries.py
 python -m unittest discover -s scripts -p "test_*.py"
 lake --wfail build
 ```
 
-The full default build includes `Vegas`, `VegasTests`, and `Paper`.
+The full default build includes `Vegas`, `VegasEVM`, `VegasTests`, and `Paper`.
 `lake --wfail build Paper` is the focused paper-proof build. Do not run `lake
 update` to reproduce a pinned revision: it may resolve different dependencies.
 The cache download is a build optimization, not evidence that our theorem
@@ -39,17 +40,33 @@ build concurrency, not proof limits or warning suppression. A parallel clean
 build can exhaust memory even when the incremental development build passes.
 
 The manuscript is a **separate repository**, not a submodule fetched by those
-commands. Authors should provide its matching source snapshot under `overleaf/`
-or as a separate directory. Reviewers should not need an Overleaf account.
-With that snapshot available, run:
+commands. `paper-snapshot.json` pins the manuscript revision and SHA-256 digest
+of every tracked file paired with this artifact. Authors should provide either
+a clean Git checkout at that revision or a plain `git archive` export of it.
+Reviewers should not need an Overleaf account or credentials. To create the
+export, substitute the manifest's `revision` and the manuscript checkout path:
 
 ```text
-python scripts/check-paper-claims.py
+git -C MANUSCRIPT archive --format=zip --output=paper-source.zip REVISION
 ```
 
-For a differently placed snapshot, use `--paper-dir PATH`. The explicit
-`--allow-missing-paper` mode checks the Lean registry only; it is not a passing
-manuscript-coverage check. With an ACM-compatible LaTeX installation, rebuild
+Extract that archive into `PATH`; it needs no added marker file. Authors update
+the committed manifest explicitly from a clean standalone checkout with:
+
+```text
+python scripts/check-paper-claims.py --paper-dir MANUSCRIPT --refresh-snapshot
+```
+
+With the source available, run:
+
+```text
+python scripts/check-paper-claims.py --paper-dir PATH
+```
+
+The default paper directory is `overleaf/`. The explicit `--allow-missing-paper` mode
+checks the Lean registry only; it is not a passing manuscript-coverage or
+revision check and must not be used for full artifact validation. With an
+ACM-compatible LaTeX installation, rebuild
 the reading copy from inside the manuscript directory:
 
 ```text
@@ -62,7 +79,7 @@ pdflatex -interaction=nonstopmode -halt-on-error main.tex
 ## Proof-reading route
 
 Start with `paper-claims.json`, then read the indicated explicit statement in
-`Vegas/Paper.lean` or root `Paper.lean`. Audit proofs delegate to the owning
+`Paper/General.lean` or root `Paper.lean`. Audit proofs delegate to the owning
 module; inspect its definitions and proof, not only the theorem name.
 
 | Question | Main file or declaration |
@@ -90,12 +107,13 @@ of implementations still require human review.
 
 ### Validation snapshot
 
-The full 3,264-job default build passes with `--wfail`, including the independent
+The full 3,270-job default build passes with `--wfail`, including the independent
 outcome-valuation interface, trace-utility boundary, adversarial bound transfer,
 and the allocation/transfer example through requests and serialization.
 Validation used `LEAN_NUM_THREADS=4` in the development checkout with pinned
-dependency caches. The claim registry, documentation-reference and local-option
-audits, and all 11 maintenance tests pass. The manuscript is rebuilt and its
+dependency caches. The claim registry, module-boundary, documentation-reference,
+and local-option audits, and all 26 maintenance tests pass. The manuscript is
+rebuilt and its
 affected pages visually checked; its final log has no LaTeX warnings or
 overfull boxes.
 
