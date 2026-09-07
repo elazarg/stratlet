@@ -316,7 +316,7 @@ theorem opening_checkpoint_law (profile : ∀ who, program.information.Behaviora
   change (program.information.runBehavioralFrom profile (1 + 3)
     program.execution.initHistory).map ownerSummary = _
   rw [program.information.runBehavioralFrom_add, FinDist.map_bind]
-  apply Scheduled.bind_eq_of_map_eq _ _ ownerSummary bindingSummary (binding_summary_law profile)
+  apply FinDist.bind_eq_of_map_eq _ _ ownerSummary bindingSummary (binding_summary_law profile)
   intro history _ secret _ hsummary
   exact run_three_checkpoint profile history secret hsummary
 

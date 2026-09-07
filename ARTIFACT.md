@@ -107,7 +107,7 @@ of implementations still require human review.
 
 ### Validation snapshot
 
-The full 3,270-job default build passes with `--wfail`, including the independent
+The full 3,271-job default build passes with `--wfail`, including the independent
 outcome-valuation interface, trace-utility boundary, adversarial bound transfer,
 and the allocation/transfer example through requests and serialization.
 Validation used `LEAN_NUM_THREADS=4` in the development checkout with pinned
@@ -127,7 +127,7 @@ setting controls resource use without changing Lean proof-checking options.
 GameTheory is the author's own separately maintained, unpublished GitHub
 software library, not a separately published premise and not the subject of
 this paper. The artifact pins revision
-`c79aec2f08a508bf81ea7ad3a3ebdbc34b83e312` in the submodule. Its relevant
+`3dd93bf05286e5c6996fdf3e991d96a386156d4d` in the submodule. Its relevant
 probability, game, information, and generic strategy-correspondence proofs are
 rebuilt as dependencies. `Vegas/Game/Kuhn.lean` packages those laws rather than
 claiming a new Kuhn theorem. Mathlib's pinned revision is

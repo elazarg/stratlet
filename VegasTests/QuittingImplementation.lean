@@ -77,7 +77,7 @@ theorem compiledQuitPlay_eq
       ObservedAbort.causalPlay (fun who => extractStrategy who (profile who))
         (fun info => rule (encodeInfo info)) := by
   unfold compiledQuitPlay ObservedAbort.causalPlay
-  apply Scheduled.bind_eq_of_map_eq _ _ summarize checkpointSummary
+  apply FinDist.bind_eq_of_map_eq _ _ summarize checkpointSummary
     (checkpoint_summary_law_kernel profile)
   intro history _ checkpoint _ hsummary
   have hinfo : program.information.infoOf 0 history.trace =

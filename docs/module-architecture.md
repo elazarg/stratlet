@@ -50,8 +50,11 @@ The graph serialization implementation uses the existing graph write lemmas
 directly instead of re-exporting copies under a compiler grouping namespace.
 Player-only equilibrium notions and independent-signal constructions live
 under `Vegas.Participant`; the public-submission counterexample has its own
-`Vegas.PublicSubmission` namespace. Generic probability and predrawing helpers
-await their separately maintained GameTheory counterparts before extraction.
+`Vegas.PublicSubmission` namespace. Generic finite-law composition and product
+projection belong to GameTheory's `FinDist` API; bounded execution and
+one-participant predrawing belong to its protocol layer. The scheduled-runtime
+proofs use those APIs and supply the scheduler-specific information and
+profile facts.
 
 Use `private` for helpers whose role is confined to a proof or implementation.
 Usage counts alone are insufficient: typeclass instances, simplification

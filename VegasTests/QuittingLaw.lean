@@ -231,7 +231,7 @@ theorem terminal_decode_law
       apply FinDist.bind_congr
       intro next hnext
       exact (completionLaw_terminal next.state.1
-        (Scheduled.runBehavioralFrom_terminal_of_bound program.information profile
+        (program.information.runBehavioralFrom_terminal_of_bound profile
           program.boundedHorizon history next hnext)).symm
     _ = completionLaw history.state.1 := hrun
 

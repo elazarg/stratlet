@@ -266,7 +266,7 @@ theorem continuation_payoff
         (fun _ => observable (payoff bits who)) := by
       apply FinDist.expect_congr
       intro next hnext
-      have hterminal := Scheduled.runBehavioralFrom_terminal_of_bound program.information
+      have hterminal := program.information.runBehavioralFrom_terminal_of_bound
         profile program.boundedHorizon start next hnext
       have hextends := program.runBehavioralFrom_extends profile graph.nodeCount start next hnext
       rw [hstate] at hextends

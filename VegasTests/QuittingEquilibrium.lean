@@ -110,7 +110,7 @@ theorem expectedUtility_eq_kernel
       apply FinDist.expect_congr
       intro history hhistory
       exact terminal_payoff history.state
-        (Scheduled.runBehavioralFrom_terminal_of_bound program.information profile
+        (program.information.runBehavioralFrom_terminal_of_bound profile
           program.boundedHorizon program.execution.initHistory history hhistory) who
     _ = ((program.game.behavioral.form.play profile).map
         (fun history => decode history.state.1)).expect

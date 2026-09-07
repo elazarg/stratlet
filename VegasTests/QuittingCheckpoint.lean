@@ -510,7 +510,7 @@ theorem checkpoint_summary_law (profile : ∀ who, program.information.Behaviora
   change (program.information.runBehavioralFrom profile (1 + 3)
     program.execution.initHistory).map summarize = _
   rw [program.information.runBehavioralFrom_add, FinDist.map_bind]
-  apply Scheduled.bind_eq_of_map_eq _ _ summarize (fun bits => prefixSummary bits false 0)
+  apply FinDist.bind_eq_of_map_eq _ _ summarize (fun bits => prefixSummary bits false 0)
     (run_initial_summary profile)
   intro history _ bits _ hsummary
   exact run_three_prefix profile history bits hsummary

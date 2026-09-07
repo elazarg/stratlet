@@ -24,7 +24,7 @@ theorem terminal_prefix_law (profile : ∀ who, program.information.BehavioralPo
         history).map ExecutionProtocol.History.state :=
       (congrArg (fun law : FinDist program.execution.History =>
         law.map ExecutionProtocol.History.state)
-          (Scheduled.runBehavioralFrom_bound_add program.information profile
+          (program.information.runBehavioralFrom_bound_add profile
             program.boundedHorizon fuel history)).symm
     _ = _ := by
       rw [Nat.add_comm, program.information.runBehavioralFrom_add, FinDist.map_bind]
@@ -57,7 +57,7 @@ theorem terminal_law (profile : ∀ who, program.information.BehavioralPolicy wh
     _ = inputs.bind (fun input => (openingLaw (profile 0) input.1 input.2).bind fun opening =>
         (responseLaw (profile 1) input.2 opening).map
           (fun response => cfg ⟨input.1, input.2, opening, response⟩ 8)) := by
-      exact Scheduled.bind_eq_of_map_eq
+      exact FinDist.bind_eq_of_map_eq
         (program.information.runBehavioral profile 4) inputs ownerSummary
         (fun input : Bool × Bool => checkpointSummary input.1 input.2 3) hinputs
         (fun history => (program.terminalStateLaw profile history).map

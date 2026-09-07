@@ -10,137 +10,6 @@ import Vegas.Scheduled.Backtranslation
 
 noncomputable section
 
-namespace Vegas.Scheduled
-
-open GameTheory.Protocol GameTheory.Math.Probability
-
-/-- Discarding the scheduler coordinate of independent simultaneous draws
-leaves exactly the original players' independent draws. -/
-theorem pi_players {Player : Type} [Fintype Player]
-    {A : Participant Player → Type*} (laws : ∀ who, FinDist (A who)) :
-    (FinDist.pi laws).map (fun draws who => draws (.player who)) =
-      FinDist.pi (fun who => laws (.player who)) := by
-  classical
-  let equiv : Player ≃ {who : Participant Player // who ≠ .scheduler} :=
-    { toFun := fun who => ⟨.player who, by simp⟩
-      invFun := fun who => match who with
-        | ⟨.player player, _⟩ => player
-        | ⟨.scheduler, h⟩ => False.elim (h rfl)
-      left_inv := fun _ => rfl
-      right_inv := fun who => by
-        rcases who with ⟨who, h⟩
-        cases who
-        · exact False.elim (h rfl)
-        · rfl }
-  rw [FinDist.pi_eq_map_product .scheduler laws, FinDist.map_comp]
-  have hprojection : (fun draws who => draws (.player who)) ∘
-      (Equiv.piSplitAt .scheduler A).symm =
-        (fun draws who => draws (equiv who)) ∘ Prod.snd := by
-    funext draws who
-    simp [equiv]
-  rw [hprojection, ← FinDist.map_comp, FinDist.map_snd_product]
-  exact FinDist.pi_reindex (fun who : {who // who ≠ Participant.scheduler} => A who.1)
-    equiv (fun who => laws who.1)
-
-/-- Equal summary laws can be followed by any continuations that agree at
-matching supported summaries. Neither side needs a deterministic inverse of
-its summary map. -/
-theorem bind_eq_of_map_eq {α β γ δ : Type*}
-    (μ : FinDist α) (ν : FinDist β) (f : α → γ) (g : β → γ)
-    (hmap : μ.map f = ν.map g) (F : α → FinDist δ) (H : β → FinDist δ)
-    (hagree : ∀ a ∈ μ.support, ∀ b ∈ ν.support, f a = g b → F a = H b) :
-    μ.bind F = ν.bind H := by
-  classical
-  let select := fun value : γ =>
-    if hex : ∃ a ∈ μ.support, f a = value then Classical.choose hex
-    else μ.support_nonempty.choose
-  let kernel := fun value => F (select value)
-  have hselect : ∀ value, value ∈ (μ.map f).support →
-      select value ∈ μ.support ∧ f (select value) = value := by
-    intro value hvalue
-    have hex : ∃ a ∈ μ.support, f a = value := by
-      simpa only [FinDist.support_map, Set.mem_image] using hvalue
-    simpa only [select, dif_pos hex] using Classical.choose_spec hex
-  have hright : ∀ b ∈ ν.support, H b = kernel (g b) := by
-    intro b hb
-    have hvalue : g b ∈ (μ.map f).support := by
-      rw [hmap, FinDist.support_map]
-      exact ⟨b, hb, rfl⟩
-    exact (hagree _ (hselect _ hvalue).1 b hb (hselect _ hvalue).2).symm
-  have hleft : ∀ a ∈ μ.support, F a = kernel (f a) := by
-    intro a ha
-    have hvalue : f a ∈ (ν.map g).support := by
-      rw [← hmap, FinDist.support_map]
-      exact ⟨a, ha, rfl⟩
-    rw [FinDist.support_map] at hvalue
-    obtain ⟨b, hb, hba⟩ := hvalue
-    exact (hagree a ha b hb hba.symm).trans (hba ▸ hright b hb)
-  calc
-    μ.bind F = (μ.map f).bind kernel := by
-      rw [FinDist.bind_map]
-      exact FinDist.bind_congr hleft
-    _ = (ν.map g).bind kernel := congrArg (fun law => law.bind kernel) hmap
-    _ = ν.bind H := by
-      rw [FinDist.bind_map]
-      exact FinDist.bind_congr fun b hb => (hright b hb).symm
-
-/-- A finite run either stops or has executed every requested step. -/
-theorem runRandomizedFor_terminal_or_length
-    {ι : Type*} {E : ExecutionProtocol ι} (chooser : E.RandomizedChooser)
-    (fuel : Nat) (start next : E.History)
-    (hnext : next ∈ (E.runRandomizedFor chooser fuel start).support) :
-    E.terminal next.state ∨ start.trace.length + fuel ≤ next.trace.length := by
-  induction fuel generalizing start with
-  | zero =>
-      rw [ExecutionProtocol.runRandomizedFor_zero, FinDist.mem_support_pure] at hnext
-      subst next
-      exact Or.inr (by omega)
-  | succ fuel ih =>
-      by_cases hterm : E.terminal start.state
-      · rw [ExecutionProtocol.runRandomizedFor_of_terminal _ _ hterm,
-          FinDist.mem_support_pure] at hnext
-        subst next
-        exact Or.inl hterm
-      · rw [ExecutionProtocol.runRandomizedFor_succ_of_not_terminal _ _ hterm,
-          FinDist.support_bind] at hnext
-        obtain ⟨command, hcommand, hnext⟩ := Set.mem_iUnion₂.mp hnext
-        rw [FinDist.support_bindOnSupport] at hnext
-        obtain ⟨middle, hmiddle, hnext⟩ := Set.mem_iUnion₂.mp hnext
-        rcases ih (start.extend command.2 hmiddle) hnext with hterminal | hlength
-        · exact Or.inl hterminal
-        · right
-          change start.trace.length + 1 + fuel ≤ next.trace.length at hlength
-          omega
-
-theorem runBehavioralFrom_terminal_of_bound
-    {ι : Type*} [Fintype ι] {E : ExecutionProtocol ι} (M : InformationModel E)
-    (profile : (who : ι) → M.BehavioralPolicy who) {bound : Nat}
-    (hbound : E.BoundedHorizon bound) (start next : E.History)
-    (hnext : next ∈ (M.runBehavioralFrom profile bound start).support) :
-    E.terminal next.state := by
-  rcases runRandomizedFor_terminal_or_length (M.randomizedChooser profile) bound start next hnext
-    with hterm | hlength
-  · exact hterm
-  · exact hbound next.state next.trace (by omega)
-
-/-- Running beyond a certified horizon cannot change the history law. -/
-theorem runBehavioralFrom_bound_add
-    {ι : Type*} [Fintype ι] {E : ExecutionProtocol ι} (M : InformationModel E)
-    (profile : (who : ι) → M.BehavioralPolicy who) {bound : Nat}
-    (hbound : E.BoundedHorizon bound) (extra : Nat) (start : E.History) :
-    M.runBehavioralFrom profile (bound + extra) start =
-      M.runBehavioralFrom profile bound start := by
-  rw [InformationModel.runBehavioralFrom_add]
-  calc
-    _ = (M.runBehavioralFrom profile bound start).bind FinDist.pure := by
-      apply FinDist.bind_congr
-      intro next hnext
-      exact M.runBehavioralFrom_of_terminal profile extra
-        (runBehavioralFrom_terminal_of_bound M profile hbound start next hnext)
-    _ = _ := FinDist.bind_pure _
-
-end Vegas.Scheduled
-
 namespace Vegas.Machine.Program
 
 open GameTheory.Protocol GameTheory.Math.Probability EventGraph
@@ -224,10 +93,23 @@ theorem behavioralJoint_compileSerialized (program : Program Player L)
       program.information.behavioralJoint profile source.trace hterm := by
   apply FinDist.map_injective Subtype.val_injective
   simp only [InformationModel.behavioralJoint, FinDist.map_comp]
+  have hplayers :
+      (FinDist.pi fun i =>
+        program.compileSerializedBehavioralProfile scheduler profile i
+          (program.serializedArena.information.infoOf i trace)).map
+          (fun draws who => draws (.player who)) =
+        FinDist.pi (fun who =>
+          program.compileSerializedBehavioralProfile scheduler profile (.player who)
+            (program.serializedArena.information.infoOf (.player who) trace)) := by
+    simpa using
+      (FinDist.pi_map_embedding
+        ⟨Participant.player, fun _ _ h => Participant.player.inj h⟩
+        (fun i => program.compileSerializedBehavioralProfile scheduler profile i
+          (program.serializedArena.information.infoOf i trace)))
   rw [show (fun a => (a : {joint // program.execution.Legal source.state joint}).val) ∘
       program.serializedSourceCommand ∘ _ =
       (fun draws who => (draws who).val) ∘ (fun draws who => draws (.player who)) from rfl,
-    ← FinDist.map_comp, Scheduled.pi_players, ← FinDist.pi_map]
+    ← FinDist.map_comp, hplayers, ← FinDist.pi_map]
   change _ = (FinDist.pi fun i => profile i (program.information.infoOf i source.trace)).map
     (fun draws i => (draws i).val)
   rw [← FinDist.pi_map]
@@ -263,7 +145,7 @@ theorem terminalStateLaw_step (program : Program Player L)
         (program.execution.step history.state command).bindOnSupport fun _ realized =>
           program.terminalStateLaw profile (history.extend command.2 realized) := by
   unfold terminalStateLaw
-  rw [← Scheduled.runBehavioralFrom_bound_add program.information profile
+  rw [← program.information.runBehavioralFrom_bound_add profile
     program.boundedHorizon 1 history]
   rw [InformationModel.runBehavioralFrom_succ_of_not_terminal _ _ _ hterm,
     FinDist.map_bind]
@@ -397,7 +279,7 @@ theorem runBehavioralFrom_compileSerialized (program : Program Player L)
               (program.compileSerializedBehavioralProfile scheduler profile) fuel next).map
                 (fun history => history.state.base)) =
             sourceRound.bind (program.terminalStateLaw profile) := by
-          apply Scheduled.bind_eq_of_map_eq targetRound sourceRound
+          apply FinDist.bind_eq_of_map_eq targetRound sourceRound
             program.serializedHistorySummary program.historySummary hround.symm
           intro next hnext middle _ heq
           apply ih middle next heq.symm
