@@ -1,8 +1,9 @@
 # VegasCore
 
 VegasCore is a Lean 4 foundation for executable games with partial
-information. A checked source program has one semantic compilation, with two
-consumers: GameTheory analysis and gradual lowering toward concrete runtimes.
+information. Its independent written-order source semantics and compiled graph
+game are related by exact outcome and unilateral-deviation laws. The graph has
+two consumers: GameTheory analysis and gradual lowering toward concrete runtimes.
 
 `Vegas` is the runtime-general library. `VegasEVM` contains the contract and
 EVM backend development; its whole-backend refinement obligation remains
@@ -11,7 +12,8 @@ paper audit. See [module boundaries](docs/module-architecture.md) for the
 dependency structure and checked scope of the retained surface language.
 
 The paper audit is the default `Paper` build target: root `Paper.lean` imports
-the general claims in `Paper/General.lean` and restates the concrete case studies.
+the general claims in `Paper/General.lean`, the source-to-runtime claims in
+`Paper/Source.lean`, and restates the concrete case studies.
 `paper-claims.json` maps numbered statements and tagged prose results in the
 separate `overleaf/` repository to axiom-pinned audit theorems. Run
 `python scripts/check-paper-claims.py` and `lake --wfail build` when either side

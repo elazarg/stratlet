@@ -34,17 +34,78 @@ inductive SourceDecisionSite (who : P) :
       (guard : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Γ)) L.bool)
       (tail : VegasCore P L ((x, .sealed who b) :: Γ)) :
       SourceDecisionSite who (.commit x who guard tail) Γ x b guard
-  | sample {Γ : VCtx P L} {sampleName sampleTy dist tail Δ x b guard}
+  | sample {Γ : VCtx P L} {sampleName : VarId} {sampleTy : L.Ty}
+      {dist : L.DistExpr (erasePubVCtx Γ) sampleTy}
+      {tail : VegasCore P L ((sampleName, .pub sampleTy) :: Γ)} {Δ x b guard}
       (site : SourceDecisionSite who tail Δ x b guard) :
       SourceDecisionSite who (.sample sampleName (b := sampleTy) dist tail) Δ x b guard
-  | commit {Γ : VCtx P L} {commitName actor commitTy commitGuard tail Δ x b guard}
+  | commit {Γ : VCtx P L} {commitName : VarId} {actor : P} {commitTy : L.Ty}
+      {commitGuard : L.Expr ((commitName, commitTy) :: eraseVCtx (viewVCtx actor Γ)) L.bool}
+      {tail : VegasCore P L ((commitName, .sealed actor commitTy) :: Γ)} {Δ x b guard}
       (site : SourceDecisionSite who tail Δ x b guard) :
       SourceDecisionSite who
         (.commit commitName actor (b := commitTy) commitGuard tail) Δ x b guard
-  | reveal {Γ : VCtx P L} {publicName actor sealedName revealTy source tail Δ x b guard}
+  | reveal {Γ : VCtx P L} {publicName : VarId} {actor : P} {sealedName : VarId} {revealTy : L.Ty}
+      {source : VHasVar Γ sealedName (.sealed actor revealTy)}
+      {tail : VegasCore P L ((publicName, .pub revealTy) :: Γ)} {Δ x b guard}
       (site : SourceDecisionSite who tail Δ x b guard) :
       SourceDecisionSite who
         (.reveal publicName actor sealedName (b := revealTy) source tail) Δ x b guard
+
+namespace SourceDecisionSite
+
+/-- The number of source instructions preceding this decision. -/
+def depth {who : P} : {Γ : VCtx P L} → {prog : VegasCore P L Γ} →
+    {Δ : VCtx P L} → {x : VarId} → {b : L.Ty} →
+    {guard : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Δ)) L.bool} →
+    SourceDecisionSite who prog Δ x b guard → Nat
+  | _, _, _, _, _, _, .here _ _ => 0
+  | _, _, _, _, _, _, .sample site => site.depth + 1
+  | _, _, _, _, _, _, .commit site => site.depth + 1
+  | _, _, _, _, _, _, .reveal site => site.depth + 1
+
+/-- In a straight-line source term, the instruction position identifies the
+entire typed decision occurrence. -/
+theorem indices_eq_of_depth_eq {who : P} {Γ : VCtx P L} {prog : VegasCore P L Γ}
+    {Δ₁ Δ₂ : VCtx P L} {x₁ x₂ : VarId} {b₁ b₂ : L.Ty}
+    {guard₁ : L.Expr ((x₁, b₁) :: eraseVCtx (viewVCtx who Δ₁)) L.bool}
+    {guard₂ : L.Expr ((x₂, b₂) :: eraseVCtx (viewVCtx who Δ₂)) L.bool}
+    (first : SourceDecisionSite who prog Δ₁ x₁ b₁ guard₁)
+    (second : SourceDecisionSite who prog Δ₂ x₂ b₂ guard₂)
+    (hdepth : first.depth = second.depth) :
+    Δ₁ = Δ₂ ∧ x₁ = x₂ ∧ b₁ = b₂ ∧ HEq guard₁ guard₂ ∧ HEq first second := by
+  induction first with
+  | here =>
+      cases second with
+      | here => exact ⟨rfl, rfl, rfl, HEq.rfl, HEq.rfl⟩
+      | commit site => simp [depth] at hdepth
+  | sample site ih =>
+      cases second with
+      | sample other =>
+          obtain ⟨rfl, rfl, rfl, hg, hs⟩ := ih other (Nat.add_right_cancel hdepth)
+          cases eq_of_heq hg
+          cases eq_of_heq hs
+          refine ⟨rfl, rfl, rfl, HEq.rfl, ?_⟩
+          rfl
+  | commit site ih =>
+      cases second with
+      | here => simp [depth] at hdepth
+      | commit other =>
+          obtain ⟨rfl, rfl, rfl, hg, hs⟩ := ih other (Nat.add_right_cancel hdepth)
+          cases eq_of_heq hg
+          cases eq_of_heq hs
+          refine ⟨rfl, rfl, rfl, HEq.rfl, ?_⟩
+          rfl
+  | reveal site ih =>
+      cases second with
+      | reveal other =>
+          obtain ⟨rfl, rfl, rfl, hg, hs⟩ := ih other (Nat.add_right_cancel hdepth)
+          cases eq_of_heq hg
+          cases eq_of_heq hs
+          refine ⟨rfl, rfl, rfl, HEq.rfl, ?_⟩
+          rfl
+
+end SourceDecisionSite
 
 /-- A behavioral policy supplies a guarded finite law at every source decision
 site owned by the player. Its input is only the player's visible environment. -/

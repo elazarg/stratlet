@@ -68,6 +68,44 @@ theorem decisionSiteState_fieldOfNameInjective
       unfold BuildState.addRevealEvent
       apply BuildState.addEvent_fieldOfNameInjective state hinjective
 
+/-- Nodes accumulated before a decision site remain a prefix of the complete
+compiled graph. -/
+theorem decisionSiteState_nodes_prefix
+    {who : P} {Γ Δ : VCtx P L} {prog : VegasCore P L Γ}
+    {x : VarId} {b : L.Ty}
+    {guard : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Δ)) L.bool}
+    (site : SourceDecisionSite who prog Δ x b guard)
+    (fresh : FreshBindings prog) (state : BuildState P L Γ) :
+    (decisionSiteState site fresh state).nodes <+:
+      (compileCore prog fresh state).nodes := by
+  induction site with
+  | here => exact compileCore_nodes_prefix _ fresh state
+  | sample site ih => simpa [decisionSiteState, compileCore] using ih fresh.2 _
+  | commit site ih => simpa [decisionSiteState, compileCore] using ih fresh.2 _
+  | reveal site ih => simpa [decisionSiteState, compileCore] using ih fresh.2 _
+
+@[simp] theorem decisionSiteState_initialFields
+    {who : P} {Γ Δ : VCtx P L} {prog : VegasCore P L Γ}
+    {x : VarId} {b : L.Ty}
+    {guard : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Δ)) L.bool}
+    (site : SourceDecisionSite who prog Δ x b guard)
+    (fresh : FreshBindings prog) (state : BuildState P L Γ) :
+    (decisionSiteState site fresh state).initialFields = state.initialFields := by
+  induction site with
+  | here => rfl
+  | sample site ih =>
+      simp only [decisionSiteState]
+      rw [ih fresh.2]
+      simp
+  | commit site ih =>
+      simp only [decisionSiteState]
+      rw [ih fresh.2]
+      simp
+  | reveal site ih =>
+      simp only [decisionSiteState]
+      rw [ih fresh.2]
+      simp
+
 /-- A source decision occurrence compiles to the commitment row constructed
 from its exact pre-decision compiler state. -/
 theorem decisionSite_compiledRow
@@ -106,6 +144,34 @@ theorem decisionSite_compiledRow
       simpa [decisionSiteState, compileCore] using (ih fresh.2 _)
   | reveal site ih =>
       simpa [decisionSiteState, compileCore] using (ih fresh.2 _)
+
+/-- Field lookup before a decision site agrees with lookup in the final
+compiled graph. -/
+theorem decisionSiteState_field?_eq_compileCore
+    {who : P} {Γ Δ : VCtx P L} {prog : VegasCore P L Γ}
+    {x : VarId} {b : L.Ty}
+    {guard : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Δ)) L.bool}
+    (site : SourceDecisionSite who prog Δ x b guard)
+    (fresh : FreshBindings prog) (state : BuildState P L Γ)
+    (field : Nat)
+    (hfield : field < (decisionSiteState site fresh state).initialFields.length +
+      (decisionSiteState site fresh state).nodes.length) :
+    ({ initialFields := (decisionSiteState site fresh state).initialFields,
+       nodes := (decisionSiteState site fresh state).nodes } : Graph P L).field? field =
+      (compileCore prog fresh state).graph.field? field := by
+  have hinitial := decisionSiteState_initialFields site fresh state
+  have hfinalInitial := compileCore_initialFields prog fresh state
+  rcases decisionSiteState_nodes_prefix site fresh state with ⟨suffix, hsuffix⟩
+  unfold Graph.field? BuildResult.graph
+  rw [hinitial, hfinalInitial]
+  by_cases hinit : field < state.initialFields.length
+  · simp [hinit]
+  · have hnode : field - state.initialFields.length <
+        (decisionSiteState site fresh state).nodes.length := by
+      rw [hinitial] at hfield
+      omega
+    simp only [hinit]
+    rw [← hsuffix, List.getElem?_append_left hnode]
 
 /-- A graph node has commitment semantics, without choosing a source-level
 representation for its guard. -/

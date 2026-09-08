@@ -401,6 +401,25 @@ theorem extends_applyFrontier_of_legal (G : Graph Player L) (hwf : G.WF)
   obtain ⟨who, hwho⟩ := commitAvailable_of_mem_roundWrites havailable hwritten
   exact (Classical.choice hwho).ready.1
 
+theorem extends_of_toExecutionProtocol_step (G : Graph Player L) (hwf : G.WF)
+    (hguards : GuardLive G) (state : ReachableConfig G)
+    (legal : { joint // (toExecutionProtocol G hwf hguards).Legal state joint })
+    {next : ReachableConfig G}
+    (hnext : next ∈
+      ((toExecutionProtocol G hwf hguards).step state legal).support) :
+    state.1.Extends next.1 := by
+  classical
+  unfold toExecutionProtocol at hnext
+  change next ∈ (if hinternal : (readyInternalNodes G state.1).Nonempty then
+    stepReadyInternal hwf state hinternal
+  else FinDist.pure (applyFrontier G hwf state legal.1)).support at hnext
+  by_cases hinternal : (readyInternalNodes G state.1).Nonempty
+  · rw [dif_pos hinternal] at hnext
+    exact extends_of_stepReadyInternal hwf state hinternal hnext
+  · rw [dif_neg hinternal, FinDist.mem_support_pure] at hnext
+    subst next
+    exact extends_applyFrontier_of_legal G hwf hguards state legal.1 legal.2
+
 theorem ReadyCommitNode.after_applyFrontier_of_none {G : Graph Player L}
     (hwf : G.WF) (hguards : GuardLive G) {state : ReachableConfig G}
     {who : Player} {node : Fin G.nodeCount}

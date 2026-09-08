@@ -19,7 +19,7 @@ import subprocess
 import sys
 
 
-AUDIT_FILES = ("Paper/General.lean", "Paper.lean")
+AUDIT_FILES = ("Paper/General.lean", "Paper/Source.lean", "Paper.lean")
 SNAPSHOT_FILE = "paper-snapshot.json"
 THEOREM = re.compile(
     r"\\begin\{(theorem|lemma|corollary|proposition)\}(.*?)\\end\{\1\}", re.S

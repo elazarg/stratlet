@@ -9,7 +9,8 @@ Run these tools from the repository root.
   imports; acyclicity supplements rather than replaces the direction rules.
 
 - `lake --wfail build Paper` checks the paper audit, including the generic
-  claims in `Paper/General.lean` and the concrete witnesses in root `Paper.lean`.
+  claims in `Paper/General.lean`, independent-source claims in `Paper/Source.lean`,
+  and concrete witnesses in root `Paper.lean`.
   This is also a default build target. Every audit theorem has an axiom pin.
 - `python scripts/check-paper-claims.py --paper-dir PATH` checks the supplied
   manuscript's `main.tex`

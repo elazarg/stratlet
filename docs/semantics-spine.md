@@ -86,9 +86,13 @@ The compiler's local decision interface has an exact correspondence:
 `sourceViewEquiv` identifies the declared graph reads with the source view,
 using field-allocation injectivity. `compileSourceDecision` and
 `backtranslateSourceDecision` preserve guarded probability laws and are mutual
-inverses. Sample code also retains its exact source law. These statements do
-not yet connect an entire source profile to the graph game's history-dependent
-policy carrier. The remaining obligation is recorded in
+inverses. Sample code also retains its exact source law. Information-local
+policy compilation and back-translation lift these local laws to whole
+profiles. Coupled execution then proves both the graph and source marginals,
+while kernel commutation and frontier-product theorems identify canonical node
+execution with the native behavioral protocol. The resulting unrestricted
+`sourceNativeOutcomeSimulation` preserves exact decoded laws for honest
+profiles and unilateral native deviations. See
 [Source strategic correspondence](source-correspondence.md).
 
 ## Probability

@@ -5,6 +5,7 @@ Authors: VegasCore contributors
 -/
 
 import Paper.General
+import Paper.Source
 import VegasTests.RuntimeBoundaries
 import VegasTests.QuittingWindow
 import VegasTests.DisclosureWindow
@@ -14,7 +15,7 @@ import Vegas.Scheduled.Valuation
 
 /-! # Paper audit
 
-This default build target checks the general claims in `Vegas.Paper` and the
+This default build target checks the general and independent-source claims and the
 concrete witnesses below. Compiler preservation results quantify over all
 programs satisfying their hypotheses. A counterexample refutes a universal
 compiler guarantee; a case study instantiates, but does not generalize, a result.

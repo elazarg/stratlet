@@ -5,7 +5,9 @@ Authors: VegasCore contributors
 -/
 
 import Vegas.Runtime.Correlated
+import Vegas.Runtime.Approximate
 import Vegas.Runtime.Implementation
+import Vegas.Runtime.OutcomeSimulationComposition
 import Vegas.Runtime.DeviationAdequacy
 import Vegas.Runtime.TraceUtility
 import Vegas.Runtime.TrustedRoles

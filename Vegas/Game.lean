@@ -8,5 +8,8 @@ import Vegas.Game.Basic
 import Vegas.Game.Kuhn
 import Vegas.Game.Request
 import Vegas.Game.SourceRequest
+import Vegas.Game.SourceCorrespondence
+import Vegas.Game.SourceCorrelated
+import Vegas.Game.SourceRequestCorrespondence
 
 /-! # Games, strategy representations, and request implementations -/

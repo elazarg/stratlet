@@ -24,7 +24,8 @@ class PaperClaimsTests(unittest.TestCase):
         self.paper = self.root / "overleaf"
         (self.root / "Paper").mkdir()
         self.paper.mkdir()
-        (self.root / "Paper/General.lean").write_text("", encoding="utf-8")
+        for name in CHECKER.AUDIT_FILES:
+            (self.root / name).write_text("", encoding="utf-8")
         self.audit = self.root / "Paper.lean"
         self.audit.write_text(
             "namespace Vegas.Paper\n"
@@ -54,6 +55,12 @@ class PaperClaimsTests(unittest.TestCase):
         return CHECKER.check(self.root, self.paper)
 
     def test_valid_plain_export(self):
+        self.assertEqual(self.check(), [])
+
+    def test_source_audit_is_indexed(self):
+        source_audit = self.root / "Paper/Source.lean"
+        source_audit.write_text(self.audit.read_text(encoding="utf-8"), encoding="utf-8")
+        self.audit.write_text("", encoding="utf-8")
         self.assertEqual(self.check(), [])
 
     def bibliography_fixture(self, active, names):

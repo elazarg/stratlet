@@ -14,6 +14,7 @@ import Vegas.Scheduled.Equilibrium
 import Vegas.Scheduled.Valuation
 import Vegas.Scheduled.PublicSubmission
 import Vegas.Scheduled.Request
+import Vegas.Scheduled.SourceCorrespondence
 
 /-! Protocols whose rounds are ordered by a scheduler, with the realized order
 publicly observable. -/

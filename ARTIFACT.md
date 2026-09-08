@@ -79,22 +79,23 @@ pdflatex -interaction=nonstopmode -halt-on-error main.tex
 ## Proof-reading route
 
 Start with `paper-claims.json`, then read the indicated explicit statement in
-`Paper/General.lean` or root `Paper.lean`. Audit proofs delegate to the owning
+`Paper/General.lean`, `Paper/Source.lean`, or root `Paper.lean`. Audit proofs delegate to the owning
 module; inspect its definitions and proof, not only the theorem name.
 
 | Question | Main file or declaration |
 | --- | --- |
 | What is a checked program? | `Vegas/Core/WellFormed.lean`, `Vegas/Compile/Compiler.lean` |
 | How is source information derived? | `Vegas/EventGraph/Protocol.lean`, `toInfoSignals_perfectRecall`; `Vegas/Machine/Program.lean`, `perfectRecall` |
-| Which game is analyzed? | `Vegas/Game.lean`; graph-derived frontier semantics, not an independent source game-tree input |
-| What does written-order source adequacy prove? | `Vegas/Compile/SourceAdequacy.lean`; endpoint and supported-run reconstruction |
+| Which source game is analyzed? | `Vegas/Core/Strategy.lean`; `sourceGameForm` and independent written-order `denoteSource` |
+| How does the compiler preserve that game? | `Vegas/Game/SourceCorrespondence.lean`; exact source outcome laws and unilateral policy simulation into native graph play |
+| How are execution orders compared? | `Vegas/Compile/SourceExecutionLaw.lean`, `Vegas/EventGraph/KernelBehavioral.lean`; actual probabilistic source and batched graph execution |
 | What is the uniform certificate? | `Vegas/Runtime/DeviationAdequacy.lean`; `DeviationAdequacyOn`, unrestricted `DeviationAdequacy`, composition |
 | How are outcomes and utilities separated? | `Vegas/Runtime/OutcomeSimulation.lean`; `Machine.Program.outcomeGame`, `Vegas/Scheduled/Valuation.lean` |
 | What if opponents value runtime traces? | `Vegas/Runtime/TraceUtility.lean`, `VegasTests/TraceUtility.lean`; see [outcome and utility boundaries](docs/outcomes-and-utilities.md) |
 | Where is request memory reconstructed? | `Vegas/Runtime/RequestCompiler.lean`; `past_eq`, `replay`, `run_law`, `mixed_play_law` |
 | How are pure/mixed/behavioral policies connected? | `Vegas/Game/Kuhn.lean`; checked GameTheory laws plus Vegas-specific finite-site coverage |
 | How are order-aware deviations handled? | `Vegas/Scheduled/Replay.lean`, `Predraw.lean`, `Equilibrium.lean` |
-| What closes the main composition? | `Vegas/Scheduled/Request.lean`; `serializedRequestInterface`, `serializedRequestAdequacy`, `serialized_request_deviation_law`, `serialized_request_approximate_nash_iff` |
+| What closes the main composition? | `Vegas/Scheduled/SourceCorrespondence.lean`; independent-source laws, deviation mixtures, and same-error equilibrium correspondence through serialization and requests |
 | Where are concrete integration witnesses? | `VegasTests/ScheduledRequest.lean`, `QuittingImplementation.lean`, `QuittingWindow.lean`, root `Paper.lean` |
 | Where does an independent disclosure game reach the runtime? | `VegasTests/DisclosureCorrespondence.lean`, `DisclosurePayoff.lean`, `SealedOfferEquilibrium.lean`, `SealedOfferRuntime.lean` |
 
@@ -107,12 +108,12 @@ of implementations still require human review.
 
 ### Validation snapshot
 
-The full 3,282-job default build passes with `--wfail`, including the independent
-written-order source interpreter, local source/graph decision correspondence,
-generic CE/CCE transport, and the request/serialization case studies.
+The full 3,323-job default build passes with `--wfail`, including the independent
+written-order source interpreter, whole-program source/native law and deviation
+correspondence, native CE/CCE transport, and source-to-scheduled/request results.
 Validation used `LEAN_NUM_THREADS=4` in the development checkout with pinned
 dependency caches. The claim registry, module-boundary, documentation-reference,
-and local-option audits, and all 40 maintenance tests pass. The manuscript is
+and local-option audits, and all 41 maintenance tests pass. The manuscript is
 rebuilt and its affected pages visually checked; all 26 bibliography entries
 resolve without citation or BibTeX warnings. The final PDF has no overfull boxes
 or LaTeX package warnings; nonfatal underfull-box diagnostics remain.
@@ -149,18 +150,18 @@ make a build pass.
 ## Reading the main result accurately
 
 For each finite-domain checked core, legal request interface, and behavioral
-public-data scheduler, the compiler preserves the honest terminal-configuration
-law of its graph-derived game. Every unilateral original-player target
-controller mixture has a terminal law that is a finite mixture of graph-game
-behavioral-deviation laws, with other
-players unchanged. Nash and same-error approximate Nash equivalence concern
+public-data scheduler, the compiler preserves the terminal-environment law of
+the independent written-order source semantics. Every unilateral original-player
+target controller mixture has a decoded law that is a finite mixture of
+source behavioral-deviation laws, with other players unchanged.
+Nash and same-error approximate Nash equivalence concern
 **compiled profiles**. There is no claim that every target equilibrium is a
 compiled source equilibrium.
 
-The independent written-order source game has checked local decision-kernel
-correspondence with compiled code. Whole-policy information reconstruction and
-probability-law linearization into the graph game remain unproved; the runtime
-results do not discharge that bridge by definition. See
+The source-to-native bridge proves whole-policy information reconstruction,
+actual probability-law linearization, and terminal-environment decoding.
+It supplies a uniform unilateral outcome simulation; the behavioral scheduler
+composition instead supplies profile-local finite mixtures. See
 [Source strategic correspondence](docs/source-correspondence.md).
 
 Request windows admit finite independently sampled private mixtures of complete

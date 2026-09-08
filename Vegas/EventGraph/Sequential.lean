@@ -13,8 +13,9 @@ import Vegas.EventGraph.Batch
 nodes are ready it allows any of them to move next, so which node fires is a
 scheduler degree of freedom.  On a public runtime that freedom is visible, and
 a strategy may condition on it — the target strategy carrier becomes
-`Info × Schedule → Action` rather than `Info → Action`, which is what defeats
-back-translation for correlation-sensitive solution concepts.
+`Info × Schedule → Action` rather than `Info → Action`.  This information
+extension requires its own strategic analysis; it does not by itself prove
+failure of a correlation-sensitive solution concept.
 
 This module supplies the opposite endpoint.  Under `sequentialCheckpointPolicy`
 exactly one node may fire at each checkpoint, the ready node of least index, so
@@ -35,11 +36,9 @@ policy by rejecting every call other than the canonical next one; the ordering
 is then inert because the contract made it inert, not because the model
 declined to look.
 
-The two policies are endpoints of a real tradeoff rather than a right and a
-wrong choice.  A permissive policy admits parallel, independently scheduled
-calls and is liveness-friendly; a sequential policy serializes them, which is
-what makes it safe for correlation-sensitive properties and what forces it to
-carry timeout handling.
+The permissive policy admits independently scheduled calls; the sequential
+policy fixes their order.  This module proves the structural distinction,
+not liveness or correlated-equilibrium preservation for either policy.
 -/
 
 namespace Vegas

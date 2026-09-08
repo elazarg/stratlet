@@ -1,18 +1,18 @@
 # Source strategic correspondence
 
-## Required end-to-end statement
+## End-to-end statement
 
 The starting game is `sourceGameForm program.core.prog program.core.env`,
 defined independently by structural recursion on `VegasCore`. The target is
 the actual compiled request/scheduled protocol, not a second interpretation
 defined to call the source evaluator.
 
-A complete theorem needs playerwise strategy compilation, a terminal outcome
-decoder, and two laws:
+The checked correspondence supplies playerwise strategy compilation, a
+terminal outcome decoder, and two laws:
 
 1. Every compiled profile has the source profile's decoded outcome law.
 2. Every unilateral target deviation has the law of a source deviation, or an
-   appropriately uniform mixture of source deviations, against unchanged
+   finite mixture of source deviations, against unchanged
    source opponents.
 
 No utility restriction is needed to state these laws. Utilities over decoded
@@ -44,27 +44,36 @@ trace utilities retain the separate incentive obligations of the runtime theory.
   lemmas; equal completed-node sets and complete visible stores determine the
   current local snapshot. This theorem does not reconstruct remembered history.
 
-## Remaining whole-program proof
+## Established whole-program chain
 
-Node-local kernels are not the graph game's full strategies. A graph policy
-receives `PlayerInformation`, including prior own decisions and snapshots.
-The source bridge must establish that this information, at a given source
-decision, is determined by the source view. Immutable source bindings retain
-past public values and own choices; field coverage and deterministic legal
-checkpoints are the relevant invariants. A proof about declared `choiceReads`
-alone does not discharge this obligation.
+`Compile.SourcePolicy` compiles source decisions into declared-read commitment
+kernels and back-translates arbitrary native behavioral policies. The checked
+information-locality theorems show that a native decision at an active source
+node depends only on the corresponding source view. Compilation and
+back-translation commute with unilateral profile updates.
 
-After that information correspondence, a law-level linearization must relate
-the graph's legal simultaneous frontiers and internal execution to the
-written-order evaluator. Fixed-value store confluence and terminal support
-adequacy do not prove this probability-law equality. The strategy maps must
-commute with unilateral replacement, so the law result also applies to
-deviations. Only then can it compose with the existing graph-to-runtime
-certificates to establish the requested source-to-runtime theorem.
+`EventGraph.KernelExecution` executes the actual sample, reveal, and guarded
+commit kernels. The commutation, order, product, frontier, and behavioral
+modules prove that declared-read laws are invariant under other simultaneously
+ready writes, legal node orders have the same law, frontier execution is their
+independent product, and native behavioral execution has the canonical
+node-order law.
 
-`WFProgram.game` currently denotes the compiled graph game. Its existing
-runtime theorems therefore do not by themselves establish this independent
-source theorem.
+`Compile.SourceExecution` couples each actual graph write to the written-order
+source environment. `SourceExecutionGraph`, `SourceExecutionLaw`, and
+`SourceExecutionOutcome` prove its graph marginal, source marginal, terminal
+decoder identity, and concrete initial-state law. Consequently
+`Vegas.ToEventGraph.sourceNativeOutcomeSimulation` is an unrestricted
+`OutcomeSimulationOn`: every compiled source profile and every unilateral
+native behavioral replacement has exactly the decoded law of its corresponding
+source profile or back-translated source replacement.
+
+The scheduled layer preserves honest source laws for every behavioral
+scheduler. An arbitrary order-aware player deviation is represented by a
+finite mixture of unilateral source-policy deviations against the same honest
+opponents. This yields exact source Nash equivalence and observable bounds.
+The mixture is profile- and horizon-specific, so it is not falsely presented
+as a single uniform `OutcomeSimulationOn` back-translation.
 
 ## Scheduling and correlated recommendations
 
@@ -76,15 +85,12 @@ used to encode a secret in the canonical graph's checkpoint timing.
 `Vegas/Runtime/Correlated.lean` proves that a profile-independent unrestricted
 outcome simulation preserves both CE and CCE. CCE is also reflected at compiled
 recommendation laws; the CE reflection theorem additionally uses a left inverse
-for strategy compilation. These are generic certificate consequences, not a
-scheduled compiler instance.
+for strategy compilation. `Vegas/Game/SourceCorrelated.lean` instantiates CE
+preservation and CCE equivalence for the independent source and native games.
+These are not scheduled compiler instances.
 
-The behavioral-scheduler Nash certificate constructs a mixture separately for
-a fixed deviated profile. CE requires a recommendation-local translation;
-profile-local existence alone does not supply it. A fixed known deterministic
-public-history scheduler is a candidate for the stronger certificate because
-its orders can be replayed. A randomized scheduler needs a uniform independent
-seed construction across recommendation profiles. Neither the missing
-certificate nor the presence of an independent signal is an impossibility
-proof. A compiler switch should expose proved guarantees of its actual modes,
-not encode an unproved claim that parallelization necessarily destroys CE.
+The behavioral-scheduler certificate constructs its finite mixture separately
+for a fixed deviated profile. CE requires a recommendation-local translation;
+profile-local mixture existence alone does not supply it. Thus the checked
+scheduled result is a Nash/bound guarantee, not a claimed CE impossibility or
+a universal CE transport instance.

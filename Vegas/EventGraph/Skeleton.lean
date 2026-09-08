@@ -210,6 +210,107 @@ theorem applyFrontier_done_of_legal (G : Graph Player L) (hwf : G.WF)
             (mem_playerWrites_iff joint who _).mpr ⟨action, haction,
               (mem_actionWrites_iff action _).mpr ⟨value, hvalue, rfl⟩⟩⟩
 
+/-- The completed-node update of one raw graph-protocol transition. -/
+def protocolDoneStep (G : Graph Player L)
+    (done : Finset (Fin G.nodeCount)) : Finset (Fin G.nodeCount) :=
+  if hinternal :
+      (readyInternalNodes G (skeletonConfig G done)).Nonempty then
+    insert (Classical.choose hinternal) done
+  else
+    frontierDone G done
+
+/-- The canonical completed-node set after a raw trace length. -/
+def protocolDoneAt (G : Graph Player L) : Nat → Finset (Fin G.nodeCount)
+  | 0 => ∅
+  | steps + 1 => protocolDoneStep G (protocolDoneAt G steps)
+
+theorem subset_protocolDoneStep (G : Graph Player L)
+    (done : Finset (Fin G.nodeCount)) : done ⊆ protocolDoneStep G done := by
+  unfold protocolDoneStep
+  split
+  · exact Finset.subset_insert _ _
+  · unfold frontierDone
+    split
+    · exact Finset.Subset.refl _
+    · exact Finset.subset_union_left
+
+theorem protocolDoneAt_monotone (G : Graph Player L) :
+    Monotone (protocolDoneAt G) :=
+  monotone_nat_of_le_succ fun _ => subset_protocolDoneStep G _
+
+theorem ReadyCommitNode.mem_protocolDoneStep_of_no_internal
+    {G : Graph Player L} {cfg : Config G} {who : Player}
+    {node : Fin G.nodeCount} (hready : ReadyCommitNode G cfg who node)
+    (hinternal : readyInternalNodes G cfg = ∅) :
+    node ∈ protocolDoneStep G cfg.done := by
+  have hinternalSkeleton :
+      readyInternalNodes G (skeletonConfig G cfg.done) = ∅ := by
+    rw [← readyInternalNodes_eq_of_done_eq (G := G) rfl]
+    exact hinternal
+  have hreadySkeleton :
+      ReadyCommitNode G (skeletonConfig G cfg.done) who node := by
+    have heq := readyCommitNodes_eq_of_done_eq (G := G)
+      (left := cfg) (right := skeletonConfig G cfg.done) rfl who
+    have hmem : node ∈ readyCommitNodes G cfg who := by
+      simp only [readyCommitNodes, Finset.mem_filter, Finset.mem_univ,
+        true_and, hready]
+    rw [heq] at hmem
+    exact (Finset.mem_filter.mp hmem).2
+  unfold protocolDoneStep
+  rw [dif_neg (Finset.not_nonempty_iff_eq_empty.mpr hinternalSkeleton)]
+  unfold frontierDone
+  rw [if_neg (Finset.not_nonempty_iff_eq_empty.mpr hinternalSkeleton),
+    Finset.mem_union]
+  exact Or.inr (Finset.mem_filter.mpr ⟨Finset.mem_univ node,
+    ⟨who, hreadySkeleton⟩⟩)
+
+theorem toExecutionProtocol_step_done (G : Graph Player L) (hwf : G.WF)
+    (hguards : GuardLive G) (state : ReachableConfig G)
+    (legal : { joint // (toExecutionProtocol G hwf hguards).Legal state joint })
+    {next : ReachableConfig G}
+    (hnext : next ∈
+      ((toExecutionProtocol G hwf hguards).step state legal).support) :
+    next.1.done = protocolDoneStep G state.1.done := by
+  classical
+  have hready : readyInternalNodes G state.1 =
+      readyInternalNodes G (skeletonConfig G state.1.done) :=
+    readyInternalNodes_eq_of_done_eq rfl
+  unfold toExecutionProtocol at hnext
+  change next ∈ (if hinternal : (readyInternalNodes G state.1).Nonempty then
+    stepReadyInternal hwf state hinternal
+  else FinDist.pure (applyFrontier G hwf state legal.1)).support at hnext
+  by_cases hinternal : (readyInternalNodes G state.1).Nonempty
+  · rw [dif_pos hinternal] at hnext
+    rw [stepReadyInternal_done hwf state hinternal hnext]
+    unfold protocolDoneStep
+    have hcanonical :
+        (readyInternalNodes G (skeletonConfig G state.1.done)).Nonempty :=
+      hready ▸ hinternal
+    rw [dif_pos hcanonical]
+  · rw [dif_neg hinternal, FinDist.mem_support_pure] at hnext
+    subst next
+    rw [applyFrontier_done_of_legal G hwf hguards state legal.1 legal.2]
+    unfold protocolDoneStep
+    rw [dif_neg (by simpa only [← hready] using hinternal)]
+
+/-- All raw graph traces follow the same completed-node timeline. -/
+theorem toExecutionProtocol_trace_done (G : Graph Player L) (hwf : G.WF)
+    (hguards : GuardLive G) {state : ReachableConfig G}
+    (trace : (toExecutionProtocol G hwf hguards).Trace state) :
+    state.val.done = protocolDoneAt G trace.length := by
+  exact @GameTheory.Protocol.ExecutionProtocol.Trace.rec Player
+    (toExecutionProtocol G hwf hguards)
+    (fun state trace => state.val.done = protocolDoneAt G trace.length)
+    rfl
+    (by
+      intro source target prior joint legal realized ih
+      rw [toExecutionProtocol_step_done G hwf hguards source
+        ⟨joint, legal⟩ realized]
+      change protocolDoneStep G source.val.done =
+        protocolDoneStep G (protocolDoneAt G prior.length)
+      rw [ih])
+    state trace
+
 /-- The completed-node set after one serialized round. -/
 def serializedDoneStep (G : Graph Player L) (done : Finset (Fin G.nodeCount)) :
     Finset (Fin G.nodeCount) :=

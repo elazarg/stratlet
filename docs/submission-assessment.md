@@ -66,7 +66,7 @@ of every concurrency or mechanism-design formalization.
 
 | Layer | Established by Vegas | Supplied or built into the model |
 | --- | --- | --- |
-| Checked core | Graph construction, legal observations, perfect recall, bounded execution | Well-formed source; finite-domain hypothesis where used |
+| Checked core | Independent source outcome/deviation laws, graph construction, information reconstruction, perfect recall, bounded execution | Well-formed source; finite-domain hypothesis where used |
 | Request interface | Controller back-translation and exact all-profile history laws | Legal timeout choice, accepting encoder/decoder, finite window; private attempts and frozen information |
 | Serializer | Order replay and deviation-mixture law | All legal frontier choices resolve before ordering; no current-payload access; atomic internal closure |
 | Composition | Automatic interface lift, counterfactual finite-site cover, same-error Nash equivalence | Independently sampled finite private controller mixtures; fixed arbitrary behavioral scheduler compiled through its encoder |
@@ -80,10 +80,11 @@ equilibria. Nash reflection concerns compiled profiles. The scheduler is an
 environment coordinate; its utility and optimality are irrelevant, but its
 admitted observations and actions are essential.
 
-The source of the strategic theorem is the canonical graph-derived game.
-Written-order source reconstruction is support-level. There is no separately
-proved distribution-level equivalence with a written-order source strategy
-semantics. Kotlin and Lean are distinct implementations. The Lean syntax lacks
+The strategic theorem starts at the independent written-order source game.
+Its correspondence with native graph execution includes complete distributions,
+playerwise policy reconstruction, and unchanged opponents under unilateral
+deviations. The proof uses source information locality and commutation of actual
+typed probabilistic node execution. Kotlin and Lean are distinct implementations. The Lean syntax lacks
 Kotlin's nonresponse-handler constructs. Choosing an optional value is not the
 same as withholding a mandatory reveal.
 

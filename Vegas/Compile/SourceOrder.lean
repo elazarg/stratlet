@@ -164,6 +164,38 @@ private def VHasVar.toViewOfOwner
             exact (hhidden hsee).elim
         | there htail => exact ih htail
 
+/-- Every already allocated field visible to a player occurs in that player's
+exact source-view footprint. -/
+theorem visibleField_mem_visibleFieldRefs
+    {Γ : VCtx P L} (state : BuildState P L Γ) (hcovered : FieldsCovered state)
+    (who : P) (field : Nat)
+    (hfield : field < state.initialFields.length + state.nodes.length)
+    (spec : FieldSpec P L)
+    (hspec : ({ initialFields := state.initialFields, nodes := state.nodes } :
+      Graph P L).field? field = some spec)
+    (hvisible : spec.owner = none ∨ spec.owner = some who) :
+    ({ field := field, ty := spec.ty } : FieldRef L) ∈ visibleFieldRefs state who := by
+  rcases hcovered field hfield with ⟨name, bindTy, binding, hfieldOf⟩
+  rcases state.fieldOf_spec binding with ⟨bindingSpec, hbindingSpec, hty, howner⟩
+  have hspecEq : bindingSpec = spec := by
+    rw [hfieldOf, hspec] at hbindingSpec
+    exact Option.some.inj hbindingSpec.symm
+  have hbindVisible : bindTy.owner = none ∨ bindTy.owner = some who := by
+    rw [← howner, hspecEq]
+    exact hvisible
+  let visibleBinding := VHasVar.toViewOfOwner binding who hbindVisible
+  have hmem := fieldRefOfView_mem_visibleFieldRefs state who visibleBinding
+  have hsame : state.fieldOf (VHasVar.ofViewVCtx visibleBinding) = field := by
+    rw [state.fieldOf_eq_of_nodup (VHasVar.ofViewVCtx visibleBinding) binding,
+      hfieldOf]
+  rw [show state.fieldRefOfView who visibleBinding =
+      ({ field := field, ty := spec.ty } : FieldRef L) by
+    apply FieldRef.ext
+    · exact hsame
+    · change bindTy.base = spec.ty
+      rw [← hspecEq, hty]] at hmem
+  exact hmem
+
 /-- Every earlier same-owner commitment field is part of a later source
 decision's choice information. -/
 theorem earlierCommit_mem_decisionReads
@@ -215,6 +247,68 @@ theorem earlierCommit_mem_decisionReads
       hfield]
   change siteState.fieldRefOfView who visibleBinding ∈
     (eventGuardOf siteState who guard).choiceReads at hmem
-  simpa [BuildState.fieldRefOfView, hvisibleField, hbindTy] using hmem
+  rw [show siteState.fieldRefOfView who visibleBinding =
+    ({ field := siteState.initialFields.length + earlier, ty := row.ty } : FieldRef L) by
+      apply FieldRef.ext
+      · exact hvisibleField
+      · exact hbindTy] at hmem
+  exact hmem
+
+/-- In a compiled suffix, an earlier commitment by the same player is included
+in the exact choice footprint of the later source decision row. -/
+theorem compileCore_sameOwner_dependency
+    {Γ : VCtx P L} (prog : VegasCore P L Γ) (fresh : FreshBindings prog)
+    (state : BuildState P L Γ) (hcovered : FieldsCovered state)
+    {earlier later : Fin (compileCore prog fresh state).graph.nodeCount}
+    (hlaterNew : state.nodes.length ≤ (later : Nat))
+    (hlt : (earlier : Nat) < (later : Nat))
+    (earlierRow laterRow : EventNode P L)
+    (hearlier : (compileCore prog fresh state).graph.nodes[earlier]? = some earlierRow)
+    (hlater : (compileCore prog fresh state).graph.nodes[later]? = some laterRow)
+    (who : P) {earlierGuard laterGuard : EventGuard L}
+    (hearlierCommit : earlierRow.sem = .commit who earlierGuard)
+    (hlaterCommit : laterRow.sem = .commit who laterGuard) :
+    ∃ (Δ : VCtx P L) (x : VarId) (b : L.Ty)
+      (sourceGuard : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Δ)) L.bool)
+      (site : SourceDecisionSite who prog Δ x b sourceGuard),
+      (later : Nat) = (decisionSiteState site fresh state).nodes.length ∧
+      (compileCore prog fresh state).graph.nodes[later]? =
+        some ((decisionSiteState site fresh state).commitEvent who sourceGuard) ∧
+      ({ field := (compileCore prog fresh state).graph.nodeTarget earlier,
+         ty := earlierRow.ty } : FieldRef L) ∈
+        (eventGuardOf (decisionSiteState site fresh state) who sourceGuard).choiceReads := by
+  have hlaterNode : IsCommitNode later :=
+    ⟨laterRow, who, laterGuard, hlater, hlaterCommit⟩
+  rcases compileCore_commitNode_covered prog fresh state later hlaterNew hlaterNode with
+    ⟨siteWho, Δ, x, b, sourceGuard, site, hsiteNode, hsiteRow⟩
+  have hevent : laterRow =
+      (decisionSiteState site fresh state).commitEvent siteWho sourceGuard :=
+    Option.some.inj (hlater.symm.trans hsiteRow)
+  subst laterRow
+  have hwho : siteWho = who := by
+    have hsome := congrArg
+      (fun sem => match sem with | .commit actor _ => some actor | _ => none)
+      hlaterCommit
+    change some siteWho = some who at hsome
+    exact Option.some.inj hsome
+  subst siteWho
+  let siteState := decisionSiteState site fresh state
+  have hearlierSite : (earlier : Nat) < siteState.nodes.length := by
+    rw [← hsiteNode]
+    exact hlt
+  have hprefix := decisionSiteState_nodes_prefix site fresh state
+  rcases hprefix with ⟨suffix, hsuffix⟩
+  have hearlierRow : siteState.nodes[(earlier : Nat)]? = some earlierRow := by
+    change (compileCore prog fresh state).nodes[(earlier : Nat)]? = some earlierRow at hearlier
+    rw [← hsuffix, List.getElem?_append_left hearlierSite] at hearlier
+    exact hearlier
+  have hmem := earlierCommit_mem_decisionReads site fresh state hcovered
+    (earlier : Nat) hearlierSite earlierRow hearlierRow hearlierCommit
+  refine ⟨Δ, x, b, sourceGuard, site, hsiteNode, hsiteRow, ?_⟩
+  change ({ field := (compileCore prog fresh state).initialFields.length +
+      (earlier : Nat), ty := earlierRow.ty } : FieldRef L) ∈ _
+  rw [compileCore_initialFields prog fresh state]
+  rw [decisionSiteState_initialFields site fresh state] at hmem
+  exact hmem
 
 end Vegas.ToEventGraph

@@ -2,9 +2,9 @@
 
 ## Subject
 
-Checked strategic compilation of finite imperfect-information event-graph games,
-including explicit source disclosure choices, through private bounded request
-windows and public serialization. The contribution is the concrete construction
+Checked strategic compilation from the independent written-order semantics of
+minimal imperfect-information game programs, through graph execution, private
+bounded request windows, and public serialization. The contribution is the concrete construction
 and its mechanization, not the general principle that simulation of deviations
 transfers Nash equilibrium.
 
@@ -16,15 +16,17 @@ preservation from utility-independent protection against adversarial strategies.
 Private-type compilation and actual multi-asset settlement are outside this
 scope.
 
-The runtime construction is the central theorem. A finite optional-disclosure
-case study connects an independently specified game and its full policy space
+The source-to-runtime correspondence is the central theorem. A finite optional-disclosure
+case study additionally connects an independently specified game and its full policy space
 to that construction. The sealed-offer instance binds an offer before public
 market information; the owner later opens or quits, and the recipient responds
 after disclosure. The checked equilibrium and recipient guarantee account for
 arbitrary initial-offer and informed-quitting deviations. This is not a novel
 auction mechanism or a scalability experiment.
 
-The source semantic object is `OptionalDisclosure.finiteForm`. Its connection
+The general source semantic object is `sourceGameForm`, whose execution law is
+`denoteSource`; it is defined independently of graph compilation. The separate
+disclosure case study uses `OptionalDisclosure.finiteForm`. Its connection
 to the eight-node graph, arbitrary public payoff lists, and concrete request/
 serializer instance is checked in `DisclosureCorrespondence`, `DisclosurePayoff`,
 and `SealedOfferRuntime`. The case does not claim equivalence with the richer

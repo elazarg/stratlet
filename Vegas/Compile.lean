@@ -9,7 +9,19 @@ import Vegas.Compile.DecisionSite
 import Vegas.Compile.FieldMap
 import Vegas.Compile.SourceAdequacy
 import Vegas.Compile.SourceOrder
+import Vegas.Compile.SourceInformation
+import Vegas.Compile.PolicyInformation
 import Vegas.Compile.SourceLaw
+import Vegas.Compile.SourceExecution
+import Vegas.Compile.SourceExecutionGraph
+import Vegas.Compile.SourceExecutionLaw
+import Vegas.Compile.SourceExecutionOutcome
+import Vegas.Compile.SourceExecutionLaw
+import Vegas.Compile.SourceOutcome
+import Vegas.Compile.SourceObservation
+import Vegas.Compile.SourcePolicy
+import Vegas.Compile.SourceBacktranslation
+import Vegas.Compile.SourceStrategy
 import Vegas.Compile.Machine
 
 /-!
