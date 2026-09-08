@@ -37,6 +37,9 @@ edge. The [implementation plan](docs/ledger-expansion-plan.md) prioritizes a
 public-message pool with recipient-local delivery and a checked core-to-runtime
 slice. The [ledger design](docs/ledger-expansion-design.md) specifies service and
 observation obligations on the route to a named blockchain realization.
+The non-binding [road ahead](docs/a-road-ahead.md) explores that route and
+dependency-closed combinations of runtime features; it is revised as the
+models and proofs develop.
 The `Interaction` library provides a native pool and explicit ideal commitment
 service. A certified homogeneous commit/reveal backend connects actual
 checked core programs, through their event graphs, to this public-message

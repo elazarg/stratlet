@@ -5,6 +5,9 @@ The [ledger design](ledger-expansion-design.md) specifies detailed event,
 service, and security obligations. [Runtime models](runtime-models.md) records
 what is proved. The plan is not a theorem inventory or a promise that the
 strongest proposed preservation claim will hold.
+The non-binding [road ahead](a-road-ahead.md) discusses alternatives for
+factoring features and reaching the concrete target; its proposals can change
+without being treated as completed gates.
 
 ## Scope and work order
 

@@ -6,6 +6,8 @@ This document specifies the compilation architecture and proof boundaries.
 It is a design contract, not a claim that all its targets or proofs exist.
 [The implementation plan](ledger-expansion-plan.md) gives acceptance gates;
 [the current runtime inventory](runtime-models.md) records checked results.
+The non-binding [road ahead](a-road-ahead.md) explores representation lowering
+and composable, dependency-closed families of runtime complications.
 
 The objective is to answer strategic questions about the operational models
 in which compiled programs execute. Each target has native execution, control,
