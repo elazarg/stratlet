@@ -112,10 +112,10 @@ outcome-valuation interface, trace-utility boundary, adversarial bound transfer,
 and the allocation/transfer example through requests and serialization.
 Validation used `LEAN_NUM_THREADS=4` in the development checkout with pinned
 dependency caches. The claim registry, module-boundary, documentation-reference,
-and local-option audits, and all 37 maintenance tests pass. The manuscript is
-rebuilt and its
-affected pages visually checked; its final log has no LaTeX warnings or
-overfull boxes.
+and local-option audits, and all 40 maintenance tests pass. The manuscript is
+rebuilt and its affected pages visually checked; all 26 bibliography entries
+resolve without citation or BibTeX warnings. A 2.34 pt vertical-overflow
+diagnostic remains at the main-text page break.
 
 This validation checks the dependency-tracked build in the development
 environment. Fresh-machine reproduction, a cold dependency download, an offline

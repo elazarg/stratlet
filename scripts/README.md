@@ -26,6 +26,9 @@ Run these tools from the repository root.
   that revision and a plain `git archive` both validate; untracked active
   inputs do not. Authors explicitly refresh the manifest from a clean checkout
   with `--refresh-snapshot`.
+  Active bibliography databases must be in the snapshot. Unqualified database
+  filenames must also be unique across it, including archived directories, so
+  recursive BibTeX lookup cannot silently select a different bibliography.
 - `python -m unittest discover -s scripts -p 'test_*.py'` checks the maintenance
   tooling, including missing claims, stale mappings, missing axiom pins, and
   active-paper input discovery.

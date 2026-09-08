@@ -56,6 +56,31 @@ class PaperClaimsTests(unittest.TestCase):
     def test_valid_plain_export(self):
         self.assertEqual(self.check(), [])
 
+    def bibliography_fixture(self, active, names):
+        self.main.write_text(self.main.read_text(encoding="utf-8") +
+                             "\n\\bibliography{" + active + "}\n", encoding="utf-8")
+        files = {}
+        for name in names:
+            path = self.paper / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("@article{example, title={Example}}\n", encoding="utf-8")
+            files[name] = CHECKER.sha256(path)
+        self.write_snapshot(files)
+
+    def test_ambiguous_bibliography_filename_is_rejected(self):
+        self.bibliography_fixture("references", ["references.bib", "Long/references.bib"])
+        self.assertTrue(any("Ambiguous bibliography filename references.bib" in error
+                            for error in self.check()))
+
+    def test_unique_bibliography_with_archived_database_is_accepted(self):
+        self.bibliography_fixture("vegas-paper", ["vegas-paper.bib", "Long/references.bib"])
+        self.assertEqual(self.check(), [])
+
+    def test_active_bibliography_must_be_in_snapshot(self):
+        self.bibliography_fixture("missing", [])
+        self.assertTrue(any("Active bibliography absent from snapshot manifest: missing.bib"
+                            in error for error in self.check()))
+
     def test_numbered_claim_requires_mapping(self):
         with self.main.open("a", encoding="utf-8") as stream:
             stream.write(r"\begin{lemma}\label{lem:new}New.\end{lemma}")

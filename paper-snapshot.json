@@ -18,11 +18,10 @@
     "Long/sections/12-related-work.tex": "fc34a5532101ca2b084cc3608dd29deab32a512e218c9bb12bdc6c71dd300469",
     "Long/sections/13-conclusion.tex": "82657382213c302dfaadc845b71ce0835ad78dfdf8e5ef9ec4d11b39d5675926",
     "Long/sections/a-status-ledger.tex": "2297f4e4f6cffabf1b3c4e03f37a6e0bec00c23aa9ccda5741ccc9cb9706acb7",
-    "README.md": "c2db10f6d1d6cc0c555b14820b35d6a113979744a45d8e584ce8d233a21afe24",
+    "README.md": "821c82b31de61f22e44380214488ab7e5fa14ec7615846dfe77f2d9e2585f39f",
     "macros.tex": "620ad92c937fd5edf4e3dc04ef28a4b410ee3ac971cbef6eca9799f8c845789d",
-    "main.tex": "bb2c1ff6afa0b54571c9597b78664da707043b3b056c6c049829acaa2e45b3cc",
-    "references.bib": "f2da326be7aabdf4680e85b7c5cbe37ff3c7d5b4db972a9dea7e48c7d3d81dfc",
-    "sections/01-introduction.tex": "5c12641427c68a54ea59bbcbce47cfa73016e99bd4bdd8e517830a534e96df87",
+    "main.tex": "8052a26021db2fc453d2acdc0048af502ba4d12b0ceb19c72f959958697202ea",
+    "sections/01-introduction.tex": "91b940f7e5af87eadb3bc6e194c147dcb2a7e0f1a7b5016fa486cef459c4d081",
     "sections/02-game-programs.tex": "c93e07217d1c3a13ef8fa120ae7d14d03b66739662c46c7c1264f0eea4b530a0",
     "sections/03-language-graph.tex": "1d3d6731e5b89365c86d053410eabf1b98981aa284fcd33525c29b2c699c8817",
     "sections/04-strategic-semantics.tex": "f63d9840be3eac403b3677b2d3bd7a7b0eb7641b22c1e588720dace90ceece95",
@@ -32,7 +31,8 @@
     "sections/07-artifacts.tex": "0073081894c9a6dfc5c37d54664f4e34094586e1781f298fe30cf6ea547eda4e",
     "sections/08-related.tex": "7c35941b991d2dffcf9d2d8a5ffec835a295c9b35a1cc21cc6a4d3ac9a5f2849",
     "sections/09-conclusion.tex": "0c39ab34180191b4c3f7ba22421628003e22793402389b508a791e404fa8204a",
-    "sections/10-quitting.tex": "fce00dc8cdf71031544c42d8431e8d19b583866080fd066e74daac5f01026555"
+    "sections/10-quitting.tex": "fce00dc8cdf71031544c42d8431e8d19b583866080fd066e74daac5f01026555",
+    "vegas-paper.bib": "f2da326be7aabdf4680e85b7c5cbe37ff3c7d5b4db972a9dea7e48c7d3d81dfc"
   },
-  "revision": "e1eb286852e9ffcf321b70274f13d5388f6492aa"
+  "revision": "12656d11753d6bafd68924872c046466575ba880"
 }

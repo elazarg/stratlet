@@ -232,6 +232,20 @@ def check(root: Path, paper: Path, allow_missing: bool = False) -> list[str]:
             failures.append(f"Active paper input is absent from snapshot manifest: {relative}")
         claims.extend(TAG.findall(text))
         uncommented = re.sub(r"(?<!\\)%[^\n]*", "", text)
+        for databases in re.findall(r"\\bibliography\{([^}]+)\}", uncommented):
+            for database in databases.split(","):
+                name = database.strip()
+                name = name if name.endswith(".bib") else name + ".bib"
+                if name not in snapshot_files:
+                    failures.append(f"Active bibliography absent from snapshot manifest: {name}")
+                # Recursive bibliography search must not select an archived
+                # database with the same unqualified filename.
+                if "/" not in name:
+                    matches = sorted(file for file in snapshot_files if Path(file).name == name)
+                    if len(matches) > 1:
+                        failures.append(
+                            f"Ambiguous bibliography filename {name}: {', '.join(matches)}"
+                        )
         for match in THEOREM.finditer(uncommented):
             labels = LABEL.findall(match[2])
             if len(labels) != 1:
