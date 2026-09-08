@@ -30,13 +30,20 @@ this paper uses a pinned checked dependency, not a publication of its full corpu
 The frontend/core ownership boundary and immediate integration step are in
 [docs/compiler-boundary.md](docs/compiler-boundary.md): Kotlin Vegas owns the
 rich language, while VegasCore stays a minimal checked semantic target.
-The next research expansion is designed in
-[docs/ledger-expansion-design.md](docs/ledger-expansion-design.md) and sequenced in
-[docs/ledger-expansion-plan.md](docs/ledger-expansion-plan.md): public delivery and
-deadlines, reusable ledger/strategic layers, and an explicit path to a named
-blockchain realization. Proposed results there are not current guarantees.
+The [compilation design](docs/compilation-design.md) requires a native game
+interpretation at every operational stage, with proofs connecting each compiler
+edge. The [implementation plan](docs/ledger-expansion-plan.md) prioritizes a
+public-message pool with recipient-local delivery and a checked core-to-runtime
+slice. The [ledger design](docs/ledger-expansion-design.md) specifies service and
+observation obligations on the route to a named blockchain realization.
+These target models and connections are planned, not current guarantees.
 
 ## Architecture
+
+The current implementation has the following branches. The strategic proofs
+reach the private-window/public-serialization models; the backend branch is
+not yet connected to them by a public-message strategic theorem. FOSG is an
+analysis presentation, not the required semantics of the source or every target.
 
 ```text
                               ┌─→ ExecutionProtocol + InformationModel

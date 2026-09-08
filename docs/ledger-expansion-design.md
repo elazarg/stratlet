@@ -1,15 +1,16 @@
 # Public delivery, deadlines, and strategic compilation
 
-Status: proposed research design. No theorem in this document is a claim about
-the existing implementation. The proved boundary remains
+Status: public-delivery model design under the
+[compilation architecture](compilation-design.md). No proposed theorem here
+is a claim about the existing implementation. The proved boundary remains
 [runtime-models.md](runtime-models.md). The execution plan and acceptance gates
 are in [ledger-expansion-plan.md](ledger-expansion-plan.md).
 
 The language/compiler boundary is fixed in
 [compiler-boundary.md](compiler-boundary.md): Kotlin owns the rich frontend,
-VegasCore remains a minimal semantic target, and the first step tests the
-strategic relation between explicit quitting and failed submissions/openings
-before certifying an optional-value encoding. Runtime expansion does not
+VegasCore remains a minimal semantic target. The strategic relation between
+explicit quitting and failed submissions/openings must be proved before
+certifying their abstraction by an optional value. Runtime expansion does not
 authorize surface-language growth in the core.
 
 ## 1. Research objective
@@ -102,66 +103,32 @@ under adversarial congestion without a resource or capacity argument.
 
 ## 3. Ownership and reuse
 
-Use separate namespaces and Lake targets before considering separate Git
-repositories. Directory separation alone is not decoupling: enforce authored
-import boundaries and compile a non-Vegas consumer. Names below are proposed,
-not declarations that already exist.
+The [compilation design](compilation-design.md#6-ownership-and-dependencies)
+owns the dependency boundaries. This document specifies the concrete
+public-delivery model and its proof obligations, not another compiler
+architecture or a list of packages to create in advance.
 
-```text
-GameTheory.Math / Mathlib
-       |
-       v
-ProtocolRuntime -------> LedgerRuntime -------> chain-specific adapters
-       |                       |
-       v                       v
-StrategicRuntime ------> LedgerGames
-       ^                       |
-       |                       v
-GameTheory.Core/Protocol      VegasCore compiler
-```
-
-`StrategicRuntime` depends on both `ProtocolRuntime` and GameTheory's game and
-protocol interfaces. `LedgerGames` combines it with `LedgerRuntime`. There are
-no reverse dependencies from GameTheory or the generic runtime into Vegas.
-The rich Kotlin frontend is an external producer of core artifacts, not part
-of the language-independent runtime dependency graph.
-
-| Owner | Responsibility | Forbidden dependency |
-| --- | --- | --- |
-| GameTheory.Math / Mathlib | finite probability, couplings, expectation bounds | ledger, compiler, equilibrium-specific probability copies |
-| ProtocolRuntime | state machines, commands, event histories, local observations, operational refinements | Vegas syntax and game utilities |
-| LedgerRuntime | raw transactions, recipient views, pending buffers, inclusion, clocks, receipts, settlement/expiry drivers, service guarantees | Vegas graphs, Nash, payoff syntax |
-| StrategicRuntime | adapters to canonical GameTheory protocols; concrete request/scheduling translations and opponent-preserving comparisons | Vegas or an Ethereum-specific execution model |
-| LedgerGames | strategy semantics and theorem instantiations for public ledger interaction | Vegas-specific syntax and graph compilation |
-| Kotlin Vegas and frontend integration | surface checking, handler elaboration into core values/control, later translation validation | no rich frontend AST or duplicate typechecker in VegasCore |
-| VegasCore | minimal core checking, graph compilation, runtime eligibility, protocol lowering, application proofs | no generic ledger truth defined a second time; no handler syntax |
-| Chain adapters | a named ledger/VM/network/consensus realization and its proofs | source-language constructs |
+Generic game-form backtranslation, deviation comparisons, preference
+transport, and composition belong in GameTheory, subject to its existing
+architecture and APIs. Concrete message-pool, ledger, and service semantics
+belong in reusable runtime libraries. Their game adapters reuse the same
+execution laws. Vegas owns its native core/graph semantics, compiler passes,
+and their instantiations; the rich Kotlin frontend remains separate.
 
 Application state is a parameter of the ledger. Auction phases, escrow rules,
 and timeout settlement belong to an application protocol, not the generic
 ledger transition. The ledger supplies calls, clocks, receipts, and a driver
 interface; application code decides what a resolution call means. Ideal
 commitment/authentication state is a composed service, not a universal ledger
-field. The state inventory below describes that composed first instance.
+field. The state inventory below describes that composed instance.
 
-Extract rather than copy the relevant parts of `Vegas.Machine.System` and
-`Refinement`, `Runtime.ActionWindow`, `RequestCompiler`, and generic
-`Scheduled` modules. Keep graph-dependent code in Vegas. Existing declarations
-and callers are renamed together; no compatibility aliases. Extraction is
-limited to the dependency slice exercised by both clients, not every EVM file.
-
-Do not force a new certificate hierarchy into GameTheory. Its D8 decision
-prefers concrete transformations and direct hypotheses; any proposal to change
-that API needs its own evidence and review. Generic operational records belong
-in the runtime package; reusable game theorems use existing `GameForm`,
-`InformationModel`, policies, and equilibrium predicates. No second play law or
-second Nash definition is introduced.
-
-Initially the game-free runtime may import the probability-only GameTheory.Math
-root. It must not pull in GameTheory.Core/Protocol. This dependency is documented
-as unpublished software, not a new publication of GameTheory. A later standalone
-runtime release should preserve this small dependency boundary and all licenses;
-creating a new remote repository is a separate release action.
+Extract the exercised dependency slice rather than copying definitions or
+moving the entire EVM backend at once. Establish independent reuse with a
+non-Vegas client. Game-free model modules may use the probability-only
+GameTheory root; strategic adapters use its game/protocol interfaces.
+Physical library targets follow working clients and enforce these import
+boundaries. Creating separate remote repositories is a release decision,
+not a prerequisite for model design.
 
 ## 4. Small executable ledger model
 
@@ -223,9 +190,10 @@ output: finite menus, declared observations, nonparticipation outcomes, and
 resolution checkpoints. It is not a new rich source language. Kotlin lowers
 its existing language to the minimal core; core-to-protocol compilation must
 justify the target structure and its strategic relation to that core game.
-A protocol's game interpretation belongs to `StrategicRuntime`/`LedgerGames`
-and derives existing GameTheory execution/information objects, not another
-evaluator. Freeze its representation only after the B0/P0 examples need it.
+A protocol's game interpretation belongs to its runtime adapter and derives
+existing GameTheory game forms from the native execution, not another
+evaluator. Freeze its representation only after the concrete compiler slice
+in the implementation plan exercises it.
 
 The semantic comparison must distinguish, without necessarily adding syntax:
 
@@ -246,7 +214,7 @@ General handlers remain frontend constructs. Retain the checked-source
 The [quitting compilation contract](quitting-compilation-contract.md) separates
 source obligations from representation and runtime proof obligations.
 Binding, information, and quit persistence are proof obligations of the
-encoding, not consequences of using an option type. The detailed B0 comparison
+encoding, not consequences of using an option type. The detailed representation comparison
 is in [compiler-boundary.md](compiler-boundary.md).
 
 Environmental failure need not be added to the minimal core. If it cannot be

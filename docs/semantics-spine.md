@@ -1,6 +1,10 @@
 # Semantics spine
 
-This document states the semantic ownership and proof boundaries of VegasCore.
+This document inventories the implemented semantic objects and proof boundaries.
+The [compilation design](compilation-design.md) specifies the architectural
+contract and [implementation plan](ledger-expansion-plan.md) for connecting
+native operational games at every compiler stage. The backend inventory below
+does not establish strategic preservation through public-message execution.
 
 ## Objects and ownership
 
@@ -357,8 +361,11 @@ Finite source domains also construct a full-support finite counterfactual site
 cover, so the unilateral certificates apply without assuming a globally finite
 information-history carrier.
 
-GameTheory does not supply a general secure-compilation or runtime
-hyperproperty framework; that boundary is domain-specific and remains in
-VegasCore. Its MAID surface also uses fixed decision domains, so exporting a
+GameTheory does not supply a general secure-compilation framework. Generic
+game-form backtranslation and transport belong at its game/protocol boundary;
+concrete runtime observations and Vegas-specific compiler constructions have
+their respective model/compiler owners. The extraction plan follows its API
+review process rather than duplicating theory. Its MAID surface uses fixed
+decision domains, so exporting a
 guarded Vegas game to MAID requires a fragment restriction or a proved
 strategic encoding.

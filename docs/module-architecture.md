@@ -1,5 +1,10 @@
 # Library and proof boundaries
 
+This is the implemented module inventory. The
+[compilation design](compilation-design.md) specifies semantic ownership and
+the [implementation plan](ledger-expansion-plan.md) gives the extraction and
+public-message-runtime gates. Proposed ownership is not implemented separation.
+
 The package has four build targets. `lake --wfail build` checks all four;
 `lake --wfail build Vegas` checks the runtime-general library alone.
 
@@ -40,7 +45,9 @@ The machine carrier does not import its compiler.
 `Vegas/Game/Kuhn.lean` supplies strategy-representation certificates, and
 `Vegas/Game/Request.lean` instantiates generic request compilation for games.
 `Vegas/Game/SourceRequest.lean` specializes the request certificates to checked
-source programs. `Vegas/Game.lean` imports all four. These strategic adapters
+source programs. The `SourceCorrespondence`, `SourceRequestCorrespondence`, and
+`SourceCorrelated` modules connect independent source policies to those games.
+`Vegas/Game.lean` reaches all these modules. These strategic adapters
 depend on source-to-machine lowering; the lowering does not depend on games.
 The runtime interfaces do not import the game-specific adapters.
 
@@ -85,6 +92,7 @@ Markdown and relative Markdown/Lean links, separately from declaration-name
 citations in Lean sources. A valid namespace does not establish that a cited
 file exists.
 
-The paper audit lives in `Paper/General.lean` and root `Paper.lean`; tests use
+The paper audit lives in `Paper/General.lean`, `Paper/Source.lean`, and root
+`Paper.lean`; tests use
 the owning mathematical theorems directly rather than importing audit wrappers.
 The live manuscript is separately revision-pinned as described in `ARTIFACT.md`.

@@ -1,393 +1,336 @@
-# Ledger expansion: implementation and research gates
+# Compilation tower: implementation plan
 
-Status: research plan with checked one-shot B0a kernels and an operational B0b
-optional-opening core probe; the
-frontend bridge and public-ledger compiler remain unimplemented. This is the
-execution plan for
-[ledger-expansion-design.md](ledger-expansion-design.md). Existing proof status
-is recorded separately in [runtime-models.md](runtime-models.md).
+This is the implementation plan for [compilation through operational games](compilation-design.md).
+The [ledger design](ledger-expansion-design.md) specifies detailed event,
+service, and security obligations. [Runtime models](runtime-models.md) records
+what is proved. The plan is not a theorem inventory or a promise that the
+strongest proposed preservation claim will hold.
 
-The ownership and integration contract is [compiler-boundary.md](compiler-boundary.md).
-The pinned [BitML and formal-quant comparison](research-comparisons.md) records
-operational distinctions, reusable proof and testing patterns, and limits of
-the inspected artifacts. Its recommendations refine the gates below; they are
-not implemented interfaces or discharged proof obligations.
-Kotlin retains its rich language; VegasCore remains the minimal semantic
-target. An optional value is the candidate abstraction of disclosure-or-
-quitting, not proof that public quit signals and failed openings are
-strategically equivalent. This plan does not authorize building a rich Lean
-frontend or a second production compiler.
+## Scope and work order
 
-## Scope of the next paper-sized result
+Build the shared operational/strategic runtime connection before expanding
+backend breadth. Keep the minimal Vegas core and its well-formedness discipline.
+Do not reproduce the rich Kotlin language in Lean.
 
-This section describes the public-ledger research expansion. The current
-manuscript instead follows the bounded [paper scope](paper-scope.md): complete
-explicit source disclosure and an application through the existing runtime
-construction before claiming a public-delivery compiler.
+The first delivery is a public-message model with recipient-local observations,
+a real core-to-model compiler slice, and checked strategic evidence about that
+execution. A weaker positive result or a precise obstruction is acceptable
+evidence at a research gate. A disconnected runtime, a restated preservation
+hypothesis, or a trace example alone is not completion.
 
-Aim for a checked public-delivery compiler for a conservative finite core
-fragment, with lowered source quitting, environment capabilities, and
-information barriers; quantify outcome/incentive errors where execution can
-fail; demonstrate reuse outside Vegas and one substantive Vegas application.
+Prefer focused replacement and extraction to a rewrite without a demonstrated
+semantic need. There is no API compatibility requirement: update all consumers
+and remove obsolete definitions when their replacements are checked. Keep the
+existing valid proofs and default warning-free build throughout the work.
 
-Do not make the next result contingent on formalizing all Ethereum consensus,
-all EVM instructions, computational cryptography, infinite executions, and
-the Kotlin parser. Those are distinct later proof obligations, but the new
-interfaces must leave room for them. Equally, do not label the next model a
-complete blockchain or the resulting paper an end-to-end deployment theorem.
+## R0. Establish semantic ownership
 
-There is no sound calendar estimate before the first semantic tests. Proceed
-by the bounded gates below. At each gate, record the exact statements, admitted
-behavior, dependencies, evidence, failed conjectures, and next decision. A
-failed conjecture is useful evidence; a placeholder proof is not completion.
+**Deliverables**
 
-## B0. Prove a quitting abstraction, then connect one core encoding
+- Refactor the general Vegas game wrapper so its semantic ownership is not
+  FOSG syntax. Keep bounded horizon and utility as analysis data or explicit
+  capabilities, not requirements on every future operational target.
+- Keep the independent source game as the source endpoint. Update names that
+  call the compiled graph game the source game where that is not the meaning.
+- Make the FOSG adapter a format export using the existing execution and
+  information objects, with no new runner. Preserve current source/native,
+  request, and serialization results under the refactor.
+- Inventory generic game/protocol transformations currently in Vegas, compare
+  them with GameTheory's existing APIs, and obtain the appropriate upstream
+  architecture decision for additions. Generic backtranslation, outcome-law
+  comparison, preference transport, and their composition belong there.
+  Concrete Vegas field/decision reconstruction remains in Vegas.
+- Move accepted abstractions with their generic tests into the separately
+  managed GameTheory repository, then update Vegas callers and its pin.
+  No duplicated stable definitions or compatibility wrappers. This plan does
+  not authorize changing a GameTheory architectural decision by fiat.
 
-**Kernel evidence:** the finite representation comparison described in
-[compiler-boundary.md](compiler-boundary.md#first-bounded-step-an-optional-disclosure-encoding).
-Keep public quit signals, malformed commitments, withheld openings, and
-cryptographic/application validation failures distinct. Compare a continuation
-that can react between their different observation times with a barrier
-variant. Prove a distinguishing result or a precisely scoped positive
-comparison in existing finite protocol machinery. Settlement equality alone
-does not pass. No new core syntax, interchange framework, or ledger package
-is needed. The one-shot negative witness, no-mixture result, and generic
-barrier adequacy are checked in `VegasTests/FailureObservation.lean` and
-`Vegas/Runtime/FailureObservation.lean`. Their precise scope is recorded in
-[runtime-models.md](runtime-models.md#failure-observations-checked-one-shot-comparisons).
-This does not complete the event-level or frontend parts of B0.
+**Gate**
 
-The constant-signal extension in `Vegas/Runtime/ConstantSignal.lean` proves
-profile-local unilateral laws and same-error Nash correspondence without a
-response barrier. A Boolean strictly dominated quit action yields the needed
-support condition at source Nash profiles. This compiler's honest responder
-ignores the added signal; raw public delivery and later reactions are not
-covered. Carry both positive routes into the core-encoding test rather than
-treating failure of all-profile equivalence as failure of equilibrium transfer.
+The existing source and native-game audit statements still compile with the
+same mathematical endpoints. FOSG is unnecessary for defining those endpoints.
+Every proposed extraction has a named owner, actual clients, and a migration
+of callers rather than an extra layer of aliases.
 
-**Core probe:** `VegasTests/OptionalDisclosure.lean` constructs a fresh optional
-opening constrained to the earlier binding or `none`, after a public signal.
-It checks graph dependencies, guard legality, source executions, and source
-views, and excludes direct reads of the original sealed field in the responder
-and public graph observations. It is accepted through `GraphProgram` plus
-`Legal`, but explicitly fails `RevealComplete`; `WFProgram` is unchanged.
-The Kotlin fixture checks the two opening choices and their visibility after
-each binding/signal pair. These are not yet equivalent complete games.
+**Concurrency**
 
-**Next bounded integration step:** identify full graph information at the
-optional-opening and reply checkpoints, eliminate the forced marker and other
-administrative moves with information-local strategy maps, and prove the
-all-pure-profile law. The extra commitment/disclosure events must satisfy the
-same contract, not be assumed equivalent to a cleartext quit. Match the Kotlin
-fixture's additional initial/reply quitting and settlements before claiming
-frontend correspondence or exporting cross-language fixtures as one model.
+The API inventory and bounded public-message experiment can run alongside
+this refactor. Freeze the shared runtime interface only after R1's hostile
+tests; upstream approval must not block learning whether the model is sound.
 
-Check the actual Kotlin fixture and its information/choice structure. Prove
-the candidate core encoding's information-local, all-pure-profile law in the
-finite example, including unilateral replacements. Distinguish Lean evidence
-from differential tests of the trusted Kotlin evaluator. Retain the current
-`RevealComplete` source discipline. An implementation graph may use the
-existing weaker graph boundary, but needs a correspondence certificate for its
-auxiliary bindings. Follow the [quitting compilation contract](quitting-compilation-contract.md);
-do not infer source acceptance from graph liveness.
+## R1. Define the smallest faithful message interaction
 
-**Gate:** the representation comparison and optional-disclosure pattern are
-checked with explicit policy/continuation scope and remaining frontend trust,
-or a precise failed obligation is documented. Test the encoding before
-generalizing it. The following extension checks persistent quitting at a second
-checkpoint. Only then build the smallest emitted-core
-bridge for that supported subset; no handler syntax crosses the boundary.
+Implement a runtime-general model with a parameterized application transition.
+Use existing probability and protocol machinery where appropriate. The native
+event semantics owns all execution; its GameTheory adapter reuses that law.
 
-An accepted core artifact is the common input to analysis and runtime
-compilation. Initially, any existing Kotlin analysis/backend output is a
-differential reference, not covered by Lean simply because it uses `GameIR`.
-Unsupported syntax or target conditions receive an explicit diagnostic.
-Frontend lowering correctness and deployed-backend correctness remain separate
-obligations, neither discharged by core well-formedness.
+Initial state and event surface:
 
-## P0. Falsify the candidate discipline before building a framework
+- Raw messages with sender, destination/application identifier, payload, and
+  the identifiers needed for delivery, replay, and inclusion.
+- Recipient-local delivered views and sender receipts; submission does not
+  imply delivery to anyone else.
+- A pending-message inventory separate from accepted application state.
+- Submit/wait, deliver/withhold, include/execute, and explicit validation
+  results. Introduce local clock notifications and a resolution driver when
+  the positive compiler slice needs deadlines.
+- Principal-indexed controls. A principal may have several capabilities;
+  environmental policies are explicit, and equilibrium concerns the chosen
+  game-player principals.
+- Explicit finite resource parameters for the first experiments, without
+  making finite state or termination fields of the general runtime carrier.
 
-**Depends on:** a concrete supported core pattern from B0 for the positive
-slice. Independent negative experiments need not wait for that proof.
+No privacy assumption is attached to the message pool. An event's recipient
+projection determines the signal; prove that unrelated hidden state cannot
+affect that signal. Unobserved events leave local information unchanged.
+Do not append a hidden global step counter or silently broadcast the clock.
 
-**Deliverables:** small executable finite instances, checked distinguishing
-laws/counterexamples, and a decision about the first positive source fragment.
-Use the current canonical execution/information machinery for the experiments;
-do not introduce a universal ledger/game hierarchy first.
+Instantiate the first finite test model with enumerated principals and
+destinations, a finite raw payload alphabet containing malformed inputs,
+bounded identifier/nonce spaces, and explicit resource and clock ranges.
+Alternatively prove a finite reachable cover for a field that retains an
+unbounded carrier. A byte-length bound alone does not bound identifiers,
+fees, timestamps, or counter histories.
 
-Test these event sequences with explicit local observations:
+Use the design's player-only game family: bundle capabilities by principal,
+fix local policies for external principals, and assemble them with the player
+profile for the native runner. Derive local activation/menu adequacy as a
+construction obligation, including terminal histories. A direct `GameForm`
+adapter must enforce the same policy locality rather than evade it.
 
-| Test | Required question |
+**Required hostile tests**
+
+| Test | Required evidence |
 | --- | --- |
-| Timely valid request censored until expiry | Does an environment-controlled outcome have a source-controlled counterpart? |
-| Last-slot submission | Can acceptance depend on an adversarial order after the deviator learns something source-invisible? |
-| Public malformed traffic | Can an arbitrary payload, length, or retry pattern influence the scheduler and another player's payout? |
-| Early and late commitments with hidden values | Is the visible footprint simulable from the source information, even if values are hidden? |
-| One reveal observed before another opening decision | Does the full source include the actual informed quitting decision? |
-| Hidden invalid commitment | Where is the guard checked, and which source branch accounts for failure? |
-| Timeout enabled with no resolution caller | Does the contract actually settle, or merely permit someone to settle it? |
-| Reveal and timeout both enabled | Is expiry an alternative spend, a strict cutoff, or call-triggered resolution? |
-| Copied or related commitments | Does the commitment service justify the source's independent choices, beyond hiding and binding? |
-| Zero-payout deviation saving fees | Is a source indifference turned into a profitable target deviation? |
-| Reverted or orphaned reveal | Does the observer retain information after state rollback? |
-| Distinct recipient mempools | Was global common knowledge inadvertently substituted for local delivery? |
+| A message reaches A but not B | Distinct local views; B cannot distinguish it from non-delivery unless another modeled event informs B. |
+| One extra undelivered event | No new information, event count, or clock tick for an uninformed principal. |
+| Hidden global activation change | Either a real local trigger justifies the menu change or the proposed adapter is rejected/refined; do not invent shared notifications. |
+| Public malformed or duplicate input | Still a possible controller action; execution produces the specified failure and observations. |
+| Failed/reverted execution after delivery | The recipient retains what it learned despite unchanged application state. |
+| Two messages with different inclusion orders | Both operational traces exist and expose exactly their declared local effects. |
+| One actor controls player and builder capabilities | A single principal deviation can change both. |
+| A run reaches the test horizon without settlement | The result remains pending, not source quitting or successful completion. |
 
-The reorg test can be a small standalone model; it is not a claim that the
-initial final-ledger compiler already handles forks. Likewise, a finite stalled
-prefix is not a proof of infinite nontermination.
+Compare the operational model and adapter on these executions. In particular,
+GameTheory's information-local menu law also ranges over terminal histories;
+finite testing fuel must not create a fictional observed terminal event.
 
-For the first concrete slice, generate small cross-language semantic fixtures
-from Lean: local observations, available decisions, accepted/rejected events,
-successor state, and settlement. Replay them in Kotlin and check regeneration.
-Keep distinct failure causes in these fixtures until a proved abstraction
-justifies merging them. This tests the trusted implementation; agreement on
-fixtures is not frontend or backend refinement. Add a canonical codec only
-after this slice determines the smallest useful artifact schema.
+**Gate**
 
-**Positive baseline:** compile the B0 core pattern into one public-delivery
-slice, using an intermediate protocol only if the concrete lowering needs it.
-Use a nonzero delay bound, at least two inclusion orders, a malformed request,
-and the later optional disclosure/quit decision. Trace examples alone are
-insufficient: prove an all-policy or unilateral-law statement for this slice.
-Do not start with a detached phase language and postpone its core connection.
+Executable traces, observation/noninterference lemmas, and a derived game form
+all describe this same model. The adapter does not reduce the native adversary
+space to satisfy its typing requirements. This gate does not claim source
+preservation or a complete ledger.
 
-**Gate:** choose one of three outcomes, supported by the tests:
+## R2. Compile a checked core program into that model
 
-- The simpler source abstraction survives; proceed to its general compiler.
-- It survives only for a smaller core fragment or a weaker, explicitly stated
-  theorem; revise eligibility or the theorem without silently extending the
-  source game. Any core expressiveness change requires the separate argument
-  in the boundary design.
-- The proposed discipline offers no meaningful abstraction over direct ledger
-  play; stop and reassess the contribution. Do not hide the failed premise in
-  an interface or continue adding infrastructure to defend it.
+Choose a finite checked core program with two real players, source-defined
+nonresponse outcomes, and a later decision that can expose an information
+mistake. Prefer sequentially disclosed choices for the first positive slice;
+cryptographic hiding need not be a prerequisite to exercising public delivery.
+Choose the exact program before adding a general protocol/phase language.
 
-The preferred hypothesis is fixed epochs plus barriers and bounded service.
-It is not assumed true until this gate passes. Implement only the public event
-surface required for this slice first. The remaining negative tests guide
-subsequent increments; a reorg model is not a prerequisite for the first proof.
+Provide an actual `WFProgram` term using the existing constructors. Represent
+nonresponse by a designated legal source value with explicit continuation and
+payout semantics, for example `none` in an optional choice whose legality is
+proved. The minimal core has no timeout constructor; the interface's timeout
+action must select that value, not manufacture a new source branch.
 
-## P1. Establish reusable ownership with two actual clients
+Keep the concrete emitted controller and application transition available for
+execution. Prove their connection to the independent source game, not merely
+to a new hand-defined runtime-aware game. Any graph-level example that does not
+satisfy core admission must be labeled as such and cannot discharge this gate.
 
-**Depends on:** a passing P0 slice.
+Use a named service instance, with nonzero delivery delay and at least two
+admissible inclusion orders. A zero-cost instance is acceptable if explicit.
+Give source timeout resolution a real transition and controller/driver. The
+service assumptions must be feasible and must hold under all deviations in
+the statement, including allowed spam and late submissions.
 
-Introduce only the runtime targets required by that slice, following the import
-graph in the design. Extract the exercised generic operational and request
-proofs from Vegas, updating all consumers and audits without compatibility
-wrappers. Reuse GameTheory probability and protocol machinery. Leave graph
-compilation and source syntax in Vegas.
+The first positive instance uses disjoint player and external builder/network
+principals; fix that ownership map in its theorem. R1's combined-capability
+test does not make this theorem cover player-owned builders. Use explicit
+per-principal resource budgets and reserved service capacity for the initial
+bounded inclusion instance. Define how over-quota traffic is rejected or
+charged; it must not consume another principal's promised capacity silently.
+These are model assumptions, not claims about Ethereum's service guarantees.
 
-The second client is a directly defined, non-Vegas timed escrow/release
-protocol with two parties, explicit nonresponse settlement, and competing
-requests. It imports the generic runtime/ledger/game adapters but no `Vegas`
-module. At least one operational invariant and one strategic comparison must
-be proved through the same modules used by Vegas. A second namespace that
-imports the Vegas compiler does not count as a second client.
+Prove settlement within the chosen bound for every admitted unilateral player
+replacement and fixed adaptive environment satisfying the service contract.
+Account for invisible withhold/wait events in the bound, not just successful
+application steps. If this cannot be proved, the endpoint remains a
+prefix/pending theorem and cannot be presented as an unconditional terminal law.
 
-Add automated import checks for:
+**Proof obligations**
 
-- no `Vegas` imports in generic packages;
-- no game/utility/solution-concept imports in operational ledger targets;
-- no chain-specific imports in generic strategic translation;
-- no reverse imports into GameTheory from its consumers;
-- no placeholders/custom axioms in the claimed proof dependency closure.
+1. The compiler's emitted requests and controller actions are executable and
+   information-local; the controller uses no hidden scheduler state.
+2. Actual application execution and decoding agree with the source outcome
+   interpretation on completed runs.
+3. Compiled-profile law correspondence holds under the stated services.
+4. Analyze all target unilateral replacements at the same fixed environment
+   policy, retaining other compiled principals. Prove a uniform translation,
+   a precisely scoped mixture/quantitative statement, or a concrete obstruction.
+5. Derive the corresponding source-outcome bound and equilibrium consequence
+   only when the established relation supports them.
 
-Use separate Lake targets in this repository first. A standalone package/repo
-release follows only after the API works for both clients. Do not create new
-remote repositories or revise GameTheory's architectural decisions implicitly.
+Include deliberate failure controls: censor a valid request past its cutoff;
+expose information before another relevant choice is fixed; change a fee while
+holding decoded settlement constant. State which guarantee each behavior
+refutes and which assumption excludes it in the positive instance. Do not
+assume that every negative control refutes every solution concept.
 
-**Gate:** both clients build independently, existing paper claims still compile,
-and the generic API does not mention event-graph fields or Vegas handlers.
+**Gate**
 
-## P2. Public ledger semantics and capability laws
+One actual core-to-public-message compiler path has checked strategic evidence,
+with full controller quantifiers for the property claimed. If exact law or
+Nash preservation fails, record the necessary condition or weaker result.
+Do not replace the source meaning or declare all failures equivalent to quit.
+If the only result is an obstruction, choose and test a revised service
+discipline, supported fragment, or useful weaker property in the same model.
+Positive compiler composition and generalization in R3/R4 require an actual
+proved comparison; a negative result does not supply that premise. Independent
+runtime reuse can still proceed from R1.
 
-**Depends on:** P0 and the minimal ownership split from P1.
+## R3. Validate composition, extensibility, and independent reuse
 
-Implement raw submissions, recipient-local delivery, ordered inclusion,
-execution receipts, clocks, and explicit timeout-driving transactions. Fix
-whether endpoint equality includes costs, pending state, or finalized state
-for each theorem. Define ideal commitment/authentication services by actual
-transition and observation rules, not by exposing a plaintext value to every
-runtime policy and asking them to ignore it.
+Insert one useful intermediate representation in the working R2 path, such as
+raw-envelope validation or an explicit inclusion/receipt layer. Do not create
+a dummy wrapper solely to count a layer.
 
-Prove:
+Prove both adjacent edges and recover the original end-to-end statement using
+the relevant composition results. Check equality or semantic correspondence
+of the final artifact, not just matching theorem types. Include one test in
+which exposing new receipt information defeats an overly strong abstraction.
+The gate names the exact comparison recovered; finite mixtures cannot stand
+in for a uniform translator or a continuation/recommendation correspondence.
 
-1. local observations come from the canonical event history;
-2. validation/replay/nonce rules preserve the ledger/application invariant;
-3. balance/escrow accounting for success, rejection, and resolution;
-4. finite-prefix execution and explicit unsettled states;
-5. precise service lemmas for admitted, persistently valid, timely requests;
-6. which deadline margins imply inclusion/resolution, with units and boundary
-   convention (strictly before versus at the cutoff) stated explicitly.
+Build a second, directly specified non-Vegas protocol using the same runtime
+and game adapter, for example a two-party escrow/release protocol with
+competing requests. Prove an operational invariant and a strategic comparison
+with the same generic machinery. It must compile without importing Vegas.
 
-Separate publication of an authorization or opening from execution of the
-authorized action. Prove persistence only while the published capability
-remains valid; do not equate an irrevocable authorization with an obligation
-to make every later source choice. Do not borrow a service rule that lets an
-honest pending action veto clock progress and call it censorship-tolerant
-blockchain inclusion.
+Enforce the exercised library boundaries in the import checker:
 
-Implement an unrestricted instance and a named bounded-service instance over
-the same operational semantics. The latter must admit multiple delivery delays
-and inclusion orders. Avoid a proof that reduces every scheduler to the one
-honest schedule.
+- no Vegas or ledger/VM dependencies in GameTheory;
+- no Vegas or EVM dependencies in generic interaction/ledger semantics;
+- no game-core dependencies in game-free runtime modules;
+- no compiler imports in target-carrier definitions;
+- no audit/test imports into production roots.
 
-**Gate:** all P0 bad behaviors are either admitted and have the expected effect,
-or excluded by a visible capability with an independent rationale. In
-particular, no implicit keeper, hidden mempool, free execution, or forced
-participation can appear in the target theorem.
+**Gate**
 
-## P3. General strategic comparison for the concrete phase construction
+The new layer composes without rewriting unrelated semantic owners; the
+non-Vegas client proves actual reuse. Add physical library targets only for
+the modules exercised by these clients. Do not create empty package trees.
 
-**Depends on:** P2 and the concrete core-to-protocol construction selected at P0.
+## R4. Generalize the supported compiler and information discipline
 
-Construct information-local source replacements for arbitrary runtime
-controllers, not just the compiler image. Prove T1 from the design, first for
-deterministic policies and then for the chosen finite randomization class.
-If a behavioral result uses finite-site coverage, derive coverage over every
-admitted counterfactual, not just the honest execution tree.
+Generalize the concrete R2 construction only along the dimensions its proof
+uses. State core eligibility separately from source well-formedness. The
+compiler may reject an unsupported target/fragment pairing without weakening
+the programmer's source discipline.
 
-Required intermediate lemmas:
+Exercise hidden selection and later disclosure using explicit ideal services.
+Before using existing quitting results, relate the service's real public
+events, validation, and retry rights to the source decision. Commitments need
+explicit handling of invalid openings, copying/related commitments, selective
+opening, and payload-dependent extra traffic. Hiding alone is insufficient.
 
-- phase projection and receipt/settlement correspondence;
-- irrevocability before the next information exposure;
-- reconstruction of controller memory and public transcript effects;
-- scheduler replay that respects its full admitted information;
-- unchanged opponents and a common causal source environment;
-- honest and unilateral-law statements using the same outcome decoder;
-- source replacements remain implementable for equilibrium reflection.
+For guards over sealed information, establish implementable validation or
+identify the supported fragment. Deferred validation requires the right
+source consequences; it must not silently add an invalid-value outcome.
+A proof-of-validity service is a separate assumption, not part of ordinary
+commitment functionality by default.
 
-The source-environment policy must not be picked afresh to explain each
-deviation. Check the quantifier order in the actual theorem. If the simulator
-can only match a source game with a different environmental response, report
-that different theorem and its consequences; do not claim the intended Nash
-result from it.
+Prove arbitrary supported-program statements through the public-message model.
+Keep uniform backtranslation, profile-local mixtures, coalition/context
+results, and continuation-sensitive results distinct. A finite-domain
+counterexample is useful but is not a general completeness classification.
 
-Derive the source-player Nash consequence and an adversarial expected-loss
-corollary for a designated honest player. The latter requires no equilibrium
-or rationality premise for the attacker. Coalition results are separate.
+**Gate**
 
-**Gate:** a concrete constructor discharges T1 for a nontrivial family of phase
-protocols. A record whose input fields are the two desired laws does not pass.
+A checked core eligibility theorem, generated target, source-to-target
+strategic theorem, and substantive application all use the same semantics.
+The runtime may still have explicit ideal services; no deployment claim follows.
 
-## P4. Generalize the supported core lowering and add an application
+## R5. Reconnect contract and EVM lowering to the shared runtime
 
-**Depends on:** P3. The core encoding and thin frontend integration begin at
-B0, not at this application gate.
+Extract runtime-neutral and VM-specific semantics from the existing backend
+according to dependency, not directory name. Keep Vegas expression/code
+compilation and its instances in the Vegas backend integration.
 
-Generalize only encoding patterns exercised by the application. Rich handlers
-remain in Kotlin; their core expansion uses ordinary optional choices, guards,
-dependencies, and outcomes wherever the encoding proof justifies it. Preserve
-later-choice restrictions after quitting. No syntax is added to VegasCore to
-mirror handler variants or runtime failure events.
+Instantiate the application-execution port with the existing contract
+transition, including authentication, validation, rejection/rollback, and
+observable results. Then connect storage and wire encodings, oracle interaction,
+and a complete generated-handler path to that same target. A single-invocation
+contract interface is not a message-pool or ledger model.
+Use the existing transition as the port definition or prove a direct
+transition-law equivalence if representation requires an adapter; do not add
+an independently maintained contract evaluator for the strategic proof.
 
-Implement conservative runtime eligibility checking over the accepted core,
-producing the concrete protocol and structural evidence. List external ledger
-capabilities separately. Prove the relation from core choices and full
-information to the constructed protocol. General frontend translation
-validation remains a separate project; acceptance of the emitted core is not
-proof of Kotlin's lowering, and terminal support is not strategic equivalence.
+Whole-handler simulation and independent validation of the EVM model remain
+explicit requirements. Existing local instruction proofs can be reused but do
+not discharge either automatically. Introduce gas, transfers, external calls,
+and other effects as real observations/outcomes when claimed. Rerun strategic
+comparisons rather than inheriting them from a state projection.
 
-The preferred flagship application is a finite sealed-bid second-price auction
-with at least three bidders, a specified tie rule, private finite valuations,
-explicit reveal/nonresponse/invalid-bid settlements, and declared costs.
-Start by checking whether the intended bidding profile is actually an
-equilibrium of the **full** source game; do not assume the textbook auction
-claim survives the added branches. If truthful completion is false, retain the
-counterexample and analyze the correct incentives. A finite escrow is the
-fallback only if the auction requires unrelated economic machinery.
+**Gate**
 
-Required evidence:
+At least one generated path is related to the public-message execution and its
+derived game. The public theorem lists remaining VM/service/crypto assumptions.
+A later whole-backend result extends that same path, not a separate tower.
 
-- source theorem about an actual complete strategy profile or a quantified
-  honest-player loss bound;
-- application of the general public-delivery compiler theorem;
-- a changed runtime assumption or source handler that demonstrably changes
-  the result;
-- at least one analysis conclusion that is not merely the old fair-bit
-  equilibrium transported through another wrapper.
+## R6. Add chain realization and quantitative/unbounded analyses
 
-**Gate:** the compiler is generic over the checked core fragment and the
-application uses it through the emitted-core boundary. State which Kotlin
-lowering patterns remain trusted. A manually inserted application-only
-checkpoint is neither general core lowering nor a frontend correctness theorem.
+Add named ledger, dissemination, consensus/finality, and cryptographic
+realizations as actual clients of the runtime interfaces. Intermediate layers
+can be inserted wherever a proof needs them; the tower has no fixed level enum.
 
-## P5. Failure probabilities and cost error
+Retain observations across reorgs and distinguish dissemination, inclusion,
+execution, and confirmation. Account for who can force or prevent a timeout
+call and for the resources funding its inclusion. Arbitrary outside contracts
+or shared principal roles require the corresponding context/deviation scope.
 
-**Depends on:** P3; generic probability lemmas can be developed once their
-concrete consumers are known. This is the bridge to realistic, non-perfect
-service rather than a claim that real cryptography has finite total variation.
+For probabilistic service failure, compare unconditional laws and derive
+explicit utility/error budgets. Do not condition away adversarially selected
+failures. Computational security requires a security parameter and efficient
+adversaries/tests; do not identify it with exact equality or total variation.
 
-Prove unconditional finite-law coupling/error composition, then the precise
-expected-utility and approximate-Nash budget in T2. Instantiate at least one
-nonzero service-failure or cost-error bound in the ledger client. Include a
-test where failure depends on a player's information to reject conditioning
-away the bad runs. Include a test showing why a failure bound proved only
-against honest play cannot justify a deviation theorem.
+Prefix results remain meaningful without termination. Infinite-path
+probability, eventual settlement, and utilities of unresolved runs require
+their own semantics and proofs. These are later extensions, not hidden
+premises of the finite model.
 
-An unbounded cost/utility model is not covered by a bounded-error corollary.
-Where an exact cost-aware theorem is tractable, prefer it; otherwise expose
-the bound and its resource assumptions. Show how the errors of successive
-interfaces add, without an unjustified independence assumption.
+**Gate**
 
-**Gate:** the bound reaches the application theorem, not just a standalone
-total-variation lemma. Exact `delta = 0` specializes to the earlier comparison.
+Each additional result identifies the operational realization and discharges
+or narrows an existing requirement. A complete Ethereum model can eventually
+instantiate these interfaces only after proving its control, information,
+execution, and service correspondence.
 
-## P6. Research and release decision
+## Frontend and manuscript work
 
-**Depends on:** P1--P5 for the intended expanded result.
+Kotlin owns the rich surface language and its handler elaboration. The
+[frontend/core contract](compiler-boundary.md) specifies its separate checked
+integration boundary. Frontend integration may proceed independently; it is
+not a prerequisite to modeling public delivery of an already checked core
+program.
 
-Compare the actual delivered theorem and construction with BitML,
-computational game representation, timeability, concurrent refinement, and
-composable ledger functionalities. Determine whether the new theorem handles
-public interaction in a substantively different way or is only a formalized
-instance of an existing construction. Update the research assessment honestly.
+Keep the paper written as one coherent account of the current results.
+Synchronize formal endpoints, audit statements/pins, registry, and prose when
+a result changes. Planned stages are never included in the proved tower.
+Do not expand the paper with every architectural helper or elementary witness.
 
-The paper should tell one story: source control and information, the public
-implementation discipline, the concrete proof, and its boundary. Supporting
-obstructions explain hypotheses rather than accumulate into a catalogue of
-"impossibility" headlines. Explain GameTheory as a dependency, and document
-the independently reusable runtime artifact without turning the paper into its
-full API manual.
+## Verification and handoff at every gate
 
-Before release, run warning-free full builds, all import/claim/axiom checks,
-fresh-checkout reproduction, and measured application/build experiments if
-reporting measurements. Keep the manuscript and `Paper.lean` audit synchronized.
-Research plans are not entered into the claim registry as completed theorems.
-
-**Stop/submit criterion:** a nontrivial generic public-interaction compiler,
-two genuine clients, one substantive strategic application, an instantiated
-quantitative boundary, and a defensible literature comparison. If only the
-elementary negative results survive, say that the expansion did not establish
-the intended stronger contribution. Do not turn that outcome into an assertion
-that the paper is ready.
-
-## Later tracks toward a closed blockchain proof
-
-These tracks have distinct owners and may proceed independently once the
-ledger interfaces stabilize. They are not hidden prerequisites for P0.
-
-| Track | First bounded deliverable | Required to call the eventual path closed |
-| --- | --- | --- |
-| Frontend validation | after the B0 thin core bridge, validate one Kotlin lowering pass outside VegasCore | source-to-core information/strategy correspondence, with parser/trusted emitter assumptions stated; no rich-language AST in core |
-| EVM lowering | whole four-handler Boolean simulation at a pinned execution revision | linked handlers and surrounding transaction semantics, including fees/failure/external effects admitted by the fragment |
-| Ledger service realization | map one published composable ledger functionality to our capabilities | proved correspondence for observations and admissible adversaries, not similar names for liveness |
-| Distributed Ethereum model | pinned fork, block validity, local tentative/final views and a retained-observation reorg test | network, fork choice, finality and inclusion realization under named stake/connectivity assumptions |
-| Crypto realization | one named commitment and authentication interface with malicious-input semantics | computational reduction, security parameters, utility/controller restrictions, all admitted public leakage |
-| Long-lived execution | compatible finite-prefix laws and one proved termination-tail bound | path laws and justified terminal/discounted utilities without truncation masquerading as termination |
-| Multi-role principals | a player that also controls an inclusion authority in a finite test | combined capabilities and corruption/resource budgets respected by the game deviation theorem |
-
-An external paper's theorem may support a conditional realization argument,
-but is not a checked Lean theorem until its relevant definitions, assumptions,
-and proof or a verified adapter are present. The final artifact should enumerate
-each remaining assumption by owner, scope, and theorem consumer.
-
-## Maintenance discipline
-
-- Change source and documentation together; never suppress warnings locally.
-- Do not refactor all of GameTheory or EVM code to prepare speculative reuse.
-- Keep generic module extraction, new semantics, and substantive proofs in
-  reviewable commits. Push both repositories when each is changed.
-- Keep the maintained paper in a final-reading style. Until the expansion's
-  theorems exist, its roadmap belongs in these design documents, not as an
-  expanded abstract or an aspirational theorem in the paper.
+- Run narrow Lean targets during development and the full default build with
+  warnings treated as errors at integration.
+- Keep axioms pinned for public claims; no placeholders or local option escapes.
+- Run import/direction/cycle, source-option, documentation, and claim checks.
+- Maintain executable positive/negative controls alongside general theorems.
+- State what changed, the precise checked result, remaining requirements, and
+  the next bounded task. Do not mark a gate complete for a conditional theorem
+  whose advertised premises have not been supplied by the intended instance.
+- Commit and push relevant repositories independently; do not mix generated
+  manuscript artifacts or unrelated working-tree changes into commits.

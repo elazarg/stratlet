@@ -1,6 +1,8 @@
 # Request windows and public scheduling
 
-The proposed public-delivery expansion is specified in
+The [compilation design](compilation-design.md) requires native operational and
+strategic semantics at each stage. This document records the existing models,
+not a completed path to blockchain execution. The public-delivery expansion is specified in
 [ledger-expansion-design.md](ledger-expansion-design.md), with implementation
 gates in [ledger-expansion-plan.md](ledger-expansion-plan.md). These are plans;
 they do not change the proved boundary below.
@@ -85,8 +87,8 @@ window compilation nor the public serializer establishes them.
 
 `Vegas/Runtime/FailureObservation.lean` and
 `VegasTests/FailureObservation.lean` compare finite strategic kernels, not
-transaction executions. They establish a bounded part of B0a in the expansion
-plan without changing the public-delivery boundary above.
+transaction executions. They establish bounded representation comparisons
+without changing the public-delivery boundary above.
 
 - `response_law_iff_factor`: for fixed observation maps and response policies,
   equality of the joint raw-value/response law for every submitter distribution

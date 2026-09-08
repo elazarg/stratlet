@@ -66,9 +66,10 @@ by the artifact.
 The finite-scope gates are met by the correspondence and runtime application
 above, the synchronized `Paper.lean` claim registry and manuscript, and the
 warning-free local and separate-checkout checks recorded in
-[ARTIFACT.md](../ARTIFACT.md#validation-snapshot). The appropriate next step for
-this manuscript is expert review and submission preparation, not an additional
-theorem family. The larger realization tasks below remain open.
+[ARTIFACT.md](../ARTIFACT.md#validation-snapshot). These are the manuscript's
+checked claims, not the implementation stopping condition. The
+[compilation design](compilation-design.md) and its implementation plan govern
+the public-runtime work. The larger realization tasks below remain open.
 
 ## Deliberate exclusions
 
@@ -78,7 +79,7 @@ whole EVM-handler simulation, or general Kotlin-to-Lean correctness claim.
 No rich frontend syntax is added to the minimal core. The Kotlin fixture is
 supporting implementation evidence unless a checked correspondence is supplied.
 
-The [ledger expansion plan](ledger-expansion-plan.md) remains the later path
+The [implementation plan](ledger-expansion-plan.md) specifies the path
 to public-interaction compilation and a realistic blockchain realization.
 Its larger two-client, quantitative, public-delivery milestone is a separate
 research target, not the stopping condition for this manuscript. The reusable

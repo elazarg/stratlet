@@ -1,11 +1,12 @@
 # Minimal core, rich frontend, and runtime refinement
 
-Status: architectural design with a checked optional-opening core probe, not
-an implemented frontend bridge or a new preservation theorem. The proved boundary is in
-[runtime-models.md](runtime-models.md). This document fixes ownership and the
-first integration gate for the [expansion plan](ledger-expansion-plan.md);
-the [ledger design](ledger-expansion-design.md) specifies later target models.
-The checked one-shot B0a kernel comparisons and their limitations are recorded
+Status: frontend integration contract with checked core/graph examples, not
+an implemented general frontend bridge. The proved boundary is in
+[runtime-models.md](runtime-models.md). The [compilation design](compilation-design.md)
+owns the tower architecture; this document specifies the rich-frontend/minimal-core
+edge. The [implementation plan](ledger-expansion-plan.md) makes public-message
+execution the next runtime target, independently of frontend integration.
+The checked one-shot representation comparisons and their limitations are recorded
 in [runtime-models.md](runtime-models.md#failure-observations-checked-one-shot-comparisons).
 Those kernel comparisons are not an implementation of failure handling. The
 separate core probe below establishes syntax, guard, execution, and view facts,
@@ -44,21 +45,22 @@ discipline must account for that difference at the translation boundary.
 Kotlin Vegas program
   -> Kotlin checking and rich-language lowering             [frontend owner]
   -> one checked core artifact                              [integration boundary]
-       -> canonical game / analysis                        [GameTheory adapter]
-       -> protocol compilation -> runtime refinements      [compiler + runtimes]
-                                  -> generated deployment  [selected backend]
+  -> graph -> public-message protocol -> runtime refinements [compiler + runtimes]
+       each stage has native execution and game semantics
+       each edge proves its claimed strategic correspondence
+  -> generated deployment                                  [selected backend]
 ```
 
 This is the intended architecture, not the current Kotlin execution path.
-Both consumers must use the same checked semantic artifact. Its game
-interpretation is the meaning analyzed; the runtime theorem refers to that
-same meaning. A source map or matching artifact hash records provenance but
+Analysis at each stage uses that stage's native semantics. Compiler proofs
+relate those games to the independent meaning of the checked core artifact.
+A source map or matching artifact hash records provenance but
 does not prove frontend correctness or backend correctness.
 
 | Owner | Owns | Does not acquire |
 | --- | --- | --- |
 | Kotlin Vegas | syntax, types, handler policy, elaboration, lowering, source diagnostics | an unchecked claim that its output matches the Lean game |
-| VegasCore | minimal typed core, canonical graph/game interpretation, core compilation proofs | rich surface syntax or language-specific ledger semantics |
+| VegasCore | minimal typed core, independent source and graph/game interpretations, core compilation proofs | rich surface syntax or language-specific ledger semantics |
 | Frontend integration | reading/checking core artifacts; later validation of Kotlin lowering | a second implementation of the entire Vegas frontend |
 | Generic runtime libraries | commands, local observations, operational and strategic comparisons | Vegas handlers, auction rules, or a duplicate game evaluator |
 | Backend/chain adapters | concrete code, transaction execution, network/consensus realization | authority to change the source game's information or quitting rules |
@@ -163,11 +165,11 @@ Record supported features and the trust boundary without a compatibility layer.
 
 ## First bounded step: an optional-disclosure encoding
 
-This is gate B0 of the expansion plan. It changes no production language or
-runtime until the semantic question is answered. First test the strategic
-abstraction of quitting; only then integrate a successful encoding with Kotlin.
+This is a bounded frontend integration task. Test the strategic abstraction
+of quitting before integrating a candidate encoding with Kotlin. It is not
+a prerequisite for public-message execution of an already checked core program.
 
-### B0a. Compare the representations before identifying them
+### Compare the representations before identifying them
 
 Specify a tiny finite interaction with the following distinct events and
 recipient-local observations. Do not normalize them to `none` on submission:
@@ -245,7 +247,7 @@ source Nash profiles. Thus the varying-signal counterexample does not rule out
 preserving non-quitting equilibria without a response barrier. The same
 implementation and information premises still need proof for a public runtime.
 
-### B0b. Check one frontend/core encoding against that contract
+### Check one frontend/core encoding against that contract
 
 The finite probes are `VegasTests/OptionalDisclosure.lean` and, in Kotlin,
 `src/test/resources/optional-disclosure.vg` with `OptionalDisclosureTest.kt`.
@@ -270,7 +272,7 @@ Try lowering disclosure to a fresh optional core choice constrained to `none` or
 `some` of the original value, followed by disclosure of that optional choice.
 Leave the original value hidden on quitting. Audit `RevealComplete` separately
 from this typed encoding. Prove that any extra commitment/disclosure used by
-the encoding meets the B0a observation/strategy contract; it is not harmless
+the encoding meets the observation/strategy contract above; it is not harmless
 administrative syntax by assumption. Reuse expression, graph, and game
 interfaces; do not introduce a phase-language AST or a general framework for
 this probe.
@@ -308,7 +310,8 @@ the first optional-disclosure pattern.
 
 Success of the first probe establishes a useful encoding pattern, not general
 handler lowering, public-delivery adequacy, or blockchain correctness. Its
-next consumer is a minimal emitted-core integration and then one runtime slice.
+consumer is a minimal emitted-core integration. The independent core-to-public-message
+compiler slice proceeds under the implementation plan without waiting for it.
 
 ## Expand targets, not the source language
 
@@ -351,4 +354,4 @@ execution, consensus, crypto, and economic assumptions. Forks can roll back
 state but not an observer's knowledge. Computational crypto needs a
 computational comparison, not an unbounded-strategy exact-law claim. These
 constraints guide interface choices now; they do not justify building all
-those models before B0 supplies a concrete semantic consumer.
+those models before the public-message slice exercises their interfaces.
