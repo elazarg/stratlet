@@ -62,34 +62,11 @@ private theorem handle_events_prefix (program : SealedProgram Principal)
     (state : State Principal Value)
     (message : Message Principal (Payload Principal Value)) :
     state.events.IsPrefix (handle program state message).events := by
-  rcases message with ⟨id, payload⟩
-  cases payload with
-  | commitment node commitmentHandle =>
-      cases hrule : program.rules[node]? with
-      | none => exact ⟨[], by simp [handle, hrule]⟩
-      | some rule =>
-        cases hkind : rule.kind with
-        | commit owner =>
-            simp only [handle, hrule, hkind]
-            split
-            · exact ⟨[.accepted node commitmentHandle], rfl⟩
-            · exact ⟨[], by simp⟩
-        | reveal owner source => exact ⟨[], by simp [handle, hrule, hkind]⟩
-        | disabled => exact ⟨[], by simp [handle, hrule, hkind]⟩
-  | opening node commitmentHandle claimed =>
-      cases hrule : program.rules[node]? with
-      | none => exact ⟨[], by simp [handle, hrule]⟩
-      | some rule =>
-        cases hkind : rule.kind with
-        | commit owner => exact ⟨[], by simp [handle, hrule, hkind]⟩
-        | reveal owner source =>
-            simp only [handle, hrule, hkind]
-            split
-            · exact ⟨[.opened node claimed], rfl⟩
-            · exact ⟨[], by simp⟩
-        | disabled => exact ⟨[], by simp [handle, hrule, hkind]⟩
-  | cleartext node value => exact ⟨[], by simp [handle]⟩
-  | malformed => exact ⟨[], by simp [handle]⟩
+  cases hvalid : validateMessage? program state.service state.events message with
+  | some event =>
+      rw [handle_eq_of_validateMessage?_eq_some program state message event hvalid]
+      exact ⟨[event], rfl⟩
+  | none => exact ⟨[], by simp [handle, hvalid]⟩
 
 /-- Native execution only appends application events. -/
 theorem step_events_prefix (program : SealedProgram Principal)

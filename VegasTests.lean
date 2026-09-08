@@ -53,3 +53,7 @@ import VegasTests.PendingReleaseExamples
 import VegasTests.PendingChoiceLock
 import VegasTests.PendingWithholding
 import VegasTests.PendingWithholdingSource
+import VegasTests.PendingTimeout
+import VegasTests.PendingTimeoutPolicies
+import VegasTests.PendingTimeoutSource
+import VegasTests.PendingTimeoutHiding

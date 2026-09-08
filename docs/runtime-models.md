@@ -362,14 +362,73 @@ keeps the included message in the ledger and preserves earlier deliveries.
 `InteractionTests/TimeoutGate.lean` exercises these operations together,
 including the shared-timer failure and immutable-deadline success.
 
-The clock has abstract natural-number units; clock advancement, receipt
-observations in a policy game, resolution controllers, and source settlement
-correspondence remain to be supplied by the integrated runtime. The shared
-timer reflects the inspected Kotlin emitter's algorithm, but no generator or
-VM refinement theorem connects that emitter to this gate. Ethereum is its
+The gate clock has abstract natural-number units. The Kotlin emitters use a
+call-entry snapshot of their shared activity timer, matching the fixed-deadline
+policy by inspection; re-reading the staged timer is the countermodel. No
+generator or VM refinement theorem connects those emitters to this gate. Ethereum is its
 grounding instance, not a dependency of these components. See the
 [timeout compilation design](timeout-compilation.md) for the precise issue
 and next integration obligations.
+
+`Interaction/SealedTimeout.lean` supplies an integrated final-expiration
+instance at a named opening checkpoint of the original sealed application.
+It uses the same `validateMessage?` operation as untimed execution, a public
+monotone clock, permissionless expiration requests, and atomic included-call
+receipts. Expiration is enabled only after the immutable deadline and when
+the original public opening-readiness test passes. A valid late opening may
+still win until expiration is included. Expiration stops later protocol-event
+acceptance while leaving committed values and earlier public events intact.
+Further service registration and wire activity remain possible. Completion
+resolves the named checkpoint, not the entire program.
+This is a final-failure policy, not source settlement or the dependency gate's
+continuing principal-exclusion policy.
+
+Its native policy game uses a fixed finite polling list. Players control their
+own registration, raw submission, replay and waits from local views and own
+histories; the wire-observing environment adaptively advances the clock,
+delivers and includes messages, or waits. Public views include receipts and
+resolution status. The environment does not see the commitment table. Every
+supported policy outcome is an actual native run, and existing bound values
+remain unchanged under all those policies. No clock or service progress is
+assumed, and a bounded unresolved run stays unresolved.
+
+The compiled-prefix `PendingTimeout` tests exercise readiness, the strict
+deadline, both race orders after opening delivery, receipt order, and
+retention of the secret in the private service without a fabricated public
+opening. `PendingTimeoutPolicies` proves exact completion/expiration laws for
+the same players and polling schedule under opposite environment inclusion
+orders, with the valid opening delivered in both executions.
+
+`WFProgram.sealed_timeout_run_source` and `sealed_timeout_policy_source`
+connect every finite raw run and every supported policy-game outcome to a
+reachable compiled graph prefix. If that decoded prefix is terminal, they
+reconstruct a written-order source execution, its terminal bindings, and its
+payout evaluation. Expiration and rejected traffic stutter this prefix
+projection while retaining their real observations in the native state.
+These results do not supply source policies or equality of outcome laws.
+`PendingTimeoutSource` exercises the terminal branch for every nullable input
+pair and both commitment inclusion orders, including a clock advance past the
+deadline before completing both openings. Its terminality proof checks the
+whole decoded graph, independently of the monitored checkpoint's status.
+
+`SealedTimeout.HidingRelated.run` proves raw pre-disclosure noninterference:
+services may differ in the protected principal's occupied values, while
+occupancy, traffic, events, clock, resolution, and receipts agree. Retained
+traffic must contain no opening authored by that principal. Identical raw
+traces with no further commands from it preserve the relation; other principals
+may submit arbitrary payloads, and replay, delivery, inclusion, and clock
+advances are unrestricted. Expiration and rejection receipts therefore do not
+create a hidden-value channel under these premises. This reuses the common
+validator equality and the payload-generic retained-message invariant, rather
+than assuming failed calls are unobservable.
+`PendingTimeoutHiding` supplies a compiled-prefix instance with distinct
+protected bindings and equal recipient views through an actually included
+expiration call; its public status and receipts are checked explicitly.
+
+Full source-quitting correspondence, adaptive hiding under the new policy
+interface, and general deviation adequacy remain open. The fixed schedule is
+not a model of arbitrary asynchronous activation or player-owned builder
+capabilities.
 
 ### Replay and application identity
 

@@ -14,6 +14,32 @@ universe uPrincipal uValue
 
 variable {Principal : Type uPrincipal} {Value : Type uValue}
 
+private theorem validateMessage?_commitment_some
+    [DecidableEq Principal] [DecidableEq Value]
+    (program : SealedProgram Principal) (state : State Principal Value)
+    (id : MessageId Principal) (node : Nat) (commitmentHandle : CommitmentHandle Principal Nat)
+    (event : Event Principal Value)
+    (hvalid : validateMessage? program state.service state.events
+      ⟨id, .commitment node commitmentHandle⟩ = some event) :
+    event = .accepted node commitmentHandle ∧ done state.events node = false := by
+  unfold validateMessage? at hvalid
+  split at hvalid <;> try simp_all
+  split at hvalid <;> try simp_all
+  split at hvalid <;> try simp_all
+
+private theorem validateMessage?_opening_some
+    [DecidableEq Principal] [DecidableEq Value]
+    (program : SealedProgram Principal) (state : State Principal Value)
+    (id : MessageId Principal) (node : Nat) (commitmentHandle : CommitmentHandle Principal Nat)
+    (claimed : Value) (event : Event Principal Value)
+    (hvalid : validateMessage? program state.service state.events
+      ⟨id, .opening node commitmentHandle claimed⟩ = some event) :
+    event = .opened node claimed ∧ done state.events node = false := by
+  unfold validateMessage? at hvalid
+  split at hvalid <;> try simp_all
+  split at hvalid <;> try simp_all
+  split at hvalid <;> try simp_all
+
 /-- A valid commitment message appends exactly its opaque acceptance event. -/
 theorem handle_commitment_of_valid [DecidableEq Principal] [DecidableEq Value]
     (program : SealedProgram Principal) (state : State Principal Value)
@@ -25,7 +51,8 @@ theorem handle_commitment_of_valid [DecidableEq Principal] [DecidableEq Value]
     handle program state
         ⟨(owner, serial), .commitment node (owner, node)⟩ =
       { state with events := state.events ++ [.accepted node (owner, node)] } := by
-  simp [handle, Message.sender, hrule, hnotDone, prerequisitesDone, hrequires, hstored]
+  simp [handle, validateMessage?, Message.sender, hrule, hnotDone, prerequisitesDone,
+    hrequires, hstored]
 
 /-- A valid claimed opening appends exactly its public opened-value event. -/
 theorem handle_opening_of_valid [DecidableEq Principal] [DecidableEq Value]
@@ -41,7 +68,7 @@ theorem handle_opening_of_valid [DecidableEq Principal] [DecidableEq Value]
     handle program state
         ⟨(owner, serial), .opening node (owner, source) claimed⟩ =
       { state with events := state.events ++ [.opened node claimed] } := by
-  simp [handle, Message.sender, hrule, hnotDone, prerequisitesDone, hrequires,
+  simp [handle, validateMessage?, Message.sender, hrule, hnotDone, prerequisitesDone, hrequires,
     haccepted, hverifies]
 
 /-- A commitment targeting an already completed node has no application effect,
@@ -53,10 +80,14 @@ theorem handle_commitment_of_done [DecidableEq Principal] [DecidableEq Value]
     (hpayload : message.payload = .commitment node commitmentHandle)
     (hdone : done state.events node = true) :
     handle program state message = state := by
-  simp only [handle, hpayload]
-  split <;> try rfl
-  split <;> try rfl
-  simp [hdone]
+  have hnone : validateMessage? program state.service state.events message = none := by
+    rw [show message = ⟨message.id, .commitment node commitmentHandle⟩ by cases message; simp_all]
+    apply Option.eq_none_iff_forall_not_mem.mpr
+    intro event hvalid
+    have := (validateMessage?_commitment_some program state message.id node
+      commitmentHandle event hvalid).2
+    simp_all
+  simp [handle, hnone]
 
 /-- An opening targeting an already completed node has no application effect,
 independently of its sender, handle, and claimed value. -/
@@ -67,10 +98,15 @@ theorem handle_opening_of_done [DecidableEq Principal] [DecidableEq Value]
     (hpayload : message.payload = .opening node commitmentHandle claimed)
     (hdone : done state.events node = true) :
     handle program state message = state := by
-  simp only [handle, hpayload]
-  split <;> try rfl
-  split <;> try rfl
-  simp [hdone]
+  have hnone : validateMessage? program state.service state.events message = none := by
+    rw [show message = ⟨message.id, .opening node commitmentHandle claimed⟩ by
+      cases message; simp_all]
+    apply Option.eq_none_iff_forall_not_mem.mpr
+    intro event hvalid
+    have := (validateMessage?_opening_some program state message.id node
+      commitmentHandle claimed event hvalid).2
+    simp_all
+  simp [handle, hnone]
 
 /-- Reapplying the same message immediately is idempotent. This intentionally
 does not cover a replay after other messages have changed its prerequisites. -/
@@ -89,20 +125,14 @@ theorem handle_idempotent [DecidableEq Principal] [DecidableEq Value]
       · have hdone :
             done (handle program state ⟨id, .commitment node commitmentHandle⟩).events
                 node = true := by
-          simp only [handle]
-          split
-          · split
-            · split
-              · simp [done, Event.node]
-              · exfalso
-                apply hfirst
-                simp [handle, *]
-            · exfalso
-              apply hfirst
-              simp [handle, *]
-          · exfalso
-            apply hfirst
-            simp [handle, *]
+          cases hvalid : validateMessage? program state.service state.events
+              ⟨id, .commitment node commitmentHandle⟩ with
+          | none => simp [handle, hvalid] at hfirst
+          | some event =>
+              rw [handle_eq_of_validateMessage?_eq_some program state _ event hvalid]
+              have hevent := validateMessage?_commitment_some program state id node
+                commitmentHandle event hvalid
+              simp [hevent.1, done, Event.node]
         exact handle_commitment_of_done program _ _ node commitmentHandle rfl hdone
   | opening node commitmentHandle claimed =>
       by_cases hfirst :
@@ -112,20 +142,14 @@ theorem handle_idempotent [DecidableEq Principal] [DecidableEq Value]
       · have hdone :
             done (handle program state ⟨id, .opening node commitmentHandle claimed⟩).events
                 node = true := by
-          simp only [handle]
-          split
-          · split
-            · split
-              · simp [done, Event.node]
-              · exfalso
-                apply hfirst
-                simp [handle, *]
-            · exfalso
-              apply hfirst
-              simp [handle, *]
-          · exfalso
-            apply hfirst
-            simp [handle, *]
+          cases hvalid : validateMessage? program state.service state.events
+              ⟨id, .opening node commitmentHandle claimed⟩ with
+          | none => simp [handle, hvalid] at hfirst
+          | some event =>
+              rw [handle_eq_of_validateMessage?_eq_some program state _ event hvalid]
+              have hevent := validateMessage?_opening_some program state id node
+                commitmentHandle claimed event hvalid
+              simp [hevent.1, done, Event.node]
         exact handle_opening_of_done program _ _ node commitmentHandle claimed rfl hdone
   | cleartext node value => rfl
   | malformed => rfl
@@ -135,22 +159,16 @@ theorem handle_preserves_service [DecidableEq Principal] [DecidableEq Value]
     (program : SealedProgram Principal) (state : State Principal Value)
     (message : Message Principal (Payload Principal Value)) :
     (handle program state message).service = state.service := by
-  rcases message with ⟨id, payload⟩
-  cases payload <;> simp only [handle]
-  all_goals split <;> try rfl
-  all_goals split <;> try rfl
-  all_goals split <;> rfl
+  unfold handle
+  split <;> rfl
 
 /-- Application handling never changes message-pool state. -/
 theorem handle_preserves_pool [DecidableEq Principal] [DecidableEq Value]
     (program : SealedProgram Principal) (state : State Principal Value)
     (message : Message Principal (Payload Principal Value)) :
     (handle program state message).pool = state.pool := by
-  rcases message with ⟨id, payload⟩
-  cases payload <;> simp only [handle]
-  all_goals split <;> try rfl
-  all_goals split <;> try rfl
-  all_goals split <;> rfl
+  unfold handle
+  split <;> rfl
 
 /-- When a pending message exists, inclusion is exactly ordinary pool
 inclusion followed by the application handler on that preexisting message. -/
@@ -317,18 +335,16 @@ theorem handle_eventNodes_nodup [DecidableEq Principal] [DecidableEq Value]
   rcases message with ⟨id, payload⟩
   cases payload <;> simp only [handle]
   case commitment =>
-    split <;> try exact hnodup
-    split <;> try exact hnodup
     split
-    · rename_i hvalid
-      exact eventNodes_nodup_append hnodup hvalid.2.2.1
+    · rename_i event hvalid
+      have hevent := validateMessage?_commitment_some program state id _ _ event hvalid
+      exact eventNodes_nodup_append hnodup (hevent.1 ▸ hevent.2)
     · exact hnodup
   case opening =>
-    split <;> try exact hnodup
-    split <;> try exact hnodup
     split
-    · rename_i hvalid
-      exact eventNodes_nodup_append hnodup hvalid.2.2.1
+    · rename_i event hvalid
+      have hevent := validateMessage?_opening_some program state id _ _ _ event hvalid
+      exact eventNodes_nodup_append hnodup (hevent.1 ▸ hevent.2)
     · exact hnodup
   case cleartext => exact hnodup
   case malformed => exact hnodup

@@ -58,26 +58,29 @@ private theorem BindingInvariant.handle_preserved (invariant : BindingInvariant 
   cases payload with
   | commitment node commitmentHandle =>
       cases hrule : program.rules[node]? with
-      | none => simpa [SealedProgram.handle, hrule] using invariant
+      | none => simpa [SealedProgram.handle, SealedProgram.validateMessage?, hrule] using invariant
       | some rule =>
           cases hkind : rule.kind with
-          | reveal owner source => simpa [SealedProgram.handle, hrule, hkind] using invariant
-          | disabled => simpa [SealedProgram.handle, hrule, hkind] using invariant
+          | reveal owner source => simpa [SealedProgram.handle, SealedProgram.validateMessage?, hrule, hkind] using invariant
+          | disabled => simpa [SealedProgram.handle, SealedProgram.validateMessage?, hrule, hkind] using invariant
           | commit owner =>
-              simp only [SealedProgram.handle, hrule, hkind]
+              simp only [SealedProgram.handle, SealedProgram.validateMessage?, hrule, hkind]
               split
               next hvalid =>
+                split at hvalid <;> try contradiction
+                rename_i hchecks
+                cases hvalid
                 constructor
                 · intro eventNode eventHandle hevent
                   simp only [List.mem_append, List.mem_singleton] at hevent
                   rcases hevent with hevent | hevent
                   · exact invariant.accepted eventNode eventHandle hevent
                   · cases hevent
-                    have hoccupied := hvalid.2.2.2.2
+                    have hoccupied := hchecks.2.2.2.2
                     cases hlookup : state.service.lookup commitmentHandle with
                     | none => simp [hlookup] at hoccupied
                     | some value =>
-                        refine ⟨owner, rule.requires, value, ?_, hvalid.2.1, rfl⟩
+                        refine ⟨owner, rule.requires, value, ?_, hchecks.2.1, rfl⟩
                         have hruleShape :
                             rule = ({ kind := .commit owner, requires := rule.requires } :
                               SealedRule Principal) := by
@@ -92,15 +95,18 @@ private theorem BindingInvariant.handle_preserved (invariant : BindingInvariant 
               next => exact invariant
   | opening node commitmentHandle claimed =>
       cases hrule : program.rules[node]? with
-      | none => simpa [SealedProgram.handle, hrule] using invariant
+      | none => simpa [SealedProgram.handle, SealedProgram.validateMessage?, hrule] using invariant
       | some rule =>
           cases hkind : rule.kind with
-          | commit owner => simpa [SealedProgram.handle, hrule, hkind] using invariant
-          | disabled => simpa [SealedProgram.handle, hrule, hkind] using invariant
+          | commit owner => simpa [SealedProgram.handle, SealedProgram.validateMessage?, hrule, hkind] using invariant
+          | disabled => simpa [SealedProgram.handle, SealedProgram.validateMessage?, hrule, hkind] using invariant
           | reveal owner source =>
-              simp only [SealedProgram.handle, hrule, hkind]
+              simp only [SealedProgram.handle, SealedProgram.validateMessage?, hrule, hkind]
               split
               next hvalid =>
+                split at hvalid <;> try contradiction
+                rename_i hchecks
+                cases hvalid
                 constructor
                 · intro eventNode eventHandle hevent
                   simp only [List.mem_append, List.mem_singleton] at hevent
@@ -121,11 +127,11 @@ private theorem BindingInvariant.handle_preserved (invariant : BindingInvariant 
                       rwa [← hruleShape]
                     · have hstored :=
                         (IdealCommitments.verify_eq_true_iff state.service _).mp
-                          hvalid.2.2.2.2.2
-                      simpa [hvalid.2.1] using hstored
+                          hchecks.2.2.2.2.2
+                      simpa [hchecks.2.1] using hstored
               next => exact invariant
-  | cleartext node value => simpa [SealedProgram.handle] using invariant
-  | malformed => simpa [SealedProgram.handle] using invariant
+  | cleartext node value => simpa [SealedProgram.handle, SealedProgram.validateMessage?] using invariant
+  | malformed => simpa [SealedProgram.handle, SealedProgram.validateMessage?] using invariant
 
 theorem BindingInvariant.step (invariant : BindingInvariant program state)
     (action : Action Principal Value) :

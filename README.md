@@ -42,9 +42,12 @@ dependency-closed combinations of runtime features; it is revised as the
 models and proofs develop.
 Ethereum grounds this route; reusable runtime concepts remain independent of
 Ethereum and of Vegas-specific compilation. The
-[timeout design](docs/timeout-compilation.md) separates the checked deadline
-gate and atomic inclusion components from the outstanding source-resolution
-and timed-policy integration proofs.
+[timeout design](docs/timeout-compilation.md) separates deadline gates and the
+native timed final-expiration application from the outstanding source-resolution
+and whole-interaction strategic proofs. The timed instance has its own local
+policy game over actual message inclusion, clock updates, and public receipts;
+its supported outcomes retain the source-prefix guarantee, but expiration is
+not reinterpreted as a nullable source choice or source termination.
 The `Interaction` library provides a native pool and explicit ideal commitment
 service. A certified homogeneous commit/reveal backend connects actual
 checked core programs, through their event graphs, to this public-message

@@ -127,6 +127,6 @@ end InteractionTests.TimeoutGate
 #guard_msgs (whitespace := lax) in
 #print axioms Interaction.MessagePool.includeApplication_reject_ledger
 
-/-- info: 'Interaction.MessagePool.includeApplication_preserves_inbox' depends on axioms: [propext] -/
+/-- info: 'Interaction.MessagePool.includeApplication_preserves_inbox' does not depend on any axioms -/
 #guard_msgs (whitespace := lax) in
 #print axioms Interaction.MessagePool.includeApplication_preserves_inbox

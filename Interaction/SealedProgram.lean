@@ -142,10 +142,13 @@ def submitOpening? [DecidableEq Principal] (program : SealedProgram Principal)
     let submitted := state.pool.submit owner payload
     (submitted.1, { state with pool := submitted.2 })
 
-def handle [DecidableEq Principal] [DecidableEq Value]
-    (program : SealedProgram Principal) (state : State Principal Value)
-    (message : Message Principal (Payload Principal Value)) : State Principal Value :=
-  let append (event : Event Principal Value) := { state with events := state.events ++ [event] }
+/-- Validate one application message using only the ideal service and public
+application events. Message-pool ownership and inclusion are deliberately
+outside this kernel. -/
+def validateMessage? [DecidableEq Principal] [DecidableEq Value]
+    (program : SealedProgram Principal) (service : IdealCommitments Principal Nat Value)
+    (events : List (Event Principal Value))
+    (message : Message Principal (Payload Principal Value)) : Option (Event Principal Value) :=
   match message.payload with
   | .commitment node handle =>
       match program.rules[node]? with
@@ -153,29 +156,41 @@ def handle [DecidableEq Principal] [DecidableEq Value]
           match rule.kind with
           | .commit owner =>
               if message.sender = owner ∧ handle = (owner, node) ∧
-                  done state.events node = false ∧
-                  prerequisitesDone state.events rule = true ∧
-                  (state.service.lookup handle).isSome = true then
-                append (.accepted node handle)
-              else state
-          | _ => state
-      | none => state
+                  done events node = false ∧ prerequisitesDone events rule = true ∧
+                  (service.lookup handle).isSome = true then
+                some (.accepted node handle)
+              else none
+          | _ => none
+      | none => none
   | .opening node handle claimed =>
       match program.rules[node]? with
       | some rule =>
           match rule.kind with
           | .reveal owner source =>
               if message.sender = owner ∧ handle = (owner, source) ∧
-                  done state.events node = false ∧
-                  prerequisitesDone state.events rule = true ∧
-                  accepted? state.events source = some handle ∧
-                  state.service.verify ⟨handle, claimed⟩ = true then
-                append (.opened node claimed)
-              else state
-          | _ => state
-      | none => state
-  | .cleartext _ _ => state
-  | .malformed => state
+                  done events node = false ∧ prerequisitesDone events rule = true ∧
+                  accepted? events source = some handle ∧
+                  service.verify ⟨handle, claimed⟩ = true then
+                some (.opened node claimed)
+              else none
+          | _ => none
+      | none => none
+  | .cleartext _ _ => none
+  | .malformed => none
+
+def handle [DecidableEq Principal] [DecidableEq Value]
+    (program : SealedProgram Principal) (state : State Principal Value)
+    (message : Message Principal (Payload Principal Value)) : State Principal Value :=
+  match validateMessage? program state.service state.events message with
+  | some event => { state with events := state.events ++ [event] }
+  | none => state
+
+theorem handle_eq_of_validateMessage?_eq_some [DecidableEq Principal] [DecidableEq Value]
+    (program : SealedProgram Principal) (state : State Principal Value)
+    (message : Message Principal (Payload Principal Value)) (event : Event Principal Value)
+    (hvalid : validateMessage? program state.service state.events message = some event) :
+    handle program state message = { state with events := state.events ++ [event] } := by
+  simp [handle, hvalid]
 
 /-- Include a pending message in the public ledger, then apply the pure
 application handler to the included preexisting message. Rejected application
@@ -203,14 +218,14 @@ def includePending [DecidableEq Principal] [DecidableEq Value]
     (message : Message Principal (Payload Principal Value)) (node : Nat) (value : Value)
     (hpayload : message.payload = .cleartext node value) :
     handle program state message = state := by
-  simp [handle, hpayload]
+  simp [handle, validateMessage?, hpayload]
 
 @[simp] theorem handle_malformed [DecidableEq Principal] [DecidableEq Value]
     (program : SealedProgram Principal) (state : State Principal Value)
     (message : Message Principal (Payload Principal Value))
     (hpayload : message.payload = .malformed) :
     handle program state message = state := by
-  simp [handle, hpayload]
+  simp [handle, validateMessage?, hpayload]
 
 end SealedProgram
 

@@ -11,6 +11,31 @@ without being treated as completed gates.
 
 ## Scope and work order
 
+The implementation objective is at least the draft's feature breadth and
+strategic depth through faithful public interaction, with a visible path to
+concrete runtimes. The private-window manuscript is an existing checked
+baseline, not a substitute endpoint for this objective. In particular, a
+single homogeneous commitment example does not recover the draft's guarded,
+finite-domain, chance-bearing, multistage compiler result.
+
+The acceptance inventory has two axes:
+
+| Requirement | Public-message path | Required endpoint |
+| --- | --- | --- |
+| Independent source meaning | Checked source-to-graph connection and terminal native support; source quitting integration remains open | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
+| Source coverage | Homogeneous unrestricted commit/reveal fragment, without samples | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
+| Hostile interaction | Raw traffic, local delivery, replay, public inclusion, ideal binding/hiding; timed final-expiration instance | Whole interaction, failure, deadline and observation behavior under the theorem's complete player/environment policy classes. |
+| Strategic comparison | Release-time hiding/choice independence and selective-publication obstruction | Compiled-profile law plus arbitrary unilateral-deviation comparison, with the corresponding source-outcome bounds and equilibrium results. |
+| Substantive application | The private-window sealed offer and a public-message compiled-prefix fixture | The application, its emitted controllers/handlers, and its guarantees use the same public-message compiler path. |
+| Further lowering | Separate local backend proofs | A named generated-handler path instantiates that application semantics; subsequent realization obligations are explicit. |
+
+An obstruction must identify the incompatible property/model pair and guide
+an implemented alternative, supported fragment, or weaker guarantee. It does
+not by itself satisfy a missing positive compiler or application requirement.
+Do not make eligibility circular by requiring the claimed deviation theorem
+as an input certificate. Do not promise exact preservation for a model whose
+admitted censorship or withholding contradicts it.
+
 Build the shared operational/strategic runtime connection before expanding
 backend breadth. Keep the minimal Vegas core and its well-formedness discipline.
 Do not reproduce the rich Kotlin language in Lean.
@@ -190,9 +215,9 @@ specified publication readout, not a universal failure of weaker comparisons.
 These comparisons do not complete the gate. The next compiler theorem must
 compare unilateral replacements with source policies across the whole
 interaction, including post-release behavior, and
-account for withheld openings and observable failure. The sealed-message
-application has no integrated timeout transition or automatic conversion of
-pending execution to source quitting.
+account for withheld openings and observable failure. The untimed sealed-message
+application has no timeout transition; its timed extension below does not
+convert pending execution to source quitting.
 General asynchronous activation and player-owned network/builder capabilities
 also remain outside the fixed-invocation instance; the precise scope is in
 the [runtime inventory](runtime-models.md).
@@ -201,10 +226,20 @@ The [timeout compilation design](timeout-compilation.md) specifies the next
 component integration. A checked dependency gate exposes the shared mutable
 timer's within-call interference and proves progress for immutable deadlines.
 Atomic inclusion preserves public messages and prior deliveries when the
-application rejects. These components do not yet resolve source nonresponse
-or define the timed application's policy game. Connect them to the same
-compiled application, with actual authorization and source-handler semantics;
-do not count them as another completed runtime layer.
+application rejects. `SealedTimeout` integrates the original sealed-message
+validator with a permissionless expiration call at one named disclosure
+checkpoint, a public monotone clock, receipts, and a native bounded policy
+game. Its chosen failure policy stops further protocol-event acceptance; it neither assigns
+a source value nor implements the richer source's persistent role-specific
+abandonment and handler semantics. This real runtime instance still needs
+the source-resolution and whole-interaction strategic comparisons.
+
+`WFProgram.sealed_timeout_run_source` and `sealed_timeout_policy_source`
+extend the reachable-prefix/source-support result over timed native execution
+and its policy game. Terminal decoded graph prefixes reconstruct source
+bindings and payout evaluation; checkpoint completion or expiration alone
+does not imply source termination. These theorems do not erase the extra
+information in traffic, receipts, or clock observations.
 
 Before a terminal-law claim, implement and analyze resolution rather than
 defaulting unfinished traces to source values in a readout. Preserve the

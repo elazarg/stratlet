@@ -93,8 +93,9 @@ particular, a cleartext quit signal is not automatically equivalent to a
 commitment to `none`, a malformed commitment, or a failed opening. Each has its
 own observation time and remaining choices. A candidate fresh optional core
 choice must constrain `some v` to match the binding, and locate the choice at
-the correct information checkpoint. No new syntax is planned; proving this
-representation adequate is work, not a premise supplied by its option type.
+the correct information checkpoint. No syntax extension is adopted here;
+proving this representation adequate is work, not a premise supplied by its
+option type.
 
 The remaining obligations concern the encoding's strategic semantics and the
 hypotheses of existing theorems. `WFProgram` retains `RevealComplete`: every
@@ -108,6 +109,27 @@ quit branch to satisfy it. `ToEventGraph.compile_guardLive` takes exactly
 `GraphProgram` and `Legal`; `Machine.ofCompiled` therefore accepts the probe
 without weakening `WFProgram`. The existing nullable-yield lowering and staged
 quitting examples are components, not a proof of general handler lowering.
+
+The executable `HiddenReserve.vg` fixture makes the discrepancy concrete:
+the seller commits a reserve, observes a buyer bid, and can quit at its later
+acceptance decision. The specified handler awards the buyer 200 units.
+`GameSemantics` offers the quit transition; `History.quit` retains abandonment
+and removes later explicit choices. At subsequent reveal processing, public
+quit status does not disclose the old hidden reserve in retained history.
+The executable source and its optional-disclosure tests supply this evidence;
+it is not a Lean theorem about the Kotlin evaluator.
+
+The existing Lean obstruction is precise: a commitment-preserving encoding
+with no reveal site for that binding contradicts
+`WFProgram.committed_source_revealed`; `OptionalDisclosure.not_checked`
+instantiates this conflict for the proposed optional-copy encoding. This is
+not an impossibility theorem for every encoding or coarser outcome comparison.
+Adding a final unconditional reveal would change the source's confidentiality
+and would still require the adversary to supply that opening at runtime.
+The source-resolution integration therefore needs an explicit design decision
+about a narrowly scoped conditional-disclosure/control representation. Until
+that decision is authorized and checked, the existing core admission and its
+theorems remain unchanged.
 
 First try ordinary values, guards, explicit dependencies, and payoff
 expressions. A proposed encoding must preserve information and unilateral
@@ -128,6 +150,43 @@ There are three possible outcomes of the expressiveness check:
    general control primitive only with a concrete witness, semantics, and an
    audit of affected proofs. Failure of one encoding is not an impossibility
    theorem for the language. No core extension is authorized by default.
+
+### Conditional disclosure design gate
+
+A candidate minimal operation has the following source meaning: at the owner's
+current information state, either publish the already-bound value or take the
+program's declared quitting continuation while retaining the secret. Success
+cannot select another value. Initial-choice quitting and later bound-value
+withholding are distinct checkpoints; neither can be moved across intervening
+observations without proof. Runtime expiration must implement this source
+meaning under stated service/control assumptions, not define it retrospectively.
+
+Two representations need a bounded comparison before changing the core:
+
+- A typed optional-disclosure/disposition operation, with quitting status and
+  later forced choices elaborated using ordinary public values and guards.
+  This is the smaller candidate. It requires a proof that the forced choices
+  can be implemented or eliminated without new strategic freedom, information,
+  or cooperation requirements from an abandoned player.
+- Typed success/quit continuations with explicit participation/resource
+  tracking. This represents control directly but changes the source, compiler,
+  and graph semantics more broadly. An active-player type index is one possible
+  implementation, not an established necessity.
+
+Either representation must account for each sealed binding by disclosure or
+an explicit source-authorized disposition. Merely omitting that binding from
+public payout expressions does not discharge the obligation. Persistence of
+quitting, handler outcomes, and the decision's information checkpoint need
+proof for the concrete lowering. A second later checkpoint of the same owner
+is the distinguishing test: quitting must remove subsequent freedom while
+preserving prior knowledge and other players' continuations.
+
+The existing optional-copy obstruction does not decide between these designs
+or prove that all existing-core encodings fail. No broad branch language,
+participation index, or weaker well-formedness rule should be implemented
+solely on the strength of that obstruction. Choose the smallest representation
+that passes the two-checkpoint strategic and resource tests, then audit the
+affected source-to-graph and runtime proofs before integration.
 
 ## What each certificate would mean
 

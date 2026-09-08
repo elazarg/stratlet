@@ -42,6 +42,16 @@ def includeApplication (pool : MessagePool Principal Payload) (application : App
       | some next => ⟨included.state, next, some true⟩
       | none => ⟨included.state, application, some false⟩
 
+/-- Application acceptance or rejection does not change the carrier operation. -/
+@[simp] theorem includeApplication_pool
+    (pool : MessagePool Principal Payload) (application : Application)
+    (id : MessageId Principal) (handler : Application → Message Principal Payload → Option Application) :
+    (includeApplication pool application id handler).pool = (pool.includePending id).state := by
+  dsimp only [includeApplication]
+  split
+  · rfl
+  · split <;> rfl
+
 @[simp] theorem includeApplication_missing
     (pool : MessagePool Principal Payload) (application : Application)
     (id : MessageId Principal) (handler : Application → Message Principal Payload → Option Application)
@@ -87,11 +97,8 @@ theorem includeApplication_preserves_sent
     (id : MessageId Principal) (handler : Application → Message Principal Payload → Option Application)
     (who : Principal) :
     (includeApplication pool application id handler).pool.sent who = pool.sent who := by
-  cases hlookup : pool.lookup id with
-  | none => simp [includeApplication, MessagePool.includePending, hlookup, Result.invalid]
-  | some message =>
-      cases hhandler : handler application message <;>
-        simp [includeApplication, MessagePool.includePending, hlookup, hhandler]
+  rw [includeApplication_pool]
+  exact include_preserves_sent pool id who
 
 /-- Inclusion likewise preserves every recipient inbox. -/
 theorem includeApplication_preserves_inbox
@@ -99,10 +106,7 @@ theorem includeApplication_preserves_inbox
     (id : MessageId Principal) (handler : Application → Message Principal Payload → Option Application)
     (who : Principal) :
     (includeApplication pool application id handler).pool.inbox who = pool.inbox who := by
-  cases hlookup : pool.lookup id with
-  | none => simp [includeApplication, MessagePool.includePending, hlookup, Result.invalid]
-  | some message =>
-      cases hhandler : handler application message <;>
-        simp [includeApplication, MessagePool.includePending, hlookup, hhandler]
+  rw [includeApplication_pool]
+  exact include_preserves_inbox pool id who
 
 end Interaction.MessagePool

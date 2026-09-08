@@ -48,77 +48,81 @@ theorem handle_refines (supported : SealedFragment G ty)
       simp only [SealedProgram.handle]
       split
       next rule hrule =>
-        split
-        next owner hkind =>
-          split
-          next hvalid =>
-            rcases hvalid with ⟨howner, hhandle, hnotDone, hrequires, hstored⟩
-            change sender = owner at howner
-            subst sender handle
-            rcases supported.ruleAt_commit hrule hkind with ⟨node, guard, rfl, hsem⟩
-            have hcanonical : rule = G.sealedRule node :=
-              Option.some.inj (hrule.symm.trans (supported.compile_rule node))
-            have hready : Ready G cfg node := ready_of_messagePrerequisites
-              state.events cfg node hcompleted hnotDone (by
-                simpa only [SealedProgram.prerequisitesDone, hcanonical,
-                  Graph.sealedRule] using hrequires)
-            obtain ⟨value, hvalue⟩ := Option.isSome_iff_exists.mp hstored
-            let event : AvailableEvent G cfg := .commit owner ⟨node, ⟨ty, value⟩⟩
-              (supported.commitStep cfg node owner guard hsem hready value)
-            refine ⟨cfg.completeNode node ⟨ty, value⟩, ?_, Or.inr ⟨event, ?_⟩⟩
-            · change G.decodeSealedFrom ty state.service (Config.initial G)
-                (state.events ++ [.accepted node.val (owner, node.val)]) = _
-              rw [Graph.decodeSealedFrom_append]
-              change (G.decodeSealed ty state).bind _ = _
-              rw [hdecode]
-              simp only [Option.bind_some, Graph.decodeSealedFrom,
-                Graph.decodeSealedEvent_accepted, hvalue, Option.map_some]
-            · change _ ∈ (stepCommit G cfg _).support
-              rw [supported.stepCommit_commitStep]
-              exact FinDist.mem_support_pure.mpr rfl
-          next => exact ⟨cfg, hdecode, Or.inl rfl⟩
-        all_goals exact ⟨cfg, hdecode, Or.inl rfl⟩
+        simp only [SealedProgram.validateMessage?] at hrule
+        split at hrule <;> try contradiction
+        rename_i compiledRule hruleLookup
+        split at hrule <;> try contradiction
+        rename_i owner hkind
+        split at hrule <;> try contradiction
+        rename_i hchecks
+        cases hrule
+        rcases hchecks with ⟨howner, hhandle, hnotDone, hrequires, hstored⟩
+        change sender = owner at howner
+        subst sender handle
+        rcases supported.ruleAt_commit hruleLookup hkind with ⟨node, guard, rfl, hsem⟩
+        have hcanonical : compiledRule = G.sealedRule node :=
+          Option.some.inj (hruleLookup.symm.trans (supported.compile_rule node))
+        have hready : Ready G cfg node := ready_of_messagePrerequisites
+          state.events cfg node hcompleted hnotDone (by
+            simpa only [SealedProgram.prerequisitesDone, hcanonical,
+              Graph.sealedRule] using hrequires)
+        obtain ⟨value, hvalue⟩ := Option.isSome_iff_exists.mp hstored
+        let event : AvailableEvent G cfg := .commit owner ⟨node, ⟨ty, value⟩⟩
+          (supported.commitStep cfg node owner guard hsem hready value)
+        refine ⟨cfg.completeNode node ⟨ty, value⟩, ?_, Or.inr ⟨event, ?_⟩⟩
+        · change G.decodeSealedFrom ty state.service (Config.initial G)
+            (state.events ++ [.accepted node.val (owner, node.val)]) = _
+          rw [Graph.decodeSealedFrom_append]
+          change (G.decodeSealed ty state).bind _ = _
+          rw [hdecode]
+          simp only [Option.bind_some, Graph.decodeSealedFrom,
+            Graph.decodeSealedEvent_accepted, hvalue, Option.map_some]
+        · change _ ∈ (stepCommit G cfg _).support
+          rw [supported.stepCommit_commitStep]
+          exact FinDist.mem_support_pure.mpr rfl
       next => exact ⟨cfg, hdecode, Or.inl rfl⟩
   | opening index handle claimed =>
       simp only [SealedProgram.handle]
       split
       next rule hrule =>
-        split
-        next owner source hkind =>
-          split
-          next hvalid =>
-            rcases hvalid with ⟨howner, hhandle, hnotDone, hrequires, haccepted, hverifies⟩
-            change sender = owner at howner
-            subst sender handle
-            rcases supported.ruleAt_reveal hrule hkind with
-              ⟨node, producer, guard, rfl, rfl, hsem, hproducer⟩
-            have hcanonical : rule = G.sealedRule node :=
-              Option.some.inj (hrule.symm.trans (supported.compile_rule node))
-            have hready : Ready G cfg node := ready_of_messagePrerequisites
-              state.events cfg node hcompleted hnotDone (by
-                simpa only [SealedProgram.prerequisitesDone, hcanonical,
-                  Graph.sealedRule] using hrequires)
-            have hvalue : state.service.lookup (owner, producer.val) = some claimed :=
-              (IdealCommitments.verify_eq_true_iff state.service _).mp hverifies
-            have hsource : Store.getAs cfg.store (G.nodeTarget producer) ty = some claimed := by
-              rw [(Graph.decodeSealed_accepted_getAs ty state cfg producer
-                (owner, producer.val) hnodup
-                (SealedProgram.accepted_mem_of_accepted?_eq_some haccepted) hdecode).2]
-              exact hvalue
-            let event : AvailableEvent G cfg := .internal ⟨node⟩
-              (supported.revealStep cfg node (G.nodeTarget producer) hsem hready claimed hsource)
-            refine ⟨cfg.completeNode node ⟨ty, claimed⟩, ?_, Or.inr ⟨event, ?_⟩⟩
-            · change G.decodeSealedFrom ty state.service (Config.initial G)
-                (state.events ++ [.opened node.val claimed]) = _
-              rw [Graph.decodeSealedFrom_append]
-              change (G.decodeSealed ty state).bind _ = _
-              rw [hdecode]
-              simp only [Option.bind_some, Graph.decodeSealedFrom, Graph.decodeSealedEvent_opened]
-            · change _ ∈ (stepInternal G cfg _).support
-              rw [supported.stepInternal_revealStep]
-              exact FinDist.mem_support_pure.mpr rfl
-          next => exact ⟨cfg, hdecode, Or.inl rfl⟩
-        all_goals exact ⟨cfg, hdecode, Or.inl rfl⟩
+        simp only [SealedProgram.validateMessage?] at hrule
+        split at hrule <;> try contradiction
+        rename_i compiledRule hruleLookup
+        split at hrule <;> try contradiction
+        rename_i owner source hkind
+        split at hrule <;> try contradiction
+        rename_i hchecks
+        cases hrule
+        rcases hchecks with ⟨howner, hhandle, hnotDone, hrequires, haccepted, hverifies⟩
+        change sender = owner at howner
+        subst sender handle
+        rcases supported.ruleAt_reveal hruleLookup hkind with
+          ⟨node, producer, guard, rfl, rfl, hsem, hproducer⟩
+        have hcanonical : compiledRule = G.sealedRule node :=
+          Option.some.inj (hruleLookup.symm.trans (supported.compile_rule node))
+        have hready : Ready G cfg node := ready_of_messagePrerequisites
+          state.events cfg node hcompleted hnotDone (by
+            simpa only [SealedProgram.prerequisitesDone, hcanonical,
+              Graph.sealedRule] using hrequires)
+        have hvalue : state.service.lookup (owner, producer.val) = some claimed :=
+          (IdealCommitments.verify_eq_true_iff state.service _).mp hverifies
+        have hsource : Store.getAs cfg.store (G.nodeTarget producer) ty = some claimed := by
+          rw [(Graph.decodeSealed_accepted_getAs ty state cfg producer
+            (owner, producer.val) hnodup
+            (SealedProgram.accepted_mem_of_accepted?_eq_some haccepted) hdecode).2]
+          exact hvalue
+        let event : AvailableEvent G cfg := .internal ⟨node⟩
+          (supported.revealStep cfg node (G.nodeTarget producer) hsem hready claimed hsource)
+        refine ⟨cfg.completeNode node ⟨ty, claimed⟩, ?_, Or.inr ⟨event, ?_⟩⟩
+        · change G.decodeSealedFrom ty state.service (Config.initial G)
+            (state.events ++ [.opened node.val claimed]) = _
+          rw [Graph.decodeSealedFrom_append]
+          change (G.decodeSealed ty state).bind _ = _
+          rw [hdecode]
+          simp only [Option.bind_some, Graph.decodeSealedFrom, Graph.decodeSealedEvent_opened]
+        · change _ ∈ (stepInternal G cfg _).support
+          rw [supported.stepInternal_revealStep]
+          exact FinDist.mem_support_pure.mpr rfl
       next => exact ⟨cfg, hdecode, Or.inl rfl⟩
 
 /-- Inclusion of an arbitrary preexisting message has the same graph-step

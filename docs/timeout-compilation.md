@@ -6,8 +6,9 @@ eligible; executing that action must implement those consequences. Passage of
 time alone does not execute a program.
 
 This document fixes the component boundaries and the next compiler obligations.
-The checked scope is a dependency gate and atomic message inclusion, not a
-timed implementation of the sealed-message compiler. Ethereum grounds the
+The checked scope includes a dependency gate, atomic message inclusion, and
+a timed final-disclosure instance of the native sealed application. It is not
+a source-to-timed-runtime strategic compiler theorem. Ethereum grounds the
 design through the adjacent Kotlin compiler's generated contracts. Other
 runtimes can supply the same components where their semantics fit.
 
@@ -51,21 +52,24 @@ recipient inboxes are unchanged by inclusion, so previously delivered content
 remains available. This component does not yet specify a policy observation
 interface for receipts, fees, account nonces, or finality.
 
-## Concrete grounding: the shared activity timer
+## Concrete grounding: the call-entry activity snapshot
 
 The adjacent compiler's
-[Solidity emitter](https://github.com/elazarg/vegas/blob/aabcf72946aa7b88ac1703a95491ae2d2fe94cc4/src/main/kotlin/vegas/backend/evm/Solidity.kt#L77)
+[Solidity emitter](https://github.com/elazarg/vegas/blob/47734f73e3ad22a550bec299b0bfce1c95105316/src/main/kotlin/vegas/backend/evm/Solidity.kt)
 and
-[Vyper emitter](https://github.com/elazarg/vegas/blob/aabcf72946aa7b88ac1703a95491ae2d2fe94cc4/src/main/kotlin/vegas/backend/evm/Vyper.kt#L111)
+[Vyper emitter](https://github.com/elazarg/vegas/blob/47734f73e3ad22a550bec299b0bfce1c95105316/src/main/kotlin/vegas/backend/evm/Vyper.kt)
 use a shared `lastTs` and a timeout window. The concrete clock is
 `block.timestamp`, not block height. A missing dependency is overdue when
-`lastTs + TIMEOUT < block.timestamp`. Its check marks the dependency owner
-as bailed and resets `lastTs` immediately. Each successful action also resets
-`lastTs`. Per-action timestamps are recorded but do not determine expiry.
+`origin + TIMEOUT < block.timestamp`, where `origin` is one snapshot of
+`lastTs` taken before the call's dependency checks. Each overdue check marks
+the dependency owner as bailed and resets `lastTs` immediately, but every
+check in that call uses the same snapshot. Each successful action also resets
+`lastTs`. These writes remain visible to the action body. Per-action
+timestamps are recorded but do not determine expiry.
 
-Dependency checks precede the action body. Solidity evaluates the listed
-modifiers in order; failure reverts their application-state writes as well
-as the body's writes. See the
+Dependency checks precede the game-action body. In Solidity they follow the
+authorization and action-completion modifier preludes. Failure reverts staged
+application-state writes as well as the body's writes. See the
 [modifier semantics](https://docs.solidity.org/en/latest/contracts.html#function-modifiers)
 and [state-reverting exceptions](https://docs.soliditylang.org/en/latest/control-structures.html#error-handling-assert-require-revert-and-exceptions).
 Such a revert does not erase the included transaction. Fees and other
@@ -75,13 +79,24 @@ does not make rejected execution free.
 There is also a staging difference between emitters. The Solidity `action`
 modifier marks the current action completed before dependency checks; the
 Vyper emitter marks it after the body. The gate's `call` follows the Solidity
-order. Both use the same timer-resetting dependency checks. Equating their
+order. Both use a call-entry snapshot for expiry while retaining activity
+writes during dependency checks. Equating their
 complete gate behavior would additionally require that the current action
 is absent from its dependencies and that the body does not observe or exploit
 the staging difference. No such emitter-equivalence theorem is supplied.
 
-This algorithm has a within-call interference problem. Suppose a call checks
-two missing dependencies of distinct, initially active owners:
+The [deployed Solidity regression](https://github.com/elazarg/vegas/blob/47734f73e3ad22a550bec299b0bfce1c95105316/src/test/kotlin/vegas/eth/tests/EthDependencySnapshotTest.kt)
+checks that one overdue call persists both missing owners' exclusions, action
+completion, and its activity timestamp. A call exactly at the deadline
+rejects and retains neither staged completion nor exclusion. Vyper has
+generated-code/golden coverage, not a deployment test. These tests are
+implementation evidence, not a checked compiler-to-VM simulation.
+
+## Re-reading a mutable activity origin
+
+`slidingExpiry` instead reads the updated activity origin on every dependency
+check. This policy has a within-call interference problem. Suppose a call
+checks two missing dependencies of distinct, initially active owners:
 
 1. If the shared deadline has not passed, the first check rejects.
 2. If it has passed, the first check stages exclusion and sets `lastTs` to
@@ -95,18 +110,19 @@ Other calls may change that state; this is not a theorem that every such
 contract is permanently stuck. Successful unrelated actions can also extend
 the shared deadline, a distinct policy choice exercised by the tests.
 
-`Interaction/DependencyGateLaws.lean` proves the shared-timer obstruction
-for the abstract gate. The correspondence to the emitted modifier sequence
-is a source-code inspection, not a checked emitter or Solidity refinement
-theorem. The abstraction uses unbounded naturals and omits address checks,
+`Interaction/DependencyGateLaws.lean` proves this obstruction for the abstract
+gate. It distinguishes re-reading staged state from the emitters' call-entry
+snapshot. The abstraction uses unbounded naturals and omits address checks,
 other contract storage, finite-word overflow, gas, and external execution.
-The adjacent emitter is not changed by these proofs.
+Connecting a generated handler to the gate remains a separate refinement
+obligation.
 
 ## Immutable deadlines
 
 `fixedExpiry` reads an immutable deadline for each dependency. A constant
-deadline can instead represent one snapshot of the activity origin at call
-entry. Neither choice is implemented by the inspected emitter.
+deadline represents the call-entry snapshot used by the emitters. This
+relationship is by inspection; there is no checked emitter correspondence.
+An independently fixed deadline for each obligation is a separate policy.
 
 The gate laws prove that checking succeeds when each dependency is already
 completed, belongs to an initially excluded principal, or has passed its
@@ -135,6 +151,78 @@ compiled source fixtures or a source-equilibrium result.
 
 ## Connecting resolution to source meaning
 
+### The integrated final-expiration instance
+
+`Interaction/SealedTimeout.lean` attaches one named opening checkpoint and an
+immutable absolute deadline to an existing `SealedProgram`. Ordinary traffic
+uses `SealedProgram.validateMessage?`, the same pool-independent validator
+used by the untimed application. All messages, including failed expiration
+and opening calls, pass through atomic pool inclusion and produce public
+success/rejection receipts. The caller cannot choose the checkpoint metadata.
+Expiration is permissionless but must pass the checkpoint's original public
+opening-readiness checks and the strict deadline test.
+
+The chosen policy accepts a late valid opening until expiration has actually
+been included. Expiration first stops subsequent protocol-event acceptance;
+opening first disables expiration while allowing the program to continue.
+Expiration preserves the service table and original public events. Further
+network activity and registration of new service bindings remain possible;
+occupied bindings remain unchanged. This policy
+does not synthesize an opened value, pay a refund, discharge other graph
+dependencies, or implement role-specific abandonment while other players
+continue. Those are application/compiler responsibilities, not consequences
+of the word timeout. This instance is a final-failure policy, distinct from
+the adjacent emitter's principal-exclusion dependency gate.
+
+The environment advances an explicitly public monotone natural-number clock.
+Neither advancement nor exhausting a finite analysis horizon resolves the
+checkpoint. The native policy game in `Interaction/SealedTimeoutPolicies.lean`
+allows local-history-dependent register, submit, replay, and wait choices;
+the environment adaptively advances the clock, delivers, includes, or waits.
+It sees wire state and public application data, but not the hidden commitment
+table. Polling uses a fixed finite invocation list and does not imply timely
+inclusion. The policy-law module proves every supported result has its actual
+native execution witness and preserves already occupied service bindings.
+
+`VegasTests/PendingTimeout.lean` instantiates this extension with the program
+emitted from `PendingSource`. Its race executions start with actual native
+registration, commitment submission, and inclusion. They compare opening and
+expiration orders after delivery, retaining the earlier inbox content even
+when the opening is rejected. This connects the runtime experiment to the
+actual compiled prefix; it does not identify expiration with that source's
+terminal nullable value.
+
+`WFProgram.sealed_timeout_run_source` proves that every finite raw timed run
+decodes to a reachable compiled graph prefix. `sealed_timeout_policy_source`
+lifts this result to every supported outcome of the native policy game.
+When the decoded graph prefix is terminal, both reconstruct a written-order
+source execution with matching terminal bindings and payout evaluation.
+The decoder omits traffic, receipts, clock, and resolution: these are
+support-level execution theorems, not observation or strategy equivalences.
+Expiration may leave an incomplete graph prefix. A completed disclosure
+checkpoint likewise need not complete the rest of the program.
+`VegasTests/PendingTimeoutSource.lean` instantiates terminal reconstruction for
+all nullable input pairs and both commitment inclusion orders after a real
+clock advance past the deadline. With no expiration included, both openings
+remain valid and the complete decoded graph reaches its source outcome.
+
+`VegasTests/PendingTimeoutPolicies.lean` holds the players and invocation
+schedule fixed while two environment policies choose opposite inclusion
+orders. Both deliver the valid opening; their exact resolution laws are
+respectively completion and expiration. This demonstrates an inclusion-order
+effect even when the owner has submitted its bound value.
+
+`Interaction/SealedTimeoutHiding.lean` relates paired raw executions whose
+service contents differ only in a protected principal's occupied values. It
+preserves equality of the declared views, including clock, resolution, and
+success/rejection receipts, before that principal sends an opening. The
+retained carrier must already exclude its opening messages and the common
+trace must contain no further commands from that principal. This is a raw
+noninterference theorem; lifting it to adaptive policy laws and proving an
+emitted controller's disclosure discipline are additional obligations.
+
+### Source correspondence still required
+
 The current minimal source makes `reveal` publish the already sealed value.
 A nullable choice of `none` is chosen at its source decision; it does not
 authorize replacing a previously chosen `some value` after withholding a
@@ -157,20 +245,14 @@ themselves. See [runtime models](runtime-models.md) and the
 
 ## Next integration gate
 
-1. Specify the emitted resolution entry point and deadline policy. Resolve
-   the shared-timer defect before relying on its multi-dependency progress.
-   Treat source handler elaboration as an explicit compiler obligation.
-2. Integrate resolution with the same public-message application and native
-   policy runner used by compiled commitment/opening traffic. Supply an
-   explicit clock input, its observations, caller authorization, and the
-   order of opening and resolution calls. Neither a testing horizon nor a
-   clock advance substitutes for inclusion of a resolution action.
-   First exercise the opening/resolution race: opening first prevents timeout
-   resolution; resolution first prevents a later opening, according to the
-   chosen entry-point policy. Keep a distinct nonresponse-resolution event,
-   the original bound value, and both calls' observable success or rejection.
-   Proving this operational rule does not yet identify its result with source
-   quitting.
+1. Relate the emitted resolution entry point and call-entry deadline policy
+   to the gate and complete handler semantics. Treat source handler
+   elaboration as an explicit compiler obligation.
+2. Extend the integrated final-expiration instance with the chosen source's
+   actual resolution continuation and observations. Its opening/expiration
+   race is operationally specified; identifying its final-failure disposition
+   with a source quit remains a separate proof. Preserve the original bound
+   value and both calls' observable success or rejection throughout.
 3. Prove that a supported source program's resolution executes its prescribed
    continuation or settlement while retaining bound values and observations.
    Eligibility for this backend is distinct from source well-formedness.

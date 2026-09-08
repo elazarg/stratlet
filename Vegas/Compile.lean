@@ -30,6 +30,7 @@ import Vegas.Compile.SealedRules
 import Vegas.Compile.SealedDecodeLaws
 import Vegas.Compile.SealedRefinement
 import Vegas.Compile.SealedSource
+import Vegas.Compile.SealedTimeoutRefinement
 
 /-!
 # Compilation: checked Vegas programs to event graphs
