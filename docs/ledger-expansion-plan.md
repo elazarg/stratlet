@@ -138,7 +138,7 @@ preservation or a complete ledger.
 
 ## R2. Compile a checked core program into that model
 
-**Implemented execution slice; gate still open**
+**Implemented execution and bounded hiding slices; gate still open**
 
 `SealedFragment.compile` emits a homogeneous unrestricted-commit/reveal
 application from actual graph metadata. `SealedFragment.step_refines` and
@@ -161,14 +161,25 @@ prerequisites complete. Native run refinement covers these actions.
 At-most-once application execution holds independently of traffic duplication;
 it does not erase the extra public traffic or promise cross-instance isolation.
 
-This discharges an operational prefix obligation, not the gate. The next
-strategic slice must provide principal-scoped controls and information-local
-policies over this runner. Raw caller labels are insufficient for an ownership
-or security claim. Distinguish fresh message authorship from rebroadcasting an
-observed envelope: authentication must not remove replay from other players'
-actions. It must then compare unilateral replacements and account
-for withheld openings and observable failure; there is no timeout transition
-or automatic conversion of pending execution to source quitting in this model.
+The bounded policy interface supplies principal-scoped controls and polling
+memories over this runner. Its two explicit-rebroadcast capability selections
+have an exact-law embedding, and its ideal pre-disclosure hiding theorem
+permits adaptive opponent and wire-observing environment policies. The finite
+invocation list is fixed and excludes the protected owner during the compared
+continuation. `PendingPolicies` applies it to the compiled nullable program,
+starting empty and including the owner's scoped register/submit policy actions,
+and retains a distinguishing cleartext response in the same policy interface.
+`WFProgram.sealed_policy_source` transports native source-support correctness
+to every supported policy-game execution.
+
+These comparisons do not complete the gate. The next compiler theorem must
+connect the emitted release controller to the hiding boundary across the
+whole interaction, compare unilateral replacements with source policies, and
+account for withheld openings and observable failure. There is no timeout
+transition or automatic conversion of pending execution to source quitting.
+General asynchronous activation and player-owned network/builder capabilities
+also remain outside the fixed-invocation instance; the precise scope is in
+the [runtime inventory](runtime-models.md).
 
 Choose a finite checked core program with two real players, source-defined
 nonresponse outcomes, and a later decision that can expose an information

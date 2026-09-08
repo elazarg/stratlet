@@ -5,3 +5,7 @@ import Interaction.SealedProgram
 import Interaction.SealedProgramLaws
 import Interaction.SealedExecution
 import Interaction.SealedExecutionLaws
+import Interaction.SealedPolicies
+import Interaction.SealedPolicyLaws
+import Interaction.SealedHiding
+import Interaction.SealedPolicyHiding

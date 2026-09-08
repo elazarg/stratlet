@@ -11,7 +11,7 @@ independent message-interaction experiments.
 
 | Target | Contents | Local dependencies |
 | --- | --- | --- |
-| `Interaction` | Native pending-message kernel, ideal commitment service, sealed application rules and execution | none |
+| `Interaction` | Native pending-message kernel, ideal commitment service, sealed application rules, bounded policies and hiding | none |
 | `InteractionTests` | Bounded native interaction games and commitment-traffic tests | `Interaction` |
 | `Vegas` | Core and surface syntax, event graphs, machine semantics, games, abstract runtimes, public serialization, sealed-message compiler fragment | `Interaction` |
 | `VegasEVM` | Contract representations, deployment and instruction semantics, backend compilation, local code-generation proofs | `Vegas` |
@@ -19,8 +19,9 @@ independent message-interaction experiments.
 | `Paper` | Axiom-pinned general claims and concrete paper witnesses | `Vegas`, `VegasEVM`, `VegasTests` |
 
 Mathematical modules also use the pinned external dependencies; the
-`Interaction` kernel itself imports none. The table describes library
-dependencies, not additional logical axioms.
+`Interaction` operational kernel itself imports none; its policy interpretation
+uses GameTheory's existing `GameForm` and finite laws. The table describes local
+library dependencies, not additional logical axioms.
 
 ## Message-interaction boundary
 
@@ -53,8 +54,8 @@ or equilibrium-preservation claim is established by these tests.
 
 The boundary checker forbids these runtime modules and their independent
 tests from importing Vegas, its backend, or its paper audit. The native
-kernel and ideal service themselves need no GameTheory imports; the game
-example uses GameTheory's existing strategic and probability interfaces.
+kernel and ideal service themselves need no GameTheory imports; policy
+interpretations use GameTheory's existing strategic and probability interfaces.
 
 `Interaction/SealedProgram.lean` defines runtime-general commitment/opening
 rules, public application events, validation, and a public-state opening
@@ -65,9 +66,17 @@ action lists, independently of message duplication.
 `Vegas/Compile/SealedMessages.lean` emits rules from a certified graph fragment;
 the `SealedDecode`, `SealedRules`, `SealedExecution`, and `SealedRefinement`
 modules prove the actual graph-step correspondence. `SealedSource` composes it
-with source-support correctness. These are operational compiler results;
-the application-wide information-local strategy interface remains to be
-implemented. None of these modules imports the EVM backend.
+with source-support correctness. `Interaction/SealedPolicies.lean` supplies a
+bounded principal-scoped policy interpretation of this same runner, with
+sampled local memories and an explicit wire-observing environment.
+`SealedPolicyLaws` proves exact-law embedding of the no-rebroadcast instance
+and a native action-trace witness for every supported policy execution.
+`Vegas/Game/SealedMessages.lean` connects those executions to the checked source
+at support level. `SealedHiding` and `SealedPolicyHiding` prove ideal
+pre-disclosure observation-law equality; the precise observation and invocation
+conditions are in the [runtime inventory](runtime-models.md).
+None of these modules imports the EVM backend. Source-policy backtranslation
+under public delivery remains a separate obligation.
 
 ## Backend correctness
 

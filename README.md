@@ -47,16 +47,22 @@ model. Every finite native run, including observed-message replay, decodes to a
 reachable graph prefix; terminal
 prefixes reconstruct written-order source executions with matching terminal
 bindings and decoded payout evaluation. This is support-level correctness.
-Principal-scoped policy interpretation, strategic preservation under public delivery, timeout
-settlement, and concrete cryptography remain unproved; see the
+The bounded policy interpretation uses the same runner, with principal-scoped
+commands, polling histories, and adaptive delivery/inclusion policies under a
+fixed invocation schedule. It proves ideal hiding after policy-driven
+commitment creation, while the continuation does not invoke that owner, and exact
+execution-law preservation when policies without explicit rebroadcast are
+embedded in the replay-enabled model. Source-to-runtime deviation comparison,
+timeout settlement, and concrete cryptography remain unproved for this model; see the
 [runtime inventory](docs/runtime-models.md).
 
 ## Architecture
 
-The current implementation has the following branches. The strategic proofs
-reach the private-window/public-serialization models; the backend branch is
-not yet connected to them by a public-message strategic theorem. FOSG is an
-analysis presentation, not the required semantics of the source or every target.
+The source-to-runtime deviation theorems reach the private-window/public-
+serialization models. The public-message branch has a native policy game,
+ideal hiding, and operational source correspondence; source-deviation
+comparison and the contract/EVM connection remain open. FOSG is an analysis
+presentation, not the required semantics of the source or every target.
 
 ```text
                               ┌─→ ExecutionProtocol + InformationModel

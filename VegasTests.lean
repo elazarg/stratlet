@@ -47,3 +47,4 @@ import VegasTests.PendingSource
 import VegasTests.PendingExecution
 import VegasTests.PendingOutcome
 import VegasTests.PendingReplay
+import VegasTests.PendingPolicies

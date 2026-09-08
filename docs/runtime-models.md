@@ -140,12 +140,11 @@ against that compiler; native evaluation tests exercise the executable runner.
 This is a checked closed-program artifact, not an extracted standalone source
 compiler.
 
-The complete R2 gate remains open. Raw owner/sender arguments are control
-labels; a principal-scoped policy interface must enforce who supplies each
-action and what that principal observes. The raw transition system alone
-does not authenticate those labels. Strategy compilation and unilateral
-deviation comparison for this application, adaptive environment policies,
-timeout settlement, and cryptographic realization remain separate obligations.
+The complete R2 gate remains open. The scoped bounded policy interface below
+enforces the author/owner controls that the raw transition system leaves as
+labels. Strategy compilation and unilateral deviation comparison for this
+application, general asynchronous activation, timeout settlement, and
+cryptographic realization remain separate obligations.
 In particular, missing openings remain pending rather than becoming the
 source value `none`. This slice adds no public-message equilibrium claim to
 the manuscript's private-window/serialization theorem.
@@ -153,6 +152,77 @@ the manuscript's private-window/serialization theorem.
 The application emits accepted commitment/opening events. The payout equality
 above evaluates the compiled graph's readout on the decoded state; it does not
 execute an asset transfer or a contract settlement routine.
+
+### Bounded policy game and adaptive ideal hiding
+
+`Interaction/SealedPolicies.lean` interprets the application as a GameTheory
+`GameForm` using the native `SealedProgram.step`. Player commands register
+under the invoked player's identity, author arbitrary payloads under that
+identity, replay an observed original envelope, or wait. Payloads may name
+another owner's handle or contain malformed data; handler checks still apply.
+The environment may deliver a pending message, include it, or wait. Inclusion
+does not obtain a new action from the original sender.
+
+An explicit finite list determines which principal or environment is invoked
+next. The policies choose actions adaptively; this instance does not let them
+choose the invocation order. A player receives its current view and the
+pre-action views and commands from its own past invocations, including waits
+and rejected actions. Remote invocations append nothing to its memory.
+This is recall of polling observations, not event-by-event notification.
+The analysis horizon produces a prefix, without announcing a terminal event
+or settling a pending application.
+
+The environment sees the entire wire pool: pending messages, ledger, every
+inbox and sent history, sender serials, and application events. This is a
+strong wire-observer instance, not a claim that all this data is common
+knowledge or available to a realistic node. Neither player nor environment
+policies receive the ideal commitment table, its verifier, or the proof-facing
+native action trace. The environment is fixed as a policy in a player game;
+its inclusion and delivery choices can depend on this wire view and its own
+past invocations.
+
+Two comparisons are checked:
+
+- `runPolicies_enableRebroadcast` and `policyGame_enableRebroadcast` preserve
+  the complete execution law when the same no-rebroadcast policies are
+  embedded into the replay-enabled instance, at the same environment policy
+  and invocation schedule. Disabling replay removes only the explicit
+  rebroadcast command, including self-rebroadcast. Fresh same-payload
+  submissions and duplicate deliveries remain. No conclusion about arbitrary
+  replay-enabled deviations or Nash preservation follows from this embedding.
+- `runPolicies_hiding` compares two states with equal wire/application data,
+  equal service occupancy, and equal service values outside a protected owner.
+  No opening originally authored by that owner may be retained anywhere in
+  the pool. Under the same adaptive policies and a fixed schedule that does
+  not invoke that owner, the joint law of the wire view, other principals'
+  polling memories, and environment memory is identical. The owner's private
+  memory may differ and is excluded from the comparison. Opponents can register
+  their own values, submit arbitrary guessed openings, and replay available
+  messages. Sender/handle checks keep
+  successful opening validation confined to sender-scoped service slots.
+  The theorem covers both replay selections. It is exact hiding for the ideal
+  service, not a cryptographic theorem or a post-disclosure guarantee.
+
+`VegasTests/PendingPolicies.lean` instantiates this comparison with the actual
+checked nullable-choice program and every pair of its nullable values. Its
+game starts empty: the owner's first two scoped policy invocations register
+the chosen value and submit the handle, retaining the private command history.
+The subsequent fixed schedule invokes other players and the environment.
+Only the protected owner's setup policy changes between the compared games;
+all opponent and environment policies remain fixed.
+The cleartext control uses the same policy interface: a fixed responder reads
+the delivered value and copies it into its own outgoing message, before
+inclusion. Thus the control distinguishes values even though the application
+rejects cleartext. The compiled setup submits an opaque handle instead.
+
+`WFProgram.sealed_policy_source` in `Vegas/Game/SealedMessages.lean` proves
+source-support correctness for every outcome of the native policy game from
+the empty state. Its terminal conclusion preserves all source bindings and
+payout evaluation. This does not construct a source deviation or equate
+source/runtime policy laws. The hiding comparison does not discharge the
+compiler's general release-controller, quitting, or settlement obligations.
+There are no resource or timing observations of internal verification here;
+adding them needs a new information-flow argument.
 
 ### Replay and application identity
 

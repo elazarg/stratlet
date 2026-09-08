@@ -31,9 +31,11 @@ The full default build includes `Interaction`, `InteractionTests`, `Vegas`,
 `VegasEVM`, `VegasTests`, and `Paper`. The independent interaction experiments
 are not part of the manuscript's source-compiler preservation claim.
 The public-message compiler fragment in `Vegas/Compile/SealedSource.lean`
-additionally proves support-level correctness for completed native runs;
-its strategic/public-delivery comparison remains outside that claim. The
-checked scope and native execution fixtures are documented in
+additionally proves support-level correctness for completed native runs.
+`Vegas/Game/SealedMessages.lean` applies it to the bounded native policy game;
+the associated ideal hiding and rebroadcast comparisons are separate from
+the manuscript's source-deviation theorem. The checked scope and native
+execution fixtures are documented in
 [runtime models](docs/runtime-models.md).
 `lake --wfail build Paper` is the focused paper-proof build. Do not run `lake
 update` to reproduce a pinned revision: it may resolve different dependencies.

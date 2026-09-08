@@ -220,11 +220,12 @@ For interacting extensions, choose and document an order or synchronization
 interface. A parameterized public partial order of events may suffice; there
 need not be one universal commutativity theorem.
 
-The practical first experiment is two instances of the same native application,
-with and without observer rebroadcast, sharing the evaluator. Follow with an
-interaction involving replay and application rejection/receipts. Let those
-proofs decide whether action indexing or a small service wrapper is the better
-API. Do not introduce framework code just to represent unused combinations.
+The bounded policy game has two instances of the same native application,
+with and without the explicit rebroadcast command, sharing the evaluator.
+Its subtype of allowed commands suffices for their exact-law embedding;
+no feature framework is needed for that comparison. Follow with an interaction
+involving replay and application rejection/receipts. Let those proofs decide
+whether further action indexing or a small service wrapper is the better API.
 
 ## 4. The public-message stage
 
@@ -233,8 +234,11 @@ their actual event graphs to a native message runner. Its support theorem and
 concrete replay tests are a starting point, not a public-message strategic
 preservation theorem. The full checked scope belongs in the runtime inventory.
 
-The next strategic instance needs information-local player policies, explicit
-environment policies, and compiled controllers over that same runner. Preserve
+The bounded instance supplies polling-local player policies and explicit
+environment policies under a fixed invocation list. It proves ideal hiding
+for a continuation that does not invoke the protected owner, and retains a
+cleartext negative control. The next compiler comparison must connect emitted
+controllers across their release boundary over that same runner. Preserve
 authoring, withholding, malformed traffic, and replay. Distinguish the author
 of an envelope from its broadcaster. A player's additional builder or network
 capabilities must belong to that player's deviation scope, not be concealed
