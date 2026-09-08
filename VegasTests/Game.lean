@@ -1257,8 +1257,9 @@ example (state : matchingPenniesMachine.State)
         some (evalPayoffs
           (ToEventGraph.compile matchingPenniesProgram.core).sourcePayoffs
           terminalEnv) := by
-  exact Machine.compile_sourceStar
-    matchingPenniesProgram state hterminal
+  rcases Machine.compile_sourceStar matchingPenniesProgram state hterminal with
+    ⟨terminalEnv, hstar, hpayoff, _agreement⟩
+  exact ⟨terminalEnv, hstar, hpayoff⟩
 
 noncomputable instance matchingPenniesFiniteDomains :
     FiniteDomains matchingPenniesProgram where

@@ -114,7 +114,7 @@ theorem terminal_sourceStar
         some (evalPayoffs
           (ToEventGraph.compile source.core).sourcePayoffs terminalEnv) := by
   rcases Machine.compile_sourceStar source state terminal with
-    ⟨terminalEnv, star, payoff⟩
+    ⟨terminalEnv, star, payoff, _agreement⟩
   refine ⟨terminalEnv, star, ?_⟩
   rw [backend.compile.terminalPayout?_encodeState_of_terminal state terminal]
   exact payoff

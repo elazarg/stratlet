@@ -1,2 +1,5 @@
 import Interaction.MessagePool
 import Interaction.IdealCommitments
+import Interaction.SealedProgram
+import Interaction.SealedProgramLaws
+import Interaction.SealedExecution

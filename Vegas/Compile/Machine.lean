@@ -112,7 +112,7 @@ theorem compile_sourcePayoffOfTerminal
     (ToEventGraph.compile source.core) state hterminal
 
 /-- Every terminal machine execution reconstructs a possible support-level
-written-order source run with the same terminal payoff. -/
+written-order source run with matching terminal bindings and payout evaluation. -/
 theorem compile_sourceStar
     {Player : Type} [DecidableEq Player] {L : IExpr}
     (source : WFProgram Player L)
@@ -129,7 +129,12 @@ theorem compile_sourceStar
             (ToEventGraph.compile source.core).sourcePayoffs } ∧
       evalPayoffs? (compile source).payoffs state.1.store =
         some (evalPayoffs
-          (ToEventGraph.compile source.core).sourcePayoffs terminalEnv) := by
+          (ToEventGraph.compile source.core).sourcePayoffs terminalEnv) ∧
+      ∀ {name bindTy}
+          (h : VHasVar (ToEventGraph.compile source.core).terminalCtx name bindTy),
+        Store.getAs state.1.store
+            ((ToEventGraph.compile source.core).terminalState.fieldOf h) bindTy.base =
+          some (terminalEnv.get h) := by
   exact ToEventGraph.compile_sourceStar source.core state.1 state.2 hterminal
 
 end Machine

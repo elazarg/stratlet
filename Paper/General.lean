@@ -199,8 +199,10 @@ theorem source_payoff_adequacy
             (ToEventGraph.compile source.core).sourcePayoffs } ∧
       evalPayoffs? (Machine.compile source).payoffs state.1.store =
         some (evalPayoffs
-          (ToEventGraph.compile source.core).sourcePayoffs terminalEnv) :=
-  Machine.compile_sourceStar source state hterminal
+          (ToEventGraph.compile source.core).sourcePayoffs terminalEnv) := by
+  rcases Machine.compile_sourceStar source state hterminal with
+    ⟨terminalEnv, hstar, hpayoff, _agreement⟩
+  exact ⟨terminalEnv, hstar, hpayoff⟩
 
 /-! ## Event-graph structure -/
 
@@ -1742,7 +1744,10 @@ theorem compilation_summary
         source.boundedGame.mixedPure) ∧
       Nonempty (Runtime.DeviationAdequacy source.boundedGame.mixedPure
         source.boundedGame.behavioral) :=
-  ⟨fun state hterminal => Machine.compile_sourceStar source state hterminal,
+  ⟨fun state hterminal => by
+      rcases Machine.compile_sourceStar source state hterminal with
+        ⟨terminalEnv, hstar, hpayoff, _agreement⟩
+      exact ⟨terminalEnv, hstar, hpayoff⟩,
     (Machine.compile source).perfectRecall,
     (Machine.compile source).boundedHorizon,
     ⟨source.behavioralToMixedPureAdequacy⟩,

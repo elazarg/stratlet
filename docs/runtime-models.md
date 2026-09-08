@@ -71,8 +71,7 @@ unchanged and that inclusion preserves previously received information.
 `InteractionTests/Pending.lean` derives a bounded two-player game from those
 same operations and checks both inclusion orders and the responder's exact
 local-policy law. Its environment is a fixed delivery/order choice, not the
-full adaptive scheduling model. The kernel is not yet a target of a proved
-Vegas compilation edge.
+full adaptive scheduling model. The compiler slice below uses this same kernel.
 
 The separate `IdealCommitments` service provides privately registered,
 owner/slot-scoped write-once values. `InteractionTests/Commitment.lean` checks
@@ -89,6 +88,70 @@ ends at disclosure, not at inclusion. These tests do not establish an opening
 barrier, liveness, quitting correspondence, cryptographic security, or source
 equilibrium preservation. They introduce no private-message assumption on the
 pool; private registration is an explicit ideal-service assumption.
+
+### Sealed-message compiler slice
+
+`Vegas/Compile/SealedMessages.lean` compiles a certified event-graph fragment
+to executable `Interaction.SealedProgram` rules. The fragment has a common
+value type, unrestricted commitment guards with no reads, and reveals of
+commitment-produced fields; samples are excluded. The emitted rules retain
+the graph's owners, producer indices, and prerequisites. Eligibility is a
+separate backend certificate and leaves core well-formedness unchanged.
+
+The native runner admits private registration, arbitrary raw submission,
+recipient-local delivery, and inclusion. Cleartext, malformed, duplicate, and
+premature opening messages remain possible; rejected messages remain in the
+public ledger. The honest opening controller uses only public application
+events and the owner's supplied value. It checks the graph-derived release
+prerequisites before emitting the value-bearing opening packet.
+
+`SealedFragment.step_refines` proves that each native action either leaves
+the decoded graph configuration unchanged or executes an available primitive
+graph event. `SealedFragment.run_refines` consequently decodes every finite
+native run from the empty runtime state to a reachable graph prefix, without
+a fairness or termination premise. The proof-side decoder reads the private
+ideal table; runtime observations do not expose that decoder.
+
+`WFProgram.sealed_run_source` in `Vegas/Compile/SealedSource.lean` composes
+this result with the existing source compiler theorem. If the decoded graph
+prefix is terminal, it reconstructs an actual written-order execution of the
+original checked source with matching terminal bindings and payout evaluation.
+This is end-to-end support-level correctness, not equality of policy-induced laws.
+
+`VegasTests/PendingSource.lean` is an actual checked nullable-choice core
+program compiled through that path. Its two independent commitments precede
+two reveals, each depending on both commitments. `PendingExecution` exercises
+local delivery before inclusion, both commitment orders, the opening
+controller, and the difference between a stored source `none` and a missing
+opening. Wire prefixes containing only compiled commitments are identical
+across their registered values, while admitted cleartext traffic distinguishes
+them. Arbitrary raw submissions can deliberately disclose values early; the
+honest release discipline does not restrict those submissions.
+
+`PendingOutcome` checks that every pair of nullable values, in either tested
+commitment order, completes with the expected decoded graph bindings. It
+obtains reachability from the generic native-run theorem, rather than treating
+an arbitrary list of store writes as an execution. Its `honestRun_source`
+theorem instantiates the end-to-end source correspondence for these transcripts,
+including every terminal binding. The fixture specializes the
+source compiler at Lean elaboration time and checks the resulting rule data
+against that compiler; native evaluation tests exercise the executable runner.
+This is a checked closed-program artifact, not an extracted standalone source
+compiler.
+
+The complete R2 gate remains open. Raw owner/sender arguments are control
+labels; a principal-scoped policy interface must enforce who supplies each
+action and what that principal observes. The raw transition system alone
+does not authenticate those labels. Strategy compilation and unilateral
+deviation comparison for this application, adaptive environment policies,
+timeout settlement, and cryptographic realization remain separate obligations.
+In particular, missing openings remain pending rather than becoming the
+source value `none`. This slice adds no public-message equilibrium claim to
+the manuscript's private-window/serialization theorem.
+
+The application emits accepted commitment/opening events. The payout equality
+above evaluates the compiled graph's readout on the decoded state; it does not
+execute an asset transfer or a contract settlement routine.
 
 ### Required model and proof obligations
 

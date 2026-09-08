@@ -11,23 +11,25 @@ independent message-interaction experiments.
 
 | Target | Contents | Local dependencies |
 | --- | --- | --- |
-| `Interaction` | Native pending-message kernel and explicit ideal commitment service | none |
+| `Interaction` | Native pending-message kernel, ideal commitment service, sealed application rules and execution | none |
 | `InteractionTests` | Bounded native interaction games and commitment-traffic tests | `Interaction` |
-| `Vegas` | Core and surface syntax, event graphs, machine semantics, games, abstract runtimes, public serialization | none |
+| `Vegas` | Core and surface syntax, event graphs, machine semantics, games, abstract runtimes, public serialization, sealed-message compiler fragment | `Interaction` |
 | `VegasEVM` | Contract representations, deployment and instruction semantics, backend compilation, local code-generation proofs | `Vegas` |
 | `VegasTests` | Concrete witnesses and regression tests | `Vegas`, `VegasEVM` |
 | `Paper` | Axiom-pinned general claims and concrete paper witnesses | `Vegas`, `VegasEVM`, `VegasTests` |
 
-All targets also use the pinned external mathematical dependencies. The table
-describes library dependencies, not additional logical axioms.
+Mathematical modules also use the pinned external dependencies; the
+`Interaction` kernel itself imports none. The table describes library
+dependencies, not additional logical axioms.
 
 ## Message-interaction boundary
 
 `Interaction/MessagePool.lean` is an executable kernel: submit, deliver to any
 selected observer, and append a selected pending message to a shared public
 ledger. Sender-local serials avoid exposing an unrelated global submission
-counter. The caller identity of submission is an authenticated capability in
-the model, not an implemented signature scheme. There is no application
+counter. A submission carries a caller label; a principal-scoped controller
+interface must supply and enforce that identity. The raw operation alone does
+not authenticate the caller. There is no application
 validation, fee, deadline, finality, or progress assumption in this carrier.
 
 `InteractionTests/Pending.lean` interprets a bounded two-player script directly
@@ -49,6 +51,17 @@ The boundary checker forbids these runtime modules and their independent
 tests from importing Vegas, its backend, or its paper audit. The native
 kernel and ideal service themselves need no GameTheory imports; the game
 example uses GameTheory's existing strategic and probability interfaces.
+
+`Interaction/SealedProgram.lean` defines runtime-general commitment/opening
+rules, public application events, validation, and a public-state opening
+controller. `Interaction/SealedExecution.lean` runs registration, raw
+submission, local delivery, and inclusion using those same operations.
+`Vegas/Compile/SealedMessages.lean` emits rules from a certified graph fragment;
+the `SealedDecode`, `SealedRules`, `SealedExecution`, and `SealedRefinement`
+modules prove the actual graph-step correspondence. `SealedSource` composes it
+with source-support correctness. These are operational compiler results;
+the application-wide information-local strategy interface remains to be
+implemented. None of these modules imports the EVM backend.
 
 ## Backend correctness
 

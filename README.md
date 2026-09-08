@@ -37,11 +37,15 @@ edge. The [implementation plan](docs/ledger-expansion-plan.md) prioritizes a
 public-message pool with recipient-local delivery and a checked core-to-runtime
 slice. The [ledger design](docs/ledger-expansion-design.md) specifies service and
 observation obligations on the route to a named blockchain realization.
-The `Interaction` library provides an initial native pool and explicit ideal
-commitment service, exercised by bounded games and observation tests. Its
-connection to checked Vegas source, adaptive environment policies, and richer
-ledger services remains unproved. Those planned connections are not current
-compiler guarantees.
+The `Interaction` library provides a native pool and explicit ideal commitment
+service. A certified homogeneous commit/reveal backend connects actual
+checked core programs, through their event graphs, to this public-message
+model. Every finite native run decodes to a reachable graph prefix; terminal
+prefixes reconstruct written-order source executions with matching terminal
+bindings and decoded payout evaluation. This is support-level correctness.
+Principal-scoped policy interpretation, strategic preservation under public delivery, timeout
+settlement, and concrete cryptography remain unproved; see the
+[runtime inventory](docs/runtime-models.md).
 
 ## Architecture
 

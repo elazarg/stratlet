@@ -135,6 +135,30 @@ preservation or a complete ledger.
 
 ## R2. Compile a checked core program into that model
 
+**Implemented execution slice; gate still open**
+
+`SealedFragment.compile` emits a homogeneous unrestricted-commit/reveal
+application from actual graph metadata. `SealedFragment.step_refines` and
+`run_refines` cover every finite raw native action sequence, and
+`WFProgram.sealed_run_source` reconstructs a written-order source execution
+with matching terminal bindings and decoded payout evaluation whenever its
+decoded graph prefix is terminal.
+The `PendingSource`/`PendingExecution` fixtures exercise this compiler path,
+including nullable values, opaque pending traffic, graph-derived opening
+barriers, and both commitment inclusion orders.
+`PendingOutcome` checks completed graph outcomes against native execution for
+every nullable input pair and instantiates the terminal source-execution theorem.
+The executable fixture uses checked elaboration-time
+specialization of the source compiler; a standalone extracted emitter remains
+an additional implementation obligation.
+
+This discharges an operational prefix obligation, not the gate. The next
+strategic slice must provide principal-scoped controls and information-local
+policies over this runner. Raw caller labels are insufficient for an ownership
+or security claim. It must then compare unilateral replacements and account
+for withheld openings and observable failure; there is no timeout transition
+or automatic conversion of pending execution to source quitting in this model.
+
 Choose a finite checked core program with two real players, source-defined
 nonresponse outcomes, and a later decision that can expose an information
 mistake. The pending-commitment experiment motivates a sealed-choice slice:

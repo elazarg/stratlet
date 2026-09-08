@@ -181,7 +181,7 @@ theorem initialState_getAs :
 
 /-- A terminal reachable execution of a compiled suffix reconstructs an actual
 written-order source run from any source environment agreeing with the
-compiler state's field map. -/
+compiler state's field map, retaining agreement on all terminal bindings. -/
 theorem compileCore_sourceStar :
     {Γ : VCtx P L} → (prog : VegasCore P L Γ) →
       (fresh : FreshBindings prog) → (state : BuildState P L Γ) →
@@ -201,7 +201,12 @@ theorem compileCore_sourceStar :
             cont := .ret (compileCore prog fresh state).sourcePayoffs } ∧
         evalPayoffs? (compileCore prog fresh state).payoffs cfg.store =
           some (evalPayoffs
-            (compileCore prog fresh state).sourcePayoffs terminalEnv)
+            (compileCore prog fresh state).sourcePayoffs terminalEnv) ∧
+        ∀ {name bindTy}
+            (h : VHasVar (compileCore prog fresh state).terminalCtx name bindTy),
+          Store.getAs cfg.store
+              ((compileCore prog fresh state).terminalState.fieldOf h) bindTy.base =
+            some (terminalEnv.get h)
   | Γ, .ret payoffs, _fresh, state, cfg, _reachable, _terminal,
       sourceEnv, hagrees => by
       let available :
@@ -213,11 +218,13 @@ theorem compileCore_sourceStar :
       have henv :
           sourceEnvOfStore state cfg.store available = sourceEnv :=
         sourceEnvOfStore_eq_of_get state cfg.store available sourceEnv hagrees
-      refine ⟨sourceEnv, SmallStep.Star.refl _, ?_⟩
-      have hpayoff :=
-        evalPayoffs?_compilePayoffs_eq_sourceEnvOfStore
-          state payoffs cfg.store available
-      simpa [compileCore, henv] using hpayoff
+      refine ⟨sourceEnv, SmallStep.Star.refl _, ?_, ?_⟩
+      · have hpayoff :=
+          evalPayoffs?_compilePayoffs_eq_sourceEnvOfStore
+            state payoffs cfg.store available
+        simpa [compileCore, henv] using hpayoff
+      · intro name bindTy h
+        exact hagrees h
   | Γ, .sample (b := ty) name dist tail, fresh, state, cfg,
       reachable, terminal,
       sourceEnv, hagrees => by
@@ -291,7 +298,7 @@ theorem compileCore_sourceStar :
       rcases
           compileCore_sourceStar tail fresh.2 added.1 cfg reachable terminal
             nextEnv hnextAgrees with
-        ⟨terminalEnv, htailStar, hpayoff⟩
+        ⟨terminalEnv, htailStar, hpayoff, hterminalAgrees⟩
       have hhead :
           SmallStep
             { ctx := Γ, env := sourceEnv,
@@ -302,7 +309,8 @@ theorem compileCore_sourceStar :
       exact
         ⟨terminalEnv,
           (SmallStep.Star.single hhead).trans htailStar,
-          hpayoff⟩
+          hpayoff,
+          hterminalAgrees⟩
   | Γ, .commit (b := ty) name who guard tail, fresh, state, cfg,
       reachable, terminal,
       sourceEnv, hagrees => by
@@ -362,7 +370,7 @@ theorem compileCore_sourceStar :
       rcases
           compileCore_sourceStar tail fresh.2 added.1 cfg reachable terminal
             nextEnv hnextAgrees with
-        ⟨terminalEnv, htailStar, hpayoff⟩
+        ⟨terminalEnv, htailStar, hpayoff, hterminalAgrees⟩
       have hhead :
           SmallStep
             { ctx := Γ, env := sourceEnv,
@@ -373,7 +381,8 @@ theorem compileCore_sourceStar :
       exact
         ⟨terminalEnv,
           (SmallStep.Star.single hhead).trans htailStar,
-          hpayoff⟩
+          hpayoff,
+          hterminalAgrees⟩
   | Γ, .reveal (b := ty) name who source sourceProof tail,
       fresh, state, cfg, reachable, terminal, sourceEnv, hagrees => by
       let event : EventNode P L := state.revealEvent who sourceProof
@@ -415,7 +424,7 @@ theorem compileCore_sourceStar :
       rcases
           compileCore_sourceStar tail fresh.2 added.1 cfg reachable terminal
             nextEnv hnextAgrees with
-        ⟨terminalEnv, htailStar, hpayoff⟩
+        ⟨terminalEnv, htailStar, hpayoff, hterminalAgrees⟩
       have hhead :
           SmallStep
             { ctx := Γ, env := sourceEnv,
@@ -426,11 +435,12 @@ theorem compileCore_sourceStar :
       exact
         ⟨terminalEnv,
           (SmallStep.Star.single hhead).trans htailStar,
-          hpayoff⟩
+          hpayoff,
+          hterminalAgrees⟩
 
 /-- Every terminal reachable event-graph execution of a compiled source program
-is the image of a possible written-order source run with the same terminal
-payoff. -/
+reconstructs a possible written-order source run with matching terminal
+bindings and payout evaluation. -/
 theorem compile_sourceStar
     (source : GraphProgram P L)
     (cfg : Config (compile source).graph)
@@ -443,7 +453,10 @@ theorem compile_sourceStar
           env := terminalEnv,
           cont := .ret (compile source).sourcePayoffs } ∧
       evalPayoffs? (compile source).payoffs cfg.store =
-        some (evalPayoffs (compile source).sourcePayoffs terminalEnv) := by
+        some (evalPayoffs (compile source).sourcePayoffs terminalEnv) ∧
+      ∀ {name bindTy} (h : VHasVar (compile source).terminalCtx name bindTy),
+        Store.getAs cfg.store ((compile source).terminalState.fieldOf h) bindTy.base =
+          some (terminalEnv.get h) := by
   let initial := initialState source.Γ source.env source.wctx
   let state := BuildState.fromInitial initial
   have hagrees :

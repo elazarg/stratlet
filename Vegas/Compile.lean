@@ -23,6 +23,13 @@ import Vegas.Compile.SourcePolicy
 import Vegas.Compile.SourceBacktranslation
 import Vegas.Compile.SourceStrategy
 import Vegas.Compile.Machine
+import Vegas.Compile.SealedMessages
+import Vegas.Compile.SealedDecode
+import Vegas.Compile.SealedExecution
+import Vegas.Compile.SealedRules
+import Vegas.Compile.SealedDecodeLaws
+import Vegas.Compile.SealedRefinement
+import Vegas.Compile.SealedSource
 
 /-!
 # Compilation: checked Vegas programs to event graphs

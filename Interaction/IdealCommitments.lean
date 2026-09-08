@@ -119,6 +119,27 @@ theorem seal_other (state : IdealCommitments Principal Slot Value)
   · simp [sealValue, hempty, lookup, howner]
   · simp [sealValue, hempty, lookup, hslot]
 
+/-- Sealing any slot preserves every value that was already registered,
+including values stored at other owner-scoped handles. -/
+theorem lookup_sealValue_of_eq_some (state : IdealCommitments Principal Slot Value)
+    [DecidableEq Principal] [DecidableEq Slot]
+    (owner : Principal) (slot : Slot) (replacement : Value)
+    (handle : CommitmentHandle Principal Slot) (stored : Value)
+    (hstored : state.lookup handle = some stored) :
+    (state.sealValue owner slot replacement).state.lookup handle = some stored := by
+  unfold sealValue
+  split
+  · exact hstored
+  · rename_i hempty
+    simp only [lookup]
+    change state.table handle.1 handle.2 = some stored at hstored
+    by_cases hhandle : handle.1 = owner ∧ handle.2 = slot
+    · rw [hhandle.1, hhandle.2] at hstored
+      have himpossible : (none : Option Value) = some stored := hempty.symm.trans hstored
+      contradiction
+    · simp [hhandle]
+      exact hstored
+
 /-- A claim is accepted exactly when that claimed value is stored at its
 owner-scoped handle. -/
 theorem verify_eq_true_iff (state : IdealCommitments Principal Slot Value)

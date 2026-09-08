@@ -43,3 +43,6 @@ import VegasTests.RequestCompiler
 import VegasTests.ScheduledRequest
 import VegasTests.TraceUtility
 import VegasTests.OutcomeValuation
+import VegasTests.PendingSource
+import VegasTests.PendingExecution
+import VegasTests.PendingOutcome
