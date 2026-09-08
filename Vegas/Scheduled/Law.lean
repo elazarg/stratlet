@@ -63,31 +63,31 @@ theorem runBehavioralFrom_extends (program : Program Player L)
 
 /-- Compile the real players and supply the scheduler as an environment policy. -/
 def compileSerializedBehavioralProfile (program : Program Player L)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) :
-    (who : Participant Player) → program.serializedArena.information.BehavioralPolicy who
+    (who : Participant Player) → program.serializedInformation.BehavioralPolicy who
   | .scheduler => scheduler
   | .player who => program.compileSerializedBehavioralPolicy who (profile who)
 
 /-- Forget the execution coordinate of a legal runtime command. -/
 def serializedSourceCommand (program : Program Player L)
     {state : program.State} {log : List (List Player)}
-    (command : {joint // program.serializedArena.execution.Legal ⟨state, log⟩ joint}) :
+    (command : {joint // program.serializedExecution.Legal ⟨state, log⟩ joint}) :
     {joint // program.execution.Legal state joint} :=
   ⟨fun who => command.1 (.player who), program.serializedPlayers_legal command⟩
 
 /-- At matching information, any behavioral scheduler gives the same source
 joint-action law. Its current draw is simultaneous with the players' draws. -/
 theorem behavioralJoint_compileSerialized (program : Program Player L)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who)
     (source : program.execution.History) (log : List (List Player))
-    (trace : program.serializedArena.execution.Trace ⟨source.state, log⟩)
+    (trace : program.serializedExecution.Trace ⟨source.state, log⟩)
     (hinfo : ∀ who, program.information.infoOf who source.trace =
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) trace))
-    (hterm : ¬ program.serializedArena.execution.terminal ⟨source.state, log⟩) :
-    (program.serializedArena.information.behavioralJoint
+        (program.serializedInformation.infoOf (.player who) trace))
+    (hterm : ¬ program.serializedExecution.terminal ⟨source.state, log⟩) :
+    (program.serializedInformation.behavioralJoint
       (program.compileSerializedBehavioralProfile scheduler profile) trace hterm).map
         program.serializedSourceCommand =
       program.information.behavioralJoint profile source.trace hterm := by
@@ -96,16 +96,16 @@ theorem behavioralJoint_compileSerialized (program : Program Player L)
   have hplayers :
       (FinDist.pi fun i =>
         program.compileSerializedBehavioralProfile scheduler profile i
-          (program.serializedArena.information.infoOf i trace)).map
+          (program.serializedInformation.infoOf i trace)).map
           (fun draws who => draws (.player who)) =
         FinDist.pi (fun who =>
           program.compileSerializedBehavioralProfile scheduler profile (.player who)
-            (program.serializedArena.information.infoOf (.player who) trace)) := by
+            (program.serializedInformation.infoOf (.player who) trace)) := by
     simpa using
       (FinDist.pi_map_embedding
         ⟨Participant.player, fun _ _ h => Participant.player.inj h⟩
         (fun i => program.compileSerializedBehavioralProfile scheduler profile i
-          (program.serializedArena.information.infoOf i trace)))
+          (program.serializedInformation.infoOf i trace)))
   rw [show (fun a => (a : {joint // program.execution.Legal source.state joint}).val) ∘
       program.serializedSourceCommand ∘ _ =
       (fun draws who => (draws who).val) ∘ (fun draws who => draws (.player who)) from rfl,
@@ -118,7 +118,7 @@ theorem behavioralJoint_compileSerialized (program : Program Player L)
   simp only [compileSerializedBehavioralProfile, compileSerializedBehavioralPolicy,
     FinDist.map_comp]
   change (profile who (program.eraseSerializedPlayerInformation who
-    (program.serializedArena.information.infoOf (.player who) trace))).map Subtype.val = _
+    (program.serializedInformation.infoOf (.player who) trace))).map Subtype.val = _
   rw [← hinfo who]
 
 /-- The canonical source continuation law on terminal graph states. -/
@@ -198,14 +198,14 @@ theorem expandRound_terminalStateLaw (program : Program Player L)
 /-- One compiled runtime round and one atomic source frontier with closure
 agree on the joint state-and-information law, for any behavioral scheduler. -/
 theorem compiledRound_map_summary (program : Program Player L)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who)
-    (source : program.execution.History) (target : program.serializedArena.History)
+    (source : program.execution.History) (target : program.serializedExecution.History)
     (hmatch : program.historySummary source = program.serializedHistorySummary target)
     (hterm : ¬ program.execution.terminal source.state) :
     ((program.information.behavioralJoint profile source.trace hterm).bind fun command =>
       program.expandRound source command.1 command.2).map program.historySummary =
-    (program.serializedArena.information.runBehavioralFrom
+    (program.serializedInformation.runBehavioralFrom
       (program.compileSerializedBehavioralProfile scheduler profile) 1 target).map
         program.serializedHistorySummary := by
   obtain ⟨⟨base, log⟩, trace⟩ := target
@@ -221,10 +221,10 @@ theorem compiledRound_map_summary (program : Program Player L)
 /-- A nonterminal one-round run always appends exactly one runtime step. -/
 theorem serializedRound_length (program : Program Player L)
     (profile : (who : Participant Player) →
-      program.serializedArena.information.BehavioralPolicy who)
-    (start next : program.serializedArena.History)
-    (hterm : ¬ program.serializedArena.execution.terminal start.state)
-    (hnext : next ∈ (program.serializedArena.information.runBehavioralFrom
+      program.serializedInformation.BehavioralPolicy who)
+    (start next : program.serializedExecution.History)
+    (hterm : ¬ program.serializedExecution.terminal start.state)
+    (hnext : next ∈ (program.serializedInformation.runBehavioralFrom
       profile 1 start).support) : next.trace.length = start.trace.length + 1 := by
   rw [InformationModel.runBehavioralFrom_succ_of_not_terminal _ _ _ hterm,
     FinDist.support_bind] at hnext
@@ -240,25 +240,25 @@ theorem serializedRound_length (program : Program Player L)
 the atomic game's terminal-state law, even with an arbitrary behavioral
 scheduler observing public data. This is a complete-run statement. -/
 theorem runBehavioralFrom_compileSerialized (program : Program Player L)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who)
-    (fuel : Nat) (source : program.execution.History) (target : program.serializedArena.History)
+    (fuel : Nat) (source : program.execution.History) (target : program.serializedExecution.History)
     (hmatch : program.historySummary source = program.serializedHistorySummary target)
     (hcapacity : program.graph.nodeCount ≤ target.trace.length + fuel) :
-    (program.serializedArena.information.runBehavioralFrom
+    (program.serializedInformation.runBehavioralFrom
       (program.compileSerializedBehavioralProfile scheduler profile) fuel target).map
         (fun history => history.state.base) = program.terminalStateLaw profile source := by
   have hbase : source.state = target.state.base := congrArg Prod.fst hmatch
   induction fuel generalizing source target with
   | zero =>
-      have hterminal := (program.serializedGame (fun _ => 0)).bounded
+      have hterminal := (program.serializedBoundedGame (fun _ => 0)).bounded
         target.state target.trace (by exact hcapacity)
       have hsource : program.execution.terminal source.state := hbase ▸ hterminal
       rw [program.terminalStateLaw_of_terminal profile source hsource]
       change (FinDist.pure target).map _ = _
       rw [FinDist.map_pure, hbase]
   | succ fuel ih =>
-      by_cases hterminal : program.serializedArena.execution.terminal target.state
+      by_cases hterminal : program.serializedExecution.terminal target.state
       · have hsource : program.execution.terminal source.state := hbase ▸ hterminal
         rw [program.terminalStateLaw_of_terminal profile source hsource,
           InformationModel.runBehavioralFrom_of_terminal _ _ _ hterminal,
@@ -268,14 +268,14 @@ theorem runBehavioralFrom_compileSerialized (program : Program Player L)
           apply hterminal
           change program.execution.terminal target.state.base
           exact hbase ▸ ht
-        let targetRound := program.serializedArena.information.runBehavioralFrom
+        let targetRound := program.serializedInformation.runBehavioralFrom
           (program.compileSerializedBehavioralProfile scheduler profile) 1 target
         let sourceRound := (program.information.behavioralJoint profile source.trace hsource).bind
           fun command => program.expandRound source command.1 command.2
         have hround := program.compiledRound_map_summary scheduler profile source target
           hmatch hsource
         have hcontinuation : targetRound.bind (fun next =>
-            (program.serializedArena.information.runBehavioralFrom
+            (program.serializedInformation.runBehavioralFrom
               (program.compileSerializedBehavioralProfile scheduler profile) fuel next).map
                 (fun history => history.state.base)) =
             sourceRound.bind (program.terminalStateLaw profile) := by
@@ -296,14 +296,14 @@ theorem runBehavioralFrom_compileSerialized (program : Program Player L)
 /-- Honest compilation preserves the full terminal-state distribution from
 initial play, uniformly over public-data behavioral scheduler policies. -/
 theorem runBehavioral_compileSerialized (program : Program Player L)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) :
-    (program.serializedArena.information.runBehavioral
+    (program.serializedInformation.runBehavioral
       (program.compileSerializedBehavioralProfile scheduler profile) program.graph.nodeCount).map
         (fun history => history.state.base) =
       (program.information.runBehavioral profile program.graph.nodeCount).map
         ExecutionProtocol.History.state := by
   exact program.runBehavioralFrom_compileSerialized scheduler profile _
-    program.execution.initHistory program.serializedArena.execution.initHistory rfl (by simp)
+    program.execution.initHistory program.serializedExecution.initHistory rfl (by simp)
 
 end Vegas.Machine.Program

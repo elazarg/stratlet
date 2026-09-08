@@ -24,7 +24,7 @@ theorem source_native_correlatedEq_of (source : WFProgram Player L)
     (law : FinDist (SourceBehavioralProfile source.core.prog))
     (hsource : IsCorrelatedEq (sourceGameForm source.core.prog source.core.env)
       (euPreference valuation) law) :
-    IsCorrelatedEq source.game.behavioralForm
+    IsCorrelatedEq source.boundedGame.behavioralForm
       (euPreference fun history player => valuation
         (ToEventGraph.observeSourceOutcome source.core source.legal history.state) player)
       (source.sourceOutcomeSimulation.compileLaw law) :=
@@ -35,7 +35,7 @@ compilation for every independent source recommendation law and valuation. -/
 theorem source_native_coarseCorrelatedEq_iff (source : WFProgram Player L)
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ)
     (law : FinDist (SourceBehavioralProfile source.core.prog)) :
-    IsCoarseCorrelatedEq source.game.behavioralForm
+    IsCoarseCorrelatedEq source.boundedGame.behavioralForm
       (euPreference fun history player => valuation
         (ToEventGraph.observeSourceOutcome source.core source.legal history.state) player)
       (source.sourceOutcomeSimulation.compileLaw law) ↔

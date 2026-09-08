@@ -264,7 +264,7 @@ theorem pi_two (laws : TestPlayer → FinDist Bool) :
 
 theorem decoded_law_eq_kernel
     (profile : ∀ who, program.information.BehavioralPolicy who) :
-    (program.game.behavioral.form.play profile).map (fun history => decode history.state.1) =
+    (program.boundedGame.behavioral.form.play profile).map (fun history => decode history.state.1) =
       ObservedAbort.sourcePlay (fun who => extractStrategy who (profile who)) := by
   change (program.information.runBehavioral profile graph.nodeCount).map _ = _
   calc

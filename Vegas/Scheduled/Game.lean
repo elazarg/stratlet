@@ -10,7 +10,7 @@ import Vegas.Scheduled.Compiled
 /-!
 # Games implemented by the serialized graph runtime
 
-This file closes the construction gap between `Machine.Program.game` and the
+This file relates `Machine.Program.boundedGame` to the
 actual scheduled execution protocol. The target game uses the serializer's
 states, public order log, player-local menus, and transition law directly.
 
@@ -27,7 +27,6 @@ namespace Vegas
 
 open GameTheory
 open GameTheory.Protocol
-open GameTheory.Languages
 
 namespace Machine.Program
 
@@ -40,13 +39,15 @@ program. -/
     ScheduledSystem Player :=
   EventGraph.serializedSystem program.graph program.graphWF program.guardLive
 
-/-- The informed game arena of the actual serializer. The published order is
-retained in each participant's information state, together with perfect recall
-of that participant's own decisions. -/
-def serializedArena (program : Program Player L) :
-    FOSG.Game (Participant Player) where
-  execution := program.serializedSystem.toExecutionProtocol
-  information := program.serializedSystem.revealingInformation
+/-- Native execution semantics of the serializer. -/
+def serializedExecution (program : Program Player L) :
+    ExecutionProtocol (Participant Player) :=
+  program.serializedSystem.toExecutionProtocol
+
+/-- Recipient-local information over native serialized execution. -/
+def serializedInformation (program : Program Player L) :
+    InformationModel program.serializedExecution :=
+  program.serializedSystem.revealingInformation
 
 /-- Erase runtime order observations from one original player's serialized
 information while retaining the current source observation and every earlier
@@ -64,7 +65,7 @@ unreachable observations with the idle choice, so this equality also holds at
 counterfactual information values that no execution reaches. -/
 theorem serializedPlayerMenu_eq (program : Program Player L) (who : Player)
     (info : program.serializedSystem.RevealingInfo (.player who)) :
-    program.serializedArena.information.menu (.player who) info =
+    program.serializedInformation.menu (.player who) info =
       program.information.menu who
         (program.eraseSerializedPlayerInformation who info) := by
   change program.serializedSystem.menuAt who info.current =
@@ -81,7 +82,7 @@ def serializedPlayerChoiceEquiv (program : Program Player L) (who : Player)
     (info : program.serializedSystem.RevealingInfo (.player who)) :
     program.information.Choice who
         (program.eraseSerializedPlayerInformation who info) ≃
-      program.serializedArena.information.Choice (.player who) info where
+      program.serializedInformation.Choice (.player who) info where
   toFun choice := ⟨choice.1, by
     rw [program.serializedPlayerMenu_eq who info]
     exact choice.2⟩
@@ -95,7 +96,7 @@ def serializedPlayerChoiceEquiv (program : Program Player L) (who : Player)
 model. The compiled policy ignores order history; target deviations need not. -/
 def compileSerializedBehavioralPolicy (program : Program Player L)
     (who : Player) (policy : program.information.BehavioralPolicy who) :
-    program.serializedArena.information.BehavioralPolicy (.player who) :=
+    program.serializedInformation.BehavioralPolicy (.player who) :=
   fun info =>
     (policy (program.eraseSerializedPlayerInformation who info)).map
       (program.serializedPlayerChoiceEquiv who info)
@@ -122,10 +123,10 @@ def serializedInitialPlayerInformation (program : Program Player L)
 
 @[simp] theorem serializedInfoOf_start_player
     (program : Program Player L) (who : Player) :
-    program.serializedArena.information.infoOf (.player who)
+    program.serializedInformation.infoOf (.player who)
         (ExecutionProtocol.Trace.start :
-          program.serializedArena.execution.Trace
-            program.serializedArena.execution.init) =
+          program.serializedExecution.Trace
+            program.serializedExecution.init) =
       program.serializedInitialPlayerInformation who := by
   rfl
 
@@ -156,13 +157,14 @@ theorem compileSerializedBehavioralPolicy_initial
 /-- Any economic outcome interpretation of the settled source state can be
 valued independently of the payout expressions. The scheduler may value the
 full runtime history. Trace-sensitive original-player utilities can instead be
-attached directly to `serializedArena`; their preservation needs a separate
+attached directly to `serializedInformation`; their preservation needs a separate
 utility relation, not merely an outcome decoder. -/
-def serializedOutcomeGame (program : Program Player L) {Outcome : Type}
+def serializedBoundedOutcomeGame (program : Program Player L) {Outcome : Type}
     (observe : program.State → Outcome) (valuation : Outcome → Player → ℝ)
-    (schedulerUtility : program.serializedArena.History → ℝ) :
-    Game (Participant Player) where
-  arena := program.serializedArena
+    (schedulerUtility : program.serializedExecution.History → ℝ) :
+    BoundedGame (Participant Player) where
+  execution := program.serializedExecution
+  information := program.serializedInformation
   utility history
     | .scheduler => schedulerUtility history
     | .player who => valuation (observe history.state.base) who
@@ -171,14 +173,14 @@ def serializedOutcomeGame (program : Program Player L) {Outcome : Type}
     program.graph program.graphWF program.guardLive
 
 def serializedUtility (program : Program Player L)
-    (schedulerUtility : program.serializedArena.History → ℝ) :
-    program.serializedArena.History → Participant Player → ℝ :=
-  (program.serializedOutcomeGame id program.payoutUtility schedulerUtility).utility
+    (schedulerUtility : program.serializedExecution.History → ℝ) :
+    program.serializedExecution.History → Participant Player → ℝ :=
+  (program.serializedBoundedOutcomeGame id program.payoutUtility schedulerUtility).utility
 
 @[simp] theorem serializedUtility_player
     (program : Program Player L)
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (history : program.serializedArena.History) (who : Player) :
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (history : program.serializedExecution.History) (who : Player) :
     program.serializedUtility schedulerUtility history (.player who) =
       program.payoutUtility history.state.base who := by
   rfl
@@ -187,8 +189,8 @@ def serializedUtility (program : Program Player L)
 the scheduler's utility when the settled graph state is the same. -/
 theorem serializedUtility_player_eq_of_base_eq
     (program : Program Player L)
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (left right : program.serializedArena.History) (who : Player)
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (left right : program.serializedExecution.History) (who : Player)
     (hbase : left.state.base = right.state.base) :
     program.serializedUtility schedulerUtility left (.player who) =
       program.serializedUtility schedulerUtility right (.player who) := by
@@ -197,15 +199,15 @@ theorem serializedUtility_player_eq_of_base_eq
 
 /-- The serializer is a finite Vegas game with the same graph-node horizon as
 the canonical atomic game. -/
-def serializedGame (program : Program Player L)
-    (schedulerUtility : program.serializedArena.History → ℝ) :
-    Game (Participant Player) :=
-  program.serializedOutcomeGame id program.payoutUtility schedulerUtility
+def serializedBoundedGame (program : Program Player L)
+    (schedulerUtility : program.serializedExecution.History → ℝ) :
+    BoundedGame (Participant Player) :=
+  program.serializedBoundedOutcomeGame id program.payoutUtility schedulerUtility
 
 /-- The actual serialized arena has perfect recall, including for policies
 that condition on earlier public orders. -/
 theorem serializedPerfectRecall (program : Program Player L) :
-    program.serializedArena.information.PerfectRecall :=
+    program.serializedInformation.PerfectRecall :=
   program.serializedSystem.revealingInformation_perfectRecall
 
 /-- At every actual runtime history, each original player's information
@@ -213,8 +215,8 @@ determines the scheduler's complete information.  The scheduler may use all
 public data and prior orders, but has no additional state signal. -/
 theorem serializedSchedulerInfo_eq_fromPlayer
     (program : Program Player L) (who : Player)
-    {state : program.serializedArena.execution.State}
-    (trace : ExecutionProtocol.Trace program.serializedArena.execution state) :
+    {state : program.serializedExecution.State}
+    (trace : ExecutionProtocol.Trace program.serializedExecution state) :
     program.serializedSystem.schedulerInfoFromPlayer
         (fun seen : EventGraph.PublicObservation program.graph ×
           EventGraph.Observation program.graph who => seen.1)
@@ -228,10 +230,10 @@ theorem serializedSchedulerInfo_eq_fromPlayer
 /-- The actual serialized game is bounded independently of the scheduler
 strategy and of every player strategy. -/
 theorem serializedBoundedHorizon (program : Program Player L)
-    (schedulerUtility : program.serializedArena.History → ℝ) :
-    (program.serializedGame schedulerUtility).arena.execution.BoundedHorizon
+    (schedulerUtility : program.serializedExecution.History → ℝ) :
+    (program.serializedBoundedGame schedulerUtility).execution.BoundedHorizon
       program.graph.nodeCount :=
-  (program.serializedGame schedulerUtility).bounded
+  (program.serializedBoundedGame schedulerUtility).bounded
 
 end Machine.Program
 

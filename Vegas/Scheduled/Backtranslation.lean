@@ -31,10 +31,10 @@ before any scheduler replay. -/
 def recoverSerializedInformation (program : Program Player L) (who : Player)
     (info : PlayerInformation program.graph who) :
     program.serializedSystem.RevealingInfo (.player who) :=
-  if hex : ∃ history : program.serializedArena.History,
+  if hex : ∃ history : program.serializedExecution.History,
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) history.trace) = info then
-    program.serializedArena.information.infoOf (.player who) (Classical.choose hex).trace
+        (program.serializedInformation.infoOf (.player who) history.trace) = info then
+    program.serializedInformation.infoOf (.player who) (Classical.choose hex).trace
   else
     { current := info.current
       past := []
@@ -54,17 +54,17 @@ def recoverSerializedInformation (program : Program Player L) (who : Player)
 /-- The representative's order-free history is the unique history determined
 by the compact information; arbitrary representative orders are irrelevant. -/
 theorem recoverSerializedInformation_forget_at (program : Program Player L) (who : Player)
-    {state : program.serializedArena.execution.State}
-    (trace : program.serializedArena.execution.Trace state) :
+    {state : program.serializedExecution.State}
+    (trace : program.serializedExecution.Trace state) :
     program.serializedSystem.forgetOrders (program.recoverSerializedInformation who
       (program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) trace))) =
+        (program.serializedInformation.infoOf (.player who) trace))) =
       program.serializedSystem.blindSignals.infoOf (.player who) trace := by
-  have hex : ∃ history : program.serializedArena.History,
+  have hex : ∃ history : program.serializedExecution.History,
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) history.trace) =
+        (program.serializedInformation.infoOf (.player who) history.trace) =
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) trace) :=
+        (program.serializedInformation.infoOf (.player who) trace) :=
     ⟨⟨state, trace⟩, rfl⟩
   rw [recoverSerializedInformation, dif_pos hex]
   change program.serializedSystem.forgetOrders
@@ -101,13 +101,13 @@ def reconstructSerializedInformation (program : Program Player L)
 player's exact runtime information, including order history and own decisions. -/
 theorem reconstructSerializedInformation_at (program : Program Player L)
     (scheduler : program.serializedSystem.revealingInformation.Policy .scheduler)
-    (who : Player) {state : program.serializedArena.execution.State}
-    (trace : program.serializedArena.execution.Trace state)
+    (who : Player) {state : program.serializedExecution.State}
+    (trace : program.serializedExecution.Trace state)
     (hfollows : program.serializedSystem.SchedulerFollows scheduler trace) :
     program.reconstructSerializedInformation scheduler who
       (program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) trace)) =
-      program.serializedArena.information.infoOf (.player who) trace := by
+        (program.serializedInformation.infoOf (.player who) trace)) =
+      program.serializedInformation.infoOf (.player who) trace := by
   rw [reconstructSerializedInformation, program.recoverSerializedInformation_forget_at]
   exact (program.serializedSystem.revealing_info_eq_replayPlayerInfo scheduler Prod.fst
     (fun _ => rfl) trace hfollows).symm
@@ -118,7 +118,7 @@ policies and is defined at every source information value. -/
 def backtranslateSerializedBehavioralPolicy (program : Program Player L)
     (scheduler : program.serializedSystem.revealingInformation.Policy .scheduler)
     (who : Player)
-    (policy : program.serializedArena.information.BehavioralPolicy (.player who)) :
+    (policy : program.serializedInformation.BehavioralPolicy (.player who)) :
     program.information.BehavioralPolicy who :=
   fun info => (policy (program.reconstructSerializedInformation scheduler who info)).map
     fun ⟨choice, hmenu⟩ => ⟨choice, by
@@ -130,20 +130,20 @@ behavioral deviations and all chance outcomes under the fixed scheduler. -/
 theorem backtranslateSerializedBehavioralPolicy_law (program : Program Player L)
     (scheduler : program.serializedSystem.revealingInformation.Policy .scheduler)
     (who : Player)
-    (policy : program.serializedArena.information.BehavioralPolicy (.player who))
-    {state : program.serializedArena.execution.State}
-    (trace : program.serializedArena.execution.Trace state)
+    (policy : program.serializedInformation.BehavioralPolicy (.player who))
+    {state : program.serializedExecution.State}
+    (trace : program.serializedExecution.Trace state)
     (hfollows : program.serializedSystem.SchedulerFollows scheduler trace) :
     (program.compileSerializedBehavioralPolicy who
       (program.backtranslateSerializedBehavioralPolicy scheduler who policy)
-      (program.serializedArena.information.infoOf (.player who) trace)).map Subtype.val =
-        (policy (program.serializedArena.information.infoOf (.player who) trace)).map
+      (program.serializedInformation.infoOf (.player who) trace)).map Subtype.val =
+        (policy (program.serializedInformation.infoOf (.player who) trace)).map
           Subtype.val := by
   simp only [compileSerializedBehavioralPolicy, backtranslateSerializedBehavioralPolicy,
     FinDist.map_comp]
   change (policy (program.reconstructSerializedInformation scheduler who
     (program.eraseSerializedPlayerInformation who
-      (program.serializedArena.information.infoOf (.player who) trace)))).map Subtype.val = _
+      (program.serializedInformation.infoOf (.player who) trace)))).map Subtype.val = _
   rw [program.reconstructSerializedInformation_at scheduler who trace hfollows]
 
 /-- Already compiled source players remain exactly their original source

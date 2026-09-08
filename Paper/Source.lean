@@ -18,7 +18,7 @@ variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
 
 theorem native_honest_law (source : WFProgram Player L)
     (profile : SourceBehavioralProfile source.core.prog) :
-    (source.game.behavioralForm.play
+    (source.boundedGame.behavioralForm.play
       (source.sourceOutcomeSimulation.compileProfile profile)).map
         source.sourceOutcomeSimulation.decodeOutcome =
       (sourceGameForm source.core.prog source.core.env).play profile :=
@@ -26,8 +26,8 @@ theorem native_honest_law (source : WFProgram Player L)
 
 theorem native_unilateral_law (source : WFProgram Player L)
     (profile : SourceBehavioralProfile source.core.prog) (who : Player)
-    (replacement : source.game.behavioralForm.sig.Strategy who) :
-    (source.game.behavioralForm.play
+    (replacement : source.boundedGame.behavioralForm.sig.Strategy who) :
+    (source.boundedGame.behavioralForm.play
       (Profile.update (source.sourceOutcomeSimulation.compileProfile profile)
         who replacement)).map source.sourceOutcomeSimulation.decodeOutcome =
       (sourceGameForm source.core.prog source.core.env).play
@@ -39,9 +39,9 @@ theorem native_nash_iff (source : WFProgram Player L)
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ)
     (profile : SourceBehavioralProfile source.core.prog) :
     IsNash
-      ((Machine.compile source).outcomeGame
+      ((Machine.compile source).boundedOutcomeGame
         (ToEventGraph.observeSourceOutcome source.core source.legal) valuation).behavioral.form
-      (euPreference ((Machine.compile source).outcomeGame
+      (euPreference ((Machine.compile source).boundedOutcomeGame
         (ToEventGraph.observeSourceOutcome source.core source.legal) valuation).utility)
       (source.sourceOutcomeSimulation.compileProfile profile) ↔
       IsNash (sourceGameForm source.core.prog source.core.env)
@@ -52,9 +52,9 @@ theorem native_approximate_nash_iff (source : WFProgram Player L)
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ)
     (profile : SourceBehavioralProfile source.core.prog) (ε : ℝ) :
     IsεNash
-      ((Machine.compile source).outcomeGame
+      ((Machine.compile source).boundedOutcomeGame
         (ToEventGraph.observeSourceOutcome source.core source.legal) valuation).behavioral.form
-      ((Machine.compile source).outcomeGame
+      ((Machine.compile source).boundedOutcomeGame
         (ToEventGraph.observeSourceOutcome source.core source.legal) valuation).utility ε
       (source.sourceOutcomeSimulation.compileProfile profile) ↔
       IsεNash (sourceGameForm source.core.prog source.core.env) valuation ε profile :=
@@ -65,7 +65,7 @@ theorem native_correlated_preservation (source : WFProgram Player L)
     (law : FinDist (Profile (sourceGameSignature source.core.prog)))
     (hsource : IsCorrelatedEq (sourceGameForm source.core.prog source.core.env)
       (euPreference valuation) law) :
-    IsCorrelatedEq source.game.behavioralForm
+    IsCorrelatedEq source.boundedGame.behavioralForm
       (euPreference fun outcome who =>
         valuation (source.sourceOutcomeSimulation.decodeOutcome outcome) who)
       (source.sourceOutcomeSimulation.compileLaw law) :=
@@ -74,7 +74,7 @@ theorem native_correlated_preservation (source : WFProgram Player L)
 theorem native_coarse_correlated_iff (source : WFProgram Player L)
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ)
     (law : FinDist (Profile (sourceGameSignature source.core.prog))) :
-    IsCoarseCorrelatedEq source.game.behavioralForm
+    IsCoarseCorrelatedEq source.boundedGame.behavioralForm
       (euPreference fun outcome who =>
         valuation (source.sourceOutcomeSimulation.decodeOutcome outcome) who)
       (source.sourceOutcomeSimulation.compileLaw law) ↔
@@ -83,9 +83,9 @@ theorem native_coarse_correlated_iff (source : WFProgram Player L)
   source.source_native_coarseCorrelatedEq_iff valuation law
 
 theorem scheduled_honest_law (source : WFProgram Player L)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy
       .scheduler) (profile : SourceBehavioralProfile source.core.prog) :
-    ((Machine.compile source).serializedArena.information.runBehavioral
+    ((Machine.compile source).serializedInformation.runBehavioral
       ((Machine.compile source).compileSerializedBehavioralProfile scheduler
         (fun who => ToEventGraph.compileSourceBehavioral source.core source.legal
           who (profile who))) (Machine.compile source).graph.nodeCount).map
@@ -95,12 +95,12 @@ theorem scheduled_honest_law (source : WFProgram Player L)
   source.source_serialized_honest_law scheduler profile
 
 theorem scheduled_deviation_mixture (source : WFProgram Player L)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy
       .scheduler) (profile : SourceBehavioralProfile source.core.prog) (who : Player)
-    (replacement : (Machine.compile source).serializedArena.information.BehavioralPolicy
+    (replacement : (Machine.compile source).serializedInformation.BehavioralPolicy
       (.player who)) :
     ∃ alternatives : FinDist (SourceBehavioralPolicy source.core.prog who),
-      ((Machine.compile source).serializedArena.information.runBehavioral
+      ((Machine.compile source).serializedInformation.runBehavioral
         (Function.update
           ((Machine.compile source).compileSerializedBehavioralProfile scheduler
             (fun player => ToEventGraph.compileSourceBehavioral source.core source.legal
@@ -117,9 +117,9 @@ theorem scheduled_deviation_mixture (source : WFProgram Player L)
 theorem scheduled_request_honest_law (source : WFProgram Player L)
     [FiniteDomains source] {Request : Participant Player → Type}
     (interface : Runtime.RequestCompiler.Interface
-      (Machine.compile source).serializedArena.information Request)
-    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy
+      (Machine.compile source).serializedInformation Request)
+    (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy
       .scheduler) (profile : SourceBehavioralProfile source.core.prog) :
     ((source.serializedRequestGame interface schedulerUtility).form.play
       (source.compileSourceSerializedRequestProfile interface schedulerUtility
@@ -132,9 +132,9 @@ theorem scheduled_request_honest_law (source : WFProgram Player L)
 theorem scheduled_request_deviation_mixture (source : WFProgram Player L)
     [FiniteDomains source] {Request : Participant Player → Type}
     (interface : Runtime.RequestCompiler.Interface
-      (Machine.compile source).serializedArena.information Request)
-    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy
+      (Machine.compile source).serializedInformation Request)
+    (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy
       .scheduler) (profile : SourceBehavioralProfile source.core.prog) (who : Player)
     (replacement : (source.serializedRequestGame interface schedulerUtility).form.sig.Strategy
       (.player who)) :
@@ -153,9 +153,9 @@ theorem scheduled_request_deviation_mixture (source : WFProgram Player L)
 theorem scheduled_request_guarantee (source : WFProgram Player L)
     [FiniteDomains source] {Request : Participant Player → Type}
     (interface : Runtime.RequestCompiler.Interface
-      (Machine.compile source).serializedArena.information Request)
-    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy
+      (Machine.compile source).serializedInformation Request)
+    (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy
       .scheduler) (profile : SourceBehavioralProfile source.core.prog) (who : Player)
     (value : VEnv L (sourceTerminalCtx source.core.prog) → ℝ) (bound : ℝ)
     (hbound : ∀ alternative : SourceBehavioralPolicy source.core.prog who,
@@ -175,10 +175,10 @@ theorem scheduled_request_guarantee (source : WFProgram Player L)
 theorem scheduled_request_nash_iff (source : WFProgram Player L)
     [FiniteDomains source] {Request : Participant Player → Type}
     (interface : Runtime.RequestCompiler.Interface
-      (Machine.compile source).serializedArena.information Request)
-    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
+      (Machine.compile source).serializedInformation Request)
+    (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy
       .scheduler) (profile : SourceBehavioralProfile source.core.prog) :
     Participant.IsPlayerNash
       (source.sourceSerializedRequestGame interface schedulerUtility valuation)
@@ -192,10 +192,10 @@ theorem scheduled_request_nash_iff (source : WFProgram Player L)
 theorem scheduled_request_approximate_nash_iff (source : WFProgram Player L)
     [FiniteDomains source] {Request : Participant Player → Type}
     (interface : Runtime.RequestCompiler.Interface
-      (Machine.compile source).serializedArena.information Request)
-    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
+      (Machine.compile source).serializedInformation Request)
+    (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy
       .scheduler) (profile : SourceBehavioralProfile source.core.prog) (ε : ℝ) :
     (∀ who replacement,
       expectedUtility (source.sourceSerializedRequestGame interface schedulerUtility

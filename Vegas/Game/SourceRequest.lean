@@ -28,31 +28,32 @@ open GameTheory Vegas.Runtime
 
 variable {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
 variable (source : WFProgram Player L) {Request : Player → Type}
-variable (interface : RequestCompiler.Interface source.game.arena.information Request)
+variable (interface : RequestCompiler.Interface source.boundedGame.information Request)
 
 def requestGame : UtilityGame Player :=
-  (RequestCompiler.targetGame source.game.arena.information interface
-    source.game.horizon source.game.utility).mixed
+  (RequestCompiler.targetGame source.boundedGame.information interface
+    source.boundedGame.horizon source.boundedGame.utility).mixed
 
 /-- Uniform compilation for every checked core program with source-designated
 timeout actions. All source-history laws, not merely payoffs, are preserved. -/
-def mixedRequestAdequacy : DeviationAdequacy source.game.mixedPure
+def mixedRequestAdequacy : DeviationAdequacy source.boundedGame.mixedPure
     (source.requestGame interface) :=
-  RequestCompiler.mixedAdequacy source.game.arena.information interface
-    (Machine.compile source).perfectRecall source.game.horizon source.game.utility
+  RequestCompiler.mixedAdequacy source.boundedGame.information interface
+    (Machine.compile source).perfectRecall source.boundedGame.horizon source.boundedGame.utility
 
 /-- Finite-domain source behavioral games are preserved against every target
 controller mixture, including deviations in both game choices and retry logic. -/
 def behavioralRequestAdequacy [FiniteDomains source] :
-    DeviationAdequacy source.game.behavioral (source.requestGame interface) :=
+    DeviationAdequacy source.boundedGame.behavioral (source.requestGame interface) :=
   source.behavioralToMixedPureAdequacy.trans (source.mixedRequestAdequacy interface)
 
 theorem request_nash_iff [FiniteDomains source]
-    (profile : Profile source.game.behavioral.form.sig) :
+    (profile : Profile source.boundedGame.behavioral.form.sig) :
     IsNash (source.requestGame interface).form
       (euPreference (source.requestGame interface).utility)
       ((source.behavioralRequestAdequacy interface).compileProfile profile) ↔
-    IsNash source.game.behavioral.form (euPreference source.game.behavioral.utility) profile :=
+    IsNash source.boundedGame.behavioral.form
+      (euPreference source.boundedGame.behavioral.utility) profile :=
   (source.behavioralRequestAdequacy interface).isNash_compileProfile_iff profile
 
 end Vegas.WFProgram

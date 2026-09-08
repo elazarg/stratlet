@@ -5,7 +5,7 @@ Run these tools from the repository root.
 - `python scripts/check-module-boundaries.py` checks local import resolution,
   default-build reachability, complete game/runtime aggregators, cycles in the
   module and sibling-directory dependency graphs, and the
-  core/backend/test/audit dependency directions. Cycle reports include witness
+  interaction/core/backend/test/audit dependency directions. Cycle reports include witness
   imports; acyclicity supplements rather than replaces the direction rules.
 
 - `lake --wfail build Paper` checks the paper audit, including the generic
@@ -35,7 +35,7 @@ Run these tools from the repository root.
   active-paper input discovery.
 
 - `python scripts/check-lean-options.py` rejects source-local `set_option`
-  directives in Vegas and VegasTests. Shared elaboration and lint settings
+  directives in every project Lean source tree. Shared elaboration and lint settings
   belong in `lakefile.toml`; separately managed dependencies keep their own
   package configuration.
 - `scripts/bump-lean-mathlib.sh v4.32.0` updates the Lean toolchain and

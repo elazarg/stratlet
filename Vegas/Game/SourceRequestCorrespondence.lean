@@ -22,7 +22,7 @@ variable {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
 the decoder retains exactly the independent source terminal environment. -/
 def sourceRequestOutcomeSimulation (source : WFProgram Player L) [FiniteDomains source]
     {Request : Player → Type}
-    (interface : RequestCompiler.Interface source.game.arena.information Request) :
+    (interface : RequestCompiler.Interface source.boundedGame.information Request) :
     OutcomeSimulationOn (sourceGameForm source.core.prog source.core.env)
       (source.requestGame interface).form (fun _ _ => True) :=
   source.sourceOutcomeSimulation.trans

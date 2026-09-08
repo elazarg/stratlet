@@ -99,7 +99,7 @@ that the runtime satisfies it.
 
 No mandatory finite-state, finite-horizon, perfect-recall, or real-utility
 field belongs in the general stage interface. Introduce each capability where
-its theorem or executable algorithm needs it. The present `Vegas.Game` wrapper
+its theorem or executable algorithm needs it. The `Vegas.BoundedGame` wrapper
 is a bounded analysis convenience, not the foundational type for all targets.
 
 ## 3. Proof obligations on a compiler edge
@@ -242,10 +242,20 @@ that every inserted layer is automatically strategy-preserving.
 
 ## 5. The first public-message target
 
-Start with raw messages, recipient-local delivered views, pending inclusion,
-application state, and an event history. Compose a parameterized application
-transition with submission, delivery, inclusion/execution, waiting, and any
-explicit clocks or resolution drivers needed by the first compiler instance.
+Start with raw messages, recipient-local delivered views, a pending inventory,
+and a published ledger. Submission creates a message; delivery exposes an
+existing message to an observer; inclusion selects an existing pending message
+as the next public ledger entry. Inclusion is the scheduler's action and does
+not consult the sender again. The first kernel uses a shared published ledger;
+delayed receipt of ledger entries is a separate observation refinement.
+
+The first security experiment must distinguish legal cleartext transmission
+from compiled commitment traffic. Prove what an observer can learn from
+pending messages before a relevant decision, and what opening permits later.
+An ideal commitment service must be explicit; it is not an implementation of
+cryptography. Application validation, quitting resolution, service guarantees,
+clocks, fees, and consensus belong in separate layers when their proofs need
+them, not mandatory fields of this kernel.
 The [ledger design](ledger-expansion-design.md) details the event and service
 contracts; its richer ledger features need not all be implemented at once.
 
@@ -257,10 +267,11 @@ what the recipient can infer about dissemination.
 
 Silent delivery events must not generate a global observable tick through the
 information adapter. An empty signal appended to every local history can leak
-event counts. Activation and menus must also be information-local: do not hide
-a scheduler decision in state and then expose it through a legal-action type.
-If a real participant observes a wakeup, model that wakeup explicitly; do not
-invent a notification merely to satisfy `InformationModel.menu_adequate`.
+event counts. Native controller decisions and inclusion of pre-existing
+messages are different events. The latter needs no hidden sender-activation
+change. If a later model genuinely hides controller consultation, evaluate
+the information-interface requirements at that layer; do not invent shared
+notifications to satisfy a library adapter.
 
 Use the commonly observed signal channel only for actual shared observations;
 recipient-local delivery belongs to per-recipient signals. Signal definitions
@@ -324,6 +335,18 @@ a commitment to add every Vegas certificate unchanged. Follow its architecture
 review process; move an accepted abstraction and its tests once, then update
 consumers and the dependency pin. No parallel stable definitions or compatibility
 facades. Do not commit a GameTheory-specific temporary issue into this repository.
+
+The minimum upstream candidate is a same-player, noninvertible comparison of
+game forms: playerwise strategy compilation and deviation backtranslation,
+an outcome decoder, and honest and unilateral-deviation law equations against
+unchanged opponents. A considered-deviation predicate is explicit when the
+target strategy class is restricted. Composition requires proving that
+right-edge backtranslated deviations lie in the left edge's considered class.
+Utilities and solution concepts are derived consumers, not fields of the
+outcome-law relation. Existing source/native, request, and strategy-conversion
+clients motivate this extraction; a general hierarchy of compiler passes does
+not. GameTheory's existing game forms, profiles, deviations, and Kuhn results
+remain the canonical APIs. This candidate has not yet been moved upstream.
 
 Game-free runtime modules may use GameTheory's probability-only root.
 Their strategic adapters import GameTheory's protocol/core layers. Model

@@ -54,6 +54,29 @@ class ModuleBoundaryTests(unittest.TestCase):
             self.assertTrue(any("missing local import Vegas.Missing" in error
                                 for error in CHECKER.check(root)))
 
+    def test_interaction_cannot_import_language_or_its_tests(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory, {
+                "Vegas": "", "Interaction": "import Vegas InteractionTests",
+                "InteractionTests": "",
+            }, '[[lean_lib]]\nname = "Interaction"\n'
+               '[[lean_lib]]\nname = "InteractionTests"\n')
+            errors = CHECKER.check(root)
+            self.assertTrue(any("interaction carrier imports downstream module Vegas" in error
+                                for error in errors))
+            self.assertTrue(any("imports interaction test InteractionTests" in error
+                                for error in errors))
+
+    def test_interaction_tests_remain_language_independent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory, {
+                "Vegas": "", "Interaction": "",
+                "InteractionTests": "import Vegas",
+            }, '[[lean_lib]]\nname = "Interaction"\n'
+               '[[lean_lib]]\nname = "InteractionTests"\n')
+            self.assertTrue(any("runtime-independent test imports Vegas" in error
+                                for error in CHECKER.check(root)))
+
     def test_carriers_and_runtime_cannot_import_adapters(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self.fixture(directory, {

@@ -19,7 +19,7 @@ does not establish strategic preservation through public-message execution.
 | Source support | `Machine.compile_sourceStar` | terminal graph runs reconstruct written-order source runs |
 | Strategic execution | `ExecutionProtocol P` | active players, legal joint actions, chance, terminality |
 | Strategic information | `InformationModel execution` | signals, local information, local menus |
-| Vegas game | `Vegas.Game P` | FOSG arena, history utility, bounded horizon, pure/behavioral/mixed-pure forms |
+| Bounded Vegas analysis | `Vegas.BoundedGame P` | Native execution and information, history utility, bounded horizon, pure/behavioral/mixed-pure forms |
 | Kuhn bridge | `Vegas.Game.Kuhn` | opponent-preserving behavioral/mixed deviation certificates |
 | Lowering stage | `Machine.System` | one concrete operational command/state surface |
 | Step projection | `Machine.Refinement` | visible abstract steps and administrative stuttering |

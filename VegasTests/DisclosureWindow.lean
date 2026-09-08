@@ -98,7 +98,7 @@ def completionGate : Vegas.Runtime.DisclosureWindow.Gate ℝ Unit where
   validRequest _ := ()
   accepts_valid _ := rfl
 
-def compiledGame := MatchingPenniesEquilibrium.program.game.behavioral
+def compiledGame := MatchingPenniesEquilibrium.program.boundedGame.behavioral
 
 def compiledObservation (history : compiledGame.form.sig.Outcome) : ℝ :=
   compiledGame.utility history 0

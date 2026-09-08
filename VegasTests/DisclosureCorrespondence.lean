@@ -55,9 +55,9 @@ def finiteForm : GameForm TestPlayer where
   play := finiteLaw
 
 def compileProfile (profile : Profile finiteForm.sig) :
-    Profile program.game.behavioral.form.sig := fun who => compilePolicy who (profile who)
+    Profile program.boundedGame.behavioral.form.sig := fun who => compilePolicy who (profile who)
 
-def extractProfile (profile : Profile program.game.behavioral.form.sig) :
+def extractProfile (profile : Profile program.boundedGame.behavioral.form.sig) :
     Profile finiteForm.sig := fun who => extractPolicy who (profile who)
 
 @[simp] theorem extract_compile_profile (profile : Profile finiteForm.sig) :
@@ -67,7 +67,7 @@ def extractProfile (profile : Profile program.game.behavioral.form.sig) :
 
 /-- Extraction is coordinatewise: replacing one player's entire policy leaves
 every opponent's source strategy unchanged. -/
-theorem extractProfile_update (profile : Profile program.game.behavioral.form.sig)
+theorem extractProfile_update (profile : Profile program.boundedGame.behavioral.form.sig)
     (who : TestPlayer) (replacement : program.information.BehavioralPolicy who) :
     extractProfile (Profile.update profile who replacement) =
       Profile.update (extractProfile profile) who (extractPolicy who replacement) := by
@@ -77,7 +77,7 @@ theorem extractProfile_update (profile : Profile program.game.behavioral.form.si
     simp [extractProfile]
   · simp [extractProfile, Profile.update_of_ne, heq]
 
-theorem semanticLaw_eq_finiteLaw (profile : Profile program.game.behavioral.form.sig) :
+theorem semanticLaw_eq_finiteLaw (profile : Profile program.boundedGame.behavioral.form.sig) :
     semanticLaw profile = finiteLaw (extractProfile profile) := by
   unfold semanticLaw finiteLaw
   apply congrArg ((bindingLaw (profile 0)).bind)
@@ -102,19 +102,19 @@ def decodeHistory (history : program.execution.History) : RunData :=
 
 /-- Exact decoded terminal law for all graph behavioral profiles. This is
 stronger than a selected-profile or honest-run equality. -/
-theorem all_profile_law (profile : Profile program.game.behavioral.form.sig) :
-    (program.game.behavioral.form.play profile).map decodeHistory =
+theorem all_profile_law (profile : Profile program.boundedGame.behavioral.form.sig) :
+    (program.boundedGame.behavioral.form.play profile).map decodeHistory =
       finiteForm.play (extractProfile profile) := by
   have hlaw := congrArg (fun law : FinDist (Config graph) => law.map decodeConfig)
     (terminal_law profile)
   simp only [Machine.Program.terminalStateLaw, FinDist.map_comp, Function.comp_def,
     decodeConfig_cfg, semanticLaw_eq_finiteLaw] at hlaw
-  change (program.game.behavioral.form.play profile).map decodeHistory =
+  change (program.boundedGame.behavioral.form.play profile).map decodeHistory =
     (finiteLaw (extractProfile profile)).map id at hlaw
   exact hlaw.trans (FinDist.map_id _)
 
 theorem compiled_law (profile : Profile finiteForm.sig) :
-    (program.game.behavioral.form.play (compileProfile profile)).map decodeHistory =
+    (program.boundedGame.behavioral.form.play (compileProfile profile)).map decodeHistory =
       finiteForm.play profile := by
   rw [all_profile_law, extract_compile_profile]
 
@@ -122,17 +122,17 @@ theorem compiled_law (profile : Profile finiteForm.sig) :
 source replacement against the same, unchanged opponents. -/
 theorem deviation_law (profile : Profile finiteForm.sig) (who : TestPlayer)
     (replacement : program.information.BehavioralPolicy who) :
-    (program.game.behavioral.form.play
+    (program.boundedGame.behavioral.form.play
       (Profile.update (compileProfile profile) who replacement)).map decodeHistory =
         finiteForm.play (Profile.update profile who (extractPolicy who replacement)) := by
   rw [all_profile_law, extractProfile_update, extract_compile_profile]
 
 /-- The graph policy space may contain extra off-site behavior; lifting the
 extracted profile preserves its complete decoded outcome law. -/
-theorem outcome_roundtrip (profile : Profile program.game.behavioral.form.sig) :
-    (program.game.behavioral.form.play (compileProfile (extractProfile profile))).map
+theorem outcome_roundtrip (profile : Profile program.boundedGame.behavioral.form.sig) :
+    (program.boundedGame.behavioral.form.play (compileProfile (extractProfile profile))).map
         decodeHistory =
-      (program.game.behavioral.form.play profile).map decodeHistory := by
+      (program.boundedGame.behavioral.form.play profile).map decodeHistory := by
   rw [compiled_law, all_profile_law]
 
 /-- info: 'VegasTests.OptionalDisclosure.all_profile_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/

@@ -98,25 +98,25 @@ theorem terminal_payoff (state : program.State) (hterminal : program.terminal st
 
 theorem expectedUtility_eq_kernel
     (profile : ∀ who, program.information.BehavioralPolicy who) (who : TestPlayer) :
-    expectedUtility program.game.behavioral.utility who
-        (program.game.behavioral.form.play profile) =
+    expectedUtility program.boundedGame.behavioral.utility who
+        (program.boundedGame.behavioral.form.play profile) =
       expectedUtility ObservedAbort.source.utility who
         (ObservedAbort.source.form.play
           (fun player => extractStrategy player (profile player))) := by
   unfold expectedUtility
   calc
-    _ = (program.game.behavioral.form.play profile).expect
+    _ = (program.boundedGame.behavioral.form.play profile).expect
         (fun history => ObservedAbort.utility (decode history.state.1) who) := by
       apply FinDist.expect_congr
       intro history hhistory
       exact terminal_payoff history.state
         (program.information.runBehavioralFrom_terminal_of_bound profile
           program.boundedHorizon program.execution.initHistory history hhistory) who
-    _ = ((program.game.behavioral.form.play profile).map
+    _ = ((program.boundedGame.behavioral.form.play profile).map
         (fun history => decode history.state.1)).expect
           (fun outcome => ObservedAbort.utility outcome who) :=
       (FinDist.expect_map (fun history : program.execution.History => decode history.state.1)
-        (program.game.behavioral.form.play profile)
+        (program.boundedGame.behavioral.form.play profile)
         (fun outcome => ObservedAbort.utility outcome who)).symm
     _ = _ := congrArg (fun law => law.expect (fun outcome => ObservedAbort.utility outcome who))
       (decoded_law_eq_kernel profile)
@@ -124,7 +124,8 @@ theorem expectedUtility_eq_kernel
 theorem extract_update (profile : ∀ who, program.information.BehavioralPolicy who)
     (who : TestPlayer) (replacement : program.information.BehavioralPolicy who) :
     (fun player => extractStrategy player
-      (Profile.update (sig := program.game.behavioral.form.sig) profile who replacement player)) =
+      (Profile.update (sig := program.boundedGame.behavioral.form.sig)
+        profile who replacement player)) =
       Profile.update (sig := ObservedAbort.signature)
         (fun player => extractStrategy player (profile player)) who
         (extractStrategy who replacement) := by
@@ -138,7 +139,8 @@ theorem extract_update (profile : ∀ who, program.information.BehavioralPolicy 
 extraction; every source replacement has a legal behavioral lift. -/
 theorem nash_iff_kernel
     (profile : ∀ who, program.information.BehavioralPolicy who) :
-    IsNash program.game.behavioral.form (euPreference program.game.behavioral.utility) profile ↔
+    IsNash program.boundedGame.behavioral.form
+      (euPreference program.boundedGame.behavioral.utility) profile ↔
       IsNash ObservedAbort.source.form (euPreference ObservedAbort.source.utility)
         (fun who => extractStrategy who (profile who)) := by
   rw [isNash_iff, isNash_iff]
@@ -156,8 +158,8 @@ def fairProfile : ∀ who, program.information.BehavioralPolicy who :=
   fun who => liftStrategy who ObservedAbort.fair
 
 theorem fair_isNash :
-    IsNash program.game.behavioral.form
-      (euPreference program.game.behavioral.utility) fairProfile := by
+    IsNash program.boundedGame.behavioral.form
+      (euPreference program.boundedGame.behavioral.utility) fairProfile := by
   apply (nash_iff_kernel fairProfile).mpr
   have heq : (fun who => extractStrategy who (fairProfile who)) = ObservedAbort.fairProfile := by
     funext who
@@ -168,8 +170,9 @@ theorem fair_isNash :
 expected payoff against the fair opponent. No adversarial objective is assumed. -/
 theorem fair_deviation_payoff (who victim : TestPlayer)
     (replacement : program.information.BehavioralPolicy who) :
-    expectedUtility program.game.behavioral.utility victim
-      (program.game.behavioral.form.play (Profile.update fairProfile who replacement)) = 0 := by
+    expectedUtility program.boundedGame.behavioral.utility victim
+      (program.boundedGame.behavioral.form.play
+        (Profile.update fairProfile who replacement)) = 0 := by
   rw [expectedUtility_eq_kernel, extract_update]
   have heq : (fun who => extractStrategy who (fairProfile who)) = ObservedAbort.fairProfile := by
     funext player
@@ -178,18 +181,18 @@ theorem fair_deviation_payoff (who victim : TestPlayer)
   exact ObservedAbort.deviation_zero who victim (extractStrategy who replacement)
 
 theorem fair_serialized_isPlayerNash
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler) :
-    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler) :
+    Participant.IsPlayerNash (program.serializedBoundedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler fairProfile) :=
   program.isPlayerNash_compileSerialized_of_isNash
     schedulerUtility scheduler fairProfile fair_isNash
 
 theorem fair_serialized_deviation_payoff
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (who victim : TestPlayer)
-    (replacement : program.serializedArena.information.BehavioralPolicy (.player who)) :
-    (program.serializedArena.information.runBehavioral
+    (replacement : program.serializedInformation.BehavioralPolicy (.player who)) :
+    (program.serializedInformation.runBehavioral
       (Function.update (program.compileSerializedBehavioralProfile scheduler fairProfile)
         (.player who) replacement) graph.nodeCount).expect
           (fun history => program.payoutUtility history.state.base victim) = 0 :=

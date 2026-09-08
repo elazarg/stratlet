@@ -21,17 +21,20 @@ open GameTheory GameTheory.Protocol GameTheory.Math.Probability
 variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
 
 /-- Honest outcome valuations agree for any public-data scheduler. -/
-theorem expectedUtility_serializedOutcomeGame (program : Program Player L) {Outcome : Type}
+theorem expectedUtility_serializedBoundedOutcomeGame
+    (program : Program Player L) {Outcome : Type}
     (observe : program.State → Outcome) (valuation : Outcome → Player → ℝ)
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) (who : Player) :
-    expectedUtility (program.serializedOutcomeGame observe valuation schedulerUtility).utility
+    expectedUtility
+      (program.serializedBoundedOutcomeGame observe valuation schedulerUtility).utility
         (.player who)
-        ((program.serializedOutcomeGame observe valuation schedulerUtility).behavioral.form.play
+        ((program.serializedBoundedOutcomeGame observe valuation schedulerUtility).behavioral.form
+          |>.play
           (program.compileSerializedBehavioralProfile scheduler profile)) =
-      expectedUtility (program.outcomeGame observe valuation).utility who
-        ((program.outcomeGame observe valuation).behavioral.form.play profile) := by
+      expectedUtility (program.boundedOutcomeGame observe valuation).utility who
+        ((program.boundedOutcomeGame observe valuation).behavioral.form.play profile) := by
   have hlaw := congrArg (fun law : FinDist program.State =>
     law.expect (fun state => valuation (observe state) who))
       (program.runBehavioral_compileSerialized scheduler profile)
@@ -41,30 +44,36 @@ theorem expectedUtility_serializedOutcomeGame (program : Program Player L) {Outc
 /-- Nash equivalence for every valuation of every interpreted settled outcome.
 Original players ignore erased trace distinctions in their utility, but their
 runtime strategies may use the complete information provided by the model. -/
-theorem serializedOutcomeGame_nash_iff (program : Program Player L) {Outcome : Type}
+theorem serializedBoundedOutcomeGame_nash_iff
+    (program : Program Player L) {Outcome : Type}
     (observe : program.State → Outcome) (valuation : Outcome → Player → ℝ)
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) :
     Participant.IsPlayerNash
-      (program.serializedOutcomeGame observe valuation schedulerUtility).behavioral
+      (program.serializedBoundedOutcomeGame observe valuation schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler profile) ↔
-      IsNash (program.outcomeGame observe valuation).behavioral.form
-        (euPreference (program.outcomeGame observe valuation).utility) profile := by
+      IsNash (program.boundedOutcomeGame observe valuation).behavioral.form
+        (euPreference (program.boundedOutcomeGame observe valuation).utility) profile := by
   simp only [Participant.IsPlayerNash, Participant.IsPlayerNashAgainst,
     true_implies]
   rw [isNash_iff]
   change (∀ who replacement,
-    expectedUtility (program.serializedOutcomeGame observe valuation schedulerUtility).utility
+    expectedUtility
+      (program.serializedBoundedOutcomeGame observe valuation schedulerUtility).utility
       (.player who)
-      ((program.serializedOutcomeGame observe valuation schedulerUtility).behavioral.form.play
+      ((program.serializedBoundedOutcomeGame observe valuation schedulerUtility).behavioral.form
+        |>.play
         (Profile.update (program.compileSerializedBehavioralProfile scheduler profile)
           (.player who) replacement)) ≤
-    expectedUtility (program.serializedOutcomeGame observe valuation schedulerUtility).utility
+    expectedUtility
+      (program.serializedBoundedOutcomeGame observe valuation schedulerUtility).utility
       (.player who)
-      ((program.serializedOutcomeGame observe valuation schedulerUtility).behavioral.form.play
+      ((program.serializedBoundedOutcomeGame observe valuation schedulerUtility).behavioral.form
+        |>.play
         (program.compileSerializedBehavioralProfile scheduler profile))) ↔ _
-  simp only [program.expectedUtility_serializedOutcomeGame observe valuation schedulerUtility]
+  simp only [program.expectedUtility_serializedBoundedOutcomeGame
+    observe valuation schedulerUtility]
   apply forall_congr'
   intro who
   exact program.serializedDeviation_expect_bound_iff scheduler profile who

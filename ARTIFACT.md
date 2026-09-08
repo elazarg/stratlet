@@ -27,7 +27,9 @@ python -m unittest discover -s scripts -p "test_*.py"
 lake --wfail build
 ```
 
-The full default build includes `Vegas`, `VegasEVM`, `VegasTests`, and `Paper`.
+The full default build includes `Interaction`, `InteractionTests`, `Vegas`,
+`VegasEVM`, `VegasTests`, and `Paper`. The independent interaction experiments
+are not part of the manuscript's source-compiler preservation claim.
 `lake --wfail build Paper` is the focused paper-proof build. Do not run `lake
 update` to reproduce a pinned revision: it may resolve different dependencies.
 The cache download is a build optimization, not evidence that our theorem
@@ -90,7 +92,7 @@ module; inspect its definitions and proof, not only the theorem name.
 | How does the compiler preserve that game? | `Vegas/Game/SourceCorrespondence.lean`; exact source outcome laws and unilateral policy simulation into native graph play |
 | How are execution orders compared? | `Vegas/Compile/SourceExecutionLaw.lean`, `Vegas/EventGraph/KernelBehavioral.lean`; actual probabilistic source and batched graph execution |
 | What is the uniform certificate? | `Vegas/Runtime/DeviationAdequacy.lean`; `DeviationAdequacyOn`, unrestricted `DeviationAdequacy`, composition |
-| How are outcomes and utilities separated? | `Vegas/Runtime/OutcomeSimulation.lean`; `Machine.Program.outcomeGame`, `Vegas/Scheduled/Valuation.lean` |
+| How are outcomes and utilities separated? | `Vegas/Runtime/OutcomeSimulation.lean`; `Machine.Program.boundedOutcomeGame`, `Vegas/Scheduled/Valuation.lean` |
 | What if opponents value runtime traces? | `Vegas/Runtime/TraceUtility.lean`, `VegasTests/TraceUtility.lean`; see [outcome and utility boundaries](docs/outcomes-and-utilities.md) |
 | Where is request memory reconstructed? | `Vegas/Runtime/RequestCompiler.lean`; `past_eq`, `replay`, `run_law`, `mixed_play_law` |
 | How are pure/mixed/behavioral policies connected? | `Vegas/Game/Kuhn.lean`; checked GameTheory laws plus Vegas-specific finite-site coverage |
@@ -108,15 +110,14 @@ of implementations still require human review.
 
 ### Validation snapshot
 
-The full 3,323-job default build passes with `--wfail`, including the independent
+The full default build is checked with `--wfail`, including the independent
 written-order source interpreter, whole-program source/native law and deviation
 correspondence, native CE/CCE transport, and source-to-scheduled/request results.
-Validation used `LEAN_NUM_THREADS=4` in the development checkout with pinned
-dependency caches. The claim registry, module-boundary, documentation-reference,
-and local-option audits, and all 41 maintenance tests pass. The manuscript is
-rebuilt and its affected pages visually checked; all 26 bibliography entries
-resolve without citation or BibTeX warnings. The final PDF has no overfull boxes
-or LaTeX package warnings; nonfatal underfull-box diagnostics remain.
+Validation uses the development checkout with pinned dependency caches. The
+claim registry, module-boundary, documentation-reference, and local-option
+audits and maintenance tests accompany the Lean build. Rebuild the manuscript
+separately to check typesetting and citations; the registry does not validate
+the PDF layout.
 
 This validation checks the dependency-tracked build in the development
 environment. Fresh-machine reproduction, a cold dependency download, an offline

@@ -66,14 +66,17 @@ event semantics owns all execution; its GameTheory adapter reuses that law.
 
 Initial state and event surface:
 
-- Raw messages with sender, destination/application identifier, payload, and
-  the identifiers needed for delivery, replay, and inclusion.
+- Raw messages with sender-local identifiers and arbitrary payloads.
+  Application destinations and encodings can be carried in the payload.
 - Recipient-local delivered views and sender receipts; submission does not
   imply delivery to anyone else.
 - A pending-message inventory separate from accepted application state.
-- Submit/wait, deliver/withhold, include/execute, and explicit validation
-  results. Introduce local clock notifications and a resolution driver when
-  the positive compiler slice needs deadlines.
+- Submission, recipient-local delivery, and public inclusion of an existing
+  pending message. Inclusion does not invoke its sender's policy. Start with
+  a shared published ledger; delayed block receipt is a later refinement.
+- Missing-message lookup has an explicit failure result. Application
+  validation, withholding policies, clocks, and resolution drivers are
+  separate additions when the positive compiler slice requires them.
 - Principal-indexed controls. A principal may have several capabilities;
   environmental policies are explicit, and equilibrium concerns the chosen
   game-player principals.
@@ -85,18 +88,19 @@ projection determines the signal; prove that unrelated hidden state cannot
 affect that signal. Unobserved events leave local information unchanged.
 Do not append a hidden global step counter or silently broadcast the clock.
 
-Instantiate the first finite test model with enumerated principals and
-destinations, a finite raw payload alphabet containing malformed inputs,
-bounded identifier/nonce spaces, and explicit resource and clock ranges.
-Alternatively prove a finite reachable cover for a field that retains an
-unbounded carrier. A byte-length bound alone does not bound identifiers,
-fees, timestamps, or counter histories.
+The first bounded scripts use enumerated principals and a finite raw payload
+alphabet containing malformed inputs. Do not impose globally finite state on
+the kernel or add clocks and fees to obtain a finite test. When a theorem
+actually requires finite strategy sites, prove a finite reachable cover for
+the fields present, including sender-local serials. Bounded event count alone
+does not establish that cover for arbitrary payload or information carriers.
 
 Use the design's player-only game family: bundle capabilities by principal,
 fix local policies for external principals, and assemble them with the player
-profile for the native runner. Derive local activation/menu adequacy as a
-construction obligation, including terminal histories. A direct `GameForm`
-adapter must enforce the same policy locality rather than evade it.
+profile for the native runner. Policies receive only their native local views.
+Use `InformationModel` where its activation and menu interface fits; a direct
+`GameForm` interpretation carries the same locality obligation. Public message
+inclusion itself creates no hidden sender-activation problem.
 
 **Required hostile tests**
 
@@ -104,16 +108,23 @@ adapter must enforce the same policy locality rather than evade it.
 | --- | --- |
 | A message reaches A but not B | Distinct local views; B cannot distinguish it from non-delivery unless another modeled event informs B. |
 | One extra undelivered event | No new information, event count, or clock tick for an uninformed principal. |
-| Hidden global activation change | Either a real local trigger justifies the menu change or the proposed adapter is rejected/refined; do not invent shared notifications. |
+| Inclusion of an existing message | The scheduler publishes it without obtaining another action from the sender. |
 | Public malformed or duplicate input | Still a possible controller action; execution produces the specified failure and observations. |
 | Failed/reverted execution after delivery | The recipient retains what it learned despite unchanged application state. |
 | Two messages with different inclusion orders | Both operational traces exist and expose exactly their declared local effects. |
 | One actor controls player and builder capabilities | A single principal deviation can change both. |
 | A run reaches the test horizon without settlement | The result remains pending, not source quitting or successful completion. |
 
-Compare the operational model and adapter on these executions. In particular,
-GameTheory's information-local menu law also ranges over terminal histories;
-finite testing fuel must not create a fictional observed terminal event.
+Compare the operational model and adapter on these executions. Finite testing
+fuel must not create a fictional observed terminal event. Application-specific
+tests enter with their corresponding layers, rather than expanding the first
+pool carrier with unused capabilities.
+
+The first commitment experiment must also admit cleartext submission and
+show that inspecting it can reveal a protected value. For compiled traffic,
+prove prefix observation equivalence under an explicit ideal service, accepted
+opening consistency, and successful opening traces for distinct values.
+No forced opening or settlement guarantee follows from these properties.
 
 **Gate**
 
@@ -126,9 +137,20 @@ preservation or a complete ledger.
 
 Choose a finite checked core program with two real players, source-defined
 nonresponse outcomes, and a later decision that can expose an information
-mistake. Prefer sequentially disclosed choices for the first positive slice;
-cryptographic hiding need not be a prerequisite to exercising public delivery.
-Choose the exact program before adding a general protocol/phase language.
+mistake. The pending-commitment experiment motivates a sealed-choice slice:
+public handles precede source-authorized disclosure, and opening packets carry
+their claimed values while pending. Choose the exact admitted source program
+before adding a general protocol/phase language; the independent one-slot
+experiment is not such a program and does not discharge this gate.
+
+Prove the release discipline from the emitted controller and application.
+Source textual order alone does not imply that both parties' choices become
+irrevocable before either opening packet can be observed. An owner/slot binding
+check must reject copied handles and replacement after acceptance, while raw
+copying and malformed submissions remain possible. Private registration with
+an ideal service is explicit; unrestricted access to its hidden table or
+verification oracle is not an admitted opponent capability. Concrete
+cryptographic realization is a further compiler edge, not part of this slice.
 
 Provide an actual `WFProgram` term using the existing constructors. Represent
 nonresponse by a designated legal source value with explicit continuation and

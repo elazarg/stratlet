@@ -99,7 +99,7 @@ instance finiteDomains : FiniteDomains source where
 theorem perfectRecall : program.information.PerfectRecall := program.perfectRecall
 
 def behavioralMixedAdequacy :
-    Runtime.DeviationAdequacy source.game.behavioral source.game.mixedPure :=
+    Runtime.DeviationAdequacy source.boundedGame.behavioral source.boundedGame.mixedPure :=
   source.behavioralToMixedPureAdequacy
 
 def node (index : Fin 10) : Fin program.graph.nodeCount := index

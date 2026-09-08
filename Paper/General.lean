@@ -508,8 +508,8 @@ development's, and belong to that library in any attribution. -/
 theorem extracted_arena_is_bounded
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (program : WFProgram Player L) [FiniteDomains program] :
-    program.game.arena.execution.BoundedHorizon program.game.horizon :=
-  program.game.bounded
+    program.boundedGame.execution.BoundedHorizon program.boundedGame.horizon :=
+  program.boundedGame.bounded
 
 /-! ## Strategy presentations -/
 
@@ -524,8 +524,8 @@ theorem kuhn_behavioral_to_mixedPure
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (program : WFProgram Player L) [FiniteDomains program] :
     Nonempty
-      (Runtime.DeviationAdequacy program.game.behavioral
-        program.game.mixedPure) :=
+      (Runtime.DeviationAdequacy program.boundedGame.behavioral
+        program.boundedGame.mixedPure) :=
   ⟨program.behavioralToMixedPureAdequacy⟩
 
 /-- **Frontier Kuhn correspondence, mixed-pure to behavioral**
@@ -534,8 +534,8 @@ theorem kuhn_mixedPure_to_behavioral
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (program : WFProgram Player L) [FiniteDomains program] :
     Nonempty
-      (Runtime.DeviationAdequacy program.game.mixedPure
-        program.game.behavioral) :=
+      (Runtime.DeviationAdequacy program.boundedGame.mixedPure
+        program.boundedGame.behavioral) :=
   ⟨program.mixedPureToBehavioralAdequacy⟩
 
 /-- **A compiled strategic round is atomic** (paper: `thm:atomic`).
@@ -867,9 +867,9 @@ information unavailable to an original player. -/
 theorem compiled_serialized_game_wellFormed
     {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
     (program : Machine.Program Player L)
-    (schedulerUtility : program.serializedArena.History → ℝ) :
-    program.serializedArena.information.PerfectRecall ∧
-      (program.serializedGame schedulerUtility).arena.execution.BoundedHorizon
+    (schedulerUtility : program.serializedExecution.History → ℝ) :
+    program.serializedInformation.PerfectRecall ∧
+      (program.serializedBoundedGame schedulerUtility).execution.BoundedHorizon
         program.graph.nodeCount ∧
       program.serializedSystem.EffectsCommute ∧
       program.serializedSystem.SchedulerHasNoExtraInformation :=
@@ -887,13 +887,13 @@ not a profile-consistent back-translation of arbitrary runtime strategies. -/
 theorem compiled_serialized_history_has_source
     {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
     (program : Machine.Program Player L)
-    (target : program.serializedArena.History)
-    (schedulerUtility : program.serializedArena.History → ℝ) :
+    (target : program.serializedExecution.History)
+    (schedulerUtility : program.serializedExecution.History → ℝ) :
     ∃ source : program.execution.History,
       source.state = target.state.base ∧
       (∀ who, program.information.infoOf who source.trace =
         program.eraseSerializedPlayerInformation who
-          (program.serializedArena.information.infoOf (.player who) target.trace)) ∧
+          (program.serializedInformation.infoOf (.player who) target.trace)) ∧
       ∀ who, program.utility source who =
         program.serializedUtility schedulerUtility target (.player who) :=
   program.serializedHistory_has_source target schedulerUtility
@@ -906,17 +906,17 @@ theorem compiled_serialized_round_information_law
     {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
     (program : Machine.Program Player L)
     (source : program.execution.History) (log : List (List Player))
-    (trace : program.serializedArena.execution.Trace ⟨source.state, log⟩)
+    (trace : program.serializedExecution.Trace ⟨source.state, log⟩)
     (hinfo : ∀ who, program.information.infoOf who source.trace =
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) trace))
-    (command : {joint // program.serializedArena.execution.Legal
+        (program.serializedInformation.infoOf (.player who) trace))
+    (command : {joint // program.serializedExecution.Legal
       ⟨source.state, log⟩ joint}) :
     (program.expandRound source (fun who => command.1 (.player who))
         (program.serializedPlayers_legal command)).map program.historySummary =
-      ((program.serializedArena.execution.step ⟨source.state, log⟩ command).bindOnSupport
+      ((program.serializedExecution.step ⟨source.state, log⟩ command).bindOnSupport
         fun _ realized => FinDist.pure
-          ((⟨⟨source.state, log⟩, trace⟩ : program.serializedArena.History).extend
+          ((⟨⟨source.state, log⟩, trace⟩ : program.serializedExecution.History).extend
             command.2 realized)).map program.serializedHistorySummary :=
   program.expandRound_map_summary source log trace hinfo command
 
@@ -928,16 +928,16 @@ theorem compiled_serialized_behavioral_round_expands
     {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
     (program : Machine.Program Player L)
     (source : program.execution.History) (log : List (List Player))
-    (trace : program.serializedArena.execution.Trace ⟨source.state, log⟩)
+    (trace : program.serializedExecution.Trace ⟨source.state, log⟩)
     (hinfo : ∀ who, program.information.infoOf who source.trace =
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) trace))
+        (program.serializedInformation.infoOf (.player who) trace))
     (policies : (who : Participant Player) →
-      program.serializedArena.information.BehavioralPolicy who)
-    (hterm : ¬ program.serializedArena.execution.terminal ⟨source.state, log⟩) :
-    (program.serializedArena.information.runBehavioralFrom policies 1
+      program.serializedInformation.BehavioralPolicy who)
+    (hterm : ¬ program.serializedExecution.terminal ⟨source.state, log⟩) :
+    (program.serializedInformation.runBehavioralFrom policies 1
         ⟨⟨source.state, log⟩, trace⟩).map program.serializedHistorySummary =
-      ((program.serializedArena.information.behavioralJoint policies trace hterm).bind
+      ((program.serializedInformation.behavioralJoint policies trace hterm).bind
         fun command => program.expandRound source
           (fun who => command.1 (.player who))
           (program.serializedPlayers_legal command)).map program.historySummary :=
@@ -949,13 +949,13 @@ or strengthening the canonical source information model. -/
 theorem compiled_compact_information_sufficient
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (program : Machine.Program Player L) (who : Player)
-    {left right : program.serializedArena.execution.State}
-    (first : program.serializedArena.execution.Trace left)
-    (second : program.serializedArena.execution.Trace right)
+    {left right : program.serializedExecution.State}
+    (first : program.serializedExecution.Trace left)
+    (second : program.serializedExecution.Trace right)
     (hcompact : program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) first) =
+        (program.serializedInformation.infoOf (.player who) first) =
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) second)) :
+        (program.serializedInformation.infoOf (.player who) second)) :
     program.serializedSystem.blindSignals.infoOf (.player who) first =
       program.serializedSystem.blindSignals.infoOf (.player who) second :=
   program.serializedBlindInfo_eq_of_compact_eq who first second hcompact
@@ -966,9 +966,9 @@ independence hypothesis or finite-domain hypothesis is needed. -/
 theorem compiled_serialized_behavioral_law
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (program : Machine.Program Player L)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) :
-    (program.serializedArena.information.runBehavioral
+    (program.serializedInformation.runBehavioral
       (program.compileSerializedBehavioralProfile scheduler profile) program.graph.nodeCount).map
         (fun history => history.state.base) =
       (program.information.runBehavioral profile program.graph.nodeCount).map
@@ -983,13 +983,13 @@ are not shared with honest players, and its utility is unconstrained. -/
 theorem compiled_serialized_nash_iff
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (program : Machine.Program Player L)
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) :
-    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    Participant.IsPlayerNash (program.serializedBoundedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler profile) ↔
-    GameTheory.IsNash program.game.behavioral.form
-      (GameTheory.euPreference program.game.behavioral.utility) profile :=
+    GameTheory.IsNash program.boundedGame.behavioral.form
+      (GameTheory.euPreference program.boundedGame.behavioral.utility) profile :=
   program.isPlayerNash_compileSerialized_iff schedulerUtility scheduler profile
 
 /-- **Distributional unilateral-adversary preservation.** Every behavioral
@@ -999,11 +999,11 @@ to this profile and horizon, not a uniform randomized-scheduler translator. -/
 theorem compiled_serialized_deviation_law
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (program : Machine.Program Player L)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) (who : Player)
-    (replacement : program.serializedArena.information.BehavioralPolicy (.player who)) :
+    (replacement : program.serializedInformation.BehavioralPolicy (.player who)) :
     ∃ replacements : FinDist (program.information.BehavioralPolicy who),
-      (program.serializedArena.information.runBehavioral
+      (program.serializedInformation.runBehavioral
         (Function.update (program.compileSerializedBehavioralProfile scheduler profile)
           (.player who) replacement) program.graph.nodeCount).map
             (fun history => history.state.base) =
@@ -1018,11 +1018,11 @@ No equilibrium, rationality, or existence of a best response is assumed. -/
 theorem compiled_serialized_loss_bound_iff
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (program : Machine.Program Player L)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) (who : Player)
     (loss : program.State → ℝ) (bound : ℝ) :
-    (∀ replacement : program.serializedArena.information.BehavioralPolicy (.player who),
-      (program.serializedArena.information.runBehavioral
+    (∀ replacement : program.serializedInformation.BehavioralPolicy (.player who),
+      (program.serializedInformation.runBehavioral
         (Function.update (program.compileSerializedBehavioralProfile scheduler profile)
           (.player who) replacement) program.graph.nodeCount).expect
             (fun history => loss history.state.base) ≤ bound) ↔
@@ -1036,18 +1036,19 @@ players are tested; scheduling is an arbitrary public-data environment. -/
 theorem compiled_serialized_approximate_nash_iff
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (program : Machine.Program Player L)
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) (ε : ℝ) :
     (∀ who replacement,
-      GameTheory.expectedUtility (program.serializedGame schedulerUtility).behavioral.utility
-        (.player who) ((program.serializedGame schedulerUtility).behavioral.form.play
+      GameTheory.expectedUtility (program.serializedBoundedGame schedulerUtility).behavioral.utility
+        (.player who) ((program.serializedBoundedGame schedulerUtility).behavioral.form.play
           (GameTheory.Profile.update (program.compileSerializedBehavioralProfile scheduler profile)
             (.player who) replacement)) ≤
-      GameTheory.expectedUtility (program.serializedGame schedulerUtility).behavioral.utility
-        (.player who) ((program.serializedGame schedulerUtility).behavioral.form.play
+      GameTheory.expectedUtility (program.serializedBoundedGame schedulerUtility).behavioral.utility
+        (.player who) ((program.serializedBoundedGame schedulerUtility).behavioral.form.play
           (program.compileSerializedBehavioralProfile scheduler profile)) + ε) ↔
-    GameTheory.IsεNash program.game.behavioral.form program.game.behavioral.utility ε profile :=
+    GameTheory.IsεNash program.boundedGame.behavioral.form
+      program.boundedGame.behavioral.utility ε profile :=
   program.serialized_approximate_nash_iff schedulerUtility scheduler profile ε
 
 /-! ## Runtime obstructions -/
@@ -1737,10 +1738,10 @@ theorem compilation_summary
       (Machine.compile source).information.PerfectRecall ∧
       (Machine.compile source).execution.BoundedHorizon
         (Machine.compile source).graph.nodeCount ∧
-      Nonempty (Runtime.DeviationAdequacy source.game.behavioral
-        source.game.mixedPure) ∧
-      Nonempty (Runtime.DeviationAdequacy source.game.mixedPure
-        source.game.behavioral) :=
+      Nonempty (Runtime.DeviationAdequacy source.boundedGame.behavioral
+        source.boundedGame.mixedPure) ∧
+      Nonempty (Runtime.DeviationAdequacy source.boundedGame.mixedPure
+        source.boundedGame.behavioral) :=
   ⟨fun state hterminal => Machine.compile_sourceStar source state hterminal,
     (Machine.compile source).perfectRecall,
     (Machine.compile source).boundedHorizon,
@@ -2090,12 +2091,13 @@ theorem request_compiler_silence {Player : Type}
 theorem checked_request_nash_iff {Player : Type} [Fintype Player] [DecidableEq Player]
     {L : IExpr} (source : WFProgram Player L) [FiniteDomains source]
     {Request : Player → Type}
-    (interface : Runtime.RequestCompiler.Interface source.game.arena.information Request)
-    (profile : Profile source.game.behavioral.form.sig) :
+    (interface : Runtime.RequestCompiler.Interface source.boundedGame.information Request)
+    (profile : Profile source.boundedGame.behavioral.form.sig) :
     IsNash (source.requestGame interface).form
       (euPreference (source.requestGame interface).utility)
       ((source.behavioralRequestAdequacy interface).compileProfile profile) ↔
-    IsNash source.game.behavioral.form (euPreference source.game.behavioral.utility) profile :=
+    IsNash source.boundedGame.behavioral.form
+      (euPreference source.boundedGame.behavioral.utility) profile :=
   source.request_nash_iff interface profile
 
 /-- info: 'Vegas.Paper.request_compiler_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/
@@ -2120,10 +2122,10 @@ theorem scheduled_request_honest_law
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (source : WFProgram Player L) [FiniteDomains source] {Request : Participant Player → Type}
     (interface : Runtime.RequestCompiler.Interface
-      (Machine.compile source).serializedArena.information Request)
-    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
-    (profile : Profile source.game.behavioral.form.sig) :
+      (Machine.compile source).serializedInformation Request)
+    (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
+    (profile : Profile source.boundedGame.behavioral.form.sig) :
     ((source.serializedRequestGame interface schedulerUtility).form.play
       (source.compileSerializedRequestProfile interface schedulerUtility scheduler profile)).map
         (fun state => state.1.state.base) =
@@ -2136,10 +2138,10 @@ theorem scheduled_request_deviation_law
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (source : WFProgram Player L) [FiniteDomains source] {Request : Participant Player → Type}
     (interface : Runtime.RequestCompiler.Interface
-      (Machine.compile source).serializedArena.information Request)
-    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
-    (profile : Profile source.game.behavioral.form.sig) (who : Player)
+      (Machine.compile source).serializedInformation Request)
+    (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
+    (profile : Profile source.boundedGame.behavioral.form.sig) (who : Player)
     (replacement : (source.serializedRequestGame interface schedulerUtility).form.sig.Strategy
       (.player who)) :
     ∃ alternatives : FinDist ((Machine.compile source).information.BehavioralPolicy who),
@@ -2158,23 +2160,24 @@ theorem scheduled_request_nash_iff
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (source : WFProgram Player L) [FiniteDomains source] {Request : Participant Player → Type}
     (interface : Runtime.RequestCompiler.Interface
-      (Machine.compile source).serializedArena.information Request)
-    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
-    (profile : Profile source.game.behavioral.form.sig) :
+      (Machine.compile source).serializedInformation Request)
+    (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
+    (profile : Profile source.boundedGame.behavioral.form.sig) :
     Participant.IsPlayerNash (source.serializedRequestGame interface schedulerUtility)
       (source.compileSerializedRequestProfile interface schedulerUtility scheduler profile) ↔
-    IsNash source.game.behavioral.form (euPreference source.game.behavioral.utility) profile :=
+    IsNash source.boundedGame.behavioral.form
+      (euPreference source.boundedGame.behavioral.utility) profile :=
   source.serialized_request_nash_iff interface schedulerUtility scheduler profile
 
 theorem scheduled_request_approximate_nash_iff
     {Player : Type} [Fintype Player] [DecidableEq Player] {L : IExpr}
     (source : WFProgram Player L) [FiniteDomains source] {Request : Participant Player → Type}
     (interface : Runtime.RequestCompiler.Interface
-      (Machine.compile source).serializedArena.information Request)
-    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
-    (profile : Profile source.game.behavioral.form.sig) (ε : ℝ) :
+      (Machine.compile source).serializedInformation Request)
+    (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
+    (profile : Profile source.boundedGame.behavioral.form.sig) (ε : ℝ) :
     (∀ who replacement,
       expectedUtility (source.serializedRequestGame interface schedulerUtility).utility
         (.player who) ((source.serializedRequestGame interface schedulerUtility).form.play
@@ -2185,7 +2188,7 @@ theorem scheduled_request_approximate_nash_iff
         (.player who) ((source.serializedRequestGame interface schedulerUtility).form.play
           (source.compileSerializedRequestProfile
             interface schedulerUtility scheduler profile)) + ε) ↔
-    IsεNash source.game.behavioral.form source.game.behavioral.utility ε profile :=
+    IsεNash source.boundedGame.behavioral.form source.boundedGame.behavioral.utility ε profile :=
   source.serialized_request_approximate_nash_iff interface schedulerUtility scheduler profile ε
 
 /-- info: 'Vegas.Paper.scheduled_request_honest_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/

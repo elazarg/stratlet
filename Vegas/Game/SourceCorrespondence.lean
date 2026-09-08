@@ -102,7 +102,7 @@ variable {P : Type} [DecidableEq P] [Fintype P] {L : IExpr}
 behavioral game, uniformly over every source policy and native replacement. -/
 def sourceOutcomeSimulation (source : WFProgram P L) :
     Runtime.OutcomeSimulationOn (sourceGameForm source.core.prog source.core.env)
-      source.game.behavioralForm (fun _ _ => True) :=
+      source.boundedGame.behavioralForm (fun _ _ => True) :=
   ToEventGraph.sourceNativeOutcomeSimulation source.core source.legal
 
 /-- For every valuation of source outcomes, independent source Nash profiles
@@ -111,9 +111,9 @@ theorem source_native_nash_iff (source : WFProgram P L)
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → P → ℝ)
     (profile : SourceBehavioralProfile source.core.prog) :
     IsNash
-      ((Machine.compile source).outcomeGame
+      ((Machine.compile source).boundedOutcomeGame
         (ToEventGraph.observeSourceOutcome source.core source.legal) valuation).behavioral.form
-      (euPreference ((Machine.compile source).outcomeGame
+      (euPreference ((Machine.compile source).boundedOutcomeGame
         (ToEventGraph.observeSourceOutcome source.core source.legal) valuation).utility)
       (source.sourceOutcomeSimulation.compileProfile profile) ↔
       IsNash (sourceGameForm source.core.prog source.core.env) (euPreference valuation) profile :=
@@ -125,9 +125,9 @@ theorem source_native_approximate_nash_iff (source : WFProgram P L)
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → P → ℝ)
     (profile : SourceBehavioralProfile source.core.prog) (ε : ℝ) :
     IsεNash
-      ((Machine.compile source).outcomeGame
+      ((Machine.compile source).boundedOutcomeGame
         (ToEventGraph.observeSourceOutcome source.core source.legal) valuation).behavioral.form
-      ((Machine.compile source).outcomeGame
+      ((Machine.compile source).boundedOutcomeGame
         (ToEventGraph.observeSourceOutcome source.core source.legal) valuation).utility ε
       (source.sourceOutcomeSimulation.compileProfile profile) ↔
       IsεNash (sourceGameForm source.core.prog source.core.env) valuation ε profile :=

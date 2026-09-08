@@ -1,4 +1,4 @@
-# Request windows and public scheduling
+# Request windows, public scheduling, and pending messages
 
 The [compilation design](compilation-design.md) requires native operational and
 strategic semantics at each stage. This document records the existing models,
@@ -58,6 +58,37 @@ These are not extra restrictions to assume about every blockchain. They describe
 the boundary of the mechanized target. Applying the theorem to a concrete
 runtime requires proving that its admitted behaviors realize this boundary, or
 proving a different theorem for the additional behaviors.
+
+### Native pending-message experiment
+
+`Interaction/MessagePool.lean` supplies an independent executable kernel with
+sender-local message identifiers, a pending inventory, recipient-local
+delivery, and a shared published ledger. Any observer may receive any pending
+message. Inclusion selects a preexisting message and never invokes its sender.
+The kernel proves that delivery to another observer leaves a local view
+unchanged and that inclusion preserves previously received information.
+
+`InteractionTests/Pending.lean` derives a bounded two-player game from those
+same operations and checks both inclusion orders and the responder's exact
+local-policy law. Its environment is a fixed delivery/order choice, not the
+full adaptive scheduling model. The kernel is not yet a target of a proved
+Vegas compilation edge.
+
+The separate `IdealCommitments` service provides privately registered,
+owner/slot-scoped write-once values. `InteractionTests/Commitment.lean` checks
+that pre-opening wire states are independent of the registered bit, while
+legal cleartext states are distinguishable. Continuations in this experiment
+receive only the wire pool, not the ideal table. A sender-checking handler
+rejects guessed openings submitted through the opponent's native capability.
+Accepted claims match
+the stored value, and both values have successful opening executions.
+
+Opening messages carry their claimed values: their pending delivery already
+distinguishes the values, before ledger inclusion. Thus the hiding statement
+ends at disclosure, not at inclusion. These tests do not establish an opening
+barrier, liveness, quitting correspondence, cryptographic security, or source
+equilibrium preservation. They introduce no private-message assumption on the
+pool; private registration is an explicit ideal-service assumption.
 
 ### Required model and proof obligations
 
@@ -264,7 +295,7 @@ strategies range over all independent finite mixtures of request controllers,
 with private retry memory and public order observations. The scheduler is any
 admitted public-data behavioral policy, not a delivery/censorship controller.
 
-`Game.requestAdequacy` supplies the runtime step from finite menus and perfect
+`BoundedGame.requestAdequacy` supplies the runtime step from finite menus and perfect
 recall without a `WFProgram` premise. The checked-core wrapper uses that same
 construction. The example's disclosure timeout is the existing quit action;
 initial and reply timeouts select existing actions, not new quit settlements.

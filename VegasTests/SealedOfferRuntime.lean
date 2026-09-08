@@ -63,19 +63,19 @@ def sourceInterface := Runtime.RequestCompiler.menuInterface machine.information
 
 def interface := machine.serializedRequestInterface sourceInterface
 
-def runtimeGame (schedulerUtility : machine.serializedArena.History → ℝ) :
+def runtimeGame (schedulerUtility : machine.serializedExecution.History → ℝ) :
     UtilityGame (Participant TestPlayer) :=
-  (Runtime.RequestCompiler.targetGame machine.serializedArena.information interface
+  (Runtime.RequestCompiler.targetGame machine.serializedInformation interface
     machine.graph.nodeCount (machine.serializedUtility schedulerUtility)).mixed
 
-def certificate (schedulerUtility : machine.serializedArena.History → ℝ) :
-    Runtime.DeviationAdequacy (machine.serializedGame schedulerUtility).behavioral
+def certificate (schedulerUtility : machine.serializedExecution.History → ℝ) :
+    Runtime.DeviationAdequacy (machine.serializedBoundedGame schedulerUtility).behavioral
       (runtimeGame schedulerUtility) :=
-  (machine.serializedGame schedulerUtility).requestAdequacy
+  (machine.serializedBoundedGame schedulerUtility).requestAdequacy
     (machine.serializedChoiceFintype actionFintype) machine.serializedPerfectRecall interface
 
-def runtimeProfile (schedulerUtility : machine.serializedArena.History → ℝ)
-    (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler) :
+def runtimeProfile (schedulerUtility : machine.serializedExecution.History → ℝ)
+    (scheduler : machine.serializedInformation.BehavioralPolicy .scheduler) :
     Profile (runtimeGame schedulerUtility).form.sig :=
   (certificate schedulerUtility).compileProfile
     (machine.compileSerializedBehavioralProfile scheduler (compileProfile honestProfile))
@@ -83,8 +83,8 @@ def runtimeProfile (schedulerUtility : machine.serializedArena.History → ℝ)
 /-- All original-player request-controller mixtures are tested, including
 combined changes to game decisions, retry behavior, and use of public orders. -/
 theorem runtime_honest_isPlayerNash
-    (schedulerUtility : machine.serializedArena.History → ℝ)
-    (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler) :
+    (schedulerUtility : machine.serializedExecution.History → ℝ)
+    (scheduler : machine.serializedInformation.BehavioralPolicy .scheduler) :
     Participant.IsPlayerNash (runtimeGame schedulerUtility)
       (runtimeProfile schedulerUtility scheduler) := by
   intro who replacement _
@@ -99,8 +99,8 @@ theorem runtime_honest_isPlayerNash
 /-- The honest buyer's guarantee survives arbitrary seller controller mixtures
 under every admitted public-data scheduler, with the same buyer and payoffs. -/
 theorem runtime_buyer_nonnegative
-    (schedulerUtility : machine.serializedArena.History → ℝ)
-    (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler)
+    (schedulerUtility : machine.serializedExecution.History → ℝ)
+    (scheduler : machine.serializedInformation.BehavioralPolicy .scheduler)
     (replacement : (runtimeGame schedulerUtility).form.sig.Strategy (.player 0)) :
     0 ≤ expectedUtility (runtimeGame schedulerUtility).utility (.player 1)
       ((runtimeGame schedulerUtility).form.play
@@ -109,7 +109,7 @@ theorem runtime_buyer_nonnegative
     (machine.compileSerializedBehavioralProfile scheduler (compileProfile honestProfile))
     (.player 0) replacement trivial
   have hvalue := congrArg (fun law => expectedUtility
-    (machine.serializedGame schedulerUtility).behavioral.utility (.player 1) law) hlaw
+    (machine.serializedBoundedGame schedulerUtility).behavioral.utility (.player 1) law) hlaw
   rw [expectedUtility_map] at hvalue
   exact (serialized_buyer_nonnegative schedulerUtility scheduler
     ((certificate schedulerUtility).backtranslateStrategy (.player 0) replacement)).trans_eq

@@ -109,9 +109,9 @@ theorem settled_payoff_cfg (payouts : Payouts) (data : RunData)
 /-- The correspondence uses the compiler's actual utility, for arbitrary
 public terminal payoff expressions. -/
 theorem expectedUtility_eq_finite (payouts : Payouts)
-    (profile : Profile program.game.behavioral.form.sig) (who : TestPlayer) :
-    expectedUtility (programWithPayoffs payouts).game.behavioral.utility who
-        ((programWithPayoffs payouts).game.behavioral.form.play profile) =
+    (profile : Profile program.boundedGame.behavioral.form.sig) (who : TestPlayer) :
+    expectedUtility (programWithPayoffs payouts).boundedGame.behavioral.utility who
+        ((programWithPayoffs payouts).boundedGame.behavioral.form.play profile) =
       expectedUtility (finiteGame payouts).utility who
         ((finiteGame payouts).form.play (extractProfile profile)) := by
   have hlaw := terminal_law profile
@@ -127,8 +127,8 @@ theorem expectedUtility_eq_finite (payouts : Payouts)
     rw [hlaw, FinDist.support_map] at hmem
     obtain ⟨data, _, heq⟩ := hmem
     rw [settled_payoff_cfg payouts data state heq.symm, ← heq, decodeConfig_cfg]
-  have hstart : expectedUtility (programWithPayoffs payouts).game.behavioral.utility who
-      ((programWithPayoffs payouts).game.behavioral.form.play profile) =
+  have hstart : expectedUtility (programWithPayoffs payouts).boundedGame.behavioral.utility who
+      ((programWithPayoffs payouts).boundedGame.behavioral.form.play profile) =
       (program.terminalStateLaw profile program.execution.initHistory).expect
         (fun state => (programWithPayoffs payouts).payoutUtility state who) := by
     rw [Machine.Program.terminalStateLaw, FinDist.expect_map]
@@ -148,9 +148,9 @@ theorem expectedUtility_eq_finite (payouts : Payouts)
       rfl
 
 theorem nash_iff_finite (payouts : Payouts)
-    (profile : Profile program.game.behavioral.form.sig) :
-    IsNash (programWithPayoffs payouts).game.behavioral.form
-        (euPreference (programWithPayoffs payouts).game.behavioral.utility) profile ↔
+    (profile : Profile program.boundedGame.behavioral.form.sig) :
+    IsNash (programWithPayoffs payouts).boundedGame.behavioral.form
+        (euPreference (programWithPayoffs payouts).boundedGame.behavioral.utility) profile ↔
       IsNash (finiteGame payouts).form (euPreference (finiteGame payouts).utility)
         (extractProfile profile) := by
   rw [isNash_iff, isNash_iff]

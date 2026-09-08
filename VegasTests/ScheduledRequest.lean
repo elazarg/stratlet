@@ -26,10 +26,10 @@ def interface := program.serializedRequestInterface sourceInterface
 
 example : interface.slots .scheduler = fun _ => 0 := rfl
 
-example (who : TestPlayer) (info : program.serializedArena.information.InfoState (.player who)) :
+example (who : TestPlayer) (info : program.serializedInformation.InfoState (.player who)) :
     interface.slots (.player who) info = 2 := rfl
 
-example (who : TestPlayer) (info : program.serializedArena.information.InfoState (.player who)) :
+example (who : TestPlayer) (info : program.serializedInformation.InfoState (.player who)) :
     ((interface.gate (.player who)).timeoutAction info).1 =
       (program.defaultPureProfile who
         (program.eraseSerializedPlayerInformation who info)).1 := rfl
@@ -37,8 +37,8 @@ example (who : TestPlayer) (info : program.serializedArena.information.InfoState
 /-- Every behavioral public-data scheduler is admitted, with arbitrary utility.
 The equilibrium test includes every order-aware private request-controller mixture. -/
 theorem fair_nash
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler) :
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler) :
     Participant.IsPlayerNash
       (matchingPenniesProgram.serializedRequestGame interface schedulerUtility)
       (matchingPenniesProgram.compileSerializedRequestProfile

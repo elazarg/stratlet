@@ -114,8 +114,8 @@ noncomputable def coinProgram : WFProgram TestPlayer simpleExpr where
     change True
     trivial
 
-noncomputable def coinGame : Vegas.Game TestPlayer :=
-  coinProgram.game
+noncomputable def coinGame : Vegas.BoundedGame TestPlayer :=
+  coinProgram.boundedGame
 
 noncomputable def coinMachine : Machine.Program TestPlayer simpleExpr :=
   Machine.compile coinProgram
@@ -144,7 +144,7 @@ theorem coinUsesOnlyBoolStorage :
     fin_cases node
     rfl
 
-example : coinGame.arena.execution.BoundedHorizon coinGame.horizon :=
+example : coinGame.execution.BoundedHorizon coinGame.horizon :=
   coinGame.bounded
 
 noncomputable example : GameTheory.UtilityGame TestPlayer :=
@@ -257,8 +257,8 @@ theorem matchingPenniesMachine_graph_fieldCount :
     ToEventGraph.initialState,
     ToEventGraph.InitialState.empty]
 
-noncomputable def matchingPenniesGame : Vegas.Game TestPlayer :=
-  matchingPenniesMachine.game
+noncomputable def matchingPenniesGame : Vegas.BoundedGame TestPlayer :=
+  matchingPenniesMachine.boundedGame
 
 example
     (profile : GameTheory.Profile matchingPenniesGame.pure.form.sig) :
@@ -1364,7 +1364,7 @@ private theorem not_ready_initial_of_prereqs_ne_empty
   apply Finset.Subset.antisymm hready.2
   exact Finset.empty_subset _
 
-example : matchingPenniesGame.arena.execution.BoundedHorizon 4 := by
+example : matchingPenniesGame.execution.BoundedHorizon 4 := by
   rw [← show matchingPenniesMachine.graph.nodeCount = 4 by
     exact matchingPenniesMachine_graph_nodeCount]
   exact matchingPenniesGame.bounded
@@ -1390,27 +1390,27 @@ rather than applied whole. -/
 /-- The actual serialized execution protocol, information model, history
 utility, and bounded horizon packaged as a game. -/
 noncomputable def matchingPenniesSerializedGame :
-    Vegas.Game (Participant TestPlayer) :=
-  matchingPenniesMachine.serializedGame (fun _ => 0)
+    Vegas.BoundedGame (Participant TestPlayer) :=
+  matchingPenniesMachine.serializedBoundedGame (fun _ => 0)
 
 example :
-    matchingPenniesSerializedGame.arena.information.PerfectRecall :=
+    matchingPenniesSerializedGame.information.PerfectRecall :=
   matchingPenniesMachine.serializedPerfectRecall
 
 example :
-    matchingPenniesSerializedGame.arena.execution.BoundedHorizon
+    matchingPenniesSerializedGame.execution.BoundedHorizon
       matchingPenniesMachine.graph.nodeCount :=
   matchingPenniesMachine.serializedBoundedHorizon (fun _ => 0)
 
 /-- Actual serialized histories, not an auxiliary signal game, preserve
 source information and payoffs after erasure. -/
 theorem matchingPennies_serializedHistory_has_source
-    (target : matchingPenniesMachine.serializedArena.History) :
+    (target : matchingPenniesMachine.serializedExecution.History) :
     ∃ source : matchingPenniesMachine.execution.History,
       source.state = target.state.base ∧
       (∀ who, matchingPenniesMachine.information.infoOf who source.trace =
         matchingPenniesMachine.eraseSerializedPlayerInformation who
-          (matchingPenniesMachine.serializedArena.information.infoOf
+          (matchingPenniesMachine.serializedInformation.infoOf
             (.player who) target.trace)) ∧
       ∀ who, matchingPenniesMachine.utility source who =
         matchingPenniesMachine.serializedUtility (fun _ => 0) target (.player who) :=
@@ -1420,14 +1420,14 @@ theorem matchingPennies_serializedHistory_has_source
 with its exact joint law of state and erased player information. -/
 theorem matchingPennies_serializedBehavioralRound_expands
     (policies : (who : Participant TestPlayer) →
-      matchingPenniesMachine.serializedArena.information.BehavioralPolicy who)
-    (hterm : ¬ matchingPenniesMachine.serializedArena.execution.terminal
-      matchingPenniesMachine.serializedArena.execution.init) :
-    (matchingPenniesMachine.serializedArena.information.runBehavioralFrom policies 1
-        matchingPenniesMachine.serializedArena.execution.initHistory).map
+      matchingPenniesMachine.serializedInformation.BehavioralPolicy who)
+    (hterm : ¬ matchingPenniesMachine.serializedExecution.terminal
+      matchingPenniesMachine.serializedExecution.init) :
+    (matchingPenniesMachine.serializedInformation.runBehavioralFrom policies 1
+        matchingPenniesMachine.serializedExecution.initHistory).map
           matchingPenniesMachine.serializedHistorySummary =
-      ((matchingPenniesMachine.serializedArena.information.behavioralJoint policies
-          matchingPenniesMachine.serializedArena.execution.initHistory.trace hterm).bind
+      ((matchingPenniesMachine.serializedInformation.behavioralJoint policies
+          matchingPenniesMachine.serializedExecution.initHistory.trace hterm).bind
         fun command => matchingPenniesMachine.expandRound
           matchingPenniesMachine.execution.initHistory
           (fun who => command.1 (.player who))
@@ -1435,7 +1435,7 @@ theorem matchingPennies_serializedBehavioralRound_expands
             matchingPenniesMachine.historySummary :=
   matchingPenniesMachine.serializedBehavioralRound_expands
     matchingPenniesMachine.execution.initHistory []
-    matchingPenniesMachine.serializedArena.execution.initHistory.trace
+    matchingPenniesMachine.serializedExecution.initHistory.trace
     (fun _ => rfl) policies hterm
 
 /-- The compiled scheduler may use the complete public matching-pennies state,

@@ -22,9 +22,9 @@ variable (source : WFProgram Player L)
 /-- Scheduling compiled source policies preserves the independent source
 outcome distribution under every behavioral scheduler. -/
 theorem source_serialized_honest_law
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
     (profile : SourceBehavioralProfile source.core.prog) :
-    ((Machine.compile source).serializedArena.information.runBehavioral
+    ((Machine.compile source).serializedInformation.runBehavioral
       ((Machine.compile source).compileSerializedBehavioralProfile scheduler
         (fun who => ToEventGraph.compileSourceBehavioral source.core source.legal
           who (profile who))) (Machine.compile source).graph.nodeCount).map
@@ -43,14 +43,14 @@ theorem source_serialized_honest_law
 /-- Order-aware deviations preserve the source law as a finite mixture of
 unilateral independent source-policy deviations against unchanged opponents. -/
 theorem source_serialized_deviation_law
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
     (profile : SourceBehavioralProfile source.core.prog) (who : Player)
-    (replacement : (Machine.compile source).serializedArena.information.BehavioralPolicy
+    (replacement : (Machine.compile source).serializedInformation.BehavioralPolicy
       (.player who)) :
     ∃ alternatives : FinDist (SourceBehavioralPolicy source.core.prog who),
-      ((Machine.compile source).serializedArena.information.runBehavioral
+      ((Machine.compile source).serializedInformation.runBehavioral
         (Profile.update
-          (sig := (Machine.compile source).serializedArena.information.behavioralSignature)
+          (sig := (Machine.compile source).serializedInformation.behavioralSignature)
           ((Machine.compile source).compileSerializedBehavioralProfile scheduler
             (fun player => ToEventGraph.compileSourceBehavioral source.core source.legal
               player (profile player))) (.player who) replacement)
@@ -79,18 +79,18 @@ theorem source_serialized_deviation_law
 /-- Source bounds on any terminal observable survive every order-aware
 unilateral deviation, without assigning the scheduler a source utility. -/
 theorem source_serialized_guarantee
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
     (profile : SourceBehavioralProfile source.core.prog) (who : Player)
     (value : VEnv L (sourceTerminalCtx source.core.prog) → ℝ) (bound : ℝ)
     (hbound : ∀ alternative : SourceBehavioralPolicy source.core.prog who,
       bound ≤ (denoteSource source.core.prog
         (Profile.update (sig := sourceGameSignature source.core.prog) profile who alternative)
         source.core.env).expect value)
-    (replacement : (Machine.compile source).serializedArena.information.BehavioralPolicy
+    (replacement : (Machine.compile source).serializedInformation.BehavioralPolicy
       (.player who)) :
-    bound ≤ ((Machine.compile source).serializedArena.information.runBehavioral
+    bound ≤ ((Machine.compile source).serializedInformation.runBehavioral
       (Profile.update
-        (sig := (Machine.compile source).serializedArena.information.behavioralSignature)
+        (sig := (Machine.compile source).serializedInformation.behavioralSignature)
         ((Machine.compile source).compileSerializedBehavioralProfile scheduler
           (fun player => ToEventGraph.compileSourceBehavioral source.core source.legal
             player (profile player))) (.player who) replacement)
@@ -108,17 +108,17 @@ theorem source_serialized_guarantee
 profiles after scheduling, for any source valuation and scheduler utility. -/
 theorem source_serialized_nash_iff
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ)
-    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
     (profile : SourceBehavioralProfile source.core.prog) :
     Participant.IsPlayerNash
-      ((Machine.compile source).serializedOutcomeGame
+      ((Machine.compile source).serializedBoundedOutcomeGame
         (ToEventGraph.observeSourceOutcome source.core source.legal)
         valuation schedulerUtility).behavioral
       ((Machine.compile source).compileSerializedBehavioralProfile scheduler
         (source.sourceOutcomeSimulation.compileProfile profile)) ↔
       IsNash (sourceGameForm source.core.prog source.core.env) (euPreference valuation) profile :=
-  ((Machine.compile source).serializedOutcomeGame_nash_iff
+  ((Machine.compile source).serializedBoundedOutcomeGame_nash_iff
     (ToEventGraph.observeSourceOutcome source.core source.legal)
     valuation schedulerUtility scheduler
     (source.sourceOutcomeSimulation.compileProfile profile)).trans
@@ -128,24 +128,24 @@ theorem source_serialized_nash_iff
 budget for original players under arbitrary source valuations. -/
 theorem source_serialized_approximate_nash_iff
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ)
-    (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
     (profile : SourceBehavioralProfile source.core.prog) (ε : ℝ) :
     (∀ who replacement,
       expectedUtility
-        ((Machine.compile source).serializedOutcomeGame
+        ((Machine.compile source).serializedBoundedOutcomeGame
           (ToEventGraph.observeSourceOutcome source.core source.legal)
           valuation schedulerUtility).utility (.player who)
-        (((Machine.compile source).serializedOutcomeGame
+        (((Machine.compile source).serializedBoundedOutcomeGame
           (ToEventGraph.observeSourceOutcome source.core source.legal)
           valuation schedulerUtility).behavioral.form.play
           (Profile.update ((Machine.compile source).compileSerializedBehavioralProfile scheduler
             (source.sourceOutcomeSimulation.compileProfile profile)) (.player who) replacement)) ≤
       expectedUtility
-        ((Machine.compile source).serializedOutcomeGame
+        ((Machine.compile source).serializedBoundedOutcomeGame
           (ToEventGraph.observeSourceOutcome source.core source.legal)
           valuation schedulerUtility).utility (.player who)
-        (((Machine.compile source).serializedOutcomeGame
+        (((Machine.compile source).serializedBoundedOutcomeGame
           (ToEventGraph.observeSourceOutcome source.core source.legal)
           valuation schedulerUtility).behavioral.form.play
           ((Machine.compile source).compileSerializedBehavioralProfile scheduler
@@ -153,7 +153,7 @@ theorem source_serialized_approximate_nash_iff
       IsεNash (sourceGameForm source.core.prog source.core.env) valuation ε profile := by
   refine Iff.trans ?_ (source.source_native_approximate_nash_iff valuation profile ε)
   rw [isεNash_iff]
-  simp only [(Machine.compile source).expectedUtility_serializedOutcomeGame]
+  simp only [(Machine.compile source).expectedUtility_serializedBoundedOutcomeGame]
   apply forall_congr'
   intro who
   exact (Machine.compile source).serializedDeviation_expect_bound_iff scheduler
@@ -164,8 +164,8 @@ theorem source_serialized_approximate_nash_iff
 variable [FiniteDomains source]
 variable {Request : Participant Player → Type}
 variable (interface : RequestCompiler.Interface
-  (Machine.compile source).serializedArena.information Request)
-variable (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
+  (Machine.compile source).serializedInformation Request)
+variable (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
 
 /-- Request execution with arbitrary valuations of the independently defined
 source outcomes; scheduler utility remains arbitrary analysis data. -/
@@ -173,7 +173,7 @@ def sourceSerializedRequestGame
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ) :
     UtilityGame (Participant Player) where
   form := (source.serializedRequestGame interface schedulerUtility).form
-  utility state := ((Machine.compile source).serializedOutcomeGame
+  utility state := ((Machine.compile source).serializedBoundedOutcomeGame
     (ToEventGraph.observeSourceOutcome source.core source.legal) valuation schedulerUtility).utility
       state.1
 
@@ -182,19 +182,19 @@ the compiler, target controllers, or strategy reconstruction. -/
 def sourceSerializedRequestAdequacy
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ) :
     DeviationAdequacy
-      ((Machine.compile source).serializedOutcomeGame
+      ((Machine.compile source).serializedBoundedOutcomeGame
         (ToEventGraph.observeSourceOutcome source.core source.legal)
         valuation schedulerUtility).behavioral
       (source.sourceSerializedRequestGame interface schedulerUtility valuation) :=
   (source.serializedRequestAdequacy interface schedulerUtility).toOutcomeSimulationOn.withUtility
-    ((Machine.compile source).serializedOutcomeGame
+    ((Machine.compile source).serializedBoundedOutcomeGame
       (ToEventGraph.observeSourceOutcome source.core source.legal)
       valuation schedulerUtility).utility
 
 /-- Compile independent source policies through native execution, scheduling,
 and request windows. The scheduler is an external, arbitrary policy. -/
 def compileSourceSerializedRequestProfile
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
     (profile : SourceBehavioralProfile source.core.prog) :
     Profile (source.serializedRequestGame interface schedulerUtility).form.sig :=
   source.compileSerializedRequestProfile interface schedulerUtility scheduler
@@ -204,7 +204,7 @@ def compileSourceSerializedRequestProfile
 quantifies over all original-player request-controller mixtures. -/
 theorem source_serialized_request_nash_iff
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
     (profile : SourceBehavioralProfile source.core.prog) :
     Participant.IsPlayerNash
       (source.sourceSerializedRequestGame interface schedulerUtility valuation)
@@ -234,7 +234,7 @@ theorem source_serialized_request_nash_iff
 budget for every valuation of independent source outcomes. -/
 theorem source_serialized_request_approximate_nash_iff
     (valuation : VEnv L (sourceTerminalCtx source.core.prog) → Player → ℝ)
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
     (profile : SourceBehavioralProfile source.core.prog) (ε : ℝ) :
     (∀ who replacement,
       expectedUtility (source.sourceSerializedRequestGame
@@ -271,7 +271,7 @@ theorem source_serialized_request_approximate_nash_iff
 /-- Honest scheduled request execution preserves the independent source law
 for every behavioral scheduler, including schedulers that use public game data. -/
 theorem source_serialized_request_honest_law
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
     (profile : SourceBehavioralProfile source.core.prog) :
     ((source.serializedRequestGame interface schedulerUtility).form.play
       (source.compileSourceSerializedRequestProfile
@@ -291,7 +291,7 @@ theorem source_serialized_request_honest_law
 /-- Every unilateral combined request and order-aware deviation is a finite
 mixture of independent source-policy deviations with the same honest opponents. -/
 theorem source_serialized_request_deviation_law
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
     (profile : SourceBehavioralProfile source.core.prog) (who : Player)
     (replacement : (source.serializedRequestGame interface schedulerUtility).form.sig.Strategy
       (.player who)) :
@@ -325,7 +325,7 @@ theorem source_serialized_request_deviation_law
 /-- A bound on any source observable survives every target controller mixture,
 uniformly over the scheduler and without assumptions on deviator utilities. -/
 theorem source_serialized_request_guarantee
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
     (profile : SourceBehavioralProfile source.core.prog) (who : Player)
     (value : VEnv L (sourceTerminalCtx source.core.prog) → ℝ) (bound : ℝ)
     (hbound : ∀ alternative : SourceBehavioralPolicy source.core.prog who,

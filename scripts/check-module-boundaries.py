@@ -171,6 +171,14 @@ def check(root: Path) -> list[str]:
         for dependency in dependencies:
             if any(under(dependency, prefix) for prefix in local_roots) and dependency not in modules:
                 failures.append(f"{module}: missing local import {dependency}")
+            if under(module, "Interaction") and any(under(dependency, prefix) for prefix in
+                    ("Vegas", "VegasEVM", "VegasTests", "InteractionTests", "Paper")):
+                failures.append(f"{module}: interaction carrier imports downstream module {dependency}")
+            if under(module, "InteractionTests") and any(under(dependency, prefix) for prefix in
+                    ("Vegas", "VegasEVM", "VegasTests", "Paper")):
+                failures.append(f"{module}: runtime-independent test imports {dependency}")
+            if not under(module, "InteractionTests") and under(dependency, "InteractionTests"):
+                failures.append(f"{module}: production or audit module imports interaction test {dependency}")
             if under(module, "Vegas") and any(under(dependency, prefix) for prefix in
                     ("VegasEVM", "VegasTests", "Paper")):
                 failures.append(f"{module}: core imports downstream module {dependency}")
@@ -204,7 +212,7 @@ def check(root: Path) -> list[str]:
 
     # These public aggregators promise their complete subtree, not only a
     # subset incidentally reached through the paper audit or test suite.
-    for aggregator in ("Vegas.Game", "Vegas.Runtime"):
+    for aggregator in ("Vegas.Game", "Vegas.Runtime", "Interaction"):
         covered = reachable([aggregator])
         for module in sorted(modules):
             if under(module, aggregator) and module not in covered:

@@ -295,8 +295,8 @@ accounted for by the continuation proof. -/
 theorem expectedPayoffObservable_eq
     (profile : (who : TestPlayer) → program.information.BehavioralPolicy who)
     (who : TestPlayer) (observable : ℝ → ℝ) :
-    (program.game.behavioral.form.play profile).expect
-      (fun history => observable (program.game.behavioral.utility history who)) =
+    (program.boundedGame.behavioral.form.play profile).expect
+      (fun history => observable (program.boundedGame.behavioral.utility history who)) =
     (FinDist.pi fun player => (profile player (initialInfo player)).map
       (choiceEquiv player).symm).expect (fun bits => observable (payoff bits who)) := by
   have hterm : ¬ program.execution.terminal program.execution.init :=
@@ -347,8 +347,8 @@ theorem expectedPayoffObservable_eq
 
 theorem expectedUtility_eq
     (profile : (who : TestPlayer) → program.information.BehavioralPolicy who) (who : TestPlayer) :
-    expectedUtility program.game.behavioral.utility who
-      (program.game.behavioral.form.play profile) =
+    expectedUtility program.boundedGame.behavioral.utility who
+      (program.boundedGame.behavioral.form.play profile) =
     (FinDist.pi fun player => (profile player (initialInfo player)).map
       (choiceEquiv player).symm).expect (fun bits => payoff bits who) :=
   expectedPayoffObservable_eq profile who id
@@ -379,8 +379,8 @@ theorem expectedUtility_eq_zero_of_opponent_fair
     (hfair : ∀ other, other ≠ who →
       (profile other (initialInfo other)).map (choiceEquiv other).symm =
         (FinDist.uniformOfFintype : FinDist Bool)) :
-    expectedUtility program.game.behavioral.utility who
-      (program.game.behavioral.form.play profile) = 0 := by
+    expectedUtility program.boundedGame.behavioral.utility who
+      (program.boundedGame.behavioral.form.play profile) = 0 := by
   rw [expectedUtility_eq, pi_two, FinDist.expect_map, FinDist.expect_eq_sum]
   fin_cases who
   · simp only [hfair 1 (by decide), FinDist.prob_product]
@@ -394,27 +394,27 @@ theorem expectedUtility_eq_zero_of_opponent_fair
 /-- The actual compiled hidden-choice game has its fair-coin Nash equilibrium;
 deviations range over complete legal behavioral policies, including off-path choices. -/
 theorem fair_isNash :
-    IsNash program.game.behavioral.form (euPreference program.game.behavioral.utility)
+    IsNash program.boundedGame.behavioral.form (euPreference program.boundedGame.behavioral.utility)
       fairPolicy := by
   rw [isNash_iff]
   intro who replacement
   have hbase := expectedUtility_eq_zero_of_opponent_fair fairPolicy who
     (fun other _ => initialLaw_fair other)
   have hdev := expectedUtility_eq_zero_of_opponent_fair
-    (Profile.update (sig := program.game.behavioral.form.sig) fairPolicy who replacement) who
+    (Profile.update (sig := program.boundedGame.behavioral.form.sig) fairPolicy who replacement) who
     (fun other hne => by simpa [Profile.update, hne] using initialLaw_fair other)
-  change expectedUtility program.game.behavioral.utility who
-    (program.game.behavioral.form.play (Profile.update fairPolicy who replacement)) ≤
-      expectedUtility program.game.behavioral.utility who
-        (program.game.behavioral.form.play fairPolicy)
+  change expectedUtility program.boundedGame.behavioral.utility who
+    (program.boundedGame.behavioral.form.play (Profile.update fairPolicy who replacement)) ≤
+      expectedUtility program.boundedGame.behavioral.utility who
+        (program.boundedGame.behavioral.form.play fairPolicy)
   rw [hbase, hdev]
 
 theorem expectedUtilities_sum
     (profile : (who : TestPlayer) → program.information.BehavioralPolicy who) :
-    expectedUtility program.game.behavioral.utility 0
-        (program.game.behavioral.form.play profile) +
-      expectedUtility program.game.behavioral.utility 1
-        (program.game.behavioral.form.play profile) = 0 := by
+    expectedUtility program.boundedGame.behavioral.utility 0
+        (program.boundedGame.behavioral.form.play profile) +
+      expectedUtility program.boundedGame.behavioral.utility 1
+        (program.boundedGame.behavioral.form.play profile) = 0 := by
   rw [expectedUtility_eq, expectedUtility_eq, ← FinDist.expect_add]
   calc
     _ = (FinDist.pi fun player => (profile player (initialInfo player)).map
@@ -428,18 +428,19 @@ theorem expectedUtilities_sum
 the other uses the fair policy. This assumes no adversarial objective. -/
 theorem fair_deviation_payoff (who victim : TestPlayer)
     (replacement : program.information.BehavioralPolicy who) :
-    expectedUtility program.game.behavioral.utility victim
-      (program.game.behavioral.form.play
+    expectedUtility program.boundedGame.behavioral.utility victim
+      (program.boundedGame.behavioral.form.play
         (Profile.update fairPolicy who replacement)) = 0 := by
   have hdev := expectedUtility_eq_zero_of_opponent_fair
-    (Profile.update (sig := program.game.behavioral.form.sig) fairPolicy who replacement) who
+    (Profile.update (sig := program.boundedGame.behavioral.form.sig) fairPolicy who replacement) who
     (fun other hne => by simpa [Profile.update, hne] using initialLaw_fair other)
   have hsum := expectedUtilities_sum
-    (Profile.update (sig := program.game.behavioral.form.sig) fairPolicy who replacement)
+    (Profile.update (sig := program.boundedGame.behavioral.form.sig) fairPolicy who replacement)
   let utility : TestPlayer → ℝ := fun player =>
-    expectedUtility program.game.behavioral.utility player
-      (program.game.behavioral.form.play
-        (Profile.update (sig := program.game.behavioral.form.sig) fairPolicy who replacement))
+    expectedUtility program.boundedGame.behavioral.utility player
+      (program.boundedGame.behavioral.form.play
+        (Profile.update (sig := program.boundedGame.behavioral.form.sig)
+          fairPolicy who replacement))
   change utility who = 0 at hdev
   change utility 0 + utility 1 = 0 at hsum
   change utility victim = 0
@@ -448,19 +449,19 @@ theorem fair_deviation_payoff (who victim : TestPlayer)
 /-- Every behavioral public-data scheduler preserves this equilibrium in the
 actual order-revealing implementation, against all behavioral player deviations. -/
 theorem fair_serialized_isPlayerNash
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler) :
-    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler) :
+    Participant.IsPlayerNash (program.serializedBoundedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler fairPolicy) :=
   program.isPlayerNash_compileSerialized_of_isNash schedulerUtility scheduler fairPolicy fair_isNash
 
 /-- Honest-player protection in the actual serialized implementation. The
 scheduler and the deviating player may use arbitrary behavioral policies. -/
 theorem fair_serialized_deviation_payoff
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (who victim : TestPlayer)
-    (replacement : program.serializedArena.information.BehavioralPolicy (.player who)) :
-    (program.serializedArena.information.runBehavioral
+    (replacement : program.serializedInformation.BehavioralPolicy (.player who)) :
+    (program.serializedInformation.runBehavioral
       (Function.update (program.compileSerializedBehavioralProfile scheduler fairPolicy)
         (.player who) replacement) graph.nodeCount).expect
           (fun history => program.payoutUtility history.state.base victim) = 0 :=

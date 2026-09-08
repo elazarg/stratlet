@@ -20,9 +20,9 @@ open Vegas GameTheory GameTheory.Math.Probability MatchingPenniesEquilibrium
 unrelated matching-pennies payoff matrix or a particular failed translator. -/
 theorem no_public_submission_adequacy
     (schedulerUtility : PublicSubmission.Values → ℝ) :
-    ¬ Nonempty (Participant.PlayerDeviationAdequacy program.game.behavioral
+    ¬ Nonempty (Participant.PlayerDeviationAdequacy program.boundedGame.behavioral
       (PublicSubmission.game schedulerUtility)) :=
-  PublicSubmission.no_adequacy_of_zero_equilibrium program.game.behavioral fairPolicy
+  PublicSubmission.no_adequacy_of_zero_equilibrium program.boundedGame.behavioral fairPolicy
     fair_isNash (fun who => expectedUtility_eq_zero_of_opponent_fair fairPolicy who
       (fun other _ => initialLaw_fair other)) schedulerUtility
 
@@ -35,7 +35,7 @@ theorem no_universal_public_submission_compiler
     (schedulerUtility : PublicSubmission.Values → ℝ)
     (hwitness : target matchingPenniesProgram = PublicSubmission.game schedulerUtility) :
     ¬ (∀ source : WFProgram TestPlayer simpleExpr,
-      Nonempty (Participant.PlayerDeviationAdequacy (Machine.compile source).game.behavioral
+      Nonempty (Participant.PlayerDeviationAdequacy (Machine.compile source).boundedGame.behavioral
         (target source))) := by
   intro hall
   have hw := hall matchingPenniesProgram
@@ -43,8 +43,8 @@ theorem no_universal_public_submission_compiler
   exact no_public_submission_adequacy schedulerUtility hw
 
 theorem fair_clipped_payoff (who : TestPlayer) (abortValue : ℝ) :
-    (program.game.behavioral.form.play fairPolicy).expect
-      (fun history => max (program.game.behavioral.utility history who) abortValue) =
+    (program.boundedGame.behavioral.form.play fairPolicy).expect
+      (fun history => max (program.boundedGame.behavioral.utility history who) abortValue) =
         (max 1 abortValue + max (-1) abortValue) / 2 := by
   rw [expectedPayoffObservable_eq fairPolicy who (fun value => max value abortValue)]
   simp only [initialLaw_fair]
@@ -55,25 +55,26 @@ theorem fair_clipped_payoff (who : TestPlayer) (abortValue : ℝ) :
 
 /-- Even ideal binding does not make a losing reveal preferable to a refund. -/
 theorem refund_deviation_value (last : TestPlayer) :
-    expectedUtility (Runtime.SelectiveAbort.game program.game.behavioral last (fun _ => 0)).utility
-      last ((Runtime.SelectiveAbort.game program.game.behavioral last (fun _ => 0)).form.play
-        (Runtime.SelectiveAbort.withRule program.game.behavioral fairPolicy last
+    expectedUtility
+      (Runtime.SelectiveAbort.game program.boundedGame.behavioral last (fun _ => 0)).utility
+      last ((Runtime.SelectiveAbort.game program.boundedGame.behavioral last (fun _ => 0)).form.play
+        (Runtime.SelectiveAbort.withRule program.boundedGame.behavioral fairPolicy last
           (Runtime.SelectiveAbort.optimalRule 0))) = 1 / 2 := by
   rw [Runtime.SelectiveAbort.optimal_value, fair_clipped_payoff]
   norm_num
 
 theorem refund_not_nash (last : TestPlayer) :
-    ¬ IsNash (Runtime.SelectiveAbort.game program.game.behavioral last (fun _ => 0)).form
+    ¬ IsNash (Runtime.SelectiveAbort.game program.boundedGame.behavioral last (fun _ => 0)).form
       (euPreference
-        (Runtime.SelectiveAbort.game program.game.behavioral last (fun _ => 0)).utility)
-      (Runtime.SelectiveAbort.compileProfile program.game.behavioral fairPolicy) := by
+        (Runtime.SelectiveAbort.game program.boundedGame.behavioral last (fun _ => 0)).utility)
+      (Runtime.SelectiveAbort.compileProfile program.boundedGame.behavioral fairPolicy) := by
   intro hnash
   have hdev := (isNash_iff _).mp hnash last
     ⟨fairPolicy last, Runtime.SelectiveAbort.optimalRule 0⟩
   change expectedUtility _ _ _ ≤ expectedUtility _ _ _ at hdev
   change expectedUtility _ last
-    ((Runtime.SelectiveAbort.game program.game.behavioral last (fun _ => 0)).form.play
-      (Runtime.SelectiveAbort.withRule program.game.behavioral fairPolicy last
+    ((Runtime.SelectiveAbort.game program.boundedGame.behavioral last (fun _ => 0)).form.play
+      (Runtime.SelectiveAbort.withRule program.boundedGame.behavioral fairPolicy last
         (Runtime.SelectiveAbort.optimalRule 0))) ≤ _ at hdev
   rw [refund_deviation_value, Runtime.SelectiveAbort.honest_expectedUtility] at hdev
   have hzero := expectedUtility_eq_zero_of_opponent_fair fairPolicy last
@@ -84,10 +85,10 @@ theorem refund_not_nash (last : TestPlayer) :
 theorem clipped_eq_payoff
     (profile : (who : TestPlayer) → program.information.BehavioralPolicy who)
     (who : TestPlayer) (abortValue : ℝ) (hbound : abortValue ≤ -1) :
-    (program.game.behavioral.form.play profile).expect
-      (fun history => max (program.game.behavioral.utility history who) abortValue) =
-        expectedUtility program.game.behavioral.utility who
-          (program.game.behavioral.form.play profile) := by
+    (program.boundedGame.behavioral.form.play profile).expect
+      (fun history => max (program.boundedGame.behavioral.utility history who) abortValue) =
+        expectedUtility program.boundedGame.behavioral.utility who
+          (program.boundedGame.behavioral.form.play profile) := by
   rw [expectedPayoffObservable_eq profile who (fun value => max value abortValue),
     expectedUtility_eq]
   apply FinDist.expect_congr
@@ -102,9 +103,10 @@ theorem clipped_eq_payoff
 to the player's whole source behavioral policy, not just its reveal decision.
 The theorem concerns utilities; it does not implement or fund a deposit. -/
 theorem abort_threshold_iff (last : TestPlayer) (abortPayoff : TestPlayer → ℝ) :
-    IsNash (Runtime.SelectiveAbort.game program.game.behavioral last abortPayoff).form
-      (euPreference (Runtime.SelectiveAbort.game program.game.behavioral last abortPayoff).utility)
-      (Runtime.SelectiveAbort.compileProfile program.game.behavioral fairPolicy) ↔
+    IsNash (Runtime.SelectiveAbort.game program.boundedGame.behavioral last abortPayoff).form
+      (euPreference
+        (Runtime.SelectiveAbort.game program.boundedGame.behavioral last abortPayoff).utility)
+      (Runtime.SelectiveAbort.compileProfile program.boundedGame.behavioral fairPolicy) ↔
     abortPayoff last ≤ -1 := by
   rw [Runtime.SelectiveAbort.nash_compile_iff]
   constructor
@@ -112,7 +114,7 @@ theorem abort_threshold_iff (last : TestPlayer) (abortPayoff : TestPlayer → �
     have h := hbound (fairPolicy last)
     have hzero := expectedUtility_eq_zero_of_opponent_fair fairPolicy last
       (fun other _ => initialLaw_fair other)
-    have hsame : Profile.update (sig := program.game.behavioral.form.sig)
+    have hsame : Profile.update (sig := program.boundedGame.behavioral.form.sig)
         fairPolicy last (fairPolicy last) = fairPolicy := by
       exact Function.update_eq_self last fairPolicy
     rw [hsame] at h

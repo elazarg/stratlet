@@ -8,9 +8,9 @@ player. The compiler does not enforce a player's preferences.
 
 `Vegas.Payout` is the finite integer vector evaluated by source `ret` and
 compiled payout expressions. It is neither the complete semantic outcome nor
-an assertion about asset delivery. `Machine.Program.outcomeGame observe value`
+an assertion about asset delivery. `Machine.Program.boundedOutcomeGame observe value`
 attaches any interpretation of the settled machine state and any real utility
-profile. `Machine.Program.game` is the explicit default convention that values
+profile. `Machine.Program.boundedGame` is the explicit default convention that values
 the integer payout itself. `payoutUtility` names that convention. No source
 constructor or well-formedness condition is changed.
 
@@ -20,10 +20,10 @@ asset transfers can conserve a pot while utilities need not sum to zero.
 Interpreting a record as a delivery or ownership change does not establish
 that a blockchain realizes it. The ledger adapter must discharge that claim.
 
-`serializedOutcomeGame` uses the same interpretation on the settled base state.
-`serializedOutcomeGame_nash_iff` preserves and reflects player Nash for every
+`serializedBoundedOutcomeGame` uses the same interpretation on the settled base state.
+`serializedBoundedOutcomeGame_nash_iff` preserves and reflects player Nash for every
 such valuation and every admitted public-data scheduler. The request compiler
-already accepts arbitrary source-history utility, and `Game.requestAdequacy`
+already accepts arbitrary source-history utility, and `BoundedGame.requestAdequacy`
 therefore applies to these valued games when its finite-menu and recall
 requirements hold. Neither result covers a utility that distinguishes runtime
 details erased by its decoder merely because it is called a valuation.

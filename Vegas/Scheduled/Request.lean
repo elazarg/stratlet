@@ -38,7 +38,7 @@ def SerializedRequest (Request : Player → Type) : Participant Player → Type
 
 def serializedTimeoutPolicy (program : Program Player L)
     {Request : Player → Type} (interface : RequestCompiler.Interface program.information Request) :
-    (who : Participant Player) → program.serializedArena.information.Policy who
+    (who : Participant Player) → program.serializedInformation.Policy who
   | .scheduler, info =>
       ⟨some (Classical.choose (program.serializedSystem.schedules_nonempty info.current)),
         ⟨_, Classical.choose_spec (program.serializedSystem.schedules_nonempty info.current), rfl⟩⟩
@@ -50,10 +50,10 @@ actions, validation, encoding, and window bounds ignore the added order log;
 deviating controllers may nevertheless observe and use that log. -/
 def serializedRequestInterface (program : Program Player L)
     {Request : Player → Type} (interface : RequestCompiler.Interface program.information Request) :
-    RequestCompiler.Interface program.serializedArena.information (SerializedRequest Request) where
+    RequestCompiler.Interface program.serializedInformation (SerializedRequest Request) where
   gate
     | .scheduler =>
-        (RequestCompiler.menuInterface program.serializedArena.information
+        (RequestCompiler.menuInterface program.serializedInformation
           (program.serializedTimeoutPolicy interface) (fun _ _ => 0)).gate .scheduler
     | .player who => {
         timeoutAction := program.serializedTimeoutPolicy interface (.player who)
@@ -76,8 +76,8 @@ def serializedRequestInterface (program : Program Player L)
 The scheduler's legal orders are duplicate-free lists, not arbitrary lists. -/
 @[reducible] def serializedChoiceFintype (program : Program Player L)
     (actions : ∀ who, Fintype (program.execution.Action who))
-    (who : Participant Player) (info : program.serializedArena.information.InfoState who) :
-    Fintype (program.serializedArena.information.Choice who info) := by
+    (who : Participant Player) (info : program.serializedInformation.InfoState who) :
+    Fintype (program.serializedInformation.Choice who info) := by
   classical
   cases who with
   | player who =>
@@ -89,7 +89,7 @@ The scheduler's legal orders are duplicate-free lists, not arbitrary lists. -/
           (fun _ _ heq => Subtype.ext heq)
       exact Fintype.ofEquiv _ (program.serializedPlayerChoiceEquiv who info)
   | scheduler =>
-      let extract : program.serializedArena.information.Choice .scheduler info →
+      let extract : program.serializedInformation.Choice .scheduler info →
           {order : List Player // order.Nodup} := fun choice =>
         ⟨Classical.choose choice.2, (Classical.choose_spec choice.2).1.1⟩
       apply Fintype.ofInjective extract
@@ -111,32 +111,32 @@ variable (source : WFProgram Player L) [FiniteDomains source]
 /-- Scheduler actions are lists, but every legal order is duplicate-free.
 Thus the choice menus are finite without assuming that all order lists are. -/
 @[reducible] def serializedChoiceFintype (who : Participant Player)
-    (info : (Machine.compile source).serializedArena.information.InfoState who) :
-    Fintype ((Machine.compile source).serializedArena.information.Choice who info) :=
+    (info : (Machine.compile source).serializedInformation.InfoState who) :
+    Fintype ((Machine.compile source).serializedInformation.Choice who info) :=
   (Machine.compile source).serializedChoiceFintype source.actionFintype who info
 
 variable {Request : Participant Player → Type}
 variable (interface : RequestCompiler.Interface
-  (Machine.compile source).serializedArena.information Request)
+  (Machine.compile source).serializedInformation Request)
 
-variable (schedulerUtility : (Machine.compile source).serializedArena.History → ℝ)
+variable (schedulerUtility : (Machine.compile source).serializedExecution.History → ℝ)
 
 def serializedRequestGame : UtilityGame (Participant Player) :=
-  (RequestCompiler.targetGame (Machine.compile source).serializedArena.information interface
+  (RequestCompiler.targetGame (Machine.compile source).serializedInformation interface
     (Machine.compile source).graph.nodeCount
     ((Machine.compile source).serializedUtility schedulerUtility)).mixed
 
 /-- The middle boundary is the actual serialized behavioral game. This
 certificate preserves its full history law, including all published orders. -/
 def serializedRequestAdequacy :
-    DeviationAdequacy ((Machine.compile source).serializedGame schedulerUtility).behavioral
+    DeviationAdequacy ((Machine.compile source).serializedBoundedGame schedulerUtility).behavioral
       (source.serializedRequestGame interface schedulerUtility) :=
-  ((Machine.compile source).serializedGame schedulerUtility).requestAdequacy
+  ((Machine.compile source).serializedBoundedGame schedulerUtility).requestAdequacy
     source.serializedChoiceFintype (Machine.compile source).serializedPerfectRecall interface
 
 def compileSerializedRequestProfile
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
-    (profile : Profile source.game.behavioral.form.sig) :
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
+    (profile : Profile source.boundedGame.behavioral.form.sig) :
     Profile (source.serializedRequestGame interface schedulerUtility).form.sig :=
   (source.serializedRequestAdequacy interface schedulerUtility).compileProfile
     ((Machine.compile source).compileSerializedBehavioralProfile scheduler profile)
@@ -144,11 +144,12 @@ def compileSerializedRequestProfile
 /-- Exact original-player Nash equivalence. The scheduler is fixed but
 arbitrary, may use public game data, and need not optimize any utility. -/
 theorem serialized_request_nash_iff
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
-    (profile : Profile source.game.behavioral.form.sig) :
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
+    (profile : Profile source.boundedGame.behavioral.form.sig) :
     Participant.IsPlayerNash (source.serializedRequestGame interface schedulerUtility)
       (source.compileSerializedRequestProfile interface schedulerUtility scheduler profile) ↔
-    IsNash source.game.behavioral.form (euPreference source.game.behavioral.utility) profile := by
+    IsNash source.boundedGame.behavioral.form
+      (euPreference source.boundedGame.behavioral.utility) profile := by
   let certificate := source.serializedRequestAdequacy interface schedulerUtility
   refine Iff.trans ?_
     ((Machine.compile source).isPlayerNash_compileSerialized_iff schedulerUtility scheduler profile)
@@ -168,8 +169,8 @@ theorem serialized_request_nash_iff
 
 /-- Honest compiled play has exactly the original terminal configuration law. -/
 theorem serialized_request_honest_law
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
-    (profile : Profile source.game.behavioral.form.sig) :
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
+    (profile : Profile source.boundedGame.behavioral.form.sig) :
     ((source.serializedRequestGame interface schedulerUtility).form.play
       (source.compileSerializedRequestProfile interface schedulerUtility scheduler profile)).map
         (fun state => state.1.state.base) =
@@ -184,8 +185,8 @@ theorem serialized_request_honest_law
 /-- Every combined request/order-aware deviation is a finite mixture of source
 deviations against the same honest opponents. No equilibrium premise is used. -/
 theorem serialized_request_deviation_law
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
-    (profile : Profile source.game.behavioral.form.sig) (who : Player)
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
+    (profile : Profile source.boundedGame.behavioral.form.sig) (who : Player)
     (replacement : (source.serializedRequestGame interface schedulerUtility).form.sig.Strategy
       (.player who)) :
     ∃ alternatives : FinDist ((Machine.compile source).information.BehavioralPolicy who),
@@ -211,8 +212,8 @@ theorem serialized_request_deviation_law
 /-- The composition preserves the same approximation budget, rather than
 merely preserving exact equilibria. Scheduler deviations are not tested. -/
 theorem serialized_request_approximate_nash_iff
-    (scheduler : (Machine.compile source).serializedArena.information.BehavioralPolicy .scheduler)
-    (profile : Profile source.game.behavioral.form.sig) (ε : ℝ) :
+    (scheduler : (Machine.compile source).serializedInformation.BehavioralPolicy .scheduler)
+    (profile : Profile source.boundedGame.behavioral.form.sig) (ε : ℝ) :
     (∀ who replacement,
       expectedUtility (source.serializedRequestGame interface schedulerUtility).utility
         (.player who)
@@ -225,7 +226,7 @@ theorem serialized_request_approximate_nash_iff
         ((source.serializedRequestGame interface schedulerUtility).form.play
           (source.compileSerializedRequestProfile
             interface schedulerUtility scheduler profile)) + ε) ↔
-    IsεNash source.game.behavioral.form source.game.behavioral.utility ε profile := by
+    IsεNash source.boundedGame.behavioral.form source.boundedGame.behavioral.utility ε profile := by
   let certificate := source.serializedRequestAdequacy interface schedulerUtility
   refine Iff.trans ?_
     ((Machine.compile source).serialized_approximate_nash_iff schedulerUtility scheduler profile ε)

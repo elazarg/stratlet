@@ -115,8 +115,9 @@ theorem honest_isNash : IsNash game.form (euPreference game.utility) honestProfi
       expectedUtility utility 1 (finiteLaw profile)) heq
     exact hvalue.le.trans (honest_buyer_best_response honestSeller replacement)
 
-theorem machine_nash_iff (profile : Profile program.game.behavioral.form.sig) :
-    IsNash machine.game.behavioral.form (euPreference machine.game.behavioral.utility) profile ↔
+theorem machine_nash_iff (profile : Profile program.boundedGame.behavioral.form.sig) :
+    IsNash machine.boundedGame.behavioral.form
+      (euPreference machine.boundedGame.behavioral.utility) profile ↔
       IsNash game.form (euPreference game.utility) (extractProfile profile) := by
   rw [nash_iff_finite]
   have heq : (finiteGame payouts).utility = game.utility :=
@@ -125,14 +126,14 @@ theorem machine_nash_iff (profile : Profile program.game.behavioral.form.sig) :
   rfl
 
 theorem compiled_honest_isNash :
-    IsNash machine.game.behavioral.form (euPreference machine.game.behavioral.utility)
+    IsNash machine.boundedGame.behavioral.form (euPreference machine.boundedGame.behavioral.utility)
       (compileProfile honestProfile) := by
   rw [machine_nash_iff, extract_compile_profile]
   exact honest_isNash
 
 theorem machine_buyer_nonnegative (replacement : program.information.BehavioralPolicy 0) :
-    0 ≤ expectedUtility machine.game.behavioral.utility 1
-      (machine.game.behavioral.form.play
+    0 ≤ expectedUtility machine.boundedGame.behavioral.utility 1
+      (machine.boundedGame.behavioral.form.play
         (Profile.update (compileProfile honestProfile) 0 replacement)) := by
   rw [expectedUtility_eq_finite, extractProfile_update, extract_compile_profile]
   have heq : Profile.update (sig := finiteForm.sig) honestProfile 0
@@ -148,19 +149,20 @@ theorem machine_buyer_nonnegative (replacement : program.information.BehavioralP
   exact (honest_buyer_nonnegative (extractSender replacement)).trans_eq hvalue.symm
 
 theorem serialized_honest_isPlayerNash
-    (schedulerUtility : machine.serializedArena.History → ℝ)
-    (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler) :
-    Participant.IsPlayerNash (machine.serializedGame schedulerUtility).behavioral
+    (schedulerUtility : machine.serializedExecution.History → ℝ)
+    (scheduler : machine.serializedInformation.BehavioralPolicy .scheduler) :
+    Participant.IsPlayerNash (machine.serializedBoundedGame schedulerUtility).behavioral
       (machine.compileSerializedBehavioralProfile scheduler (compileProfile honestProfile)) :=
   machine.isPlayerNash_compileSerialized_of_isNash schedulerUtility scheduler _
     compiled_honest_isNash
 
 theorem serialized_buyer_nonnegative
-    (schedulerUtility : machine.serializedArena.History → ℝ)
-    (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler)
-    (replacement : machine.serializedArena.information.BehavioralPolicy (.player 0)) :
-    0 ≤ expectedUtility (machine.serializedGame schedulerUtility).behavioral.utility (.player 1)
-      ((machine.serializedGame schedulerUtility).behavioral.form.play
+    (schedulerUtility : machine.serializedExecution.History → ℝ)
+    (scheduler : machine.serializedInformation.BehavioralPolicy .scheduler)
+    (replacement : machine.serializedInformation.BehavioralPolicy (.player 0)) :
+    0 ≤ expectedUtility
+      (machine.serializedBoundedGame schedulerUtility).behavioral.utility (.player 1)
+      ((machine.serializedBoundedGame schedulerUtility).behavioral.form.play
         (Profile.update (machine.compileSerializedBehavioralProfile scheduler
           (compileProfile honestProfile)) (.player 0) replacement)) := by
   obtain ⟨alternatives, hlaw⟩ := machine.serializedDeviation_eq_sourceMixture

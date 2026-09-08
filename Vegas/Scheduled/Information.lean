@@ -20,14 +20,14 @@ variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
 
 theorem serializedStep_settle_support (program : Program Player L)
     (source : program.execution.History) (log : List (List Player))
-    (command : {joint // program.serializedArena.execution.Legal ⟨source.state, log⟩ joint})
-    {next : program.serializedArena.execution.State}
-    (hnext : next ∈ (program.serializedArena.execution.step ⟨source.state, log⟩ command).support) :
+    (command : {joint // program.serializedExecution.Legal ⟨source.state, log⟩ joint})
+    {next : program.serializedExecution.State}
+    (hnext : next ∈ (program.serializedExecution.step ⟨source.state, log⟩ command).support) :
     next.base ∈ (EventGraph.settleInternal program.graphWF program.graph.nodeCount
       (applyFrontier program.graph program.graphWF source.state
         (fun who => command.1 (.player who)))).support := by
   have hbase : next.base ∈
-      ((program.serializedArena.execution.step ⟨source.state, log⟩ command).map
+      ((program.serializedExecution.step ⟨source.state, log⟩ command).map
         ScheduledSystem.State.base).support := by
     rw [FinDist.support_map]
     exact ⟨next, hnext, rfl⟩
@@ -36,11 +36,11 @@ theorem serializedStep_settle_support (program : Program Player L)
   exact hbase
 
 theorem serializedStep_extends (program : Program Player L)
-    {state : program.serializedArena.execution.State}
-    (trace : program.serializedArena.execution.Trace state)
-    (command : {joint // program.serializedArena.execution.Legal state joint})
-    {next : program.serializedArena.execution.State}
-    (hnext : next ∈ (program.serializedArena.execution.step state command).support) :
+    {state : program.serializedExecution.State}
+    (trace : program.serializedExecution.Trace state)
+    (command : {joint // program.serializedExecution.Legal state joint})
+    {next : program.serializedExecution.State}
+    (hnext : next ∈ (program.serializedExecution.step state command).support) :
     state.base.1.Extends next.base.1 := by
   obtain ⟨source, hstate, _⟩ := program.serializedTrace_has_sourceHistory trace
   rcases state with ⟨base, log⟩
@@ -52,11 +52,11 @@ theorem serializedStep_extends (program : Program Player L)
         (program.serializedStep_settle_support source log command hnext))
 
 theorem serializedStep_readyCommit_of_none (program : Program Player L)
-    {state : program.serializedArena.execution.State}
-    (trace : program.serializedArena.execution.Trace state)
-    (command : {joint // program.serializedArena.execution.Legal state joint})
-    {next : program.serializedArena.execution.State}
-    (hnext : next ∈ (program.serializedArena.execution.step state command).support)
+    {state : program.serializedExecution.State}
+    (trace : program.serializedExecution.Trace state)
+    (command : {joint // program.serializedExecution.Legal state joint})
+    {next : program.serializedExecution.State}
+    (hnext : next ∈ (program.serializedExecution.step state command).support)
     (who : Player) (hnone : command.1 (.player who) = none)
     {node : Fin program.graph.nodeCount}
     (hready : ReadyCommitNode program.graph state.base.1 who node) :
@@ -74,34 +74,34 @@ theorem serializedStep_readyCommit_of_none (program : Program Player L)
 compact information and the player's submission. No hidden state is inspected
 by a reconstructed policy; this is a relation between legal histories. -/
 theorem serializedStep_compact_injective (program : Program Player L) (who : Player)
-    {left right nextLeft nextRight : program.serializedArena.execution.State}
-    (first : program.serializedArena.execution.Trace left)
-    (second : program.serializedArena.execution.Trace right)
-    (leftCommand : {joint // program.serializedArena.execution.Legal left joint})
-    (rightCommand : {joint // program.serializedArena.execution.Legal right joint})
+    {left right nextLeft nextRight : program.serializedExecution.State}
+    (first : program.serializedExecution.Trace left)
+    (second : program.serializedExecution.Trace right)
+    (leftCommand : {joint // program.serializedExecution.Legal left joint})
+    (rightCommand : {joint // program.serializedExecution.Legal right joint})
     (leftRealized : nextLeft ∈
-      (program.serializedArena.execution.step left leftCommand).support)
+      (program.serializedExecution.step left leftCommand).support)
     (rightRealized : nextRight ∈
-      (program.serializedArena.execution.step right rightCommand).support)
+      (program.serializedExecution.step right rightCommand).support)
     (hdone : left.base.1.done = right.base.1.done)
     (hcompact : program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who)
+        (program.serializedInformation.infoOf (.player who)
           (.extend first leftCommand.1 leftCommand.2 leftRealized)) =
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who)
+        (program.serializedInformation.infoOf (.player who)
           (.extend second rightCommand.1 rightCommand.2 rightRealized))) :
     program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) first) =
+        (program.serializedInformation.infoOf (.player who) first) =
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) second) ∧
+        (program.serializedInformation.infoOf (.player who) second) ∧
       leftCommand.1 (.player who) = rightCommand.1 (.player who) := by
   change program.eraseSerializedPlayerInformation who
       (ScheduledSystem.RevealingInfo.push program.serializedSystem
-        (program.serializedArena.information.infoOf (.player who) first)
+        (program.serializedInformation.infoOf (.player who) first)
         (leftCommand.1 (.player who)) _ _) =
     program.eraseSerializedPlayerInformation who
       (ScheduledSystem.RevealingInfo.push program.serializedSystem
-        (program.serializedArena.information.infoOf (.player who) second)
+        (program.serializedInformation.infoOf (.player who) second)
         (rightCommand.1 (.player who)) _ _) at hcompact
   rw [program.eraseSerializedPlayerInformation_push,
     program.eraseSerializedPlayerInformation_push] at hcompact
@@ -151,13 +151,13 @@ theorem serializedStep_compact_injective (program : Program Player L) (who : Pla
 runtime information. In particular, every passive observation is recoverable
 from the current immutable snapshot and remembered own decisions. -/
 theorem serializedBlindInfo_eq_of_compact_eq (program : Program Player L) (who : Player)
-    {left right : program.serializedArena.execution.State}
-    (first : program.serializedArena.execution.Trace left)
-    (second : program.serializedArena.execution.Trace right)
+    {left right : program.serializedExecution.State}
+    (first : program.serializedExecution.Trace left)
+    (second : program.serializedExecution.Trace right)
     (hcompact : program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) first) =
+        (program.serializedInformation.infoOf (.player who) first) =
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) second)) :
+        (program.serializedInformation.infoOf (.player who) second)) :
     program.serializedSystem.blindSignals.infoOf (.player who) first =
       program.serializedSystem.blindSignals.infoOf (.player who) second := by
   have hdone : left.base.1.done = right.base.1.done := by

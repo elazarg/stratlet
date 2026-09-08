@@ -17,12 +17,12 @@ variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
 
 theorem serializedStep_done (program : Program Player L)
     (source : program.execution.History) (log : List (List Player))
-    (command : {joint // program.serializedArena.execution.Legal ⟨source.state, log⟩ joint})
-    {next : program.serializedArena.execution.State}
-    (hnext : next ∈ (program.serializedArena.execution.step ⟨source.state, log⟩ command).support) :
+    (command : {joint // program.serializedExecution.Legal ⟨source.state, log⟩ joint})
+    {next : program.serializedExecution.State}
+    (hnext : next ∈ (program.serializedExecution.step ⟨source.state, log⟩ command).support) :
     next.base.1.done = serializedDoneStep program.graph source.state.1.done := by
   have hbase : next.base ∈
-      ((program.serializedArena.execution.step ⟨source.state, log⟩ command).map
+      ((program.serializedExecution.step ⟨source.state, log⟩ command).map
         ScheduledSystem.State.base).support := by
     rw [FinDist.support_map]
     exact ⟨next, hnext, rfl⟩
@@ -36,8 +36,8 @@ theorem serializedStep_done (program : Program Player L)
 /-- All legal serialized traces follow the same completed-node timeline,
 regardless of player choices, chance outcomes, or scheduler policy. -/
 theorem serializedTrace_done (program : Program Player L)
-    {state : program.serializedArena.execution.State}
-    (trace : program.serializedArena.execution.Trace state) :
+    {state : program.serializedExecution.State}
+    (trace : program.serializedExecution.Trace state) :
     state.base.1.done = serializedDoneAt program.graph trace.length := by
   induction trace with
   | start => rfl
@@ -53,8 +53,8 @@ theorem serializedTrace_done (program : Program Player L)
 /-- A realized nonterminal prefix is structurally distinct from every later
 checkpoint of the same execution. -/
 theorem serializedTrace_done_ne_of_lt (program : Program Player L)
-    {state : program.serializedArena.execution.State}
-    (trace : program.serializedArena.execution.Trace state)
+    {state : program.serializedExecution.State}
+    (trace : program.serializedExecution.Trace state)
     (rounds : Nat) (hlt : rounds < trace.length) :
     serializedDoneAt program.graph rounds ≠ state.base.1.done := by
   cases trace with
@@ -72,9 +72,9 @@ theorem serializedTrace_done_ne_of_lt (program : Program Player L)
 /-- The public completed-node set determines the number of runtime rounds.
 The result is independent of hidden values and the scheduler policy. -/
 theorem serializedTrace_length_eq_of_done_eq (program : Program Player L)
-    {left right : program.serializedArena.execution.State}
-    (first : program.serializedArena.execution.Trace left)
-    (second : program.serializedArena.execution.Trace right)
+    {left right : program.serializedExecution.State}
+    (first : program.serializedExecution.Trace left)
+    (second : program.serializedExecution.Trace right)
     (hdone : left.base.1.done = right.base.1.done) : first.length = second.length := by
   apply Nat.le_antisymm
   · by_contra hle

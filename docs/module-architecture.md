@@ -5,18 +5,50 @@ This is the implemented module inventory. The
 the [implementation plan](ledger-expansion-plan.md) gives the extraction and
 public-message-runtime gates. Proposed ownership is not implemented separation.
 
-The package has four build targets. `lake --wfail build` checks all four;
-`lake --wfail build Vegas` checks the runtime-general library alone.
+The package has six build targets. `lake --wfail build` checks all six;
+`lake --wfail build Vegas` checks the Vegas library without the backend or the
+independent message-interaction experiments.
 
 | Target | Contents | Local dependencies |
 | --- | --- | --- |
+| `Interaction` | Native pending-message kernel and explicit ideal commitment service | none |
+| `InteractionTests` | Bounded native interaction games and commitment-traffic tests | `Interaction` |
 | `Vegas` | Core and surface syntax, event graphs, machine semantics, games, abstract runtimes, public serialization | none |
 | `VegasEVM` | Contract representations, deployment and instruction semantics, backend compilation, local code-generation proofs | `Vegas` |
 | `VegasTests` | Concrete witnesses and regression tests | `Vegas`, `VegasEVM` |
-| `Paper` | Axiom-pinned general claims and concrete paper witnesses | all three |
+| `Paper` | Axiom-pinned general claims and concrete paper witnesses | `Vegas`, `VegasEVM`, `VegasTests` |
 
 All targets also use the pinned external mathematical dependencies. The table
 describes library dependencies, not additional logical axioms.
+
+## Message-interaction boundary
+
+`Interaction/MessagePool.lean` is an executable kernel: submit, deliver to any
+selected observer, and append a selected pending message to a shared public
+ledger. Sender-local serials avoid exposing an unrelated global submission
+counter. The caller identity of submission is an authenticated capability in
+the model, not an implemented signature scheme. There is no application
+validation, fee, deadline, finality, or progress assumption in this carrier.
+
+`InteractionTests/Pending.lean` interprets a bounded two-player script directly
+as a GameTheory `GameForm`. Its play uses the same native pool operations and
+its responder receives only its local view. Delivery and inclusion-order
+parameters specify a fixed environment; this example does not define the
+general class of adaptive network controllers.
+
+`Interaction/IdealCommitments.lean` is explicit private write-once storage
+indexed by owner and slot. It specifies an ideal functionality, not a
+cryptographic implementation. `InteractionTests/Commitment.lean` exercises
+observable pending handles, legal cleartext, authenticated opening checks,
+and value-bearing openings that disclose before inclusion. The hiding test
+gives continuations the pool, not the ideal table or its verifier; the service
+file alone defines no strategic interface enforcing that restriction. No Vegas compiler edge
+or equilibrium-preservation claim is established by these tests.
+
+The boundary checker forbids these runtime modules and their independent
+tests from importing Vegas, its backend, or its paper audit. The native
+kernel and ideal service themselves need no GameTheory imports; the game
+example uses GameTheory's existing strategic and probability interfaces.
 
 ## Backend correctness
 
@@ -41,7 +73,10 @@ its execution model. `Vegas/Compile/Machine.lean` constructs it from checked
 source programs and proves source-support and terminal-payout adequacy.
 The machine carrier does not import its compiler.
 
-`Vegas/Game/Basic.lean` defines games and their graph-derived instances.
+`Vegas/Game/Basic.lean` defines bounded analyses of native execution and
+information objects and their graph-derived instances. It does not import
+FOSG. `Vegas/Game/FOSG.lean` supplies the optional presentation export using
+the same objects and no additional runner.
 `Vegas/Game/Kuhn.lean` supplies strategy-representation certificates, and
 `Vegas/Game/Request.lean` instantiates generic request compilation for games.
 `Vegas/Game/SourceRequest.lean` specializes the request certificates to checked

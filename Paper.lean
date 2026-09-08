@@ -115,15 +115,15 @@ theorem context_bound {Honest : Player → Prop}
 theorem serialized_valuation [DecidableEq Player] [Fintype Player] {L : IExpr}
     (program : Machine.Program Player L) {Outcome : Type}
     (observe : program.State → Outcome) (value : Outcome → Player → ℝ)
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : Player) → program.information.BehavioralPolicy who) :
     Participant.IsPlayerNash
-      (program.serializedOutcomeGame observe value schedulerUtility).behavioral
+      (program.serializedBoundedOutcomeGame observe value schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler profile) ↔
-      IsNash (program.outcomeGame observe value).behavioral.form
-        (euPreference (program.outcomeGame observe value).utility) profile :=
-  program.serializedOutcomeGame_nash_iff observe value schedulerUtility scheduler profile
+      IsNash (program.boundedOutcomeGame observe value).behavioral.form
+        (euPreference (program.boundedOutcomeGame observe value).utility) profile :=
+  program.serializedBoundedOutcomeGame_nash_iff observe value schedulerUtility scheduler profile
 
 theorem trace_counterexample :
     IsNash TraceUtility.source.form (euPreference TraceUtility.source.utility)
@@ -195,7 +195,7 @@ theorem no_universal_public_submission_compiler
     (schedulerUtility : PublicSubmission.Values → ℝ)
     (hwitness : target matchingPenniesProgram = PublicSubmission.game schedulerUtility) :
     ¬ (∀ source : WFProgram TestPlayer simpleExpr,
-      Nonempty (Participant.PlayerDeviationAdequacy (Machine.compile source).game.behavioral
+      Nonempty (Participant.PlayerDeviationAdequacy (Machine.compile source).boundedGame.behavioral
         (target source))) :=
   RuntimeBoundaries.no_universal_public_submission_compiler target schedulerUtility hwitness
 
@@ -204,38 +204,40 @@ namespace Matching
 open MatchingPenniesEquilibrium
 
 theorem fair_nash :
-    IsNash program.game.behavioral.form (euPreference program.game.behavioral.utility)
+    IsNash program.boundedGame.behavioral.form (euPreference program.boundedGame.behavioral.utility)
       fairPolicy :=
   fair_isNash
 
 theorem serialized_nash
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler) :
-    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler) :
+    Participant.IsPlayerNash (program.serializedBoundedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler fairPolicy) :=
   fair_serialized_isPlayerNash schedulerUtility scheduler
 
 theorem serialized_adversarial_payoff
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (who victim : TestPlayer)
-    (replacement : program.serializedArena.information.BehavioralPolicy (.player who)) :
-    (program.serializedArena.information.runBehavioral
+    (replacement : program.serializedInformation.BehavioralPolicy (.player who)) :
+    (program.serializedInformation.runBehavioral
       (Function.update (program.compileSerializedBehavioralProfile scheduler fairPolicy)
         (.player who) replacement) graph.nodeCount).expect
           (fun history => program.payoutUtility history.state.base victim) = 0 :=
   fair_serialized_deviation_payoff scheduler who victim replacement
 
 theorem refund_value (last : TestPlayer) :
-    expectedUtility (Runtime.SelectiveAbort.game program.game.behavioral last (fun _ => 0)).utility
-      last ((Runtime.SelectiveAbort.game program.game.behavioral last (fun _ => 0)).form.play
-        (Runtime.SelectiveAbort.withRule program.game.behavioral fairPolicy last
+    expectedUtility
+      (Runtime.SelectiveAbort.game program.boundedGame.behavioral last (fun _ => 0)).utility
+      last ((Runtime.SelectiveAbort.game program.boundedGame.behavioral last (fun _ => 0)).form.play
+        (Runtime.SelectiveAbort.withRule program.boundedGame.behavioral fairPolicy last
           (Runtime.SelectiveAbort.optimalRule 0))) = 1 / 2 :=
   RuntimeBoundaries.refund_deviation_value last
 
 theorem quitting_threshold (last : TestPlayer) (abortPayoff : TestPlayer → ℝ) :
-    IsNash (Runtime.SelectiveAbort.game program.game.behavioral last abortPayoff).form
-      (euPreference (Runtime.SelectiveAbort.game program.game.behavioral last abortPayoff).utility)
-      (Runtime.SelectiveAbort.compileProfile program.game.behavioral fairPolicy) ↔
+    IsNash (Runtime.SelectiveAbort.game program.boundedGame.behavioral last abortPayoff).form
+      (euPreference
+        (Runtime.SelectiveAbort.game program.boundedGame.behavioral last abortPayoff).utility)
+      (Runtime.SelectiveAbort.compileProfile program.boundedGame.behavioral fairPolicy) ↔
     abortPayoff last ≤ -1 :=
   RuntimeBoundaries.abort_threshold_iff last abortPayoff
 
@@ -297,7 +299,7 @@ namespace Staged
 open QuittingSource
 
 theorem outcome_law (profile : ∀ who, program.information.BehavioralPolicy who) :
-    (program.game.behavioral.form.play profile).map (fun history => decode history.state.1) =
+    (program.boundedGame.behavioral.form.play profile).map (fun history => decode history.state.1) =
       ObservedAbort.sourcePlay (fun who => extractStrategy who (profile who)) :=
   decoded_law_eq_kernel profile
 
@@ -306,23 +308,24 @@ theorem strategy_lift (who : TestPlayer) (law : FinDist Bool) :
   extract_lift who law
 
 theorem nash_correspondence (profile : ∀ who, program.information.BehavioralPolicy who) :
-    IsNash program.game.behavioral.form (euPreference program.game.behavioral.utility) profile ↔
+    IsNash program.boundedGame.behavioral.form
+      (euPreference program.boundedGame.behavioral.utility) profile ↔
       IsNash ObservedAbort.source.form (euPreference ObservedAbort.source.utility)
         (fun who => extractStrategy who (profile who)) :=
   nash_iff_kernel profile
 
 theorem serialized_nash
-    (schedulerUtility : program.serializedArena.History → ℝ)
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler) :
-    Participant.IsPlayerNash (program.serializedGame schedulerUtility).behavioral
+    (schedulerUtility : program.serializedExecution.History → ℝ)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler) :
+    Participant.IsPlayerNash (program.serializedBoundedGame schedulerUtility).behavioral
       (program.compileSerializedBehavioralProfile scheduler fairProfile) :=
   fair_serialized_isPlayerNash schedulerUtility scheduler
 
 theorem serialized_adversarial_payoff
-    (scheduler : program.serializedArena.information.BehavioralPolicy .scheduler)
+    (scheduler : program.serializedInformation.BehavioralPolicy .scheduler)
     (who victim : TestPlayer)
-    (replacement : program.serializedArena.information.BehavioralPolicy (.player who)) :
-    (program.serializedArena.information.runBehavioral
+    (replacement : program.serializedInformation.BehavioralPolicy (.player who)) :
+    (program.serializedInformation.runBehavioral
       (Function.update (program.compileSerializedBehavioralProfile scheduler fairProfile)
         (.player who) replacement) graph.nodeCount).expect
           (fun history => program.payoutUtility history.state.base victim) = 0 :=
@@ -481,23 +484,23 @@ theorem policy_roundtrip (who : TestPlayer) (strategy : Strategy who) :
     extractPolicy who (compilePolicy who strategy) = strategy :=
   extract_compile_policy who strategy
 
-theorem outcome_law (profile : Profile program.game.behavioral.form.sig) :
-    (program.game.behavioral.form.play profile).map decodeHistory =
+theorem outcome_law (profile : Profile program.boundedGame.behavioral.form.sig) :
+    (program.boundedGame.behavioral.form.play profile).map decodeHistory =
       finiteForm.play (extractProfile profile) :=
   all_profile_law profile
 
 theorem expected_payoffs (payouts : Payouts)
-    (profile : Profile program.game.behavioral.form.sig) (who : TestPlayer) :
-    expectedUtility (programWithPayoffs payouts).game.behavioral.utility who
-        ((programWithPayoffs payouts).game.behavioral.form.play profile) =
+    (profile : Profile program.boundedGame.behavioral.form.sig) (who : TestPlayer) :
+    expectedUtility (programWithPayoffs payouts).boundedGame.behavioral.utility who
+        ((programWithPayoffs payouts).boundedGame.behavioral.form.play profile) =
       expectedUtility (finiteGame payouts).utility who
         ((finiteGame payouts).form.play (extractProfile profile)) :=
   expectedUtility_eq_finite payouts profile who
 
 theorem nash_correspondence (payouts : Payouts)
-    (profile : Profile program.game.behavioral.form.sig) :
-    IsNash (programWithPayoffs payouts).game.behavioral.form
-        (euPreference (programWithPayoffs payouts).game.behavioral.utility) profile ↔
+    (profile : Profile program.boundedGame.behavioral.form.sig) :
+    IsNash (programWithPayoffs payouts).boundedGame.behavioral.form
+        (euPreference (programWithPayoffs payouts).boundedGame.behavioral.utility) profile ↔
       IsNash (finiteGame payouts).form (euPreference (finiteGame payouts).utility)
         (extractProfile profile) :=
   nash_iff_finite payouts profile
@@ -530,15 +533,15 @@ theorem source_seller_bound (seller : SenderStrategy) :
   seller_revenue_bound seller
 
 theorem runtime_nash
-    (schedulerUtility : machine.serializedArena.History → ℝ)
-    (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler) :
+    (schedulerUtility : machine.serializedExecution.History → ℝ)
+    (scheduler : machine.serializedInformation.BehavioralPolicy .scheduler) :
     Participant.IsPlayerNash (runtimeGame schedulerUtility)
       (runtimeProfile schedulerUtility scheduler) :=
   runtime_honest_isPlayerNash schedulerUtility scheduler
 
 theorem runtime_buyer_guarantee
-    (schedulerUtility : machine.serializedArena.History → ℝ)
-    (scheduler : machine.serializedArena.information.BehavioralPolicy .scheduler)
+    (schedulerUtility : machine.serializedExecution.History → ℝ)
+    (scheduler : machine.serializedInformation.BehavioralPolicy .scheduler)
     (replacement : (runtimeGame schedulerUtility).form.sig.Strategy (.player 0)) :
     0 ≤ expectedUtility (runtimeGame schedulerUtility).utility (.player 1)
       ((runtimeGame schedulerUtility).form.play

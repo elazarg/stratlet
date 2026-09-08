@@ -5,6 +5,7 @@ Authors: VegasCore contributors
 -/
 
 import Vegas.Game.Basic
+import Vegas.Game.FOSG
 import Vegas.Game.Kuhn
 import Vegas.Game.Request
 import Vegas.Game.SourceRequest

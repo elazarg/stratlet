@@ -18,11 +18,11 @@ open Vegas GameTheory GameTheory.Protocol GameTheory.Math.Probability
 /-- A genuinely concurrent compiled game, with arbitrary order-aware
 behavioral deviations and an arbitrary public-data behavioral scheduler. -/
 example
-    (schedulerUtility : matchingPenniesMachine.serializedArena.History → ℝ)
-    (scheduler : matchingPenniesMachine.serializedArena.information.BehavioralPolicy .scheduler)
+    (schedulerUtility : matchingPenniesMachine.serializedExecution.History → ℝ)
+    (scheduler : matchingPenniesMachine.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : TestPlayer) → matchingPenniesMachine.information.BehavioralPolicy who) :
     Participant.IsPlayerNash
-      (matchingPenniesMachine.serializedGame schedulerUtility).behavioral
+      (matchingPenniesMachine.serializedBoundedGame schedulerUtility).behavioral
       (matchingPenniesMachine.compileSerializedBehavioralProfile scheduler profile) ↔
     IsNash matchingPenniesGame.behavioral.form
       (euPreference matchingPenniesGame.behavioral.utility) profile :=
@@ -30,9 +30,9 @@ example
 
 /-- Automatic chance settlement at the initial history is included in the
 complete-law comparison, not assumed away as an already stable initial state. -/
-example (scheduler : coinMachine.serializedArena.information.BehavioralPolicy .scheduler)
+example (scheduler : coinMachine.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : TestPlayer) → coinMachine.information.BehavioralPolicy who) :
-    (coinMachine.serializedArena.information.runBehavioral
+    (coinMachine.serializedInformation.runBehavioral
       (coinMachine.compileSerializedBehavioralProfile scheduler profile)
       coinMachine.graph.nodeCount).map (fun history => history.state.base) =
     (coinMachine.information.runBehavioral profile coinMachine.graph.nodeCount).map
@@ -40,9 +40,9 @@ example (scheduler : coinMachine.serializedArena.information.BehavioralPolicy .s
   coinMachine.runBehavioral_compileSerialized scheduler profile
 
 /-- The zero-node terminal game requires no scheduler move or positivity assumption. -/
-example (scheduler : emptyMachine.serializedArena.information.BehavioralPolicy .scheduler)
+example (scheduler : emptyMachine.serializedInformation.BehavioralPolicy .scheduler)
     (profile : (who : TestPlayer) → emptyMachine.information.BehavioralPolicy who) :
-    (emptyMachine.serializedArena.information.runBehavioral
+    (emptyMachine.serializedInformation.runBehavioral
       (emptyMachine.compileSerializedBehavioralProfile scheduler profile)
       emptyMachine.graph.nodeCount).map (fun history => history.state.base) =
     (emptyMachine.information.runBehavioral profile emptyMachine.graph.nodeCount).map

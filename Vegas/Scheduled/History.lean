@@ -86,7 +86,7 @@ theorem settleHistory_own (program : Program Player L) (fuel : Nat)
 legal atomic submission at the same base state. -/
 theorem serializedPlayers_legal (program : Program Player L)
     {state : program.serializedSystem.State}
-    (command : {joint // program.serializedArena.execution.Legal state joint}) :
+    (command : {joint // program.serializedExecution.Legal state joint}) :
     program.execution.Legal state.base (fun who => command.1 (.player who)) := by
   refine ⟨command.2.1, ?_⟩
   intro who
@@ -211,11 +211,11 @@ theorem expandRound_own (program : Program Player L)
 discarding the runtime order log. The scheduler order is arbitrary and legal. -/
 theorem expandRound_map_state_eq_serialized_step (program : Program Player L)
     (history : program.execution.History) (log : List (List Player))
-    (command : {joint // program.serializedArena.execution.Legal
+    (command : {joint // program.serializedExecution.Legal
       ⟨history.state, log⟩ joint}) :
     (program.expandRound history (fun who => command.1 (.player who))
         (program.serializedPlayers_legal command)).map ExecutionProtocol.History.state =
-      (program.serializedArena.execution.step ⟨history.state, log⟩ command).map
+      (program.serializedExecution.step ⟨history.state, log⟩ command).map
         ScheduledSystem.State.base := by
   rw [program.expandRound_map_state]
   change _ = (program.serializedSystem.toExecutionProtocol.step
@@ -252,20 +252,20 @@ theorem eraseSerializedPlayerInformation_push (program : Program Player L)
 erased information states match, including their earlier decisions. -/
 theorem exists_sourceHistory_of_serialized_step (program : Program Player L)
     (history : program.execution.History)
-    {state : program.serializedArena.execution.State}
-    (trace : program.serializedArena.execution.Trace state)
+    {state : program.serializedExecution.State}
+    (trace : program.serializedExecution.Trace state)
     (hbase : history.state = state.base)
     (hinfo : ∀ who, program.information.infoOf who history.trace =
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) trace))
-    (command : {joint // program.serializedArena.execution.Legal state joint})
-    {next : program.serializedArena.execution.State}
-    (hnext : next ∈ (program.serializedArena.execution.step state command).support) :
+        (program.serializedInformation.infoOf (.player who) trace))
+    (command : {joint // program.serializedExecution.Legal state joint})
+    {next : program.serializedExecution.State}
+    (hnext : next ∈ (program.serializedExecution.step state command).support) :
     ∃ expanded : program.execution.History,
       expanded.state = next.base ∧
       ∀ who, program.information.infoOf who expanded.trace =
         program.eraseSerializedPlayerInformation who
-          (program.serializedArena.information.infoOf (.player who)
+          (program.serializedInformation.infoOf (.player who)
             (.extend trace command.1 command.2 hnext)) := by
   rcases history with ⟨base, sourceTrace⟩
   rcases state with ⟨runtimeBase, log⟩
@@ -274,7 +274,7 @@ theorem exists_sourceHistory_of_serialized_step (program : Program Player L)
   let history : program.execution.History := ⟨base, sourceTrace⟩
   have hmap := program.expandRound_map_state_eq_serialized_step history log command
   have hbaseSupport : next.base ∈
-      ((program.serializedArena.execution.step ⟨base, log⟩ command).map
+      ((program.serializedExecution.step ⟨base, log⟩ command).map
         ScheduledSystem.State.base).support := by
     rw [FinDist.support_map]
     exact ⟨next, hnext, rfl⟩
@@ -291,7 +291,7 @@ theorem exists_sourceHistory_of_serialized_step (program : Program Player L)
   change program.information.infoOf who expanded.trace =
     program.eraseSerializedPlayerInformation who
       (ScheduledSystem.RevealingInfo.push program.serializedSystem
-        (program.serializedArena.information.infoOf (.player who) trace)
+        (program.serializedInformation.infoOf (.player who) trace)
         (command.1 (.player who))
         (publicObserve program.graph next.base.1,
           observe program.graph next.base.1 who) (next.log.headD []))
@@ -316,13 +316,13 @@ graph endpoint and exactly the erased information of every original player.
 The theorem quantifies over all legal runtime traces, including all scheduler
 choices and all player deviations. -/
 theorem serializedTrace_has_sourceHistory (program : Program Player L)
-    {state : program.serializedArena.execution.State}
-    (trace : program.serializedArena.execution.Trace state) :
+    {state : program.serializedExecution.State}
+    (trace : program.serializedExecution.Trace state) :
     ∃ source : program.execution.History,
       source.state = state.base ∧
       ∀ who, program.information.infoOf who source.trace =
         program.eraseSerializedPlayerInformation who
-          (program.serializedArena.information.infoOf (.player who) trace) := by
+          (program.serializedInformation.infoOf (.player who) trace) := by
   induction trace with
   | start => exact ⟨program.execution.initHistory, rfl, fun _ => rfl⟩
   | extend prior joint legal realized ih =>
@@ -332,9 +332,9 @@ theorem serializedTrace_has_sourceHistory (program : Program Player L)
 
 /-- Player utility agrees on matching atomic and serialized endpoints. -/
 theorem utility_eq_serializedUtility_of_state_eq (program : Program Player L)
-    (source : program.execution.History) (target : program.serializedArena.History)
+    (source : program.execution.History) (target : program.serializedExecution.History)
     (hstate : source.state = target.state.base)
-    (schedulerUtility : program.serializedArena.History → ℝ) (who : Player) :
+    (schedulerUtility : program.serializedExecution.History → ℝ) (who : Player) :
     program.utility source who =
       program.serializedUtility schedulerUtility target (.player who) := by
   change program.payoutUtility source.state who =
@@ -345,13 +345,13 @@ theorem utility_eq_serializedUtility_of_state_eq (program : Program Player L)
 player information and utility. This includes nonterminal histories and all
 legal adversarial choices; no equilibrium restriction is used. -/
 theorem serializedHistory_has_source (program : Program Player L)
-    (target : program.serializedArena.History)
-    (schedulerUtility : program.serializedArena.History → ℝ) :
+    (target : program.serializedExecution.History)
+    (schedulerUtility : program.serializedExecution.History → ℝ) :
     ∃ source : program.execution.History,
       source.state = target.state.base ∧
       (∀ who, program.information.infoOf who source.trace =
         program.eraseSerializedPlayerInformation who
-          (program.serializedArena.information.infoOf (.player who) target.trace)) ∧
+          (program.serializedInformation.infoOf (.player who) target.trace)) ∧
       ∀ who, program.utility source who =
         program.serializedUtility schedulerUtility target (.player who) := by
   obtain ⟨source, hstate, hinfo⟩ := program.serializedTrace_has_sourceHistory target.trace
@@ -386,27 +386,27 @@ def historySummary (program : Program Player L) (history : program.execution.His
 /-- Erase runtime ordering from a history while keeping the underlying state
 and every original player's source information. -/
 def serializedHistorySummary (program : Program Player L)
-    (history : program.serializedArena.History) :
+    (history : program.serializedExecution.History) :
     program.State × ((who : Player) → PlayerInformation program.graph who) :=
   (history.state.base, fun who => program.eraseSerializedPlayerInformation who
-    (program.serializedArena.information.infoOf (.player who) history.trace))
+    (program.serializedInformation.infoOf (.player who) history.trace))
 
 /-- Exact one-round law on both underlying state and all original players'
 information. This is the history simulation needed for strategy compilation;
 it records which information each policy will receive, not only payoffs. -/
 theorem expandRound_map_summary (program : Program Player L)
     (source : program.execution.History) (log : List (List Player))
-    (trace : program.serializedArena.execution.Trace ⟨source.state, log⟩)
+    (trace : program.serializedExecution.Trace ⟨source.state, log⟩)
     (hinfo : ∀ who, program.information.infoOf who source.trace =
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) trace))
-    (command : {joint // program.serializedArena.execution.Legal
+        (program.serializedInformation.infoOf (.player who) trace))
+    (command : {joint // program.serializedExecution.Legal
       ⟨source.state, log⟩ joint}) :
     (program.expandRound source (fun who => command.1 (.player who))
         (program.serializedPlayers_legal command)).map program.historySummary =
-      ((program.serializedArena.execution.step ⟨source.state, log⟩ command).bindOnSupport
+      ((program.serializedExecution.step ⟨source.state, log⟩ command).bindOnSupport
         fun _ realized => FinDist.pure
-          ((⟨⟨source.state, log⟩, trace⟩ : program.serializedArena.History).extend
+          ((⟨⟨source.state, log⟩, trace⟩ : program.serializedExecution.History).extend
             command.2 realized)).map program.serializedHistorySummary := by
   let update := fun state : program.State =>
     (state, fun who => (program.information.infoOf who source.trace).push
@@ -438,7 +438,7 @@ theorem expandRound_map_summary (program : Program Player L)
   funext who
   change program.eraseSerializedPlayerInformation who
       (ScheduledSystem.RevealingInfo.push program.serializedSystem
-        (program.serializedArena.information.infoOf (.player who) trace)
+        (program.serializedInformation.infoOf (.player who) trace)
         (command.1 (.player who))
         (publicObserve program.graph next.base.1, observe program.graph next.base.1 who)
         (next.log.headD [])) = _
@@ -452,16 +452,16 @@ model. This does not assert that its distribution is induced by a source
 behavioral profile: that is the separate strategy back-translation problem. -/
 theorem serializedBehavioralRound_expands (program : Program Player L)
     (source : program.execution.History) (log : List (List Player))
-    (trace : program.serializedArena.execution.Trace ⟨source.state, log⟩)
+    (trace : program.serializedExecution.Trace ⟨source.state, log⟩)
     (hinfo : ∀ who, program.information.infoOf who source.trace =
       program.eraseSerializedPlayerInformation who
-        (program.serializedArena.information.infoOf (.player who) trace))
+        (program.serializedInformation.infoOf (.player who) trace))
     (policies : (who : Participant Player) →
-      program.serializedArena.information.BehavioralPolicy who)
-    (hterm : ¬ program.serializedArena.execution.terminal ⟨source.state, log⟩) :
-    (program.serializedArena.information.runBehavioralFrom policies 1
+      program.serializedInformation.BehavioralPolicy who)
+    (hterm : ¬ program.serializedExecution.terminal ⟨source.state, log⟩) :
+    (program.serializedInformation.runBehavioralFrom policies 1
         ⟨⟨source.state, log⟩, trace⟩).map program.serializedHistorySummary =
-      ((program.serializedArena.information.behavioralJoint policies trace hterm).bind
+      ((program.serializedInformation.behavioralJoint policies trace hterm).bind
         fun command => program.expandRound source
           (fun who => command.1 (.player who))
           (program.serializedPlayers_legal command)).map program.historySummary := by

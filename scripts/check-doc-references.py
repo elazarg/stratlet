@@ -23,8 +23,8 @@ import re
 import subprocess
 import sys
 
-ROOTS_DEFINING = ("Vegas", "VegasEVM", "Paper", "GameTheory/GameTheory")
-ROOTS_CITING = ("Vegas", "VegasEVM", "Paper")
+ROOTS_DEFINING = ("Interaction", "InteractionTests", "Vegas", "VegasEVM", "Paper", "GameTheory/GameTheory")
+ROOTS_CITING = ("Interaction", "InteractionTests", "Vegas", "VegasEVM", "Paper")
 
 # Lean tactics and attributes that look like our identifiers but are not
 # declarations we can index.
@@ -50,7 +50,7 @@ CONSTRUCTOR = re.compile(
     r"^\s*\|\s*([A-Za-z_][A-Za-z0-9_']*)(?:\s*(?::|\(|\{)|\s*$)"
 )
 PROJECT_PATH = re.compile(
-    r"`((?:Vegas|VegasEVM|VegasTests|Paper)(?:/[A-Za-z0-9_.-]+)*\.lean)(?::\d+)?`"
+    r"`((?:Interaction|InteractionTests|Vegas|VegasEVM|VegasTests|Paper)(?:/[A-Za-z0-9_.-]+)*\.lean)(?::\d+)?`"
 )
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 

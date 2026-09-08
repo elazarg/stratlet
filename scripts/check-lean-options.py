@@ -10,7 +10,7 @@ def main() -> int:
     local_option = re.compile(r"^\s*set_option\b")
     failures = []
     paths = list(root.glob("*.lean"))
-    for directory in ("Vegas", "VegasEVM", "VegasTests", "Paper"):
+    for directory in ("Interaction", "InteractionTests", "Vegas", "VegasEVM", "VegasTests", "Paper"):
         paths.extend((root / directory).rglob("*.lean"))
     for path in sorted(paths):
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):

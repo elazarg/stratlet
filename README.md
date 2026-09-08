@@ -5,10 +5,11 @@ information. Its independent written-order source semantics and compiled graph
 game are related by exact outcome and unilateral-deviation laws. The graph has
 two consumers: GameTheory analysis and gradual lowering toward concrete runtimes.
 
-`Vegas` is the runtime-general library. `VegasEVM` contains the contract and
+`Vegas` is the backend-neutral language library. `VegasEVM` contains the contract and
 EVM backend development; its whole-backend refinement obligation remains
 unproved. The full default build checks both libraries, the tests, and the
-paper audit. See [module boundaries](docs/module-architecture.md) for the
+paper audit, together with the independent `Interaction` kernel and its tests.
+See [module boundaries](docs/module-architecture.md) for the
 dependency structure and checked scope of the retained surface language.
 
 The paper audit is the default `Paper` build target: root `Paper.lean` imports
@@ -36,7 +37,11 @@ edge. The [implementation plan](docs/ledger-expansion-plan.md) prioritizes a
 public-message pool with recipient-local delivery and a checked core-to-runtime
 slice. The [ledger design](docs/ledger-expansion-design.md) specifies service and
 observation obligations on the route to a named blockchain realization.
-These target models and connections are planned, not current guarantees.
+The `Interaction` library provides an initial native pool and explicit ideal
+commitment service, exercised by bounded games and observation tests. Its
+connection to checked Vegas source, adaptive environment policies, and richer
+ledger services remains unproved. Those planned connections are not current
+compiler guarantees.
 
 ## Architecture
 
@@ -739,15 +744,18 @@ supplied by GameTheory.
 
 ## Game semantics
 
-The canonical strategic denotation is GameTheory's
-`ExecutionProtocol + InformationModel`, packaged as a FOSG. It is not a MAID.
+The graph's native strategic denotation uses GameTheory's
+`ExecutionProtocol + InformationModel`. FOSG is an optional presentation of
+those same objects, not their semantic owner.
 State-dependent guards determine native legal menus, simultaneous ready
 commitments form one joint frontier action, chance is a `FinDist` transition,
 and policies depend only on a player's information state.
 
-`Vegas.Game` adds terminal utility and a proved finite horizon. Its pure,
+`Vegas.BoundedGame` adds history utility and a proved finite horizon. Its pure,
 behavioral, and mixed-pure forms are direct GameTheory views. Vegas does not
-define competing strategy, deviation, equilibrium, or history types.
+define competing strategy, deviation, equilibrium, or history types. These
+bounded analyses do not impose termination or real-valued utility on future
+operational targets.
 
 GameTheory's opponent-preserving Kuhn laws are packaged in
 `Vegas.Game.Kuhn` as deviation-adequacy certificates in both directions between
