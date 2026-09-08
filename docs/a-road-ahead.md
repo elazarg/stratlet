@@ -248,7 +248,20 @@ capabilities must belong to that player's deviation scope, not be concealed
 inside a fixed external environment.
 
 The release-cut theorem establishes adaptive ideal hiding for this controller
-instance. Generalizing the compiler's source-policy correspondence must retain
+instance. The extracted opponent value is independent of the protected input,
+is identified with its compiled source field, and remains fixed through later
+execution. Selective disclosure remains possible: a native policy can bind
+the same value in advance and disclose only after favorable observed input.
+The checked publication-law obstruction distinguishes this pending case from
+the source's published nullable decline.
+
+The next terminal comparison needs a real resolution mechanism and a proved
+connection to source quitting or an explicit weaker incentive guarantee.
+Deadlines do not by themselves identify late withholding with an earlier
+source choice. Keep the bound value, unresolved disclosure, and eventual
+resolution effects separate until their comparison has been proved.
+
+Generalizing the compiler's source-policy correspondence must retain
 the same opponent and environment policies across compared executions.
 Policies may react to actual observed traffic; fixing a policy does not fix
 its realized event sequence. Retain the cleartext negative control when

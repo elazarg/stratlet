@@ -50,3 +50,6 @@ import VegasTests.PendingReplay
 import VegasTests.PendingPolicies
 import VegasTests.PendingRelease
 import VegasTests.PendingReleaseExamples
+import VegasTests.PendingChoiceLock
+import VegasTests.PendingWithholding
+import VegasTests.PendingWithholdingSource

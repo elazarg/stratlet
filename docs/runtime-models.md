@@ -284,6 +284,62 @@ commitments without registered values, and cryptographic realization are
 separate model/proof obligations. No public-message Nash-preservation claim is
 added to the manuscript.
 
+### Locked choices and selective disclosure
+
+`Interaction/SealedBinding.lean` ties every accepted commitment to its rule's
+canonical owner/node slot and every accepted opening to its reveal rule's
+source slot. The invariant holds from empty across arbitrary native actions,
+including malformed traffic, re-registration, and replay. Acceptance therefore
+certifies an occupied slot in this ideal service. This relies on the current
+acceptance check; it is not a claim about arbitrary cryptographic commitments
+that may have no successful opening.
+
+`Interaction/SealedPolicyBinding.lean` transports that invariant to supported
+policy executions and their release snapshots. A value present at the selected
+snapshot persists to the final snapshot of the same complete trace.
+
+`VegasTests/PendingChoiceLock.lean` extracts the opponent's value at release for
+the actual checked nullable-choice program. The extraction is analysis data,
+not an extra input to any policy. `choiceLaw_independent` proves that its law is
+independent of the honest owner's value against unchanged arbitrary adaptive
+opponent/environment policies and any fixed finite continuation schedule.
+`mixed_choiceLaw_product` gives the corresponding product law for a randomized
+honest input. The law includes runs where release is never reached: outer
+`none` denotes that case, whereas `some none` denotes the source decline value
+at a reached release. `choiceAtRelease_none_iff` proves this distinction on
+supported traces; no successful-execution conditioning is used.
+
+`choiceAtRelease_source_field` identifies each extracted value with the actual
+compiled source field in a reachable decoded configuration.
+`choiceAtRelease_persists` fixes it through the entire remaining execution, and
+`opened_eq_choiceAtRelease` proves that any accepted later opening discloses
+exactly that value. These results prevent value selection after the honest
+opening. They do not force the opponent to publish its fixed value.
+
+`VegasTests/PendingWithholding.lean` exercises that remaining choice in the
+native policy game. Player one commits to `some false` in both executions,
+then opens only when player zero's delivered opening contains `some false`.
+After observing `some true`, it withholds. Both commitments and player zero's
+opening have been accepted; the pending branch retains player one's original
+bound value rather than changing it to the source decline value.
+
+`VegasTests/PendingWithholdingSource.lean` compares publication with the
+independent written-order source game. `withholding_not_source_publication`
+proves that no source behavioral profile has the same publication law as the
+withholding run: every terminal source result has a final public binding, even
+when that binding contains `none`. The canonical commit/open controller can
+finish from the same reached prefix under the unchanged environment and
+remaining invocation horizon. The obstruction is therefore not merely a
+horizon that is too short to execute a submitted opening.
+
+The impossibility concerns a publication-preserving terminal-law comparison
+for this bounded runtime and source fixture. It does not refute every coarser
+decoder or every equilibrium claim. A resolution transition and its service
+requirements must implement the source's specified quitting consequences;
+changing a missing opening to `none` in the decoder alone supplies neither
+that operational mechanism nor its strategic correctness. The next positive
+comparison must account for this post-disclosure decision explicitly.
+
 ### Replay and application identity
 
 `MessagePool.replay` copies an envelope available in the broadcaster's sent

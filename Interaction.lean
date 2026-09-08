@@ -14,3 +14,5 @@ import Interaction.SealedControllerTrace
 import Interaction.SealedPolicyTrace
 import Interaction.SealedRelease
 import Interaction.SealedPersistence
+import Interaction.SealedBinding
+import Interaction.SealedPolicyBinding

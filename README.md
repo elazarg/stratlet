@@ -52,10 +52,14 @@ commands, polling histories, and adaptive delivery/inclusion policies under a
 fixed invocation schedule. It proves ideal hiding through the honest
 controller's public release boundary, including owner polling, and exact
 execution-law preservation when policies without explicit rebroadcast are
-embedded in the replay-enabled model. Source-to-runtime deviation comparison,
+embedded in the replay-enabled model. Whole-game source-to-runtime deviation adequacy,
 timeout settlement, and concrete cryptography remain unproved for this model.
 The hiding theorem reads a prefix of the full execution; later openings
-disclose their values normally. See the
+disclose their values normally. In the checked two-player instance, the
+opponent's extracted source value is independent of the honest input and
+remains fixed after release, but selective withholding obstructs
+publication-preserving terminal-law correspondence.
+See the
 [runtime inventory](docs/runtime-models.md).
 
 ## Architecture

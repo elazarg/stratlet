@@ -57,11 +57,10 @@ theorem PolicyExecution.HidingRelated.owner_wait
   simp only [SealedProgram.playerStep, if_neg hne]
   exact related.principalHistory who hne
 
-/-- Exact observation-law equality at the first public release boundary.
-Both complete traces are executed; only their readout discards the suffix.
-The protected policies may differ privately but must wait before release.
-Other player policies and the environment policy are unchanged. -/
-theorem tracePolicies_hiding_beforeRelease
+/-- Any readout invariant under the native hiding relation has the same law
+at the first public release boundary. The readout is analysis data, not an
+additional observation supplied to policies. Both full traces execute. -/
+theorem tracePolicies_release_readout_congr
     [DecidableEq Principal] [DecidableEq Value]
     (rebroadcast : Bool) (program : SealedProgram Principal) (hiddenOwner : Principal)
     (first second : Principal → PlayerPolicy Principal Value rebroadcast)
@@ -71,15 +70,18 @@ theorem tracePolicies_hiding_beforeRelease
     (hfirst : (first hiddenOwner).WaitsBefore release)
     (hsecond : (second hiddenOwner).WaitsBefore release)
     (schedule : List (Invocation Principal))
+    {Result : Type*} (readout : PolicyExecution Principal Value → Result)
+    (hreadout : ∀ {left right}, PolicyExecution.HidingRelated hiddenOwner left right →
+      readout left = readout right)
     {left right : PolicyExecution Principal Value}
     (related : PolicyExecution.HidingRelated hiddenOwner left right) :
     ((tracePolicies rebroadcast program first environment schedule left).map
-        (PolicyTrace.firstRelease release)).map (PolicyExecution.observations hiddenOwner) =
+        (PolicyTrace.firstRelease release)).map readout =
       ((tracePolicies rebroadcast program second environment schedule right).map
-        (PolicyTrace.firstRelease release)).map (PolicyExecution.observations hiddenOwner) := by
+        (PolicyTrace.firstRelease release)).map readout := by
   induction schedule generalizing left right with
   | nil =>
-      simp only [tracePolicies, FinDist.map_pure, PolicyTrace.firstRelease, related.observations_eq]
+      simp only [tracePolicies, FinDist.map_pure, PolicyTrace.firstRelease, hreadout related]
   | cons invocation rest ih =>
       rw [tracePolicies_firstRelease_cons, tracePolicies_firstRelease_cons]
       have hpublic : release left.native.events = release right.native.events :=
@@ -87,7 +89,7 @@ theorem tracePolicies_hiding_beforeRelease
       cases hrelease : release left.native.events with
       | true =>
           have hright : release right.native.events = true := hpublic.symm.trans hrelease
-          simp only [hright, ↓reduceIte, FinDist.map_pure, related.observations_eq]
+          simp only [hright, ↓reduceIte, FinDist.map_pure, hreadout related]
       | false =>
           have hright : release right.native.events = false := hpublic.symm.trans hrelease
           simp only [hright, Bool.false_eq_true, ↓reduceIte, FinDist.map_bind]
@@ -106,5 +108,28 @@ theorem tracePolicies_hiding_beforeRelease
               simp only [invoke, FinDist.bind_map, related.environmentHistory,
                 related.native.environmentView_eq]
               exact FinDist.bind_congr fun command _ => ih (related.environmentStep program command)
+
+/-- Exact observation-law equality at the first public release boundary.
+The protected policies may differ privately but must wait before release.
+Other player policies and the environment policy are unchanged. -/
+theorem tracePolicies_hiding_beforeRelease
+    [DecidableEq Principal] [DecidableEq Value]
+    (rebroadcast : Bool) (program : SealedProgram Principal) (hiddenOwner : Principal)
+    (first second : Principal → PlayerPolicy Principal Value rebroadcast)
+    (environment : EnvironmentPolicy Principal Value)
+    (release : List (Event Principal Value) → Bool)
+    (hplayers : ∀ who, who ≠ hiddenOwner → first who = second who)
+    (hfirst : (first hiddenOwner).WaitsBefore release)
+    (hsecond : (second hiddenOwner).WaitsBefore release)
+    (schedule : List (Invocation Principal))
+    {left right : PolicyExecution Principal Value}
+    (related : PolicyExecution.HidingRelated hiddenOwner left right) :
+    ((tracePolicies rebroadcast program first environment schedule left).map
+        (PolicyTrace.firstRelease release)).map (PolicyExecution.observations hiddenOwner) =
+      ((tracePolicies rebroadcast program second environment schedule right).map
+        (PolicyTrace.firstRelease release)).map (PolicyExecution.observations hiddenOwner) :=
+  tracePolicies_release_readout_congr rebroadcast program hiddenOwner first second environment
+    release hplayers hfirst hsecond schedule (PolicyExecution.observations hiddenOwner)
+    (fun related => related.observations_eq) related
 
 end Interaction.SealedProgram

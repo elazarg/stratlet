@@ -79,7 +79,10 @@ pre-disclosure observation-law equality. `SealedController` and
 hiding at their first public release-enabled snapshot, allowing owner polls.
 `Vegas/Game/SealedRelease.lean` connects generated openings to the actual graph
 prerequisites. `SealedPersistence` proves occupied-slot and event-history
-persistence. The precise observation and invocation conditions are in the
+persistence; `SealedBinding` ties accepted/opened values to their application
+rules, and `SealedPolicyBinding` carries those facts through policy traces.
+The checked-source tests combine these with release noninterference and
+contrast fixed values with selective publication. The precise conditions are in the
 [runtime inventory](runtime-models.md).
 None of these modules imports the EVM backend. Source-policy backtranslation
 under public delivery remains a separate obligation.

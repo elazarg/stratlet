@@ -176,6 +176,17 @@ different stopped runtime or conditioning on successful release.
 `WFProgram.sealed_policy_source` transports native source-support correctness
 to every supported policy-game execution.
 
+`PendingChoiceLock` identifies the opponent's extracted release-time value
+with its compiled source field, proves its law independent of the honest
+input, and carries that value through later execution and any accepted
+opening. Unreached release remains a separate outcome marker.
+`PendingWithholdingSource` proves a concrete publication-law obstruction
+against every independent source profile: the bound opponent can selectively
+withhold after learning the honest opening, while every terminal source result
+contains its public binding. A canonical-controller continuation succeeds at
+the same reached prefix and service horizon. This is an obstruction for the
+specified publication readout, not a universal failure of weaker comparisons.
+
 These comparisons do not complete the gate. The next compiler theorem must
 compare unilateral replacements with source policies across the whole
 interaction, including post-release behavior, and
@@ -184,6 +195,15 @@ transition or automatic conversion of pending execution to source quitting.
 General asynchronous activation and player-owned network/builder capabilities
 also remain outside the fixed-invocation instance; the precise scope is in
 the [runtime inventory](runtime-models.md).
+
+Before a terminal-law claim, implement and analyze resolution rather than
+defaulting unfinished traces to source values in a readout. Preserve the
+already-bound choice and distinguish later withholding from an earlier
+nullable decline. Choose a source/backend eligibility condition or weaker
+strategic comparison that accounts for that difference; adding a deadline
+alone does not prove its adequacy. Utility-dependent quitting conditions and
+explicit source continuation choices are candidate proof routes, with distinct
+claims. Neither requires extending the minimal source syntax speculatively.
 
 Choose a finite checked core program with two real players, source-defined
 nonresponse outcomes, and a later decision that can expose an information
