@@ -153,7 +153,7 @@ The application emits accepted commitment/opening events. The payout equality
 above evaluates the compiled graph's readout on the decoded state; it does not
 execute an asset transfer or a contract settlement routine.
 
-### Bounded policy game and adaptive ideal hiding
+### Bounded policy game
 
 `Interaction/SealedPolicies.lean` interprets the application as a GameTheory
 `GameForm` using the native `SealedProgram.step`. Player commands register
@@ -181,7 +181,7 @@ native action trace. The environment is fixed as a policy in a player game;
 its inclusion and delivery choices can depend on this wire view and its own
 past invocations.
 
-Two comparisons are checked:
+The following comparisons use this policy interface:
 
 - `runPolicies_enableRebroadcast` and `policyGame_enableRebroadcast` preserve
   the complete execution law when the same no-rebroadcast policies are
@@ -223,6 +223,66 @@ source/runtime policy laws. The hiding comparison does not discharge the
 compiler's general release-controller, quitting, or settlement obligations.
 There are no resource or timing observations of internal verification here;
 adding them needs a new information-flow argument.
+
+### The opening controller and its release boundary
+
+`Interaction/SealedController.lean` supplies the local commit/open controller:
+register the chosen value, submit its opaque handle, then poll the public-view
+opening controller. `openingHandle?` determines readiness from the emitted
+rules and public application events, without consulting the chosen value or
+the private service. A ready controller submits the existing opening request;
+otherwise it waits. It may submit repeatedly before acceptance. Completion of
+the reveal node disables further submissions by this controller.
+
+`SealedFragment.openingCommand_prerequisites` in
+`Vegas/Game/SealedRelease.lean` proves the compiler boundary for every supported
+graph: a generated opening command implies completion of all that reveal
+node's graph prerequisites. These are the graph's actual edges, not a second
+handwritten release condition. In the nullable-choice fixture, both commitments
+must be complete before the owner can submit its opening.
+
+The observation comparison is made before the value-bearing packet enters the
+pool. `Interaction/SealedPolicyTrace.lean` records the initial and every
+post-invocation snapshot using the same `invoke` function as the native game.
+`tracePolicies_last` proves that its final-state law equals `runPolicies`.
+`PolicyTrace.firstRelease` selects the first release-enabled snapshot, or the
+last snapshot if readiness never occurs. This is a readout of the full trace:
+execution and sampling continue after the selected snapshot, and no policy
+observes the readout or a stopping signal. The comparison is unconditional,
+including traces where release never occurs. Readiness need not be monotone;
+after a reveal completes it becomes false again, without changing the first
+release snapshot.
+
+`tracePolicies_hiding_beforeRelease` in `Interaction/SealedRelease.lean`
+proves equality of the selected wire/nonowner-memory observation laws when the
+protected controller waits before the public release condition. The protected
+owner may be invoked throughout the schedule. The opening controller
+discharges this waiting condition. Opponents and the wire-observing environment
+remain arbitrary adaptive policies, fixed between the two executions.
+
+`VegasTests/PendingRelease.lean` starts the actual compiled example empty and
+includes both initial owner invocations. The rest of the fixed schedule can
+invoke that owner as well as its opponent and environment. Its
+`controllerTraceLaw_hiding` compares every pair of nullable values under both
+rebroadcast selections. `controllerTraceLaw_cut_reachable` obtains the selected
+snapshot from a genuine native invocation prefix and the existing checked
+source-support theorem. `PendingReleaseExamples` exercises owner polls before
+readiness, immediate opening afterward, delivery before inclusion, and the
+return to non-readiness after reveal completion. Full observations disclose the
+chosen value; first-release observations remain equal.
+
+`Interaction/SealedPersistence.lean` separately proves that every occupied
+ideal-service slot retains its value under any further raw action list and
+that application events are append-only. These safety properties do not imply
+that an opening is eventually submitted or accepted.
+
+This closes the controller's pre-release information-flow comparison for the
+stated instance. It does not compare post-release source/runtime strategies,
+identify missing openings with source quitting, or guarantee settlement. The
+invocation order is still fixed; fees, verification side channels, accepted
+commitments without registered values, and cryptographic realization are
+separate model/proof obligations. No public-message Nash-preservation claim is
+added to the manuscript.
 
 ### Replay and application identity
 

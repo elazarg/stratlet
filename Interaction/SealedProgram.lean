@@ -104,11 +104,12 @@ def submitCommit [DecidableEq Principal] (state : State Principal Value)
   let submitted := state.pool.submit owner (.commitment node (owner, node))
   (submitted.1, { state with service := sealed.state, pool := submitted.2 })
 
-/-- Construct an owner's public opening payload from public application state.
-This controller does not inspect the ideal service table. -/
-def openingRequest? [DecidableEq Principal] (program : SealedProgram Principal)
-    (events : List (Event Principal Value)) (owner : Principal) (revealNode : Nat)
-    (claimed : Value) : Option (Payload Principal Value) :=
+/-- Return the accepted handle when the public event log says an owner's reveal
+node is ready. This query is independent of the claimed value and does not
+inspect the ideal service table. -/
+def openingHandle? [DecidableEq Principal] (program : SealedProgram Principal)
+    (events : List (Event Principal Value)) (owner : Principal) (revealNode : Nat) :
+    Option (CommitmentHandle Principal Nat) :=
   match program.rules[revealNode]? with
   | some rule =>
       match rule.kind with
@@ -116,10 +117,23 @@ def openingRequest? [DecidableEq Principal] (program : SealedProgram Principal)
           if owner = expectedOwner ∧ done events revealNode = false ∧
               prerequisitesDone events rule = true ∧
               accepted? events source = some (owner, source) then
-            some (.opening revealNode (owner, source) claimed)
+            some (owner, source)
           else none
       | _ => none
   | none => none
+
+/-- Whether the public event log makes an owner's reveal node ready. -/
+def openingReady [DecidableEq Principal] (program : SealedProgram Principal)
+    (events : List (Event Principal Value)) (owner : Principal) (revealNode : Nat) : Bool :=
+  (openingHandle? program events owner revealNode).isSome
+
+/-- Construct an owner's public opening payload from value-independent public
+readiness. -/
+def openingRequest? [DecidableEq Principal] (program : SealedProgram Principal)
+    (events : List (Event Principal Value)) (owner : Principal) (revealNode : Nat)
+    (claimed : Value) : Option (Payload Principal Value) :=
+  (openingHandle? program events owner revealNode).map fun handle =>
+    .opening revealNode handle claimed
 
 def submitOpening? [DecidableEq Principal] (program : SealedProgram Principal)
     (state : State Principal Value) (owner : Principal) (revealNode : Nat)

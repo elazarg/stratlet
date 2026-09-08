@@ -73,8 +73,14 @@ sampled local memories and an explicit wire-observing environment.
 and a native action-trace witness for every supported policy execution.
 `Vegas/Game/SealedMessages.lean` connects those executions to the checked source
 at support level. `SealedHiding` and `SealedPolicyHiding` prove ideal
-pre-disclosure observation-law equality; the precise observation and invocation
-conditions are in the [runtime inventory](runtime-models.md).
+pre-disclosure observation-law equality. `SealedController` and
+`SealedControllerTrace` implement the commit/open phases over native policies;
+`SealedPolicyTrace` records full native executions, and `SealedRelease` proves
+hiding at their first public release-enabled snapshot, allowing owner polls.
+`Vegas/Game/SealedRelease.lean` connects generated openings to the actual graph
+prerequisites. `SealedPersistence` proves occupied-slot and event-history
+persistence. The precise observation and invocation conditions are in the
+[runtime inventory](runtime-models.md).
 None of these modules imports the EVM backend. Source-policy backtranslation
 under public delivery remains a separate obligation.
 

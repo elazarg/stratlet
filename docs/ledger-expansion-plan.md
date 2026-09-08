@@ -165,16 +165,20 @@ The bounded policy interface supplies principal-scoped controls and polling
 memories over this runner. Its two explicit-rebroadcast capability selections
 have an exact-law embedding, and its ideal pre-disclosure hiding theorem
 permits adaptive opponent and wire-observing environment policies. The finite
-invocation list is fixed and excludes the protected owner during the compared
-continuation. `PendingPolicies` applies it to the compiled nullable program,
-starting empty and including the owner's scoped register/submit policy actions,
-and retains a distinguishing cleartext response in the same policy interface.
+invocation list remains fixed. `PendingPolicies` handles continuations without
+owner invocations and retains a distinguishing cleartext response.
+`PendingRelease` includes the owner's register/submit/open controller from
+empty and permits further owner invocations. It compares the first public
+release-enabled snapshot of each full native trace; execution continues after
+that snapshot. The generic compiled-controller theorem checks all graph
+prerequisites before submitting an opening. The release readout is not a
+different stopped runtime or conditioning on successful release.
 `WFProgram.sealed_policy_source` transports native source-support correctness
 to every supported policy-game execution.
 
 These comparisons do not complete the gate. The next compiler theorem must
-connect the emitted release controller to the hiding boundary across the
-whole interaction, compare unilateral replacements with source policies, and
+compare unilateral replacements with source policies across the whole
+interaction, including post-release behavior, and
 account for withheld openings and observable failure. There is no timeout
 transition or automatic conversion of pending execution to source quitting.
 General asynchronous activation and player-owned network/builder capabilities

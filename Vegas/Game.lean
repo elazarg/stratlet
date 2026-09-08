@@ -13,5 +13,6 @@ import Vegas.Game.SourceCorrespondence
 import Vegas.Game.SourceCorrelated
 import Vegas.Game.SourceRequestCorrespondence
 import Vegas.Game.SealedMessages
+import Vegas.Game.SealedRelease
 
 /-! # Games, strategy representations, and request implementations -/

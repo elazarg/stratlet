@@ -49,11 +49,13 @@ prefixes reconstruct written-order source executions with matching terminal
 bindings and decoded payout evaluation. This is support-level correctness.
 The bounded policy interpretation uses the same runner, with principal-scoped
 commands, polling histories, and adaptive delivery/inclusion policies under a
-fixed invocation schedule. It proves ideal hiding after policy-driven
-commitment creation, while the continuation does not invoke that owner, and exact
+fixed invocation schedule. It proves ideal hiding through the honest
+controller's public release boundary, including owner polling, and exact
 execution-law preservation when policies without explicit rebroadcast are
 embedded in the replay-enabled model. Source-to-runtime deviation comparison,
-timeout settlement, and concrete cryptography remain unproved for this model; see the
+timeout settlement, and concrete cryptography remain unproved for this model.
+The hiding theorem reads a prefix of the full execution; later openings
+disclose their values normally. See the
 [runtime inventory](docs/runtime-models.md).
 
 ## Architecture

@@ -190,29 +190,47 @@ theorem includePending_opening_of_done [DecidableEq Principal] [DecidableEq Valu
   rw [includePending_of_lookup program state id message hlookup]
   exact handle_opening_of_done program _ message node handle claimed hpayload hdone
 
-/-- A generated opening request certifies all of its public controller checks:
+/-- Every returned opening handle belongs to the requesting owner. -/
+theorem openingHandle?_eq_some_owner [DecidableEq Principal]
+    (program : SealedProgram Principal) (events : List (Event Principal Value))
+    (owner : Principal) (node : Nat) (handle : CommitmentHandle Principal Nat)
+    (hhandle : openingHandle? program events owner node = some handle) :
+    ∃ source, handle = (owner, source) := by
+  unfold openingHandle? at hhandle
+  split at hhandle
+  next rule =>
+    split at hhandle
+    next expectedOwner source hkind =>
+      split at hhandle
+      next hvalid =>
+        refine ⟨source, ?_⟩
+        simpa [hvalid.1] using (Option.some.inj hhandle).symm
+      next => contradiction
+    all_goals contradiction
+  next => contradiction
+
+/-- A returned opening handle certifies all of its public readiness checks:
 the rule, owner, fresh reveal node, completed prerequisites, and accepted source
 handle. -/
-theorem openingRequest?_sound [DecidableEq Principal]
+theorem openingHandle?_sound [DecidableEq Principal]
     (program : SealedProgram Principal) (events : List (Event Principal Value))
-    (owner : Principal) (node source : Nat) (claimed : Value)
-    (hrequest : openingRequest? program events owner node claimed =
-      some (.opening node (owner, source) claimed)) :
+    (owner : Principal) (node source : Nat)
+    (hrequest : openingHandle? program events owner node = some (owner, source)) :
     ∃ requires,
       program.rules[node]? = some { kind := .reveal owner source, requires } ∧
       done events node = false ∧
       requires.all (done events) = true ∧
       accepted? events source = some (owner, source) := by
-  unfold openingRequest? at hrequest
+  unfold openingHandle? at hrequest
   split at hrequest
   next rule hrule =>
     split at hrequest
     next expectedOwner source' hkind =>
       split at hrequest
       next hvalid =>
-        simp only [Option.some.injEq, Payload.opening.injEq] at hrequest
+        simp only [Option.some.injEq, Prod.mk.injEq] at hrequest
         rcases hvalid with ⟨howner, hnotDone, hrequires, haccepted⟩
-        have hsource : source' = source := congrArg Prod.snd hrequest.2.1
+        have hsource : source' = source := hrequest.2
         subst owner
         subst source
         refine ⟨rule.requires, ?_, hnotDone, ?_, haccepted⟩
@@ -226,6 +244,27 @@ theorem openingRequest?_sound [DecidableEq Principal]
       next => contradiction
     all_goals contradiction
   next => contradiction
+
+/-- A generated opening request carries the same public-readiness witness. -/
+theorem openingRequest?_sound [DecidableEq Principal]
+    (program : SealedProgram Principal) (events : List (Event Principal Value))
+    (owner : Principal) (node source : Nat) (claimed : Value)
+    (hrequest : openingRequest? program events owner node claimed =
+      some (.opening node (owner, source) claimed)) :
+    ∃ requires,
+      program.rules[node]? = some { kind := .reveal owner source, requires } ∧
+      done events node = false ∧
+      requires.all (done events) = true ∧
+      accepted? events source = some (owner, source) := by
+  unfold openingRequest? at hrequest
+  cases hhandle : openingHandle? program events owner node with
+  | some handle =>
+    rw [hhandle] at hrequest
+    have hhandleEq : handle = (owner, source) := by
+      simpa using hrequest
+    subst handle
+    exact openingHandle?_sound program events owner node source hhandle
+  | none => simp [hhandle] at hrequest
 
 /-- A successful accepted-handle query is witnessed by the corresponding
 acceptance event in the public application log. -/

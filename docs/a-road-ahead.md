@@ -235,20 +235,24 @@ concrete replay tests are a starting point, not a public-message strategic
 preservation theorem. The full checked scope belongs in the runtime inventory.
 
 The bounded instance supplies polling-local player policies and explicit
-environment policies under a fixed invocation list. It proves ideal hiding
-for a continuation that does not invoke the protected owner, and retains a
-cleartext negative control. The next compiler comparison must connect emitted
-controllers across their release boundary over that same runner. Preserve
+environment policies under a fixed invocation list. Its opening controller
+may poll throughout that schedule; ideal hiding compares the first public
+release-enabled snapshot of the full execution, whose later suffix still runs.
+The compiled nullable example includes private registration and handle
+submission from empty, and retains a cleartext negative control. The next
+compiler comparison must connect source policies to the whole interaction,
+including post-release behavior, over that same runner. Preserve
 authoring, withholding, malformed traffic, and replay. Distinguish the author
 of an envelope from its broadcaster. A player's additional builder or network
 capabilities must belong to that player's deviation scope, not be concealed
 inside a fixed external environment.
 
-An initial target is adaptive hiding up to the compiled release boundary:
-changing an honest sealed value does not change the relevant opponent views
-under the same admitted opponent and environment policies. Policies may react
-to actual observed traffic; fixing a policy does not fix its realized event
-sequence. Retain a cleartext negative control in the same model.
+The release-cut theorem establishes adaptive ideal hiding for this controller
+instance. Generalizing the compiler's source-policy correspondence must retain
+the same opponent and environment policies across compared executions.
+Policies may react to actual observed traffic; fixing a policy does not fix
+its realized event sequence. Retain the cleartext negative control when
+extending the model.
 
 Silent events must not append artificial public ticks merely because an
 information adapter uses global execution histories. Separate retained local

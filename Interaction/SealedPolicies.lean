@@ -157,12 +157,18 @@ def runPolicies [DecidableEq Principal] [DecidableEq Value] (rebroadcast : Bool)
       (invoke rebroadcast program players environment execution invocation).bind
         (runPolicies rebroadcast program players environment rest)
 
+/-- Policy and prefix-outcome carriers, independent of application and
+environment choices. This signature owns canonical profile operations. -/
+def policySignature (Principal : Type uPrincipal) (Value : Type uValue)
+    (rebroadcast : Bool) : GameSignature Principal where
+  Strategy := fun _ => PlayerPolicy Principal Value rebroadcast
+  Outcome := PolicyExecution Principal Value
+
 def policyGame [DecidableEq Principal] [DecidableEq Value] (rebroadcast : Bool)
     (program : SealedProgram Principal) (environment : EnvironmentPolicy Principal Value)
     (schedule : List (Invocation Principal)) (initial : State Principal Value) :
     GameForm Principal where
-  sig := { Strategy := fun _ => PlayerPolicy Principal Value rebroadcast
-           Outcome := PolicyExecution Principal Value }
+  sig := policySignature Principal Value rebroadcast
   play players := runPolicies rebroadcast program players environment schedule
     (PolicyExecution.initial initial)
 

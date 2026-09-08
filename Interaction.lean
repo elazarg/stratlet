@@ -9,3 +9,8 @@ import Interaction.SealedPolicies
 import Interaction.SealedPolicyLaws
 import Interaction.SealedHiding
 import Interaction.SealedPolicyHiding
+import Interaction.SealedController
+import Interaction.SealedControllerTrace
+import Interaction.SealedPolicyTrace
+import Interaction.SealedRelease
+import Interaction.SealedPersistence
