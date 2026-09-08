@@ -9,12 +9,15 @@ Authors: VegasCore contributors
 Messages carry sender-local identifiers. Submission records a pending message;
 delivery copies an existing pending message into a selected observer's local
 inbox; inclusion removes an existing pending message and appends it to the
-public ledger. Neither delivery nor inclusion invokes a sender callback.
+public ledger. Replay copies an unchanged message known to a broadcaster back
+into pending. Neither delivery nor inclusion invokes a sender callback.
 
 Any observer may receive any pending message. The published ledger is a shared
-observation in this model; pending delivery is recipient-local. Submission's
-sender argument represents an authenticated caller capability, not a proof of
-cryptographic authentication. The carrier adds no clocks or service guarantees.
+observation in this model; pending delivery is recipient-local. Sender fields
+are raw labels and provide no authentication. Sent lists record both newly
+authored submissions and rebroadcast messages, and the ledger may contain
+repeated copies of the same envelope. The carrier adds no clocks or service
+guarantees.
 -/
 
 namespace Interaction
@@ -105,9 +108,24 @@ structure View (Principal : Type uPrincipal) (Payload : Type uPayload) where
   ledger : List (Message Principal Payload)
   sent : List (Message Principal Payload)
 
+def View.known? (view : View Principal Payload) (id : MessageId Principal) :
+    Option (Message Principal Payload) :=
+  (view.sent ++ view.inbox ++ view.ledger).find? fun message => message.id = id
+
 def observe (state : MessagePool Principal Payload) (who : Principal) :
     View Principal Payload :=
   ⟨state.inbox who, state.ledger, state.sent who⟩
+
+def replay (state : MessagePool Principal Payload) (broadcaster : Principal)
+    (id : MessageId Principal) : Result Principal Payload :=
+  match (state.observe broadcaster).known? id with
+  | some message =>
+      ⟨some message, {
+        state with
+        pending := state.pending ++ [message]
+        sent := fun who =>
+          if who = broadcaster then state.sent broadcaster ++ [message] else state.sent who }⟩
+  | none => Result.invalid state
 
 @[simp] theorem deliver_invalid (state : MessagePool Principal Payload) (observer : Principal)
     (id : MessageId Principal) (hmissing : state.lookup id = none) :

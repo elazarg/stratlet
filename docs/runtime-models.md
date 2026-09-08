@@ -99,7 +99,8 @@ the graph's owners, producer indices, and prerequisites. Eligibility is a
 separate backend certificate and leaves core well-formedness unchanged.
 
 The native runner admits private registration, arbitrary raw submission,
-recipient-local delivery, and inclusion. Cleartext, malformed, duplicate, and
+recipient-local delivery, replay of observed messages, and inclusion.
+Cleartext, malformed, duplicate, and
 premature opening messages remain possible; rejected messages remain in the
 public ledger. The honest opening controller uses only public application
 events and the owner's supplied value. It checks the graph-derived release
@@ -152,6 +153,41 @@ the manuscript's private-window/serialization theorem.
 The application emits accepted commitment/opening events. The payout equality
 above evaluates the compiled graph's readout on the decoded state; it does not
 execute an asset transfer or a contract settlement routine.
+
+### Replay and application identity
+
+`MessagePool.replay` copies an envelope available in the broadcaster's sent
+history, inbox, or public ledger. It preserves the original message id, author,
+and payload, without using the hidden pending pool to decide whether replay is
+possible. `MessagePool.replay_view_determined` proves that the response and the
+broadcaster's resulting observation depend only on that broadcaster's view.
+The native action carries the broadcaster separately from the envelope author;
+principal-scoped policies must preserve that distinction.
+
+Duplicate envelopes can coexist in pending and be included repeatedly. There
+is no transaction-nonce admission rule in this carrier. The application checks
+its completed-node state on each inclusion; `SealedProgram.run_eventNodes_nodup`
+preserves node uniqueness over every finite native action list, giving
+at-most-once application execution from the empty state.
+The source-support theorem covers replay actions as well. This is an
+application-level replay result, not a claim about valid Ethereum transaction
+histories. Concrete nonce validation, signatures, and their observations belong
+to subsequent refinement obligations.
+
+`VegasTests/PendingReplay.lean` exercises the compiled program. A recipient
+rebroadcasts another player's envelope, two included copies execute only one
+commitment, and replay after completion extends the public ledger without
+changing the decoded source outcome. It also checks a distinct case: an
+opening rejected for missing prerequisites can be replayed successfully after
+those prerequisites complete, without another submission by its author.
+Completed-node idempotence therefore does not make all replay actions inert or
+unobservable. Fees and resource contention are not modeled here.
+
+This is a single-application-instance model. Cross-instance replay requires an
+explicit instance identity, a multi-instance execution model, and an isolation
+proof. A cryptographic realization must bind the modeled identity and action
+context to the authenticated encoding; no cross-instance guarantee follows
+from the present owner/node handles.
 
 ### Required model and proof obligations
 

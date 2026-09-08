@@ -26,7 +26,7 @@ variable {Player : Type} [DecidableEq Player] {L : IExpr}
 
 /-- End-to-end support-level correctness for the sealed-message backend
 fragment. Native actions include arbitrary payloads, registration, delivery,
-and inclusion; the reconstructed source run uses the original checked term. -/
+replay, and inclusion; the reconstructed source run uses the original checked term. -/
 theorem sealed_run_source (source : WFProgram Player L) (ty : L.Ty)
     [DecidableEq (L.Val ty)]
     (supported : SealedFragment (ToEventGraph.compile source.core).graph ty)

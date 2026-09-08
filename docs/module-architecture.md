@@ -31,6 +31,10 @@ counter. A submission carries a caller label; a principal-scoped controller
 interface must supply and enforce that identity. The raw operation alone does
 not authenticate the caller. There is no application
 validation, fee, deadline, finality, or progress assumption in this carrier.
+Replay copies an envelope from the broadcaster's own view, preserving the
+original author and admitting duplicate pending/ledger copies.
+`Interaction/MessageReplay.lean` proves observation-locality and exact copying.
+There is no transaction-nonce filter or multi-instance replay protection.
 
 `InteractionTests/Pending.lean` interprets a bounded two-player script directly
 as a GameTheory `GameForm`. Its play uses the same native pool operations and
@@ -55,7 +59,9 @@ example uses GameTheory's existing strategic and probability interfaces.
 `Interaction/SealedProgram.lean` defines runtime-general commitment/opening
 rules, public application events, validation, and a public-state opening
 controller. `Interaction/SealedExecution.lean` runs registration, raw
-submission, local delivery, and inclusion using those same operations.
+submission, local delivery, replay, and inclusion using those same operations.
+`SealedExecutionLaws` lifts application-node uniqueness over arbitrary native
+action lists, independently of message duplication.
 `Vegas/Compile/SealedMessages.lean` emits rules from a certified graph fragment;
 the `SealedDecode`, `SealedRules`, `SealedExecution`, and `SealedRefinement`
 modules prove the actual graph-step correspondence. `SealedSource` composes it

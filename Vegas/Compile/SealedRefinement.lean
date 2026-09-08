@@ -8,7 +8,7 @@ import Vegas.Compile.SealedExecution
 import Vegas.Compile.SealedDecodeLaws
 import Vegas.Compile.SealedRules
 import Interaction.SealedProgramLaws
-import Interaction.SealedExecution
+import Interaction.SealedExecutionLaws
 
 /-! # Application handling and primitive graph execution
 
@@ -164,6 +164,7 @@ theorem step_refines (supported : SealedFragment G ty)
             handle stored hstored)
         (Config.initial G) cfg state.events hdecode
   | submit sender payload => exact ⟨cfg, hdecode, Or.inl rfl⟩
+  | replay broadcaster id => exact ⟨cfg, hdecode, Or.inl rfl⟩
   | deliver observer id => exact ⟨cfg, hdecode, Or.inl rfl⟩
   | «include» id => exact supported.includePending_refines state cfg hdecode hnodup id
 
@@ -188,13 +189,7 @@ theorem run_refines_from (supported : SealedFragment G ty)
         · exact Reachable.step hreachable event hevent
       have hnextNodup : ((SealedProgram.step supported.compile state action).events.map
           SealedProgram.Event.node).Nodup := by
-        cases action with
-        | register owner slot value => exact hnodup
-        | submit sender payload => exact hnodup
-        | deliver observer id => exact hnodup
-        | «include» id =>
-            exact SealedProgram.includePending_eventNodes_nodup
-              supported.compile state id hnodup
+        exact SealedProgram.step_eventNodes_nodup supported.compile state action hnodup
       exact ih _ next hnext hnextNodup hnextReachable
 
 /-- Operational prefix preservation for every finite native action sequence

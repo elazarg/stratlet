@@ -46,3 +46,4 @@ import VegasTests.OutcomeValuation
 import VegasTests.PendingSource
 import VegasTests.PendingExecution
 import VegasTests.PendingOutcome
+import VegasTests.PendingReplay

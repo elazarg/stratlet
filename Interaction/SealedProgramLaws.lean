@@ -44,6 +44,92 @@ theorem handle_opening_of_valid [DecidableEq Principal] [DecidableEq Value]
   simp [handle, Message.sender, hrule, hnotDone, prerequisitesDone, hrequires,
     haccepted, hverifies]
 
+/-- A commitment targeting an already completed node has no application effect,
+independently of its sender and handle. -/
+theorem handle_commitment_of_done [DecidableEq Principal] [DecidableEq Value]
+    (program : SealedProgram Principal) (state : State Principal Value)
+    (message : Message Principal (Payload Principal Value)) (node : Nat)
+    (commitmentHandle : CommitmentHandle Principal Nat)
+    (hpayload : message.payload = .commitment node commitmentHandle)
+    (hdone : done state.events node = true) :
+    handle program state message = state := by
+  simp only [handle, hpayload]
+  split <;> try rfl
+  split <;> try rfl
+  simp [hdone]
+
+/-- An opening targeting an already completed node has no application effect,
+independently of its sender, handle, and claimed value. -/
+theorem handle_opening_of_done [DecidableEq Principal] [DecidableEq Value]
+    (program : SealedProgram Principal) (state : State Principal Value)
+    (message : Message Principal (Payload Principal Value)) (node : Nat)
+    (commitmentHandle : CommitmentHandle Principal Nat) (claimed : Value)
+    (hpayload : message.payload = .opening node commitmentHandle claimed)
+    (hdone : done state.events node = true) :
+    handle program state message = state := by
+  simp only [handle, hpayload]
+  split <;> try rfl
+  split <;> try rfl
+  simp [hdone]
+
+/-- Reapplying the same message immediately is idempotent. This intentionally
+does not cover a replay after other messages have changed its prerequisites. -/
+theorem handle_idempotent [DecidableEq Principal] [DecidableEq Value]
+    (program : SealedProgram Principal) (state : State Principal Value)
+    (message : Message Principal (Payload Principal Value)) :
+    handle program (handle program state message) message =
+      handle program state message := by
+  rcases message with ⟨id, payload⟩
+  cases payload with
+  | commitment node commitmentHandle =>
+      by_cases hfirst :
+          handle program state ⟨id, .commitment node commitmentHandle⟩ = state
+      · rw [hfirst]
+        exact hfirst
+      · have hdone :
+            done (handle program state ⟨id, .commitment node commitmentHandle⟩).events
+                node = true := by
+          simp only [handle]
+          split
+          · split
+            · split
+              · simp [done, Event.node]
+              · exfalso
+                apply hfirst
+                simp [handle, *]
+            · exfalso
+              apply hfirst
+              simp [handle, *]
+          · exfalso
+            apply hfirst
+            simp [handle, *]
+        exact handle_commitment_of_done program _ _ node commitmentHandle rfl hdone
+  | opening node commitmentHandle claimed =>
+      by_cases hfirst :
+          handle program state ⟨id, .opening node commitmentHandle claimed⟩ = state
+      · rw [hfirst]
+        exact hfirst
+      · have hdone :
+            done (handle program state ⟨id, .opening node commitmentHandle claimed⟩).events
+                node = true := by
+          simp only [handle]
+          split
+          · split
+            · split
+              · simp [done, Event.node]
+              · exfalso
+                apply hfirst
+                simp [handle, *]
+            · exfalso
+              apply hfirst
+              simp [handle, *]
+          · exfalso
+            apply hfirst
+            simp [handle, *]
+        exact handle_opening_of_done program _ _ node commitmentHandle claimed rfl hdone
+  | cleartext node value => rfl
+  | malformed => rfl
+
 /-- Application handling never changes the private ideal service. -/
 theorem handle_preserves_service [DecidableEq Principal] [DecidableEq Value]
     (program : SealedProgram Principal) (state : State Principal Value)
@@ -75,6 +161,34 @@ theorem includePending_of_lookup [DecidableEq Principal] [DecidableEq Value]
     includePending program state id =
       handle program { state with pool := (state.pool.includePending id).state } message := by
   simp [includePending, MessagePool.includePending, hlookup]
+
+/-- Including a preexisting commitment for an already completed node publishes
+it through the native pool but leaves all application state unchanged. -/
+theorem includePending_commitment_of_done [DecidableEq Principal] [DecidableEq Value]
+    (program : SealedProgram Principal) (state : State Principal Value)
+    (id : MessageId Principal) (message : Message Principal (Payload Principal Value))
+    (node : Nat) (handle : CommitmentHandle Principal Nat)
+    (hlookup : state.pool.lookup id = some message)
+    (hpayload : message.payload = .commitment node handle)
+    (hdone : done state.events node = true) :
+    includePending program state id =
+      { state with pool := (state.pool.includePending id).state } := by
+  rw [includePending_of_lookup program state id message hlookup]
+  exact handle_commitment_of_done program _ message node handle hpayload hdone
+
+/-- Including a preexisting opening for an already completed node publishes it
+through the native pool but leaves all application state unchanged. -/
+theorem includePending_opening_of_done [DecidableEq Principal] [DecidableEq Value]
+    (program : SealedProgram Principal) (state : State Principal Value)
+    (id : MessageId Principal) (message : Message Principal (Payload Principal Value))
+    (node : Nat) (handle : CommitmentHandle Principal Nat) (claimed : Value)
+    (hlookup : state.pool.lookup id = some message)
+    (hpayload : message.payload = .opening node handle claimed)
+    (hdone : done state.events node = true) :
+    includePending program state id =
+      { state with pool := (state.pool.includePending id).state } := by
+  rw [includePending_of_lookup program state id message hlookup]
+  exact handle_opening_of_done program _ message node handle claimed hpayload hdone
 
 /-- A generated opening request certifies all of its public controller checks:
 the rule, owner, fresh reveal node, completed prerequisites, and accepted source

@@ -40,7 +40,8 @@ observation obligations on the route to a named blockchain realization.
 The `Interaction` library provides a native pool and explicit ideal commitment
 service. A certified homogeneous commit/reveal backend connects actual
 checked core programs, through their event graphs, to this public-message
-model. Every finite native run decodes to a reachable graph prefix; terminal
+model. Every finite native run, including observed-message replay, decodes to a
+reachable graph prefix; terminal
 prefixes reconstruct written-order source executions with matching terminal
 bindings and decoded payout evaluation. This is support-level correctness.
 Principal-scoped policy interpretation, strategic preservation under public delivery, timeout

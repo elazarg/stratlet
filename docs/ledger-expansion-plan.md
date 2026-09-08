@@ -152,10 +152,18 @@ The executable fixture uses checked elaboration-time
 specialization of the source compiler; a standalone extracted emitter remains
 an additional implementation obligation.
 
+`PendingReplay` exercises unchanged-envelope rebroadcast by another player,
+duplicate inclusion, and a rejected opening that becomes valid after its
+prerequisites complete. Native run refinement covers these actions.
+At-most-once application execution holds independently of traffic duplication;
+it does not erase the extra public traffic or promise cross-instance isolation.
+
 This discharges an operational prefix obligation, not the gate. The next
 strategic slice must provide principal-scoped controls and information-local
 policies over this runner. Raw caller labels are insufficient for an ownership
-or security claim. It must then compare unilateral replacements and account
+or security claim. Distinguish fresh message authorship from rebroadcasting an
+observed envelope: authentication must not remove replay from other players'
+actions. It must then compare unilateral replacements and account
 for withheld openings and observable failure; there is no timeout transition
 or automatic conversion of pending execution to source quitting in this model.
 
@@ -170,8 +178,10 @@ experiment is not such a program and does not discharge this gate.
 Prove the release discipline from the emitted controller and application.
 Source textual order alone does not imply that both parties' choices become
 irrevocable before either opening packet can be observed. An owner/slot binding
-check must reject copied handles and replacement after acceptance, while raw
-copying and malformed submissions remain possible. Private registration with
+check must reject handles used for a different owner/node and replacement after
+acceptance, while raw copying and malformed submissions remain possible. A
+rebroadcast retaining its original author and context need not be rejected
+before its first successful execution. Private registration with
 an ideal service is explicit; unrestricted access to its hidden table or
 verification oracle is not an admitted opponent capability. Concrete
 cryptographic realization is a further compiler edge, not part of this slice.
