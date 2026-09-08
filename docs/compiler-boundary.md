@@ -181,6 +181,36 @@ proof for the concrete lowering. A second later checkpoint of the same owner
 is the distinguishing test: quitting must remove subsequent freedom while
 preserving prior knowledge and other players' continuations.
 
+The two-checkpoint probe is `VegasTests/PersistentDisclosure.lean`. Its second
+guard forces `none` after the first public `none`, and the compiler places that
+decision after both the first disposition and the other player's response.
+`PersistentDisclosure.source_refusal_persists` proves persistence for
+every supported execution of the existing written-order source denotation.
+`source_suffix_after_refusal` identifies the entire remaining source law,
+including both bindings, independently of the source profile.
+
+`Vegas/Core/ForcedChoice.lean` supplies the reusable source-side certificate:
+public expressions select an enabling region and a value, and a proof checks
+that the original guard admits exactly that value throughout the region.
+It quantifies over all source environments, including unreachable environments
+and every assignment of private fields. The certificate removes consultation
+of the current choice policy while retaining the original continuation and
+source transition. It does not authorize an external actor to register or send
+messages as the owner, remove an observable event, or guarantee service.
+
+Thus ordinary guards suffice to remove later freedom in this concrete source
+pattern. Implementing the forced steps without the quitter's cooperation and
+accounting for the retained original secret remain separate obligations. The
+probe still fails `RevealComplete`; no source-admission rule is changed.
+
+The successful-disclosure branch needs a different argument: its uniquely
+determined payload can still be private. `PublicForcedChoice` therefore cannot
+justify public computation of that payload. Any conditional-disclosure
+representation must tie success to the original binding and account for the
+timing of status and payload publication. In particular, publishing a success
+status before an owner-dependent payload must not introduce an unaccounted
+opportunity to withhold after observing another player's reaction.
+
 The existing optional-copy obstruction does not decide between these designs
 or prove that all existing-core encodings fail. No broad branch language,
 participation index, or weaker well-formedness rule should be implemented
@@ -360,12 +390,13 @@ Clarify the frontend's pending-commit validation obligation: refusal cannot
 force a secret disclosure merely to validate a quit payout. Reject unsupported
 private validation conditions rather than hiding them in a core guard.
 
-The next small extension is a second checkpoint for the same role, verifying
-that a previous quit removes future freedom. Model the actual persistent
-quitting semantics, not independent optional values at each checkpoint. A
-forced dummy action is acceptable only with the stated strategic and
-information correspondence. This extension is not a prerequisite for testing
-the first optional-disclosure pattern.
+The second-checkpoint source and graph probes above constrain the persistent
+quitting representation. The executable Kotlin regression is
+`PersistentQuitSemanticsTest.kt`: the role quits after a successful commitment,
+the opponent acts, and later choices and disclosure cannot revive the quitter.
+It tests the frontend's own semantics, not equality with the Lean probe. A
+forced administrative source choice is acceptable only with the stated
+strategic and information correspondence for its eventual implementation.
 
 Success of the first probe establishes a useful encoding pattern, not general
 handler lowering, public-delivery adequacy, or blockchain correctness. Its

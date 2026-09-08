@@ -8,6 +8,7 @@ import Vegas.Core.Basic
 import Vegas.Core.ExprSimple
 import Vegas.Core.Finite
 import Vegas.Core.FiniteDomain
+import Vegas.Core.ForcedChoice
 import Vegas.Core.Obligations
 import Vegas.Core.Scope
 import Vegas.Core.SmallStep

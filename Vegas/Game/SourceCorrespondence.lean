@@ -65,6 +65,29 @@ theorem runBehavioral_compileSource_source
   simpa only [FinDist.map_comp, Function.comp_def, compileSourceBehavioral, policies] using
     hdecoded.trans hnode
 
+/-- Every native behavioral profile has the decoded law of its coordinatewise
+source reconstruction. This statement concerns all profiles, not only compiled
+profiles or unilateral replacements of them. -/
+theorem runBehavioral_backtranslate_source
+    (program : GraphProgram P L) (legal : Legal program.prog)
+    (profile : ∀ who, (toInformationModel (compile program).graph
+      (compile program).graphWF (compile_guardLive program legal)).BehavioralPolicy who) :
+    ((toInformationModel (compile program).graph (compile program).graphWF
+      (compile_guardLive program legal)).runBehavioral profile
+        (compile program).graph.nodeCount).map
+          (fun history => observeSourceOutcome program legal history.state) =
+      denoteSource program.prog
+        (fun who => backtranslateNativeBehavioral program legal who (profile who))
+        program.env := by
+  have hroundtrip := runBehavioralFrom_compile_backtranslate program legal profile
+    (compile program).graph.nodeCount
+    (toExecutionProtocol (compile program).graph (compile program).graphWF
+      (compile_guardLive program legal)).initHistory
+  have hdecoded := congrArg
+    (fun law => law.map (fun history => observeSourceOutcome program legal history.state))
+    hroundtrip.symm
+  exact hdecoded.trans (runBehavioral_compileSource_source program legal _)
+
 /-- Source compilation is a utility-independent outcome simulation against
 every native behavioral deviation. Opponents retain their original policies. -/
 def sourceNativeOutcomeSimulation

@@ -250,6 +250,16 @@ alone does not prove its adequacy. Utility-dependent quitting conditions and
 explicit source continuation choices are candidate proof routes, with distinct
 claims. Neither requires extending the minimal source syntax speculatively.
 
+The persistent-quitting source gate has an executable two-checkpoint probe:
+existing guards eliminate later freedom, and `PublicForcedChoice` proves that
+a publicly determined source choice can be selected without consulting its
+owner's current policy. The actual written-order source law is checked in
+`PersistentDisclosureSource`, including arbitrary whole-program profiles.
+This does not complete runtime resolution. The remaining next obligations are
+owner-independent execution of those forced steps with correct observations,
+and explicit checked accounting for the earlier binding retained on quitting.
+The probe is not admitted by the existing `WFProgram` predicate.
+
 Choose a finite checked core program with two real players, source-defined
 nonresponse outcomes, and a later decision that can expose an information
 mistake. The pending-commitment experiment motivates a sealed-choice slice:

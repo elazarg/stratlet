@@ -16,6 +16,9 @@ import VegasTests.RuntimeBoundaries
 import VegasTests.FailureObservation
 import VegasTests.ConstantSignal
 import VegasTests.OptionalDisclosure
+import VegasTests.PersistentDisclosure
+import VegasTests.PersistentDisclosurePolicy
+import VegasTests.PersistentDisclosureSource
 import VegasTests.DisclosureTrace
 import VegasTests.DisclosureBinding
 import VegasTests.DisclosureCheckpoint

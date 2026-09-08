@@ -707,3 +707,48 @@ comparison above. The additional Kotlin decisions, handler settlements, and
 persistent abandonment are not. There is no frontend-lowering or public-delivery
 theorem for this encoding. The manuscript distinguishes its finite semantic
 instance from the executable frontend fixture.
+
+## Persistent quitting and publicly determined choices
+
+`VegasTests/PersistentDisclosure.lean` adds a second optional disclosure of the
+same binding after an actual opponent response. Its guard admits only `none`
+when the first public disposition is `none`; otherwise it admits `none` or the
+original bound value. Both guards are legal in every declared environment.
+The compiled dependencies require the first disposition and opponent response
+before the second decision. The original sealed field has no public alias;
+this does not hide a value already disclosed by a successful optional copy.
+
+`Vegas/Core/ForcedChoice.lean` defines `PublicForcedChoice` for a typed source
+guard. It contains public enable/value expressions and an all-environment
+proof that, when enabled, the public value is the unique legal action. Its law
+theorem collapses every randomized source choice at that site to that value.
+Its continuation theorem uses `denoteSource` itself and leaves continuation
+policies unchanged; it introduces no independent evaluator or game.
+
+`VegasTests/PersistentDisclosureSource.lean` instantiates this certificate for
+the second guard, using only the first public disposition. For every complete
+source behavioral profile, its suffix after refusal has exactly the pure
+terminal-environment law obtained by committing and revealing `none`.
+`source_refusal_persists` proves that all supported whole-source executions
+retain the refusal at the second checkpoint. These are source-law statements,
+not just evaluations of a few selected policies.
+
+`ToEventGraph.runBehavioral_backtranslate_source` packages the general
+source/graph correspondence as an all-native-profile decoded-law theorem.
+The graph program requires scope, freshness, and guard legality; this theorem
+does not require or establish `WFProgram` admission. The probe instantiates
+it in `graph_refusal_persists`: every supported terminal native run, under any
+behavioral graph profile, has the same persistent-refusal property after source
+decoding. It uses the existing compiler and native runner.
+
+`PersistentDisclosurePolicy` checks the compiled graph's menu at the matching
+eight-event configuration. For every actual graph history ending there, the
+information-model choice is a singleton and every behavioral policy has the
+same pure law at that site. The statement takes such a history as a premise;
+it does not yet construct a graph history from the source-law witness.
+
+The guard removes choice but leaves the administrative source events present.
+There is no proof here that the public-message runtime can execute them without
+the owner, or that their traffic can be erased from observations. The program
+still fails `RevealComplete` and is not a `WFProgram`. An explicit disposition
+representation and its checked lowering remain necessary integration work.
