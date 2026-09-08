@@ -15,9 +15,14 @@ and observation semantics. Its strategies and game interpretation use those
 semantics. A strategic theorem about another, idealized execution model applies
 only after a proved connection to the actual target.
 
-The architecture must support an eventual connection to a complete Ethereum
-model without requiring that model to be implemented now. It must also support
-other runtimes without importing Ethereum or Vegas into their foundations.
+Ethereum is the grounding target, not the definition of a runtime. The
+architecture must support an eventual connection to a complete Ethereum model
+and to other runtimes without importing Ethereum or Vegas into their
+foundations. Describe each concept at the least specific level supported by
+its semantics and actual uses: clocks and atomic application updates can be
+runtime-general; EVM opcodes and Ethereum transaction admission cannot.
+Introduce a shared interface when a proof or concrete instance needs it,
+not a speculative framework for every possible target.
 Whether a particular runtime preserves a particular source property remains
 a theorem or an impossibility question, not an architectural assumption.
 

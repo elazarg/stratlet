@@ -11,17 +11,18 @@ independent message-interaction experiments.
 
 | Target | Contents | Local dependencies |
 | --- | --- | --- |
-| `Interaction` | Native pending-message kernel, ideal commitment service, sealed application rules, bounded policies and hiding | none |
-| `InteractionTests` | Bounded native interaction games and commitment-traffic tests | `Interaction` |
+| `Interaction` | Native pending-message kernel, atomic application inclusion, timeout dependency gates, ideal commitments, sealed application rules, bounded policies and hiding | none |
+| `InteractionTests` | Native interaction games, commitment traffic, and timeout-gate regressions | `Interaction` |
 | `Vegas` | Core and surface syntax, event graphs, machine semantics, games, abstract runtimes, public serialization, sealed-message compiler fragment | `Interaction` |
 | `VegasEVM` | Contract representations, deployment and instruction semantics, backend compilation, local code-generation proofs | `Vegas` |
 | `VegasTests` | Concrete witnesses and regression tests | `Vegas`, `VegasEVM` |
 | `Paper` | Axiom-pinned general claims and concrete paper witnesses | `Vegas`, `VegasEVM`, `VegasTests` |
 
-Mathematical modules also use the pinned external dependencies; the
-`Interaction` operational kernel itself imports none; its policy interpretation
-uses GameTheory's existing `GameForm` and finite laws. The table describes local
-library dependencies, not additional logical axioms.
+Mathematical modules also use the pinned external dependencies. The message
+pool and ideal-service carriers import none; the dependency gate uses Mathlib
+finite sets, and the policy interpretation uses GameTheory's existing
+`GameForm` and finite laws. The table describes local library dependencies,
+not additional logical axioms.
 
 ## Message-interaction boundary
 
@@ -36,6 +37,17 @@ Replay copies an envelope from the broadcaster's own view, preserving the
 original author and admitting duplicate pending/ledger copies.
 `Interaction/MessageReplay.lean` proves observation-locality and exact copying.
 There is no transaction-nonce filter or multi-instance replay protection.
+
+`Interaction/TransactionalInclusion.lean` composes that existing pool inclusion
+with an atomic application handler. Rejection retains message publication and
+all recipient inboxes while rolling back the application effect.
+`Interaction/DependencyGate.lean` supplies a staged dependency gate parameterized
+by expiry policy; `DependencyGateLaws` proves a shared-timer obstruction and
+immutable-deadline progress. These are runtime-general components, without
+Vegas or VM imports. They are not yet integrated into the sealed-message
+policy game or proved to implement source quitting. The
+[timeout design](timeout-compilation.md) states their responsibilities and the
+concrete generated-contract issue that motivates them.
 
 `InteractionTests/Pending.lean` interprets a bounded two-player script directly
 as a GameTheory `GameForm`. Its play uses the same native pool operations and

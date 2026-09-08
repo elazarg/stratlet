@@ -1,5 +1,8 @@
 import Interaction.MessagePool
 import Interaction.MessageReplay
+import Interaction.TransactionalInclusion
+import Interaction.DependencyGate
+import Interaction.DependencyGateLaws
 import Interaction.IdealCommitments
 import Interaction.SealedProgram
 import Interaction.SealedProgramLaws

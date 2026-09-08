@@ -1,3 +1,4 @@
 import InteractionTests.Pending
 import InteractionTests.Commitment
 import InteractionTests.SealedPolicies
+import InteractionTests.TimeoutGate

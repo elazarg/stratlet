@@ -40,6 +40,11 @@ observation obligations on the route to a named blockchain realization.
 The non-binding [road ahead](docs/a-road-ahead.md) explores that route and
 dependency-closed combinations of runtime features; it is revised as the
 models and proofs develop.
+Ethereum grounds this route; reusable runtime concepts remain independent of
+Ethereum and of Vegas-specific compilation. The
+[timeout design](docs/timeout-compilation.md) separates the checked deadline
+gate and atomic inclusion components from the outstanding source-resolution
+and timed-policy integration proofs.
 The `Interaction` library provides a native pool and explicit ideal commitment
 service. A certified homogeneous commit/reveal backend connects actual
 checked core programs, through their event graphs, to this public-message

@@ -1,7 +1,9 @@
 # A road ahead
 
-This is a non-binding working roadmap. It records a plausible route to a
-realistic blockchain target and design questions to resolve along that route.
+This is a non-binding working roadmap. It records a plausible route to
+concrete runtimes, grounded in a realistic blockchain target, and design
+questions to resolve along that route. Ethereum is the grounding instance;
+it does not define the scope of the reusable runtime concepts.
 It is neither an implementation specification nor a claim that the proposed
 theorems are true. Revise it in place as examples, proofs, and counterexamples
 change our understanding; do not maintain it as a change log.
@@ -335,6 +337,13 @@ actual calling/authorization rules. A plausible initial backend authorizes
 commitments by owner and allows anyone to submit a valid opening once known.
 Owner-only calls are another legitimate choice with different capabilities.
 Specify that choice above the cryptographic encoding boundary.
+
+The [timeout compilation design](timeout-compilation.md) separates the
+implemented dependency gate and atomic inclusion from the remaining source
+resolution proof. Its shared-timer instance exposes within-call deadline
+interference; its immutable-deadline instance supplies a check-level progress
+law, not a timed source compiler. This is a component of the public-message
+path, not another implementation tower.
 
 Timed resolution requires a clock predicate and an invocation. Identify the
 resolver, its funding, and the ordering of late openings and resolution calls.

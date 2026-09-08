@@ -190,11 +190,21 @@ specified publication readout, not a universal failure of weaker comparisons.
 These comparisons do not complete the gate. The next compiler theorem must
 compare unilateral replacements with source policies across the whole
 interaction, including post-release behavior, and
-account for withheld openings and observable failure. There is no timeout
-transition or automatic conversion of pending execution to source quitting.
+account for withheld openings and observable failure. The sealed-message
+application has no integrated timeout transition or automatic conversion of
+pending execution to source quitting.
 General asynchronous activation and player-owned network/builder capabilities
 also remain outside the fixed-invocation instance; the precise scope is in
 the [runtime inventory](runtime-models.md).
+
+The [timeout compilation design](timeout-compilation.md) specifies the next
+component integration. A checked dependency gate exposes the shared mutable
+timer's within-call interference and proves progress for immutable deadlines.
+Atomic inclusion preserves public messages and prior deliveries when the
+application rejects. These components do not yet resolve source nonresponse
+or define the timed application's policy game. Connect them to the same
+compiled application, with actual authorization and source-handler semantics;
+do not count them as another completed runtime layer.
 
 Before a terminal-law claim, implement and analyze resolution rather than
 defaulting unfinished traces to source values in a readout. Preserve the

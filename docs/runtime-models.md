@@ -340,6 +340,37 @@ changing a missing opening to `none` in the decoder alone supplies neither
 that operational mechanism nor its strategic correctness. The next positive
 comparison must account for this post-disclosure decision explicitly.
 
+### Timeout dependency gates and atomic inclusion
+
+These components extend the runtime toolkit, not the proved endpoint of the
+sealed-message compiler. `Interaction/DependencyGate.lean` stages action
+completion and ordered dependency checks at a supplied clock reading. An
+overdue missing dependency excludes its principal; failed checks or a rejected
+body return no staged state. The compiled entry point must supply authenticated
+actor/action labels and its dependency list.
+
+`Interaction/DependencyGateLaws.lean` proves that resolving an overdue
+dependency with a shared mutable activity timer can prevent a second missing
+dependency of a distinct active owner from resolving in that same pass. With
+immutable deadlines, checks succeed whenever each dependency is completed,
+already discharged, or overdue. This does not guarantee admission, body
+acceptance, or inclusion of the enclosing call.
+
+`Interaction/TransactionalInclusion.lean` uses native pool inclusion followed
+by an atomic handler. Rejection retains the initial application state but
+keeps the included message in the ledger and preserves earlier deliveries.
+`InteractionTests/TimeoutGate.lean` exercises these operations together,
+including the shared-timer failure and immutable-deadline success.
+
+The clock has abstract natural-number units; clock advancement, receipt
+observations in a policy game, resolution controllers, and source settlement
+correspondence remain to be supplied by the integrated runtime. The shared
+timer reflects the inspected Kotlin emitter's algorithm, but no generator or
+VM refinement theorem connects that emitter to this gate. Ethereum is its
+grounding instance, not a dependency of these components. See the
+[timeout compilation design](timeout-compilation.md) for the precise issue
+and next integration obligations.
+
 ### Replay and application identity
 
 `MessagePool.replay` copies an envelope available in the broadcaster's sent
