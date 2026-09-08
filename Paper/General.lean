@@ -44,6 +44,139 @@ open EventGraph
 
 /-! ## Source adequacy -/
 
+/-- The independent written-order source denotation produces source runs. -/
+theorem source_strategy_support
+    {Player : Type} [DecidableEq Player] {L : IExpr} {Γ : VCtx Player L}
+    (prog : VegasCore Player L Γ) (profile : SourceBehavioralProfile prog)
+    (env : VEnv L Γ) (result : VEnv L (sourceTerminalCtx prog))
+    (hsupport : result ∈ (denoteSource prog profile env).support) :
+    SmallStep.Star { ctx := Γ, env := env, cont := prog }
+      { ctx := sourceTerminalCtx prog, env := result,
+        cont := .ret (sourceTerminalPayoffs prog) } :=
+  denoteSource_support_star prog profile env result hsupport
+
+/-- The node-local source view and declared graph reads contain the same
+information under the compiler's allocation invariant. -/
+theorem source_decision_information
+    {Player : Type} [DecidableEq Player] {L : IExpr} {Γ : VCtx Player L}
+    (state : ToEventGraph.BuildState Player L Γ) (who : Player)
+    (hinjective : ToEventGraph.FieldOfNameInjective state.fieldOf) :
+    Function.Bijective (ToEventGraph.viewEnvOfReadEnv state who) :=
+  ⟨ToEventGraph.viewEnvOfReadEnv_injective state who,
+    ToEventGraph.viewEnvOfReadEnv_surjective state who hinjective⟩
+
+/-- A ready commitment cannot have observed a source-later publication. -/
+theorem source_publication_barrier
+    {Player : Type} [DecidableEq Player] {L : IExpr}
+    {G : Graph Player L} {cfg : Config G} {who : Player}
+    {commit publication : Fin G.nodeCount} {row : EventNode Player L}
+    (hreachable : Reachable G cfg) (hcommit : ReadyCommitNode G cfg who commit)
+    (hrow : G.nodes[publication]? = some row)
+    (hlt : (commit : Nat) < (publication : Nat))
+    (hinternal : NodeSem.isInternal row.sem = true) : publication ∉ cfg.done :=
+  hcommit.later_internal_not_done hreachable hrow hlt hinternal
+
+/-- Node-local decision translation recovers every guarded source law. -/
+theorem source_decision_roundtrip
+    {Player : Type} [DecidableEq Player] {L : IExpr} {Γ : VCtx Player L}
+    {name : VarId} {ty : L.Ty}
+    (state : ToEventGraph.BuildState Player L Γ) (who : Player)
+    (guard : L.Expr ((name, ty) :: eraseVCtx (viewVCtx who Γ)) L.bool)
+    (hinjective : ToEventGraph.FieldOfNameInjective state.fieldOf)
+    (policy : (visible : Env L.Val (eraseVCtx (viewVCtx who Γ))) →
+      FinDist {value : L.Val ty // evalGuard guard value visible = true})
+    (visible : Env L.Val (eraseVCtx (viewVCtx who Γ))) :
+    ToEventGraph.backtranslateSourceDecision state who guard hinjective
+      (ToEventGraph.compileSourceDecision state who guard policy) visible = policy visible :=
+  ToEventGraph.backtranslate_compileSourceDecision state who guard hinjective policy visible
+
+/-- Node-local decision translation also recovers every guarded graph law. -/
+theorem graph_decision_roundtrip
+    {Player : Type} [DecidableEq Player] {L : IExpr} {Γ : VCtx Player L}
+    {name : VarId} {ty : L.Ty}
+    (state : ToEventGraph.BuildState Player L Γ) (who : Player)
+    (guard : L.Expr ((name, ty) :: eraseVCtx (viewVCtx who Γ)) L.bool)
+    (hinjective : ToEventGraph.FieldOfNameInjective state.fieldOf)
+    (policy : (reads : ReadEnv L (ToEventGraph.eventGuardOf state who guard).choiceReads) →
+      FinDist {value : L.Val ty //
+        (ToEventGraph.eventGuardOf state who guard).eval value reads = true})
+    (reads : ReadEnv L (ToEventGraph.eventGuardOf state who guard).choiceReads) :
+    ToEventGraph.compileSourceDecision state who guard
+      (ToEventGraph.backtranslateSourceDecision state who guard hinjective policy) reads =
+        policy reads :=
+  ToEventGraph.compile_backtranslateSourceDecision state who guard hinjective policy reads
+
+/-- A profile-independent outcome simulation preserves recommendation-based
+correlated equilibrium. This is a sufficient certificate, not a runtime instance. -/
+theorem correlated_transport
+    {Player : Type} [DecidableEq Player] {source target : GameForm Player}
+    (simulation : Runtime.OutcomeSimulationOn source target (fun _ _ => True))
+    (utility : source.sig.Outcome → Player → ℝ)
+    (law : FinDist (Profile source.sig))
+    (hsource : IsCorrelatedEq source (euPreference utility) law) :
+    IsCorrelatedEq target
+      (euPreference fun outcome player => utility (simulation.decodeOutcome outcome) player)
+      (simulation.compileLaw law) :=
+  simulation.isCorrelatedEq_compileLaw_of utility law hsource
+
+/-- The same uniform certificate preserves and reflects coarse correlated
+equilibrium at compiled recommendation laws, without a strategy retraction. -/
+theorem coarse_correlated_transport
+    {Player : Type} [DecidableEq Player] {source target : GameForm Player}
+    (simulation : Runtime.OutcomeSimulationOn source target (fun _ _ => True))
+    (utility : source.sig.Outcome → Player → ℝ)
+    (law : FinDist (Profile source.sig)) :
+    IsCoarseCorrelatedEq target
+      (euPreference fun outcome player => utility (simulation.decodeOutcome outcome) player)
+      (simulation.compileLaw law) ↔ IsCoarseCorrelatedEq source (euPreference utility) law :=
+  simulation.isCoarseCorrelatedEq_compileLaw_iff utility law
+
+/-- CE reflection additionally uses recovery of a source recommendation from
+its compiled strategy. -/
+theorem correlated_correspondence
+    {Player : Type} [DecidableEq Player] {source target : GameForm Player}
+    (simulation : Runtime.OutcomeSimulationOn source target (fun _ _ => True))
+    (utility : source.sig.Outcome → Player → ℝ)
+    (law : FinDist (Profile source.sig))
+    (hretract : ∀ who strategy,
+      simulation.backtranslateStrategy who (simulation.compileStrategy who strategy) = strategy) :
+    IsCorrelatedEq target
+      (euPreference fun outcome player => utility (simulation.decodeOutcome outcome) player)
+      (simulation.compileLaw law) ↔ IsCorrelatedEq source (euPreference utility) law :=
+  simulation.isCorrelatedEq_compileLaw_iff utility law hretract
+
+/-- info: 'Vegas.Paper.source_strategy_support' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.source_strategy_support
+
+/-- info: 'Vegas.Paper.source_decision_information' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.source_decision_information
+
+/-- info: 'Vegas.Paper.source_publication_barrier' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.source_publication_barrier
+
+/-- info: 'Vegas.Paper.source_decision_roundtrip' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.source_decision_roundtrip
+
+/-- info: 'Vegas.Paper.graph_decision_roundtrip' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.graph_decision_roundtrip
+
+/-- info: 'Vegas.Paper.correlated_transport' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.correlated_transport
+
+/-- info: 'Vegas.Paper.coarse_correlated_transport' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.coarse_correlated_transport
+
+/-- info: 'Vegas.Paper.correlated_correspondence' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.correlated_correspondence
+
 /-- **Source-payoff adequacy** (paper: `thm:source-adequacy`).
 
 Every terminal reachable machine state of a checked program reconstructs a

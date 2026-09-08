@@ -6,6 +6,7 @@ Authors: VegasCore contributors
 
 import Vegas.EventGraph.Confluence
 import Vegas.EventGraph.Protocol
+import Vegas.EventGraph.Skeleton
 import Vegas.Scheduled.Basic
 import Vegas.Scheduled.Order
 
@@ -220,21 +221,6 @@ frontier is offered.  The generic scheduled model exposes this phase as
 using the event graph's own internal-step law.
 -/
 
-/-- Execute the same ready internal event selected by the canonical graph
-protocol. -/
-noncomputable def stepReadyInternal {G : Graph Player L} (hwf : G.WF)
-    (state : ReachableConfig G)
-    (hinternal : (readyInternalNodes G state.1).Nonempty) :
-    FinDist (ReachableConfig G) := by
-  let node := Classical.choose hinternal
-  have hready : ReadyInternalNode G state.1 node :=
-    (Finset.mem_filter.mp (Classical.choose_spec hinternal)).2
-  have havailable : InternalAvailable G state.1 { node := node } :=
-    InternalAvailable.of_readyInternalNode hwf
-      (reachable_storeCoherent hwf state.2) hready
-  exact stepAvailable G state
-    (.internal { node := node } (Classical.choice havailable))
-
 /-- The serializer's automatic one-node transition is exactly the canonical
 source protocol's transition whenever internal work is ready. Player actions
 and their strategies are not consulted in either expression. -/
@@ -263,19 +249,6 @@ theorem stepReadyInternal_done_ssubset {G : Graph Player L} (hwf : G.WF)
   unfold stepReadyInternal at hnext
   exact done_ssubset_of_stepAvailable_support G state _ hnext
 
-/-- Run at most `fuel` ready internal nodes.  Each recursive call consumes one
-unit of fuel and one graph node, so `G.nodeCount` suffices to reach the next
-strategic checkpoint. -/
-noncomputable def settleInternal {G : Graph Player L} (hwf : G.WF) :
-    Nat → ReachableConfig G → FinDist (ReachableConfig G)
-  | 0, state => FinDist.pure state
-  | fuel + 1, state =>
-      if hinternal : (readyInternalNodes G state.1).Nonempty then
-        (stepReadyInternal hwf state hinternal).bind
-          (settleInternal hwf fuel)
-      else
-        FinDist.pure state
-
 /-- The canonical source command at an internal-only state. A ready internal
 node witnesses nontermination, while every player is inactive because the
 protocol does not offer a strategic frontier until internal work is exhausted. -/
@@ -297,11 +270,6 @@ noncomputable def sourceInternalCommand {G : Graph Player L}
     intro who hactive
     exact (Finset.not_nonempty_iff_eq_empty.mpr hactive.2.1) hinternal
   exact ⟨source.noop, source.noop_isLegal hterminal hinactive⟩
-
-omit [Fintype Player] in
-@[simp] theorem settleInternal_zero {G : Graph Player L} (hwf : G.WF)
-    (state : ReachableConfig G) :
-    settleInternal hwf 0 state = FinDist.pure state := rfl
 
 omit [Fintype Player] in
 theorem settleInternal_of_no_internal {G : Graph Player L} (hwf : G.WF)

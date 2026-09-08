@@ -4,6 +4,7 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
+import Vegas.Runtime.Correlated
 import Vegas.Runtime.Implementation
 import Vegas.Runtime.DeviationAdequacy
 import Vegas.Runtime.TraceUtility

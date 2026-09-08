@@ -7,8 +7,9 @@ This document states the semantic ownership and proof boundaries of VegasCore.
 | Layer | Canonical object | Owns |
 |---|---|---|
 | Source | `VegasCore P L Γ` | typed protocol syntax and visibility |
+| Written-order source game | `sourceGameForm prog env` | source-site policies, visible environments, exact terminal-environment law |
 | Checked source | `WFProgram P L` | freshness, reveals, live guards |
-| Machine IR | `Machine.Program P L` | typed graph, reified node/payoff code, first operational semantics |
+| Machine IR | `Machine.Program P L` | typed graph, reified node/payoff code, primitive graph execution |
 | Exact probability | `IExpr.evalLaw`, `EventDist.evalLaw` | normalized rational tables retained through compilation |
 | Payoff compilation | `Machine.compile_sourcePayoffOfTerminal` | exact terminal source/machine payoff equality |
 | Source support | `Machine.compile_sourceStar` | terminal graph runs reconstruct written-order source runs |
@@ -44,9 +45,11 @@ This document states the semantic ownership and proof boundaries of VegasCore.
 | Known mediator | `Runtime.KnownMediator` | exact externalization of stochastic play to one fixed contingent strategy |
 | Same-strategy endpoint | `Runtime.Implementation` | decoded trace-law equality |
 
-The machine IR is shared input, not a second strategic semantics. GameTheory
-analysis interprets it as an informed protocol. Runtime compilation lowers its
-reified code through explicit operational stages.
+The written-order source game interprets the source AST directly. The machine
+IR has a separate graph-derived strategic interpretation, obtained as an
+informed protocol. Runtime compilation lowers its reified code through explicit
+operational stages. Identifying these two strategic interpretations requires a
+compiler theorem; it is not a definitional equality.
 
 ## Reified code and denotation
 
@@ -72,6 +75,21 @@ a written-order `SmallStep.Star`: samples remain in source support, commitments
 satisfy their source guards, reveals copy the same sealed values, and the final
 payoff agrees. This coarsens away the graph schedule. It does not prove equality
 of quantitative run laws, intermediate observations, or strategic behavior.
+
+`Vegas/Core/Strategy.lean` defines the independent quantitative source
+semantics. A policy receives a structural commitment site and exactly the
+erased `viewVCtx` environment at that site. The interpreter executes the AST in
+written order and returns a finite law over terminal environments; utilities
+can be attached separately. Its supported results satisfy `SmallStep.Star`.
+
+The compiler's local decision interface has an exact correspondence:
+`sourceViewEquiv` identifies the declared graph reads with the source view,
+using field-allocation injectivity. `compileSourceDecision` and
+`backtranslateSourceDecision` preserve guarded probability laws and are mutual
+inverses. Sample code also retains its exact source law. These statements do
+not yet connect an entire source profile to the graph game's history-dependent
+policy carrier. The remaining obligation is recorded in
+[Source strategic correspondence](source-correspondence.md).
 
 ## Probability
 
@@ -313,10 +331,12 @@ adequacy, not a substitute for earlier pass proofs.
 
 A concrete chain path still needs certified layers for expression lowering,
 target-level scheduling/ABI lowering, a finite target codec, authentication,
-commitment/reveal, randomness, time and failure, settlement, and bytecode. The
-core source language currently lacks participation failure, timeout, and
-monetary-transfer semantics, so those behaviors cannot yet be introduced with
-an exact source game theorem.
+commitment/reveal, randomness, time and failure, settlement, and bytecode.
+Source actions can represent quitting explicitly, including option-valued
+disclosure and its continuation. Private request windows account for invalid
+requests and exhaustion by selecting designated actions of the graph-derived
+game. Public delivery, censorship, concrete deadlines, and monetary settlement
+still require target models and proofs.
 
 The existing readability-fence theorem constrains the order of readable output
 values. It explicitly does not prove indistinguishability of complete observed

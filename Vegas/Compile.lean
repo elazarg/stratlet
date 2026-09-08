@@ -5,7 +5,11 @@ Authors: VegasCore contributors
 -/
 
 import Vegas.Compile.Compiler
+import Vegas.Compile.DecisionSite
+import Vegas.Compile.FieldMap
 import Vegas.Compile.SourceAdequacy
+import Vegas.Compile.SourceOrder
+import Vegas.Compile.SourceLaw
 import Vegas.Compile.Machine
 
 /-!

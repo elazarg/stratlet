@@ -107,15 +107,15 @@ of implementations still require human review.
 
 ### Validation snapshot
 
-The full 3,271-job default build passes with `--wfail`, including the independent
-outcome-valuation interface, trace-utility boundary, adversarial bound transfer,
-and the allocation/transfer example through requests and serialization.
+The full 3,282-job default build passes with `--wfail`, including the independent
+written-order source interpreter, local source/graph decision correspondence,
+generic CE/CCE transport, and the request/serialization case studies.
 Validation used `LEAN_NUM_THREADS=4` in the development checkout with pinned
 dependency caches. The claim registry, module-boundary, documentation-reference,
 and local-option audits, and all 40 maintenance tests pass. The manuscript is
 rebuilt and its affected pages visually checked; all 26 bibliography entries
-resolve without citation or BibTeX warnings. A 2.34 pt vertical-overflow
-diagnostic remains at the main-text page break.
+resolve without citation or BibTeX warnings. The final PDF has no overfull boxes
+or LaTeX package warnings; nonfatal underfull-box diagnostics remain.
 
 This validation checks the dependency-tracked build in the development
 environment. Fresh-machine reproduction, a cold dependency download, an offline
@@ -150,11 +150,18 @@ make a build pass.
 
 For each finite-domain checked core, legal request interface, and behavioral
 public-data scheduler, the compiler preserves the honest terminal-configuration
-law. Every unilateral original-player target controller mixture has a terminal
-law that is a finite mixture of source behavioral-deviation laws, with other
+law of its graph-derived game. Every unilateral original-player target
+controller mixture has a terminal law that is a finite mixture of graph-game
+behavioral-deviation laws, with other
 players unchanged. Nash and same-error approximate Nash equivalence concern
 **compiled profiles**. There is no claim that every target equilibrium is a
 compiled source equilibrium.
+
+The independent written-order source game has checked local decision-kernel
+correspondence with compiled code. Whole-policy information reconstruction and
+probability-law linearization into the graph game remain unproved; the runtime
+results do not discharge that bridge by definition. See
+[Source strategic correspondence](docs/source-correspondence.md).
 
 Request windows admit finite independently sampled private mixtures of complete
 controllers, with persistent retry memory. This is not a separately proved

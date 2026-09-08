@@ -11,6 +11,7 @@ import Vegas.Core.FiniteDomain
 import Vegas.Core.Obligations
 import Vegas.Core.Scope
 import Vegas.Core.SmallStep
+import Vegas.Core.Strategy
 import Vegas.Core.WellFormed
 
-/-! Checked source syntax, concrete expressions, obligations, and source SOS. -/
+/-! Checked source syntax, expressions, obligations, source SOS, and source strategies. -/

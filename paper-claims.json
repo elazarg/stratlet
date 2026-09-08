@@ -1,4 +1,6 @@
 {
+  "prose:source-decisions": ["Vegas.Paper.source_strategy_support", "Vegas.Paper.source_decision_information", "Vegas.Paper.source_publication_barrier", "Vegas.Paper.source_decision_roundtrip", "Vegas.Paper.graph_decision_roundtrip"],
+  "prose:correlated-transport": ["Vegas.Paper.correlated_transport", "Vegas.Paper.coarse_correlated_transport", "Vegas.Paper.correlated_correspondence"],
   "thm:trace-utility": ["Vegas.Paper.Valuation.decoder_boundary", "Vegas.Paper.Valuation.trace_incentive", "Vegas.Paper.Valuation.trace_regret"],
   "thm:adversarial-valuation": ["Vegas.Paper.Valuation.adversarial_bound", "Vegas.Paper.Valuation.context_bound", "Vegas.Paper.Valuation.trace_counterexample", "Vegas.Paper.Valuation.trace_harm"],
   "prose:utility-parametric": ["Vegas.Paper.Valuation.nash_for_every_valuation", "Vegas.Paper.Valuation.serialized_valuation"],
