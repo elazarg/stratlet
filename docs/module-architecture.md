@@ -189,4 +189,8 @@ file exists.
 The paper audit lives in `Paper/General.lean`, `Paper/Source.lean`, and root
 `Paper.lean`; tests use
 the owning mathematical theorems directly rather than importing audit wrappers.
+Every restated paper theorem has a guarded axiom report. Additional pins check
+selected implementation results and regressions; there is no requirement to
+repeat the report for every helper lemma. A paper pin checks the transitive axiom
+dependencies of that result, while the full build checks all local modules.
 The live manuscript is separately revision-pinned as described in `ARTIFACT.md`.

@@ -5,6 +5,7 @@ defaultTargets = ["Interaction", "InteractionTests", "Vegas", "VegasEVM", "Vegas
 
 [leanOptions]
 pp.unicode.fun = true
+autoImplicit = false
 relaxedAutoImplicit = false
 weak.linter.mathlibStandardSet = true
 weak.linter.style.header = false

@@ -448,6 +448,8 @@ structure EventDist (L : IExpr) where
 
 namespace EventDist
 
+variable {L : IExpr}
+
 /-- Execute retained distribution code to its exact rational probability
 table from proved graph-local reads. -/
 def evalLaw (dist : EventDist L) (env : ReadEnv L dist.reads) :
@@ -477,6 +479,8 @@ structure EventGuard (L : IExpr) where
 
 namespace EventGuard
 
+variable {L : IExpr}
+
 /-- Execute retained guard code against one proposed action and the actor's
 proved graph-local view. -/
 def eval (guard : EventGuard L) (action : L.Val guard.ty)
@@ -498,6 +502,8 @@ structure EventPayoff (L : IExpr) where
       name ∈ L.exprDeps code.expr → code.ref binding ∈ reads
 
 namespace EventPayoff
+
+variable {L : IExpr}
 
 /-- Execute retained payoff code from its proved graph-local reads. -/
 def eval (payoff : EventPayoff L) (env : ReadEnv L payoff.reads) : Int :=

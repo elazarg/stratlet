@@ -3,12 +3,28 @@
 from pathlib import Path
 import re
 import sys
+import tomllib
+
+
+def check_central_options(options: dict) -> list[str]:
+    """Require explicit theorem binders and warning-strict compilation."""
+    required = {
+        "autoImplicit": False,
+        "relaxedAutoImplicit": False,
+        "warningAsError": True,
+    }
+    return [
+        f"lakefile.toml: leanOptions.{name} must be {str(value).lower()}"
+        for name, value in required.items()
+        if options.get(name) is not value
+    ]
 
 
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
     local_option = re.compile(r"^\s*set_option\b")
-    failures = []
+    with (root / "lakefile.toml").open("rb") as config:
+        failures = check_central_options(tomllib.load(config).get("leanOptions", {}))
     paths = list(root.glob("*.lean"))
     for directory in ("Interaction", "InteractionTests", "Vegas", "VegasEVM", "VegasTests", "Paper"):
         paths.extend((root / directory).rglob("*.lean"))
@@ -17,10 +33,11 @@ def main() -> int:
             if local_option.match(line):
                 failures.append(f"{path.relative_to(root)}:{number}: {line.strip()}")
     if failures:
-        print("Configure Lean options in lakefile.toml, not in source files:")
+        print("Lean option policy violations:")
         print("\n".join(failures))
         return 1
-    print("No source-local Lean option directives in project Lean sources.")
+    print("Explicit binders and warning-strict compilation configured centrally; "
+          "no source-local Lean option directives.")
     return 0
 
 

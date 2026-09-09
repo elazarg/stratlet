@@ -80,6 +80,8 @@ inductive WordExprIR (Γ : CtxSimple) where
 
 namespace WordExprIR
 
+variable {Γ : CtxSimple}
+
 /-- Pure meaning of the word backend IR: EVM arithmetic is arithmetic modulo
 `2 ^ wordBits`, which is exactly `BitVec` arithmetic. -/
 def eval (ρ : PlainEnv Γ) : WordExprIR Γ → Val .word
@@ -228,6 +230,8 @@ inductive BoolExprIR (Γ : CtxSimple) where
 
 namespace BoolExprIR
 
+variable {Γ : CtxSimple}
+
 /-- Pure meaning of the Boolean backend IR. -/
 def eval (ρ : PlainEnv Γ) : BoolExprIR Γ → Bool
   | .variable _ binding => ρ.get binding
@@ -286,7 +290,7 @@ structure LoweredBoolExpr {Γ : CtxSimple} (source : Expr Γ .bool) where
   ir : BoolExprIR Γ
   eval_eq : ∀ ρ, ir.eval ρ = evalExpr source ρ
 
-@[ext] theorem LoweredBoolExpr.ext {source : Expr Γ .bool}
+@[ext] theorem LoweredBoolExpr.ext {Γ : CtxSimple} {source : Expr Γ .bool}
     {left right : LoweredBoolExpr source} (hir : left.ir = right.ir) :
     left = right := by
   cases left

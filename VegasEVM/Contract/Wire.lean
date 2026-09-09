@@ -37,6 +37,8 @@ structure WireCodec (α Wire : Type) where
 
 namespace WireCodec
 
+variable {α : Type}
+
 /-- Proof-facing codec with no representation change. -/
 def identity (α : Type) : WireCodec α α where
   encode := id

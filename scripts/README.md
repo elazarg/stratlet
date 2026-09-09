@@ -35,7 +35,8 @@ Run these tools from the repository root.
   active-paper input discovery.
 
 - `python scripts/check-lean-options.py` rejects source-local `set_option`
-  directives in every project Lean source tree. Shared elaboration and lint settings
+  directives in every project Lean source tree and checks that both implicit-binder
+  options are disabled and warnings are errors. Shared elaboration and lint settings
   belong in `lakefile.toml`; separately managed dependencies keep their own
   package configuration.
 - `scripts/bump-lean-mathlib.sh v4.32.0` updates the Lean toolchain and

@@ -133,8 +133,9 @@ the PDF layout.
 
 This validation checks the dependency-tracked build in the development
 environment. Fresh-machine reproduction, a cold dependency download, an offline
-bundle, and performance benchmarking are separate checks. The worker-pool
-setting controls resource use without changing Lean proof-checking options.
+bundle, and performance benchmarking are separate checks. On memory-constrained
+machines, build dependency targets separately before the full default build;
+all targets use the same centralized checking options.
 
 ### Dependencies
 
@@ -156,7 +157,9 @@ dependency. Lean's kernel and the correctness of the mathematical specifications
 remain trusted. Noncomputable strategy translations prove existence/law
 correspondence; they are not runnable equilibrium synthesis.
 
-Warning and elaboration options are centralized in `lakefile.toml`. The audit
+Warning and elaboration options are centralized in `lakefile.toml`. Both
+`autoImplicit` and `relaxedAutoImplicit` are disabled: theorem and definition
+parameters must be declared explicitly. The audit
 uses guarded axiom reports intentionally; do not suppress warnings locally to
 make a build pass.
 

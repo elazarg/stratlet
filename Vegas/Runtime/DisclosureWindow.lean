@@ -129,7 +129,7 @@ theorem play_causal {Checkpoint : Type} (gate : Gate Info Request) (slots : Nat)
 
 namespace Game
 
-variable {Player : Type} [DecidableEq Player]
+variable {Player : Type} [DecidableEq Player] {S : Type*}
 
 abbrev signature (source : UtilityGame Player) (Info Request : Type) : GameSignature Player where
   Strategy who := source.form.sig.Strategy who × Policy Info Request

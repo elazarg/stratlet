@@ -60,7 +60,7 @@ def instDecidableEqVal : (b : BaseTy) → DecidableEq (Val b)
       letI : DecidableEq (Val b) := instDecidableEqVal b
       inferInstance
 
-instance : DecidableEq (Val b) := instDecidableEqVal b
+instance {b : BaseTy} : DecidableEq (Val b) := instDecidableEqVal b
 
 def BaseTy.NonNullable : BaseTy → Prop
   | .option _ => False
@@ -104,33 +104,36 @@ abbrev CtxSimple : Type := Vegas.Ctx BaseTy
 abbrev PlainEnv (Γ : CtxSimple) : Type := Vegas.Env Val Γ
 
 inductive Expr : CtxSimple → BaseTy → Type where
-  | var (x : VarId) (h : HasVar Γ x b) : Expr Γ b
-  | constInt (i : Int) : Expr Γ .int
-  | constBool (b : Bool) : Expr Γ .bool
-  | constWord (w : Val .word) : Expr Γ .word
-  | constRange {lo hi : Int} (v : Val (.range lo hi)) :
+  | var {Γ : CtxSimple} {b : BaseTy}
+      (x : VarId) (h : HasVar Γ x b) : Expr Γ b
+  | constInt {Γ : CtxSimple} (i : Int) : Expr Γ .int
+  | constBool {Γ : CtxSimple} (b : Bool) : Expr Γ .bool
+  | constWord {Γ : CtxSimple} (w : Val .word) : Expr Γ .word
+  | constRange {Γ : CtxSimple} {lo hi : Int} (v : Val (.range lo hi)) :
       Expr Γ (.range lo hi)
-  | none {b : BaseTy} : Expr Γ (.option b)
-  | some {b : BaseTy} (e : Expr Γ b) : Expr Γ (.option b)
-  | isSome {b : BaseTy} (e : Expr Γ (.option b)) : Expr Γ .bool
-  | isNone {b : BaseTy} (e : Expr Γ (.option b)) : Expr Γ .bool
-  | getD {b : BaseTy} (e : Expr Γ (.option b)) (fallback : Expr Γ b) :
+  | none {Γ : CtxSimple} {b : BaseTy} : Expr Γ (.option b)
+  | some {Γ : CtxSimple} {b : BaseTy} (e : Expr Γ b) : Expr Γ (.option b)
+  | isSome {Γ : CtxSimple} {b : BaseTy} (e : Expr Γ (.option b)) : Expr Γ .bool
+  | isNone {Γ : CtxSimple} {b : BaseTy} (e : Expr Γ (.option b)) : Expr Γ .bool
+  | getD {Γ : CtxSimple} {b : BaseTy}
+      (e : Expr Γ (.option b)) (fallback : Expr Γ b) :
       Expr Γ b
-  | addInt (l r : Expr Γ .int) : Expr Γ .int
+  | addInt {Γ : CtxSimple} (l r : Expr Γ .int) : Expr Γ .int
   /-- EVM `ADD`: addition modulo `2 ^ wordBits`. -/
-  | addWord (l r : Expr Γ .word) : Expr Γ .word
+  | addWord {Γ : CtxSimple} (l r : Expr Γ .word) : Expr Γ .word
   /-- EVM `SUB`: subtraction modulo `2 ^ wordBits`. -/
-  | subWord (l r : Expr Γ .word) : Expr Γ .word
+  | subWord {Γ : CtxSimple} (l r : Expr Γ .word) : Expr Γ .word
   /-- EVM `MUL`: multiplication modulo `2 ^ wordBits`. -/
-  | mulWord (l r : Expr Γ .word) : Expr Γ .word
+  | mulWord {Γ : CtxSimple} (l r : Expr Γ .word) : Expr Γ .word
   /-- EVM `LT`: unsigned comparison. -/
-  | ltWord (l r : Expr Γ .word) : Expr Γ .bool
-  | eq (l r : Expr Γ b) : Expr Γ .bool
-  | andBool (l r : Expr Γ .bool) : Expr Γ .bool
-  | notBool (e : Expr Γ .bool) : Expr Γ .bool
-  | ite (c : Expr Γ .bool) (t f : Expr Γ b) : Expr Γ b
+  | ltWord {Γ : CtxSimple} (l r : Expr Γ .word) : Expr Γ .bool
+  | eq {Γ : CtxSimple} {b : BaseTy} (l r : Expr Γ b) : Expr Γ .bool
+  | andBool {Γ : CtxSimple} (l r : Expr Γ .bool) : Expr Γ .bool
+  | notBool {Γ : CtxSimple} (e : Expr Γ .bool) : Expr Γ .bool
+  | ite {Γ : CtxSimple} {b : BaseTy}
+      (c : Expr Γ .bool) (t f : Expr Γ b) : Expr Γ b
 
-def evalExpr : Expr Γ b → PlainEnv Γ → Val b
+def evalExpr {Γ : CtxSimple} {b : BaseTy} : Expr Γ b → PlainEnv Γ → Val b
   | .var _ h, env => env.get h
   | .constInt i, _ => i
   | .constBool b, _ => b
@@ -152,7 +155,7 @@ def evalExpr : Expr Γ b → PlainEnv Γ → Val b
   | .ite c t f, env => if evalExpr c env then evalExpr t env else evalExpr f env
 
 /-- Expression dependency set. -/
-def exprDeps : Expr Γ b → Finset VarId
+def exprDeps {Γ : CtxSimple} {b : BaseTy} : Expr Γ b → Finset VarId
   | .var x _ => {x}
   | .constInt _ => ∅
   | .constBool _ => ∅
@@ -323,7 +326,7 @@ theorem expr_deps_sound {Γ : CtxSimple} {b : BaseTy}
     · exact iht (ha.mono (Finset.subset_union_right.trans Finset.subset_union_left))
     · exact ihf (ha.mono Finset.subset_union_right)
 
-def evalExprDeps : (e : Expr Γ b) →
+def evalExprDeps {Γ : CtxSimple} {b : BaseTy} : (e : Expr Γ b) →
     ((x : VarId) → (τ : BaseTy) → HasVar Γ x τ →
       x ∈ exprDeps e → Val τ) → Val b
   | .var x h, ρ => ρ x _ h (by simp [exprDeps])
@@ -435,13 +438,14 @@ inductive DistExpr (Γ : CtxSimple) (b : BaseTy) : Type where
   | weighted (law : RationalLaw (Val b)) : DistExpr Γ b
   | ite (c : Expr Γ .bool) (t f : DistExpr Γ b) : DistExpr Γ b
 
-def evalLawDistExpr : DistExpr Γ b → PlainEnv Γ → RationalLaw (Val b)
+def evalLawDistExpr {Γ : CtxSimple} {b : BaseTy} :
+    DistExpr Γ b → PlainEnv Γ → RationalLaw (Val b)
   | .weighted law, _ => law
   | .ite c t f, env =>
       if evalExpr c env then evalLawDistExpr t env else evalLawDistExpr f env
 
 /-- Distribution expression dependency set. -/
-def distExprDeps : DistExpr Γ b → Finset VarId
+def distExprDeps {Γ : CtxSimple} {b : BaseTy} : DistExpr Γ b → Finset VarId
   | .weighted _ => ∅
   | .ite c t f => exprDeps c ∪ distExprDeps t ∪ distExprDeps f
 
@@ -477,7 +481,7 @@ theorem law_deps_sound {Γ : CtxSimple} {b : BaseTy}
     · exact iht (ha.mono (Finset.subset_union_right.trans Finset.subset_union_left))
     · exact ihf (ha.mono Finset.subset_union_right)
 
-def evalLawDistExprDeps : (d : DistExpr Γ b) →
+def evalLawDistExprDeps {Γ : CtxSimple} {b : BaseTy} : (d : DistExpr Γ b) →
     ((x : VarId) → (τ : BaseTy) → HasVar Γ x τ →
       x ∈ distExprDeps d → Val τ) →
         RationalLaw (Val b)
@@ -915,6 +919,7 @@ theorem evalLawDistExpr_ite_false {Γ : CtxSimple} {b : BaseTy}
     evalLawDistExpr (.ite c t f) env = evalLawDistExpr f env := by
   simp [evalLawDistExpr, hc]
 
-def DistExpr.point (v : Val b) : DistExpr Γ b := .weighted (.pure v)
+def DistExpr.point {Γ : CtxSimple} {b : BaseTy}
+    (v : Val b) : DistExpr Γ b := .weighted (.pure v)
 
 end Vegas
