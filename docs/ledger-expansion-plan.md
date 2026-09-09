@@ -22,7 +22,7 @@ The acceptance inventory has two axes:
 
 | Requirement | Public-message path | Required endpoint |
 | --- | --- | --- |
-| Independent source meaning | Source-to-graph connection, terminal native support, local source-decision laws, and exact independent-source law for the lifted pure disclosure reference policies under a specified inclusion script | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
+| Independent source meaning | Source-to-graph connection, terminal native support, local source-decision laws, and an exact completion/public-outcome law for a complete binding/disclosure program under arbitrary source profiles | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
 | Source coverage | Structural binding/chance/public-choice/conditional-publication protocol compilation, whole-run support refinement, whole-source strategy lifting, and local readout availability at ready represented states | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
 | Hostile interaction | Raw traffic, local delivery, replay, addressed public inclusion, ideal binding/hiding; initialized disclosure settlement against arbitrary opposing policies under the stated slotted service | Whole interaction, failure, deadline and observation behavior under the theorem's complete player/environment policy classes. |
 | Strategic comparison | Release-time hiding/choice independence and selective-publication obstruction | Compiled-profile law plus arbitrary unilateral-deviation comparison, with the corresponding source-outcome bounds and equilibrium results. |
@@ -55,15 +55,20 @@ hypothesis, or a trace example alone is not completion.
 ### Whole-program forward-law checkpoint
 
 The next composition theorem should relate the independent source denotation
-to the shared application's public terminal readout. Its proof-side checkpoint
-should carry:
+to the shared application's completion and public terminal readout for every
+eligible plan. `VegasTests/ApplicationServiceSource.lean` checks this endpoint
+for a complete binding/disclosure program under every source behavioral profile,
+using the original lifted profile, emitted-image service, and generated script.
+The general structural induction still needs a proof-side checkpoint carrying:
 
 - The original plan/profile's `ProfileContinuation` to the current suffix.
 - The exact source/graph prefix (`CoupledAt`) and native `State.Refines`.
 - Support in an initialized run under the same original lifted profile.
+- Alignment of the service's actual environment-history length with the
+  unexecuted emitted-instruction suffix.
 - `RemainingCachesEmpty` for the unexecuted suffix.
-- Canonical accepted handles for every generated binding before the current
-  source prefix.
+- `AcceptedBindingPrefix`: canonical accepted handles for every generated
+  binding before the current source prefix.
 
 The initialized-run witness already supplies message-identifier freshness,
 memory coverage, registration consistency, and typed registration provenance.
@@ -75,13 +80,27 @@ source value without a separate evolving snapshot-value invariant.
 First prove one structural head step using the existing phase laws, preserving
 this checkpoint for each supported successor. Compose with the source
 denotation's existing equations and the shared runner's append/bind laws.
-The terminal statement compares public-outcome distributions; sealed source
-values remain witnesses and need not be decoded from public runtime memory.
+The terminal statement must certify completion as well as the public-outcome
+distribution: compare the joint `(finished, public readout)` law with the source
+law mapped to `(true, some public outcome)`, or prove the equivalent explicit
+completion conjunct. `readPublicTerminal?` alone is a field reader and does not
+check completion. The checked `CoupledAt.finished_public_readout` supplies both
+facts at the terminal checkpoint. Sealed source values remain witnesses and
+need not be decoded from public runtime memory.
 
-This equality requires a source-ordered service contract: invoke chance at
-sample heads, invoke the current owner, and include its freshly submitted
-envelope, uniformly over supported branches. Specify that contract on the
-existing runtime policies and invocations, not through another evaluator.
+`ApplicationImage.serialService` and `serviceInvocations` supply a concrete
+source-ordered reference service on the shared runner. The service indexes
+emitted instructions by its own environment-history length. It invokes chance
+at sample heads and otherwise includes the instruction owner's most recent
+submission if it remains pending, without inspecting payload contents. Its exact
+post-submission command and history-count laws are checked. The composition
+must establish their premises on every supported branch, starting with empty
+environment history and the image-derived invocation list.
+
+This finite service advances its index even after a wait or rejected request;
+it is not a fairness, retry, or withholding-resolution mechanism. Those need a
+separate service and its proof, rather than additional invocation steps silently
+inserted into this exact script.
 Arbitrary environments retain the safety guarantees for runs that finish;
 they do not imply completion or equality with the terminating source law.
 

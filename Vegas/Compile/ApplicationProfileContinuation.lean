@@ -132,6 +132,20 @@ variable {plan : ApplicationPlan accounted fresh state}
 variable {rootProfile : SourceBehavioralProfile rootProg}
 variable {profile : SourceBehavioralProfile prog}
 
+/-- The emitted suffix occurs literally in the original image. This supplies
+the static instruction offset for an environment's own invocation history. -/
+theorem instructions_suffix
+    (continuation : ProfileContinuation root rootProfile plan profile)
+    (deadlineOf : Nat → Nat) :
+    ∃ before, root.instructions deadlineOf = before ++ plan.instructions deadlineOf := by
+  induction continuation with
+  | refl => exact ⟨[], rfl⟩
+  | sample _ ih | binding _ ih | publicChoice _ ih | conditional _ ih
+  | conditionalCopy _ ih =>
+      obtain ⟨before, hbefore⟩ := ih
+      simp only [instructions] at hbefore
+      exact ⟨_, hbefore.trans (List.append_assoc _ [_] _).symm⟩
+
 /-- A structural continuation compiles to the same final graph and readout. -/
 theorem compile_eq (continuation : ProfileContinuation root rootProfile plan profile) :
     compileCore rootProg rootFresh rootState = compileCore prog fresh state := by
@@ -208,6 +222,11 @@ theorem liftProfileIn_eq_of_refines
 end ProfileContinuation
 
 end Vegas.ApplicationPlan
+
+/-- info: 'Vegas.ApplicationPlan.ProfileContinuation.instructions_suffix' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.ApplicationPlan.ProfileContinuation.instructions_suffix
 
 /-- info: 'Vegas.ApplicationPlan.ProfileContinuation.compile_eq' depends on axioms:
 [propext, Classical.choice, Quot.sound] -/

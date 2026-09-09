@@ -35,6 +35,9 @@ import VegasTests.GeneratedDisclosure
 import VegasTests.GeneratedPersistentDisclosure
 import VegasTests.GeneratedPersistentDisclosureController
 import VegasTests.GeneratedBindingPolicy
+import VegasTests.ApplicationService
+import VegasTests.ApplicationServiceSource
+import VegasTests.ApplicationAcceptedPrefix
 import VegasTests.GeneratedApplicationPolicy
 import VegasTests.ApplicationProfileContinuation
 import VegasTests.ApplicationCacheSeparation

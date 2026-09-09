@@ -748,6 +748,8 @@ exact two-invocation law for a source opening or decline followed by actual
 inclusion, retaining the complete policy execution and exact source successor.
 Its snapshot premise concerns only supported opening choices. Decline requires
 an accepted handle but no decodable frozen value.
+`PublicChoiceSite.publicChoice_head_phase_source_law` supplies the same exact
+source-checkpoint guarantee for an ordinary public choice/reveal pair.
 The conditional-phase regression instantiates both voluntary branches after a
 real binding prefix, deriving the owner-local readout, cache state, and snapshot
 facts from the shared execution and its recorded histories.
@@ -764,7 +766,8 @@ origins. No additional evolving source-snapshot invariant is required.
 and generated plan to their structural suffixes. Native refinement at the exact
 source prefix supplies the public completion flags needed to make the original
 lifted policy equal the suffix policy, with the same history and observation.
-This covers all plan constructors, including repeated conditional copies.
+This covers all plan constructors, including repeated conditional copies, and
+identifies their emitted instruction lists as suffixes of the original image.
 The generated binding/disclosure regression applies the theorem after actual
 inclusions. No source environment or compiler cursor is supplied to the policy.
 
@@ -783,6 +786,13 @@ endpoint unready despite storing the source value. General realization
 must either require that certificate or use another backend representation for
 already-public values; changing source well-formedness is unnecessary.
 
+`ApplicationAcceptedPrefix` records canonical accepted handles for all generated
+bindings before a source prefix. It holds initially, persists under arbitrary
+supported policy continuations, and extends after actual canonical binding
+acceptance. Exact generated-node coverage lets it advance across nonbinding
+instructions. Together with `HasBindingOrigins`, it supplies the conditional
+handler's accepted handle; the snapshot bridge above supplies its value.
+
 `ApplicationPolicyFreshness` records empty caches for the remaining emitted
 instructions using their actual slot/address encodings. Empty histories establish
 it initially. Environment actions preserve it, and player actions preserve it
@@ -795,18 +805,42 @@ theorems. Conditional instructions may reuse the original binding slot:
 their choice caches recognize endpoint-addressed voluntary submissions, not
 private registrations. The repeated-disclosure regression checks two endpoints
 of the same generated artifact sharing a binding slot: either first-endpoint
-choice preserves the second endpoint's empty cache. Connecting these separation
-laws with every head's dispatch and the full execution induction remains a
-composition obligation.
+choice preserves the second endpoint's empty cache. `ApplicationPolicyCache`
+connects this separation to actual lifted-policy dispatch for every nonterminal
+plan constructor. A supported player step at an unresolved head preserves all
+later caches, including across conditional copies sharing an original binding.
 
-These are constructor-local ingredients, not a whole-program profile law.
-Composition still needs the induction establishing accepted canonical binding
-handles and freshness of every unexecuted choice cache while connecting the
-phase laws and fixed-profile dispatch.
-The source environment, graph witness,
-and compiler cursor remain proof-only. An actual observation-local service and
-its invocation assumptions must also be connected to the composed law; no
-completion or arbitrary-deviation theorem follows from these local results.
+`ApplicationService` supplies a concrete observation-local environment policy
+and image-derived invocation list. `serialService` indexes emitted instructions
+using its own environment-history length. It invokes a chance instruction or
+includes the instruction owner's most recent submission if it remains pending,
+without examining the payload. The post-submission inclusion command and history-count
+laws are checked. The generated mixed-feature regression proves an arbitrary
+randomized binding law under this service and checks chance dispatch, missing
+submissions, and inclusion followed by application rejection of malformed data.
+The service intentionally does not retry a failed instruction: each environment
+invocation advances its recorded history. Its use as a forward-law witness
+requires the exact paired script and empty initial environment history; it
+does not establish fairness or completion under deviating players.
+
+`VegasTests/ApplicationServiceSource.lean` composes the binding and conditional
+phase laws for the complete three-node checked fixture. It quantifies over every
+source behavioral profile, keeps its original lifted profile installed through
+all five generated invocations, and uses `serialService`. Its joint completion
+and public-readout law is exactly the independent `denoteSource` law mapped to
+completed public outcomes. The result covers opening and decline with arbitrary
+source randomization. It is a complete-program integration theorem for this
+fixture, not a compilation theorem for every application plan.
+
+General composition still needs the induction preserving the invariants and
+service alignment while connecting all phase laws to the independent source
+denotation.
+Its terminal base case, `CoupledAt.finished_public_readout`, certifies both actual
+completion and the exact public source projection. The field-readout law alone
+does not imply completion, so the composed statement must retain both facts.
+The source environment, graph witness, and compiler cursor remain proof-only.
+No general completion or arbitrary-deviation theorem follows from these local
+results.
 
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.

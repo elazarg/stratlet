@@ -19,8 +19,10 @@ import Vegas.Compile.ApplicationImage
 import Vegas.Compile.ApplicationImageSamples
 import Vegas.Compile.ApplicationImageBindings
 import Vegas.Compile.ApplicationBindingOrigins
+import Vegas.Compile.ApplicationAcceptedPrefix
 import Vegas.Compile.ApplicationImageInvariants
 import Vegas.Compile.ApplicationPlan
+import Vegas.Compile.ApplicationService
 import Vegas.Compile.ApplicationPlanCoverage
 import Vegas.Compile.ApplicationPlanAllocation
 import Vegas.Compile.ApplicationPlanOrigin
@@ -45,6 +47,7 @@ import Vegas.Compile.BindingImageController
 import Vegas.Compile.BindingImageExecution
 import Vegas.Compile.ApplicationSampleExecution
 import Vegas.Compile.PublicChoiceImageExecution
+import Vegas.Compile.PublicChoicePhaseExecution
 import Vegas.Compile.PublicChoiceSourceCoupling
 import Vegas.Compile.BindingSourceCoupling
 import Vegas.Compile.BindingPhaseExecution
@@ -55,6 +58,7 @@ import Vegas.Compile.ApplicationPolicy
 import Vegas.Compile.ApplicationProfileContinuation
 import Vegas.Compile.ApplicationPolicyFreshness
 import Vegas.Compile.ApplicationCacheSeparation
+import Vegas.Compile.ApplicationPolicyCache
 import Vegas.Compile.ApplicationPolicyLocality
 import Vegas.Compile.ApplicationPolicyBindings
 import Vegas.Compile.ApplicationPolicyProvenance
@@ -103,6 +107,6 @@ nodes, exact finite laws, and terminal payoff projections.
 Structural application plans generate binding, chance, and publication instructions.
 Arbitrary supported public-message executions refine reachable graph states;
 completed runs have the public outcome of a written-order source execution.
-Whole-profile laws and strategic correspondence for this target remain separate
+General whole-profile laws and strategic correspondence for this target remain separate
 obligations.
 -/

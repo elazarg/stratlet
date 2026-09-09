@@ -7,6 +7,7 @@ Authors: VegasCore contributors
 import Vegas.Compile.ApplicationImageOutcome
 import Vegas.Compile.ApplicationImageStateRefinement
 import Vegas.Compile.SourceAdequacy
+import Vegas.Compile.SourceExecutionOutcome
 
 /-! # Source outcomes of finished generated applications
 
@@ -42,6 +43,28 @@ open ApplicationImage EventGraph
 
 variable {P : Type} [DecidableEq P] {L : IExpr}
 
+/-- At the exact terminal source checkpoint, the native application is
+finished and its public readout is the current source environment's public
+projection. Readout equality alone would not certify completion: a program
+can have no public terminal fields while still having unfinished actions. -/
+theorem CoupledAt.finished_public_readout
+    (result : BuildResult P L)
+    (current : CoupledAt result.graph result.terminalState)
+    (native : ApplicationImage.State P L)
+    (hrefines : native.Refines current.current.graph.1) :
+    native.memory.finished result.graph.nodeCount = true ∧
+      result.readPublicTerminal? native.memory = some current.current.source.erasePubEnv := by
+  have hterminal := current.terminal_of_terminalState result
+  constructor
+  · apply List.all_eq_true.mpr
+    intro node hnode
+    have hbound : node < result.graph.nodeCount := List.mem_range.mp hnode
+    exact (hrefines.memory.completed ⟨node, hbound⟩).mpr (hterminal ⟨node, hbound⟩)
+  · rw [result.readPublicTerminal?_eq_decodeTerminalSource native.memory
+      current.current.graph hrefines.memory hterminal]
+    rw [result.decodeTerminalSource_eq current.current.graph hterminal
+      current.current.source current.current.agrees]
+
 /-- A finished refining application state determines a possible terminal
 written-order source execution and exposes exactly its public terminal
 bindings. This is a support-level safety statement, not a source strategy or
@@ -73,6 +96,11 @@ theorem source_public_outcome_of_refines
     native.memory reachableCfg hrefines.memory hterminal, hdecode]
 
 end Vegas.ToEventGraph
+
+/-- info: 'Vegas.ToEventGraph.CoupledAt.finished_public_readout' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.ToEventGraph.CoupledAt.finished_public_readout
 
 /-- info: 'Vegas.ToEventGraph.source_public_outcome_of_refines' depends on axioms:
 [propext, Classical.choice, Quot.sound] -/
