@@ -41,15 +41,18 @@ theorem handle_clock (state next : DisclosureState)
           simp only [handle, response_resolve_map] at hhandle
           split at hhandle <;> cases hhandle
           rfl
-      | publish request =>
+      | publish endpoint request =>
+          have hendpoint := publish_endpoint window state next
+            ⟨id, .publish endpoint request⟩ endpoint request rfl hhandle
+          subst endpoint
           cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
               state.clock state.verifyOpening state.acceptedReference state.done (fun _ => true)
               ⟨id, request⟩ with
           | none =>
-              simp only [handle, hresolve] at hhandle
+              simp only [handle, publication_resolve_addressed, hresolve] at hhandle
               simp only [Option.bind_eq_bind, Option.bind_none, reduceCtorEq] at hhandle
           | some result =>
-              simp only [handle, hresolve] at hhandle
+              simp only [handle, publication_resolve_addressed, hresolve] at hhandle
               simp only [Option.bind_eq_bind, Option.bind_some, Option.some.injEq] at hhandle
               cases hhandle
               rfl

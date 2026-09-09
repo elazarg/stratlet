@@ -32,7 +32,7 @@ def initialExpiryActions (window : Nat) (response : Bool) :
     .submit 1 .expireInitial, .include (1, 0),
     .environment .marker, .environment .sample,
     .environment (.advance (window + 1 + window + 1)),
-    .submit 1 (.publish .expire), .include (1, 1),
+    .submit 1 (.publish 5 .expire), .include (1, 1),
     .submit 1 (.respond response), .include (1, 2)]
 
 /-- Both actual expiration calls are authored by the responder. The native
@@ -50,6 +50,7 @@ theorem initial_expiration_run (window : Nat) (response : Bool) :
     MessagePool.includePending, MessagePool.lookup, MessagePool.submit,
     MessagePool.empty, MessagePool.removeFirst, handle, PublicChoice.resolve?_map,
     environmentStep, Message.sender,
+    ConditionalPublication.resolveAddressed?, Message.dispatchEndpoint?, Message.routeEndpoint?,
     ConditionalPublication.resolve?, ConditionalPublication.ready, acceptedReference,
     DisclosureBinding.reference, Publication.publicationSite_eq, done,
     responseReady, responseValidator_true, responseEndpoint_owner, PublicChoice.ready,
@@ -77,9 +78,26 @@ theorem initial_expiration_preserves_preparation (window : Nat) (prepared : Bool
 value cannot be published as its opening, at any clock or readiness state. -/
 theorem initial_default_rejects_different_opening (window : Nat) (state : DisclosureState)
     (serial : Nat) (haccepted : state.accepted = some (.publicDefault false)) :
-    handle window state ⟨(0, serial), .publish (.opening (0, 0) true)⟩ = none := by
-  simp [handle, ConditionalPublication.resolve?, verifyOpening, haccepted,
+    handle window state ⟨(0, serial), .publish 5 (.opening (0, 0) true)⟩ = none := by
+  simp [handle, ConditionalPublication.resolveAddressed?, Message.dispatchEndpoint?,
+    Message.routeEndpoint?, ConditionalPublication.resolve?, verifyOpening, haccepted,
     DisclosureBinding.verify]
+
+/-- An accepted public default supplies its opening value independently of
+private registration. The canonical addressed request is accepted at the
+actual ready application checkpoint. -/
+theorem public_default_opening_accepts (window : Nat) (state : DisclosureState)
+    (value signal : Bool) (serial : Nat)
+    (haccepted : state.accepted = some (.publicDefault value))
+    (hmarker : state.markerDone = true) (hsignal : state.signal = some signal)
+    (hpublication : state.publication = none) :
+    handle window state ⟨(0, serial), .publish 5 (.opening (0, 0) value)⟩ =
+      some { state with publication := some (some value), responseAt := state.clock } := by
+  simp [handle, ConditionalPublication.resolveAddressed?, Message.dispatchEndpoint?,
+    Message.routeEndpoint?, ConditionalPublication.resolve?, ConditionalPublication.ready,
+    Publication.publicationSite_eq, acceptedReference, DisclosureBinding.reference,
+    verifyOpening, DisclosureBinding.verify, done, haccepted, hmarker, hsignal,
+    hpublication, Message.sender]
 
 /-- Every supported complete run of the initial-expiration script has a
 written-source execution with the initial source value `false`. -/

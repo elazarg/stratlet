@@ -4,6 +4,7 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
+import Interaction.ChoiceControllerHistory
 import VegasTests.DisclosureServiceArrivals
 import VegasTests.DisclosureOwnerBinding
 
@@ -28,7 +29,7 @@ submit the canonical opaque binding. No environment or opponent invocation is
 hidden in this prefix. -/
 theorem owner_initial_pair (secret : Bool) (complete : Bool → Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (howner : players 0 = ownerPolicy secret complete)
+    (howner : players 0 = ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete))
     (environment : (application window).EnvironmentPolicy)
     (next : (application window).PolicyExecution)
     (hnext : next ∈ ((application window).runPolicies players environment
@@ -37,26 +38,31 @@ theorem owner_initial_pair (secret : Bool) (complete : Bool → Bool → Bool)
     next.native.application.service.lookup (0, 0) = some secret ∧
       next.native.pool.pending = [⟨(0, 0), Payload.bind (0, 0)⟩] ∧
       next.native.application.observe = empty.observe ∧
-      registered (next.principalHistory 0) = true ∧
+      initialCachedValue window (next.principalHistory 0) = some secret ∧
       bindingSubmitted (next.principalHistory 0) = true ∧
-      publicationSubmitted (next.principalHistory 0) = false := by
+      openingSubmitted (next.principalHistory 0) = false := by
   simp only [MessageApplication.runPolicies, MessageApplication.invoke, howner] at hnext
-  simp [ownerPolicy, registered, bindingSubmitted, MessageApplication.PolicyExecution.initial,
-    initial, MessageApplication.State.initial, empty, MessageApplication.State.observe,
-    MessageApplication.playerStep, MessageApplication.advance,
-    MessageApplication.PlayerCommand.toAction, MessageApplication.step, application, observe,
-    privateStep, FinDist.mem_support_pure] at hnext
+  simp [ownerPolicy_pure_eq, initialCachedValue, initialCommandEncoding,
+    initialChoiceEncoding, bindingSubmitted,
+    MessageApplication.PolicyExecution.initial, initial, MessageApplication.State.initial,
+    empty, MessageApplication.State.observe, MessageApplication.playerStep,
+    MessageApplication.advance, MessageApplication.PlayerCommand.toAction,
+    MessageApplication.step, application, observe, privateStep,
+    FinDist.mem_support_pure] at hnext
   subst next
   simp [MessagePool.submit, MessagePool.empty, IdealCommitments.sealValue,
-    IdealCommitments.lookup, IdealCommitments.empty, registered, bindingSubmitted,
-    publicationSubmitted, observe, empty]
+    IdealCommitments.lookup, IdealCommitments.empty, initialCachedValue,
+    initialCommandEncoding, initialChoiceEncoding, openingCommandEncoding,
+    openingPayloadEncoding, Vegas.CommitmentAccounting.OpeningSite.choiceEncoding,
+    MessageApplication.ChoiceEncoding.trans, openingTransport, bindingSubmitted,
+    openingSubmitted, observe, empty]
 
 /-- The complete arrival phase retains the actual owner-authored binding and
-its permanently registered secret, despite arbitrary responder commands and
+its permanently cached secret, despite arbitrary responder commands and
 packet delivery. No inclusion or deadline premise is used in this phase. -/
 theorem owner_initial_arrival (secret : Bool) (complete : Bool → Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (howner : players 0 = ownerPolicy secret complete)
+    (howner : players 0 = ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete))
     (selector : (application window).EnvironmentPolicy)
     (next : (application window).PolicyExecution)
     (hnext : next ∈ ((application window).runPolicies players (serviceEnvironment selector)
@@ -64,7 +70,8 @@ theorem owner_initial_arrival (secret : Bool) (complete : Bool → Bool → Bool
       (MessageApplication.PolicyExecution.initial (application window) (initial window))).support) :
     OwnerSecretStored secret next.native.application ∧
       ⟨(0, 0), Payload.bind (0, 0)⟩ ∈ next.native.pool.pending ∧
-      next.native.application.observe = empty.observe := by
+      next.native.application.observe = empty.observe ∧
+      initialCachedValue window (next.principalHistory 0) = some secret := by
   let rest : List (@MessageApplication.Invocation TestPlayer) :=
     [.player 1, .player 1, .environment, .environment,
       .player 0, .player 0, .player 1, .player 1]
@@ -87,7 +94,7 @@ theorem owner_initial_arrival (secret : Bool) (complete : Bool → Bool → Bool
     rw [hcount] at hoffset
     rw [hhistory']
     omega) hnext
-  refine ⟨?_, ?_, hpublic.1.trans hpair.2.2.1⟩
+  refine ⟨?_, ?_, hpublic.1.trans hpair.2.2.1, ?_⟩
   · apply (application window).runPolicies_application_invariant (OwnerSecretStored secret)
       (privateStep_ownerSecretStored secret)
       (fun state message final => handle_ownerSecretStored secret state final message)
@@ -95,24 +102,30 @@ theorem owner_initial_arrival (secret : Bool) (complete : Bool → Bool → Bool
       players (serviceEnvironment selector) rest prepared next hpair.1 hnext
   · apply hpublic.2.subset
     simp [hpair.2.1]
+  · simpa [initialCachedValue] using
+      (initialCommandEncoding window).runPolicies_cachedValue_of_some
+        (application window) 0 players (serviceEnvironment selector) rest prepared next secret
+        hpair.2.2.2.1 hnext
 
 /-- At a resolved binding and sampled signal, an unchanged owner submits the
 source-selected publication at its first opportunity. Remaining player and
 delivery invocations retain that exact authenticated request. -/
 theorem owner_publication_arrival (secret signal : Bool) (complete : Bool → Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (howner : players 0 = ownerPolicy secret complete)
+    (howner : players 0 = ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete))
     (selector : (application window).EnvironmentPolicy)
     (execution next : (application window).PolicyExecution)
     (hphase : execution.environmentHistory.length % 13 = 0)
     (haccepted : execution.native.application.accepted = some (.commitment (0, 0)))
+    (hcache : initialCachedValue window (execution.principalHistory 0) = some secret)
+    (hmarker : execution.native.application.markerDone = true)
     (hsignal : execution.native.application.signal = some signal)
     (hpublication : execution.native.application.publication = none)
     (hresponse : execution.native.application.response = none)
-    (hnotSubmitted : publicationSubmitted (execution.principalHistory 0) = false)
+    (hnotSubmitted : openingSubmitted (execution.principalHistory 0) = false)
     (hnext : next ∈ ((application window).runPolicies players (serviceEnvironment selector)
       serviceArrivals execution).support) :
-    ∃ serial, ⟨(0, serial), Payload.publish
+    ∃ serial, ⟨(0, serial), Payload.publish 5
       ((Publication.publicationSite (execution.native.application.signalAt + window)).requestPayload
         (if complete secret signal then some secret else none))⟩ ∈ next.native.pool.pending := by
   apply service_owner_arrival _ players selector execution next hphase ?_ hnext
@@ -120,7 +133,7 @@ theorem owner_publication_arrival (secret signal : Bool) (complete : Bool → Bo
   have hrequest := owner_publication_after_signal secret signal complete
     (execution.principalHistory 0)
     (MessageApplication.State.observe (application window) execution.native 0)
-    haccepted hsignal hpublication hresponse hnotSubmitted
+    haccepted hcache hmarker hsignal hpublication hresponse hnotSubmitted
   cases hchoice : complete secret signal <;>
     simpa [ConditionalPublication.requestPayload, hchoice] using hrequest
 

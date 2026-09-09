@@ -15,6 +15,7 @@ import Vegas.Compile.PublicChoiceSite
 import Vegas.Compile.PublicChoiceExecution
 import Vegas.Compile.PublicChoiceValidation
 import Vegas.Compile.PublicChoiceController
+import Vegas.Compile.SourceChoiceController
 import Vegas.Compile.PublicGuard
 import Vegas.Compile.DecisionSite
 import Vegas.Compile.FieldMap

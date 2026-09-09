@@ -22,9 +22,9 @@ The acceptance inventory has two axes:
 
 | Requirement | Public-message path | Required endpoint |
 | --- | --- | --- |
-| Independent source meaning | Checked source-to-graph connection, terminal native support, and local conditional-publication correspondence; whole-program quitting integration remains open | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
-| Source coverage | Homogeneous unrestricted commit/reveal full-run fragment; general certified-site resolution components | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
-| Hostile interaction | Raw traffic, local delivery, replay, public inclusion, ideal binding/hiding; timed final-expiration instance | Whole interaction, failure, deadline and observation behavior under the theorem's complete player/environment policy classes. |
+| Independent source meaning | Source-to-graph connection, terminal native support, local source-decision laws, and exact independent-source law for the generated pure disclosure policies under a specified inclusion script | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
+| Source coverage | Homogeneous unrestricted commit/reveal fragment; general certified-site components; source-generated disclosure controllers in a program-specific phase assembly | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
+| Hostile interaction | Raw traffic, local delivery, replay, addressed public inclusion, ideal binding/hiding; initialized disclosure settlement against arbitrary opposing policies under the stated slotted service | Whole interaction, failure, deadline and observation behavior under the theorem's complete player/environment policy classes. |
 | Strategic comparison | Release-time hiding/choice independence and selective-publication obstruction | Compiled-profile law plus arbitrary unilateral-deviation comparison, with the corresponding source-outcome bounds and equilibrium results. |
 | Substantive application | The private-window sealed offer and a public-message compiled-prefix fixture | The application, its emitted controllers/handlers, and its guarantees use the same public-message compiler path. |
 | Further lowering | Separate local backend proofs | A named generated-handler path instantiates that application semantics; subsequent realization obligations are explicit. |
@@ -287,10 +287,14 @@ The shared sample-once mechanism also handles private registration commands.
 Choice encodings enforce canonicality; endpoint tags separately establish
 disjoint decoding and dispatch. `ConditionalOpeningController` composes the
 certified source value equivalence with addressed opening/decline requests and
-proves their local source law and acceptance conditions. The next assembly
-step connects source-generated private registration, opaque binding submission,
-and this addressed opening controller to the native owner policy. Its current
-singleton publication constructor does not yet carry the routing tag.
+proves their local source law and acceptance conditions. The concrete disclosure
+owner composes source-generated private registration, opaque binding submission,
+and this addressed opening controller. It retains the initial value in its own
+command history, reconstructs the opening view from that cache or an accepted
+public default, and reconstructs the complete declared source view. Native routing admits
+wrong-tag raw messages and rejects their application effect. The complete pure
+benchmark and initialized service proofs use this assembly, with all three
+strategic kernels projected from the written source profile.
 Whole-application generation, randomized full-profile laws, and the
 public-runtime strategic comparison remain open; these local components do
 not establish intermediate-observation equivalence.

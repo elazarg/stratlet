@@ -24,15 +24,33 @@ namespace VegasTests.OptionalDisclosure.DisclosureState
 
 open Interaction GameTheory.Math.Probability
 
+/-- Wrong-endpoint traffic can be submitted, delivered, and included. Dispatch
+rejects its application effect while retaining the delivered raw message and
+the failed inclusion receipt, even at an otherwise ready application state. -/
+theorem wrong_endpoint_run (window : Nat) (state : DisclosureState)
+    (endpoint : Nat) (request : ConditionalPublication.Payload TestPlayer Bool)
+    (hne : endpoint ≠ 5) :
+    (((application window).run
+      [.submit 0 (.publish endpoint request), .deliver 1 (0, 0), .include (0, 0)]
+      (MessageApplication.State.initial (application window) state)).map fun final =>
+        (final.application, final.receipts, final.pool.inbox 1)) =
+      FinDist.pure (state, [((0, 0), false)],
+        [⟨(0, 0), Payload.publish endpoint request⟩]) := by
+  simp [MessageApplication.run, MessageApplication.step,
+    MessageApplication.State.initial, MessageApplication.includePending,
+    MessagePool.includeApplication, MessagePool.includePending, MessagePool.lookup,
+    MessagePool.submit, MessagePool.empty, MessagePool.deliver, MessagePool.removeFirst,
+    application, publish_wrong_endpoint window state (0, 0) endpoint request hne]
+
 private def unopenablePrefix (window : Nat) : List (application window).Action :=
   [.submit 0 (.bind (0, 0)), .include (0, 0), .environment .marker, .environment .sample]
 
 private def unopenableSuffix (window : Nat) (lateValue response : Bool) :
     List (application window).Action :=
   [.privateCommand 0 (0, lateValue),
-    .submit 0 (.publish (.opening (0, 0) lateValue)), .deliver 1 (0, 1), .include (0, 1),
+    .submit 0 (.publish 5 (.opening (0, 0) lateValue)), .deliver 1 (0, 1), .include (0, 1),
     .environment (.advance (window + 1)),
-    .submit 1 (.publish .expire), .include (1, 0),
+    .submit 1 (.publish 5 .expire), .include (1, 0),
     .submit 1 (.respond response), .include (1, 1)]
 
 private def unopenableAtSignal (window : Nat) (signal : Bool) : (application window).State :=
@@ -61,7 +79,7 @@ private theorem unopenable_suffix_law (window : Nat) (signal lateValue response 
         (state.application.outcome?, state.receipts, state.pool.inbox 1)) =
       FinDist.pure (some (signal, none, response),
         [((0, 0), true), ((0, 1), false), ((1, 0), true), ((1, 1), true)],
-        [⟨(0, 1), Payload.publish (.opening (0, 0) lateValue)⟩]) := by
+        [⟨(0, 1), Payload.publish 5 (.opening (0, 0) lateValue)⟩]) := by
   have hrequires : graph.publicationPrerequisites (node 6) (node 7) =
       [2, 3, 5, 0, 1, 4] := by
     simpa only [responsePrerequisites, responseEndpoint_requires] using responsePrerequisites_eq
@@ -70,7 +88,8 @@ private theorem unopenable_suffix_law (window : Nat) (signal lateValue response 
     MessagePool.includePending, MessagePool.lookup, MessagePool.submit, MessagePool.empty,
     MessagePool.removeFirst, MessagePool.deliver, privateStep, handle, environmentStep,
     Message.sender, IdealCommitments.lookup, IdealCommitments.empty, IdealCommitments.sealValue,
-    IdealCommitments.verify, ConditionalPublication.resolve?, ConditionalPublication.ready,
+    IdealCommitments.verify, ConditionalPublication.resolveAddressed?, Message.dispatchEndpoint?,
+    Message.routeEndpoint?, ConditionalPublication.resolve?, ConditionalPublication.ready,
     acceptedReference, DisclosureBinding.reference, verifyOpening, DisclosureBinding.verify,
     Publication.publicationSite_eq, done, responseReady, PublicChoice.resolve?_map,
     PublicChoice.ready, hrequires, outcome?]
@@ -91,7 +110,7 @@ theorem unopenable_run (window : Nat) (lateValue response : Bool) :
       fairCoin.denote.map (fun signal =>
         (some (signal, none, response),
           [((0, 0), true), ((0, 1), false), ((1, 0), true), ((1, 1), true)],
-          [⟨(0, 1), Payload.publish (.opening (0, 0) lateValue)⟩])) := by
+          [⟨(0, 1), Payload.publish 5 (.opening (0, 0) lateValue)⟩])) := by
   rw [unopenableActions, MessageApplication.run_append, unopenable_prefix_law]
   rw [FinDist.bind_map, FinDist.map_bind]
   simp only [unopenable_suffix_law]

@@ -38,8 +38,10 @@ theorem handle_response_fixed (state next : DisclosureState)
     have hnotready : responseEndpoint.ready state.done = false := by
       simp [PublicChoice.ready, hchoice]
     simp [responseReady, hnotready] at hcondition
-  case publish request =>
-    simp only [handle, hpayload] at hhandle
+  case publish endpoint request =>
+    have hendpoint := publish_endpoint window state next message endpoint request hpayload hhandle
+    subst endpoint
+    simp only [handle, hpayload, publication_resolve_addressed] at hhandle
     cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
         state.clock state.verifyOpening state.acceptedReference state.done (fun _ => true)
         ⟨message.id, request⟩ with

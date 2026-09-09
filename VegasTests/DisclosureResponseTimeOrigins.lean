@@ -37,9 +37,9 @@ private theorem handle_responseTimeValid (state : DisclosureState)
       cases message with
       | mk id payload =>
         cases payload with
-        | publish request =>
-            rw [publication_arms_response window state next id request hhandle,
-              handle_clock state next ⟨id, .publish request⟩ hhandle]
+        | publish endpoint request =>
+            rw [publication_arms_response window state next id endpoint request hhandle,
+              handle_clock state next ⟨id, .publish endpoint request⟩ hhandle]
         | bind binding =>
             simp only [handle, Fin.isValue, Option.isNone_iff_eq_none,
               Option.ite_none_right_eq_some, Option.some.injEq] at hhandle

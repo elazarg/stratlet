@@ -432,26 +432,37 @@ alone cannot distinguish two publication decisions about the same binding,
 and a bare decline payload carries no site identity. Only voluntary opening
 and decline decode as cached source choices; permissionless expiration remains
 a separate request. The addressed handler checks the same identity at dispatch.
-Closed tests instantiate the encoding at a checked source occurrence, and a
-runtime-general test rejects cross-site traffic through actual delivery and
-inclusion. This component is not yet integrated into the complete native owner
-policy; the existing singleton disclosure application has an untagged publication
-constructor and needs an explicit routing integration.
+Disclosure's native owner uses this generated controller. Its publication
+constructor retains arbitrary endpoint tags, and the handler dispatches through
+the generated publication address. Wrong-address packets can be delivered and
+included; they receive failed receipts without changing application state. Only
+the canonical voluntary opening/decline encoding populates the owner's choice
+cache. Permissionless expiration has a separate submission flag.
 
 Initial sealed choice requires the corresponding private-registration path:
 sample the source kernel into a real slot-scoped private command, recover that
 draw from own history, and submit the opaque binding without sampling again.
-`InteractionTests.PrivateChoice` checks private registration and cache agreement
-for one shared draw through the native runner, without producing public traffic.
-It exercises the common controller mechanism, not a generated initial-choice
-compiler or its subsequent binding phase.
-Its correctness must relate the recorded command, service lookup, and accepted
-binding snapshot. The conditional-opening controller then reconstructs its
-source view from that retained choice and public observations. Compose these
-controllers by phase within `MessageApplication.PlayerPolicy`; retain
-`SourceBehavioralProfile` as the source carrier. No new evaluator or strategy
-carrier is needed for these components. General settlement and deviation laws
-must subsequently cover their assembled execution, not just ready checkpoints.
+`SourceDecisionSite.controller` supplies the generic source-decision controller
+for an arbitrary command encoding and observation-local readout. The disclosure
+initial-choice instance uses a slot-scoped private command; its first-invocation
+law jointly identifies the source draw, service lookup, and recorded command
+without public traffic. The native owner then submits the opaque binding using
+that exact cache, without drawing again. Initialized pure-policy service proofs
+carry the cache through binding acceptance and later disclosure.
+The conditional-opening controller reconstructs its full source view from that
+retained choice and public observations. An accepted public default supplies
+the bound value independently of private preparation; missing preparation for
+a commitment does not silently supply a value. `compiledPlayers` in the
+disclosure instance projects all three strategic kernels from the written
+`SourceBehavioralProfile`, composing their controllers by phase within the
+shared `MessageApplication.PlayerPolicy`. The phase assembly remains specific
+to this checked example, not a whole-program application generator. The exact
+pure-profile benchmark compares this assembled native execution with the
+independent AST denotation. The source marker and all other declared reads must
+be available before disclosure; initialized service proofs derive matching
+cache and readiness facts rather than assume them on arbitrary histories.
+These pure-policy results do not establish randomized whole-profile laws or
+unilateral deviation simulation for the assembled public-message execution.
 
 ## 6. Ownership and dependencies
 

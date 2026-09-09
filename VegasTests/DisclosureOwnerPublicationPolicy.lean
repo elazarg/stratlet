@@ -4,6 +4,7 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
+import Interaction.ChoiceControllerHistory
 import Interaction.MessageApplicationPolicyInvariant
 import VegasTests.DisclosureOwnerPublication
 import VegasTests.DisclosureServiceTimeOrigins
@@ -30,12 +31,14 @@ private theorem owner_emitted_publication_eq (secret signal : Bool)
     (history : List (application window).PlayerEntry) (view : (application window).View)
     (request : ConditionalPublication.Payload TestPlayer Bool)
     (haccepted : view.application.accepted = some (.commitment (0, 0)))
+    (hcache : initialCachedValue window history = some secret)
     (hsignal : view.application.signal = some signal)
-    (hemit : .submit (.publish request) ∈
-      (ownerPolicy secret complete history view).support) :
+    (hemit : .submit (.publish 5 request) ∈
+      (ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete)
+        history view).support) :
     request = (Publication.publicationSite 0).requestPayload
       (if complete secret signal then some secret else none) := by
-  unfold ownerPolicy at hemit
+  rw [ownerPolicy_pure_eq] at hemit
   simp only [FinDist.mem_support_pure] at hemit
   cases hresponse : view.application.response with
   | some response =>
@@ -52,28 +55,13 @@ private theorem owner_emitted_publication_eq (secret signal : Bool)
           split at hemit <;> cases hemit
       | none =>
           simp only [hpublication] at hemit
-          cases hsubmitted : publicationSubmitted history with
-          | true =>
-              rw [hsubmitted] at hemit
-              simp only [if_true] at hemit
-              cases hemit
-          | false =>
-              rw [hsubmitted] at hemit
-              simp only [Bool.false_eq_true, if_false] at hemit
-              cases hchoice : complete secret signal with
-              | false =>
-                  rw [hchoice] at hemit
-                  simp only [Bool.false_eq_true, if_false] at hemit
-                  simp only [Bool.false_eq_true, if_false,
-                    ConditionalPublication.requestPayload]
-                  exact Payload.publish.inj
-                    (MessageApplication.PlayerCommand.submit.inj hemit)
-              | true =>
-                  rw [hchoice] at hemit
-                  simp only [if_true] at hemit
-                  simp only [if_true, ConditionalPublication.requestPayload]
-                  simpa [Publication.publicationSite_eq] using Payload.publish.inj
-                    (MessageApplication.PlayerCommand.submit.inj hemit)
+          split at hemit
+          · have hbound : openingBound? history view = some secret := by
+              simpa [openingBound?, haccepted] using hcache
+            simp only [pureOpeningCommand, hbound, hsignal] at hemit
+            simpa [ConditionalPublication.requestPayload, Publication.publicationSite_eq] using
+              (Payload.publish.inj (MessageApplication.PlayerCommand.submit.inj hemit)).2
+          · cases hemit
 
 private theorem playerStep_binding_signal
     (who : TestPlayer) (execution next : (application window).PolicyExecution)
@@ -170,11 +158,12 @@ other-player and environment behavior preserves the same pool provenance. -/
 theorem owner_publication_policy_provenance (secret signal : Bool)
     (complete : Bool → Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (howner : players 0 = ownerPolicy secret complete)
+    (howner : players 0 = ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (execution next : (application window).PolicyExecution)
     (haccepted : execution.native.application.accepted = some (.commitment (0, 0)))
+    (hcache : initialCachedValue window (execution.principalHistory 0) = some secret)
     (hsignal : execution.native.application.signal = some signal)
     (hsafe : execution.native.pool.Satisfies
       (OwnerPublicationSafe ((Publication.publicationSite 0).requestPayload
@@ -189,28 +178,37 @@ theorem owner_publication_policy_provenance (secret signal : Bool)
   let Provenance := fun current : (application window).PolicyExecution =>
     current.native.application.accepted = some (.commitment (0, 0)) ∧
       current.native.application.signal = some signal ∧
+      initialCachedValue window (current.principalHistory 0) = some secret ∧
       current.native.pool.Satisfies (OwnerPublicationSafe request)
-  have hinitial : Provenance execution := ⟨haccepted, hsignal, hsafe⟩
+  have hinitial : Provenance execution := ⟨haccepted, hsignal, hcache, hsafe⟩
   have hfinal := (application window).runPolicies_execution_invariant Provenance
     players environment ?_ ?_ schedule execution next hinitial hnext
-  · exact hfinal.2.2
+  · exact hfinal.2.2.2
   · intro current who command final hcurrent hcommand hstep
     have hfixed := playerStep_binding_signal who current final command signal hcurrent.1
       hcurrent.2.1 hstep
-    refine ⟨hfixed.1, hfixed.2, ?_⟩
+    have hrecorded : initialCachedValue window (final.principalHistory 0) = some secret := by
+      by_cases hwho : who = 0
+      · subst who
+        exact (initialCommandEncoding window).playerStep_cachedValue_of_some
+          (application window) 0 current final command secret hcurrent.2.2.1 hstep
+      · rw [MessageApplication.playerStep_other_history (application window) who 0
+          (Ne.symm hwho) current command final hstep]
+        exact hcurrent.2.2.1
+    refine ⟨hfixed.1, hfixed.2, hrecorded, ?_⟩
     apply (application window).playerStep_pool_satisfies
-      (OwnerPublicationSafe request) who current final command hcurrent.2.2 ?_ hstep
+      (OwnerPublicationSafe request) who current final command hcurrent.2.2.2 ?_ hstep
     intro payload hsubmit
     subst command
     by_cases hwho : who = 0
     · subst who
       intro _ candidate hpayload
-      change payload = .publish candidate at hpayload
+      change payload = .publish 5 candidate at hpayload
       rw [hpayload] at hcommand
       have hrequest := owner_emitted_publication_eq secret signal complete
         (current.principalHistory 0)
         (MessageApplication.State.observe (application window) current.native 0)
-        candidate hcurrent.1 hcurrent.2.1 ?_
+        candidate hcurrent.1 hcurrent.2.2.1 hcurrent.2.1 ?_
       · exact hrequest
       · rw [← howner]
         exact hcommand
@@ -219,8 +217,11 @@ theorem owner_publication_policy_provenance (secret signal : Bool)
   · intro current command final hcurrent _ hstep
     have hfixed := environmentPolicyStep_binding_signal current final command signal hcurrent.1
       hcurrent.2.1 hstep
-    exact ⟨hfixed.1, hfixed.2,
+    refine ⟨hfixed.1, hfixed.2, ?_,
       (application window).environmentPolicyStep_pool_satisfies
-        (OwnerPublicationSafe request) current final command hcurrent.2.2 hstep⟩
+        (OwnerPublicationSafe request) current final command hcurrent.2.2.2 hstep⟩
+    rw [MessageApplication.environmentStep_principalHistory (application window)
+      current command final hstep]
+    exact hcurrent.2.2.1
 
 end VegasTests.OptionalDisclosure.DisclosureState

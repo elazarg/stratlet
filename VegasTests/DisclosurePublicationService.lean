@@ -46,7 +46,7 @@ private theorem environmentStep_signal_fixed_of_some (state next : DisclosureSta
 private theorem responder_publication_emit_ready
     (response : Bool → Option Bool → Bool)
     (history : List (application window).PlayerEntry) (view : (application window).View)
-    (hemit : .submit (.publish .expire) ∈
+    (hemit : .submit (.publish 5 .expire) ∈
       (responderPolicy (pureResponseDecision response) history view).support) :
     view.application.signal.isSome = true ∧ view.application.publication = none ∧
       view.application.signalAt + window < view.application.clock := by
@@ -80,17 +80,17 @@ theorem responder_publication_expiration_submission
     (next : (application window).PolicyExecution)
     (hnext : next ∈ ((application window).runPolicies players environment schedule
       (MessageApplication.PolicyExecution.initial (application window) (initial window))).support)
-    (hsubmitted : (application window).SubmittedPayload (.publish .expire)
+    (hsubmitted : (application window).SubmittedPayload (.publish 5 .expire)
       (next.principalHistory 1)) :
     next.native.application.publication.isSome = true ∨
       ((Invariant next.native.application ∧
           next.native.application.signal.isSome = true ∧
           next.native.application.publication = none ∧
           next.native.application.signalAt + window < next.native.application.clock) ∧
-        ∃ serial, ⟨(1, serial), Payload.publish .expire⟩ ∈ next.native.pool.pending) := by
+        ∃ serial, ⟨(1, serial), Payload.publish 5 .expire⟩ ∈ next.native.pool.pending) := by
   apply (application window).runPolicies_submitted_pendingOrResolved
     Invariant (PublicationExpiryReady window) (fun state => state.publication.isSome = true)
-    1 (.publish .expire) players environment
+    1 (.publish 5 .expire) players environment
     privateStep_invariant (handle_invariant window) environmentStep_invariant
     (fun _ _ _ hstate => hstate)
     (fun state actor command hstate => Or.inl ⟨
@@ -130,9 +130,10 @@ theorem responder_publication_expiration_submission
     have hsite := publication_ready_of_signal (window := window) state hready.1
       hready.2.1 hready.2.2.1
     have hhandle : handle window state
-        (⟨(1, serial), Payload.publish .expire⟩ : Message TestPlayer Payload) =
+        (⟨(1, serial), Payload.publish 5 .expire⟩ : Message TestPlayer Payload) =
         some { state with publication := some none, responseAt := state.clock } := by
-      simp only [handle, ConditionalPublication.resolve?, hsite, Bool.not_true,
+      simp only [handle, publication_resolve_addressed,
+        ConditionalPublication.resolve?, hsite, Bool.not_true,
         Bool.false_eq_true, ↓reduceIte]
       simp [Publication.publicationSite_eq, hready.2.2.2]
     exact ⟨{ state with publication := some none, responseAt := state.clock }, hhandle, rfl⟩

@@ -85,31 +85,40 @@ theorem invoke_uncached_ready_cachedValue [DecidableEq Principal]
     simpa [playerStep, advance, PlayerCommand.toAction, step] using
       congrArg FinDist.pure hrecorded
 
+/-- info: 'Interaction.MessageApplication.ChoiceController.invoke_uncached_ready_cachedValue'
+depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms invoke_uncached_ready_cachedValue
+
+end ChoiceController
+
+namespace ChoiceEncoding
+
 /-- Once an endpoint value occurs in a principal's actual history, recording
 any further player command preserves that earliest value. -/
 theorem playerStep_cachedValue_of_some [DecidableEq Principal]
-    (controller : ChoiceController app Value Input) (who : Principal)
+    (encoding : ChoiceEncoding Value app.PlayerCommand) (who : Principal)
     (execution next : app.PolicyExecution) (command : app.PlayerCommand)
     (value : Value)
-    (hcache : controller.codec.cachedValue app
+    (hcache : encoding.cachedValue app
       (execution.principalHistory who) = some value)
     (hnext : next ∈ (app.playerStep who execution command).support) :
-    controller.codec.cachedValue app (next.principalHistory who) = some value := by
+    encoding.cachedValue app (next.principalHistory who) = some value := by
   rw [playerStep_history_self app who execution command next hnext]
-  exact controller.codec.cachedValue_append_of_some app _ _ value hcache
+  exact encoding.cachedValue_append_of_some app _ _ value hcache
 
 /-- Arbitrary later player and environment invocations cannot replace an
 endpoint's earliest cached value.  No settlement or liveness premise is used. -/
 theorem runPolicies_cachedValue_of_some [DecidableEq Principal]
-    (controller : ChoiceController app Value Input) (who : Principal)
+    (encoding : ChoiceEncoding Value app.PlayerCommand) (who : Principal)
     (players : Principal → app.PlayerPolicy) (environment : app.EnvironmentPolicy)
     (schedule : List (@Invocation Principal)) (execution next : app.PolicyExecution)
     (value : Value)
-    (hcache : controller.codec.cachedValue app
+    (hcache : encoding.cachedValue app
       (execution.principalHistory who) = some value)
     (hnext : next ∈
       (app.runPolicies players environment schedule execution).support) :
-    controller.codec.cachedValue app (next.principalHistory who) = some value := by
+    encoding.cachedValue app (next.principalHistory who) = some value := by
   induction schedule generalizing execution with
   | nil =>
       simp only [runPolicies, FinDist.mem_support_pure] at hnext
@@ -125,7 +134,7 @@ theorem runPolicies_cachedValue_of_some [DecidableEq Principal]
           obtain ⟨command, _, hstep⟩ := hmiddle
           by_cases hactor : actor = who
           · subst actor
-            exact controller.playerStep_cachedValue_of_some app who execution
+            exact encoding.playerStep_cachedValue_of_some app who execution
               middle command value hcache hstep
           · rw [app.playerStep_other_history actor who (Ne.symm hactor)
                 execution command middle hstep]
@@ -137,16 +146,11 @@ theorem runPolicies_cachedValue_of_some [DecidableEq Principal]
             (app.environmentStep_principalHistory execution command middle hstep) who]
           exact hcache
 
-/-- info: 'Interaction.MessageApplication.ChoiceController.invoke_uncached_ready_cachedValue'
-depends on axioms: [propext, Classical.choice, Quot.sound] -/
-#guard_msgs (whitespace := lax) in
-#print axioms invoke_uncached_ready_cachedValue
-
-/-- info: 'Interaction.MessageApplication.ChoiceController.runPolicies_cachedValue_of_some'
+/-- info: 'Interaction.MessageApplication.ChoiceEncoding.runPolicies_cachedValue_of_some'
 depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms runPolicies_cachedValue_of_some
 
-end ChoiceController
+end ChoiceEncoding
 
 end Interaction.MessageApplication

@@ -274,10 +274,11 @@ retain private preparation and reject attempts to bind or disclose a different
 prepared value after the default. The pure owner controller reconstructs its
 continuation choice from the accepted disposition rather than its unsubmitted
 private intention; a local recovery theorem checks that behavior even with an
-empty local history. The responder controller submits initial expiration when
-its public deadline is overdue. Whole-execution opportunity and settlement
-proofs remain open; the specified honest inclusion script does not take the
-default branch.
+empty local history, once the declared public reads are available. The native
+handler accepts that public value without private preparation. The responder
+controller submits initial expiration when its public deadline is overdue.
+The initialized slotted-service results below establish opportunity and
+settlement; the separate honest inclusion script does not take the default branch.
 
 The response default has an actual permissionless entry point. Successful
 publication arms a response window, and an included overdue call selects the
@@ -287,7 +288,8 @@ does not execute the call. The native owner-disclosure/response-expiration
 execution has the expected chance law and public receipts without any responder
 action, and the handler has a written-source support theorem for arbitrary
 public payouts. The pure owner controller submits response expiration after
-observing its deadline, but settlement under deviations remains unproved.
+observing its deadline. The initialized owner-side service bound below covers
+arbitrary responder policies.
 Deadlines enable the fallback; a normal response may win until expiration is included.
 
 There is a separate commitment-validity boundary. The disclosure application

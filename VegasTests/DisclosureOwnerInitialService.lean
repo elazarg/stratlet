@@ -44,7 +44,7 @@ secret and establishes the public signal. The result holds for every responder
 policy and every admitted inclusion selector, even when the window is zero. -/
 theorem owner_initial_cycle (secret : Bool) (complete : Bool → Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (howner : players 0 = ownerPolicy secret complete)
+    (howner : players 0 = ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete))
     (selector : (application window).EnvironmentPolicy)
     (hselector : (application window).InclusionService (fun _ => True) selector)
     (next : (application window).PolicyExecution)
@@ -55,8 +55,9 @@ theorem owner_initial_cycle (secret : Bool) (complete : Bool → Bool → Bool)
       next.native.application.signal.isSome = true ∧
       next.native.application.signalAt = 0 ∧ next.native.application.clock = 1 ∧
       next.native.application.publication = none ∧ next.native.application.response = none ∧
-      publicationSubmitted (next.principalHistory 0) = false ∧
-      next.native.pool.Satisfies OwnerPreSignalMessage := by
+      openingSubmitted (next.principalHistory 0) = false ∧
+      next.native.pool.Satisfies OwnerPreSignalMessage ∧
+      initialCachedValue window (next.principalHistory 0) = some secret := by
   have hwhole : next ∈ ((application window).runPolicies players (serviceEnvironment selector)
       serviceCycle
       (MessageApplication.PolicyExecution.initial (application window) (initial window))).support :=
@@ -66,7 +67,7 @@ theorem owner_initial_cycle (secret : Bool) (complete : Bool → Bool → Bool)
     service_cycle_parts players selector
       (MessageApplication.PolicyExecution.initial (application window) (initial window)) next
       rfl rfl hwhole
-  obtain ⟨hstored, hpending, hpublic⟩ :=
+  obtain ⟨hstored, hpending, hpublic, hcache⟩ :=
     owner_initial_arrival secret complete players howner selector arrived harrived
   have hinvariant := policy_invariant window players (serviceEnvironment selector)
     serviceArrivals arrived harrived
@@ -112,13 +113,15 @@ theorem owner_initial_cycle (secret : Bool) (complete : Bool → Bool → Bool)
   have hhistory := (application window).runPolicies_environment_principalHistory players
     (serviceEnvironment selector) 11 arrived next henvironment
   refine ⟨hbinding.1.trans hbound.1, ?_, hmilestone.1, hmilestone.2, by omega, hclock,
-    hpreserved.2.1.trans hnone.1, hpreserved.2.2.trans hnone.2, ?_, ?_⟩
+    hpreserved.2.1.trans hnone.1, hpreserved.2.2.trans hnone.2, ?_, ?_, ?_⟩
   · rw [hbinding.2]
     exact hbound.2
   · rw [hhistory]
     exact hprovenance.1
   · exact (application window).runPolicies_environment_pool_satisfies OwnerPreSignalMessage
       players (serviceEnvironment selector) 11 arrived next hprovenance.2 henvironment
+  · rw [hhistory]
+    exact hcache
 
 /-- info: 'VegasTests.OptionalDisclosure.DisclosureState.owner_initial_cycle'
 depends on axioms: [propext, Classical.choice, Quot.sound] -/

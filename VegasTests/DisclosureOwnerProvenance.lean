@@ -25,23 +25,24 @@ variable {window : Nat}
 
 /-- Owner-authored pool messages before the signal are not publication requests. -/
 def OwnerPreSignalMessage (message : Message TestPlayer Payload) : Prop :=
-  message.sender = 0 → ∀ request, message.payload ≠ .publish request
+  message.sender = 0 → ∀ request, message.payload ≠ .publish 5 request
 
 private theorem owner_command_before_signal (secret : Bool)
     (complete : Bool → Bool → Bool)
     (execution : (application window).PolicyExecution)
     (command : (application window).PlayerCommand)
     (hsignal : execution.native.application.signal = none)
-    (hcommand : command ∈ (ownerPolicy secret complete
+    (hcommand : command ∈ (ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete)
       (execution.principalHistory 0)
       (MessageApplication.State.observe (application window) execution.native 0)).support) :
-    ∀ request, command ≠ .submit (.publish request) := by
+    ∀ request, command ≠ .submit (.publish 5 request) := by
   intro request heq
   subst command
-  have hemit : ownerPolicy secret complete (execution.principalHistory 0)
+  have hemit : ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete)
+      (execution.principalHistory 0)
       (MessageApplication.State.observe (application window) execution.native 0) =
-      FinDist.pure (.submit (.publish request)) := by
-    unfold ownerPolicy at hcommand ⊢
+        FinDist.pure (.submit (.publish 5 request)) := by
+    rw [ownerPolicy_pure_eq] at hcommand ⊢
     simp only [FinDist.mem_support_pure] at hcommand
     rw [← hcommand]
   have hrelease := owner_publish_requires_release secret complete
@@ -119,41 +120,50 @@ private theorem environmentPolicyStep_signal_none_before
       exact environmentStep_signal_none_before execution.native.application applicationNext
         applicationCommand happlication hnextSignal
 
-private theorem publicationSubmitted_append_nonpublication
+private theorem openingSubmitted_append_nonpublication
     (history : List (application window).PlayerEntry)
     (view : (application window).View) (command : (application window).PlayerCommand)
-    (hhistory : publicationSubmitted history = false)
-    (hcommand : ∀ request, command ≠ .submit (.publish request)) :
-    publicationSubmitted (history ++ [⟨view, command⟩]) = false := by
-  unfold publicationSubmitted at hhistory ⊢
-  rw [List.any_append, hhistory]
-  cases command with
-  | privateCommand command | replay id | wait =>
-      simp
-  | submit payload =>
-      cases payload with
-      | publish request => exact (hcommand request rfl).elim
-      | bind handle | expireInitial | respond value | expireResponse | cleartext value |
-          malformed =>
-          simp
+    (hhistory : openingSubmitted history = false)
+    (hcommand : ∀ request, command ≠ .submit (.publish 5 request)) :
+    openingSubmitted (history ++ [⟨view, command⟩]) = false := by
+  have hcache : openingCommandEncoding.cachedValue (application window) history = none := by
+    simpa [openingSubmitted] using hhistory
+  unfold openingSubmitted
+  rw [openingCommandEncoding.cachedValue_append_of_none
+    (application window) history [⟨view, command⟩] hcache]
+  rw [openingCommandEncoding.cachedValue_cons]
+  cases hdecode : openingCommandEncoding.decode command with
+  | none => rfl
+  | some value =>
+      exfalso
+      have hencoded := openingCommandEncoding.decode_sound command value hdecode
+      cases value with
+      | none =>
+          apply hcommand .decline
+          change command = .submit (openingPayloadEncoding.encode none) at hencoded
+          simpa using hencoded
+      | some secret =>
+          apply hcommand (.opening (0, 0) secret)
+          change command = .submit (openingPayloadEncoding.encode (some secret)) at hencoded
+          simpa using hencoded
 
 /-- From actual initialization, absence of the public signal certifies that no
 owner publication was recorded in policy history or anywhere in the message
 pool. The responder and environment policies are arbitrary. -/
 theorem owner_preSignal_provenance (secret : Bool) (complete : Bool → Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (howner : players 0 = ownerPolicy secret complete)
+    (howner : players 0 = ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (next : (application window).PolicyExecution)
     (hnext : next ∈ ((application window).runPolicies players environment schedule
       (MessageApplication.PolicyExecution.initial (application window) (initial window))).support)
     (hsignal : next.native.application.signal = none) :
-    publicationSubmitted (next.principalHistory 0) = false ∧
+    openingSubmitted (next.principalHistory 0) = false ∧
       next.native.pool.Satisfies OwnerPreSignalMessage := by
   let Provenance := fun execution : (application window).PolicyExecution =>
     execution.native.application.signal = none →
-      publicationSubmitted (execution.principalHistory 0) = false ∧
+      openingSubmitted (execution.principalHistory 0) = false ∧
         execution.native.pool.Satisfies OwnerPreSignalMessage
   apply (application window).runPolicies_execution_invariant Provenance players environment
     ?_ ?_ schedule
@@ -170,7 +180,7 @@ theorem owner_preSignal_provenance (secret : Bool) (complete : Bool → Bool →
           hfinalSignal (by rw [← howner]; exact hcommand)
         rw [MessageApplication.playerStep_history_self (application window) 0 execution
           command final hfinal]
-        exact publicationSubmitted_append_nonpublication (execution.principalHistory 0)
+        exact openingSubmitted_append_nonpublication (execution.principalHistory 0)
           (MessageApplication.State.observe (application window) execution.native 0)
           command hcurrent.1 hcommandSafe
       · rw [MessageApplication.playerStep_other_history (application window) who 0 (Ne.symm hwho)
@@ -183,7 +193,7 @@ theorem owner_preSignal_provenance (secret : Bool) (complete : Bool → Bool →
       intro hsender request hpayload
       change who = 0 at hsender
       subst who
-      change payload = .publish request at hpayload
+      change payload = .publish 5 request at hpayload
       have hcommandSafe := owner_command_before_signal secret complete execution
         (.submit payload) hfinalSignal (by rw [← howner]; exact hcommand)
       apply hcommandSafe request

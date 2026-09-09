@@ -33,6 +33,8 @@ import VegasTests.DisclosureApplicationSource
 import VegasTests.DisclosurePublicChoice
 import VegasTests.DisclosurePublicChoiceRefinement
 import VegasTests.DisclosurePublicChoiceController
+import VegasTests.DisclosureInitialChoiceController
+import VegasTests.DisclosureOpeningController
 import VegasTests.DisclosureControllerHistory
 import VegasTests.DisclosureApplicationLaw
 import VegasTests.DisclosureMalformed

@@ -44,8 +44,11 @@ theorem handle_response_none_or_expected (expected : Bool)
           exact Or.inr (by simp [hvalue])
       | expireResponse =>
           simp [handle, Nat.not_lt.mpr hearly] at hhandle
-      | publish request =>
-          simp only [handle] at hhandle
+      | publish endpoint request =>
+          have hendpoint := publish_endpoint window state next
+            ⟨id, .publish endpoint request⟩ endpoint request rfl hhandle
+          subst endpoint
+          simp only [handle, publication_resolve_addressed] at hhandle
           cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
               state.clock state.verifyOpening state.acceptedReference state.done
               (fun _ => true) ⟨id, request⟩ with

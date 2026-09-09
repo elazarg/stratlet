@@ -228,11 +228,12 @@ theorem responder_publication_arrival (response : Bool → Option Bool → Bool)
     (hpublication : execution.native.application.publication = none)
     (hresponse : execution.native.application.response = none)
     (hexpired : execution.native.application.signalAt + window < execution.native.application.clock)
-    (hnotSubmitted : publicationSubmitted (execution.principalHistory 1) = false)
+    (hnotSubmitted : publicationExpirySubmitted (execution.principalHistory 1) = false)
     (hnext : next ∈ ((application window).runPolicies players (serviceEnvironment selector)
       serviceArrivals execution).support) :
-    ∃ serial, ⟨(1, serial), Payload.publish .expire⟩ ∈ next.native.pool.pending := by
-  apply service_responder_arrival (.publish .expire) players selector execution next hphase ?_ hnext
+    ∃ serial, ⟨(1, serial), Payload.publish 5 .expire⟩ ∈ next.native.pool.pending := by
+  apply service_responder_arrival (.publish 5 .expire) players selector execution next
+    hphase ?_ hnext
   intro view hview
   rw [hresponder]
   apply responder_expires_publication response _ view binding signal

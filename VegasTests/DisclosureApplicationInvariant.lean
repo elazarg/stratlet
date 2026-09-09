@@ -117,8 +117,11 @@ theorem handle_invariant (window : Nat) (state : DisclosureState)
       have hsome : state.publication.isSome = true := by rw [hresultState]; rfl
       have hacceptedSome := hmarker (hsignal (hpublication hsome))
       simp_all
-  | publish request =>
-      simp only [handle, hpayload] at hhandle
+  | publish endpoint request =>
+      have hendpoint := publish_endpoint window state next message endpoint request
+        hpayload hhandle
+      subst endpoint
+      simp only [handle, hpayload, publication_resolve_addressed] at hhandle
       cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
           state.clock state.verifyOpening state.acceptedReference state.done (fun _ => true)
           ⟨message.id, request⟩ with
@@ -218,8 +221,11 @@ theorem handle_binding (window : Nat) (state : DisclosureState)
       have hnone : state.accepted.isNone = false := by
         cases haccepted : state.accepted <;> simp_all
       simp [handle, hpayload, hnone] at hhandle
-  | publish request =>
-      simp only [handle, hpayload] at hhandle
+  | publish endpoint request =>
+      have hendpoint := publish_endpoint window state next message endpoint request
+        hpayload hhandle
+      subst endpoint
+      simp only [handle, hpayload, publication_resolve_addressed] at hhandle
       cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
           state.clock state.verifyOpening state.acceptedReference state.done (fun _ => true)
           ⟨message.id, request⟩ with
@@ -292,11 +298,12 @@ theorem handle_publication_fixed (window : Nat) (state : DisclosureState)
     (hhandle : handle window state message = some next) :
     next.publication = state.publication ∧ next.responseAt = state.responseAt := by
   cases hpayload : message.payload
-  case publish request =>
+  case publish endpoint request =>
     cases message with
     | mk id payload =>
         cases hpayload
-        rw [publish_after_resolution window state id request result hpublication] at hhandle
+        rw [publish_after_resolution window state id endpoint request result hpublication]
+          at hhandle
         cases hhandle
   all_goals
     simp only [handle, hpayload] at hhandle

@@ -38,9 +38,9 @@ theorem responder_publication_cycle (response : Bool → Option Bool → Bool)
     (hinvariant : Invariant execution.native.application)
     (hsignal : execution.native.application.signal.isSome = true)
     (hexpired : execution.native.application.signalAt + window < execution.native.application.clock)
-    (haccounted : publicationSubmitted (execution.principalHistory 1) = true →
+    (haccounted : publicationExpirySubmitted (execution.principalHistory 1) = true →
       execution.native.application.publication.isSome = true ∨
-        ∃ serial, ⟨(1, serial), Payload.publish .expire⟩ ∈ execution.native.pool.pending)
+        ∃ serial, ⟨(1, serial), Payload.publish 5 .expire⟩ ∈ execution.native.pool.pending)
     (hnext : next ∈ ((application window).runPolicies players (serviceEnvironment selector)
       serviceCycle execution).support) :
     next.native.application.publication.isSome = true := by
@@ -59,8 +59,8 @@ theorem responder_publication_cycle (response : Bool → Option Bool → Bool)
           from congrArg PublicState.publication hpublic.1, hpublication]
         rfl
     | none =>
-        have hnotSubmitted : publicationSubmitted (execution.principalHistory 1) = false := by
-          cases hflag : publicationSubmitted (execution.principalHistory 1) with
+        have hnotSubmitted : publicationExpirySubmitted (execution.principalHistory 1) = false := by
+          cases hflag : publicationExpirySubmitted (execution.principalHistory 1) with
           | false => rfl
           | true =>
               rcases haccounted hflag with hpublished | ⟨serial, hpending⟩
@@ -128,8 +128,7 @@ theorem responder_publication_by_cycle (response : Bool → Option Bool → Bool
       apply responder_publication_cycle response players hresponder selector hselector before next
         (by omega) hempty hinvariant (by simp [hsignal]) hexpired ?_ htail'
       intro hsubmitted
-      have hexact := responder_publicationSubmitted_exact response players hresponder
-        (serviceEnvironment selector) (serviceSchedule cycles) before hbefore hsubmitted
+      have hexact := publicationExpirySubmitted_exact (before.principalHistory 1) hsubmitted
       rcases responder_publication_expiration_submission response players hresponder
           (serviceEnvironment selector) (serviceSchedule cycles) before hbefore hexact with
         hpublished | ⟨_, hpending⟩

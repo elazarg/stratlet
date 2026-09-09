@@ -25,12 +25,11 @@ variable {window : Nat}
 
 private def ResponderCommandLaw (response : Bool → Option Bool → Bool)
     (view : (application window).View) (command : (application window).PlayerCommand) : Prop :=
-  (∀ request, command = .submit (.publish request) → request = .expire) ∧
-    (∀ value, command = .submit (.respond value) →
-      ∃ signal publication,
-        view.application.signal = some signal ∧
-          view.application.publication = some publication ∧
-          value = response signal publication)
+  ∀ value, command = .submit (.respond value) →
+    ∃ signal publication,
+      view.application.signal = some signal ∧
+        view.application.publication = some publication ∧
+        value = response signal publication
 
 private def ResponderHistoryLaw (response : Bool → Option Bool → Bool)
     (history : List (application window).PlayerEntry) : Prop :=
@@ -65,17 +64,7 @@ private theorem responder_command_law (response : Bool → Option Bool → Bool)
                 simp only [responderPolicy, hresponse, Option.isSome_none,
                   Bool.false_eq_true, if_false, haccepted, hsignal, hpublication,
                   FinDist.mem_support_pure] at hcommand
-                split at hcommand
-                · subst command
-                  constructor
-                  · intro request hrequest
-                    injection hrequest with hpayload
-                    injection hpayload with hrequest
-                    exact hrequest.symm
-                  · intro value hvalue
-                    cases hvalue
-                · subst command
-                  simp [ResponderCommandLaw]
+                split at hcommand <;> subst command <;> simp [ResponderCommandLaw]
             | some publication =>
                 simp only [responderPolicy, hresponse, Option.isSome_none,
                   Bool.false_eq_true, if_false, haccepted, hsignal, hpublication] at hcommand
@@ -83,14 +72,11 @@ private theorem responder_command_law (response : Bool → Option Bool → Bool)
                 simp only [FinDist.mem_support_pure] at hcommand
                 split at hcommand
                 · subst command
-                  constructor
-                  · intro request hrequest
-                    cases hrequest
-                  · intro value hvalue
-                    refine ⟨signal, publication, hsignal, hpublication, ?_⟩
-                    injection hvalue with hpayload
-                    injection hpayload with hvalue
-                    simpa only [hsignal, hpublication, Option.getD_some] using hvalue.symm
+                  intro value hvalue
+                  refine ⟨signal, publication, hsignal, hpublication, ?_⟩
+                  injection hvalue with hpayload
+                  injection hpayload with hvalue
+                  simpa only [hsignal, hpublication, Option.getD_some] using hvalue.symm
                 · subst command
                   simp [ResponderCommandLaw]
 
@@ -104,7 +90,7 @@ theorem responder_response_support (response : Bool → Option Bool → Bool)
     ∃ signal publication,
       view.application.signal = some signal ∧
         view.application.publication = some publication ∧ value = response signal publication :=
-  (responder_command_law response history view _ hemit).2 value rfl
+  responder_command_law response history view _ hemit value rfl
 
 private theorem responder_history_law
     (response : Bool → Option Bool → Bool)
@@ -124,30 +110,25 @@ private theorem responder_history_law
   rw [hresponder] at hcommand
   exact responder_command_law response history view command hcommand
 
-/-- Along every supported run from initialization, the responder's coarse
-publication flag denotes an exact publication-expiration submission. -/
-theorem responder_publicationSubmitted_exact
-    (response : Bool → Option Bool → Bool)
-    (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
-    (environment : (application window).EnvironmentPolicy)
-    (schedule : List (@MessageApplication.Invocation TestPlayer))
-    (next : (application window).PolicyExecution)
-    (hnext : next ∈ ((application window).runPolicies players environment schedule
-      (MessageApplication.PolicyExecution.initial (application window) (initial window))).support)
-    (hsubmitted : publicationSubmitted (next.principalHistory 1) = true) :
-    (application window).SubmittedPayload (.publish .expire) (next.principalHistory 1) := by
-  have hlaw := responder_history_law response players hresponder environment schedule next hnext
-  simp only [publicationSubmitted, List.any_eq_true] at hsubmitted
+/-- The expiration flag records the exact endpoint and payload on any history. -/
+theorem publicationExpirySubmitted_exact
+    (history : List (application window).PlayerEntry)
+    (hsubmitted : publicationExpirySubmitted history = true) :
+    (application window).SubmittedPayload (.publish 5 .expire) history := by
+  simp only [publicationExpirySubmitted, List.any_eq_true] at hsubmitted
   obtain ⟨entry, hentry, hpublication⟩ := hsubmitted
   cases hcommand : entry.command with
   | privateCommand command | replay id | wait => simp [hcommand] at hpublication
   | submit payload =>
       cases payload with
-      | publish request =>
-          have hrequest := (hlaw entry hentry).1 request hcommand
-          subst request
-          exact ⟨entry, hentry, hcommand⟩
+      | publish endpoint request =>
+          cases request with
+          | opening handle value | decline | cleartext value | malformed =>
+              simp [hcommand] at hpublication
+          | expire =>
+              have hendpoint : endpoint = 5 := by simpa [hcommand] using hpublication
+              subst endpoint
+              exact ⟨entry, hentry, hcommand⟩
       | bind handle | expireInitial | respond value | expireResponse | cleartext value |
           malformed => simp [hcommand] at hpublication
 
@@ -176,10 +157,10 @@ theorem responder_responseSubmitted_exact
       cases payload with
       | respond value =>
           obtain ⟨signal, publication, hsignal, hpublication, hvalue⟩ :=
-            (hlaw entry hentry).2 value hcommand
+            hlaw entry hentry value hcommand
           refine ⟨entry, hentry, signal, publication, hsignal, hpublication, ?_⟩
           rw [hcommand, hvalue]
-      | bind handle | expireInitial | publish request | expireResponse | cleartext value |
+      | bind handle | expireInitial | publish endpoint request | expireResponse | cleartext value |
           malformed => simp [hcommand] at hresponse
 
 end VegasTests.OptionalDisclosure.DisclosureState

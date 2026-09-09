@@ -28,7 +28,8 @@ def publicationExpirationId? : List (Message TestPlayer Payload) →
   | [] => none
   | message :: rest =>
       match message.payload with
-      | .publish .expire => some message.id
+      | .publish endpoint .expire =>
+          if endpoint = 5 then some message.id else publicationExpirationId? rest
       | _ => publicationExpirationId? rest
 
 private theorem publicationExpirationId?_find
@@ -38,23 +39,24 @@ private theorem publicationExpirationId?_find
   induction messages with
   | nil => simp [publicationExpirationId?] at hselected
   | cons first rest ih =>
-      cases hpayload : first.payload <;>
-        simp only [publicationExpirationId?, hpayload] at hselected
-      case publish request =>
-        cases request <;> simp only at hselected
-        case expire =>
-          cases hselected
-          exact ⟨first, by simp⟩
-        all_goals
-          by_cases hid : first.id = id
-          · exact ⟨first, by simp [hid]⟩
-          · obtain ⟨message, hlookup⟩ := ih hselected
-            exact ⟨message, by simpa [hid] using hlookup⟩
-      all_goals
+      have fallback (hrest : publicationExpirationId? rest = some id) :
+          ∃ message, (first :: rest).find? (fun candidate => candidate.id = id) =
+            some message := by
         by_cases hid : first.id = id
         · exact ⟨first, by simp [hid]⟩
-        · obtain ⟨message, hlookup⟩ := ih hselected
+        · obtain ⟨message, hlookup⟩ := ih hrest
           exact ⟨message, by simpa [hid] using hlookup⟩
+      cases hpayload : first.payload <;>
+        simp only [publicationExpirationId?, hpayload] at hselected
+      case publish endpoint request =>
+        cases request <;> simp only at hselected
+        case expire =>
+          split at hselected
+          · cases hselected
+            exact ⟨first, by simp⟩
+          · exact fallback hselected
+        all_goals exact fallback hselected
+      all_goals exact fallback hselected
 
 private theorem publicationExpirationId?_lookup
     (pool : MessagePool TestPlayer Payload) (id : MessageId TestPlayer)
@@ -96,8 +98,8 @@ theorem expirationFirst_service :
 def zeroWindowRacePrelude : List (application 0).Action :=
   [.privateCommand 0 (0, true), .submit 0 (.bind (0, 0)), .include (0, 0),
     .environment .marker, .environment .sample, .environment (.advance 1),
-    .submit 0 (.publish (.opening (0, 0) true)),
-    .submit 1 (.publish .expire)]
+    .submit 0 (.publish 5 (.opening (0, 0) true)),
+    .submit 1 (.publish 5 .expire)]
 
 /-- The race state is genuinely native-reachable from the empty application:
 the owner has a valid `true` binding and opening pending, while an overdue
@@ -109,8 +111,8 @@ theorem zero_window_race_prelude_observation :
         state.application.publication, state.pool.pending)) =
       fairCoin.denote.map fun signal =>
         (some true, some signal, 0, 1, none,
-          [⟨(0, 1), Payload.publish (.opening (0, 0) true)⟩,
-            ⟨(1, 0), Payload.publish .expire⟩]) := by
+          [⟨(0, 1), Payload.publish 5 (.opening (0, 0) true)⟩,
+            ⟨(1, 0), Payload.publish 5 .expire⟩]) := by
   simp [zeroWindowRacePrelude, MessageApplication.run, MessageApplication.step,
     application, initial, MessageApplication.State.initial, empty,
     MessageApplication.includePending, MessagePool.includeApplication,
@@ -128,23 +130,23 @@ theorem zero_window_race_prelude_reachable :
       state.application.signalAt < state.application.clock ∧
       state.application.publication = none ∧
       state.pool.pending =
-        [⟨(0, 1), Payload.publish (.opening (0, 0) true)⟩,
-          ⟨(1, 0), Payload.publish .expire⟩] := by
+        [⟨(0, 1), Payload.publish 5 (.opening (0, 0) true)⟩,
+          ⟨(1, 0), Payload.publish 5 .expire⟩] := by
   have hout : ((some true : Option Bool), (some true : Option Bool), (0 : Nat),
       (1 : Nat), (none : Option (Option Bool)),
-      ([⟨(0, 1), Payload.publish (.opening (0, 0) true)⟩,
-        ⟨(1, 0), Payload.publish .expire⟩] : List (Message TestPlayer Payload))) ∈
+      ([⟨(0, 1), Payload.publish 5 (.opening (0, 0) true)⟩,
+        ⟨(1, 0), Payload.publish 5 .expire⟩] : List (Message TestPlayer Payload))) ∈
       (fairCoin.denote.map fun (signal : Bool) =>
         ((some true : Option Bool), some signal, (0 : Nat), (1 : Nat),
           (none : Option (Option Bool)),
-          ([⟨(0, 1), Payload.publish (.opening (0, 0) true)⟩,
-            ⟨(1, 0), Payload.publish .expire⟩] :
+          ([⟨(0, 1), Payload.publish 5 (.opening (0, 0) true)⟩,
+            ⟨(1, 0), Payload.publish 5 .expire⟩] :
               List (Message TestPlayer Payload)))).support := by
     rw [FinDist.support_map]
     exact ⟨true, coin_supported true, rfl⟩
   have hout' : (some true, some true, 0, 1, none,
-      [⟨(0, 1), Payload.publish (.opening (0, 0) true)⟩,
-        ⟨(1, 0), Payload.publish .expire⟩]) ∈
+      [⟨(0, 1), Payload.publish 5 (.opening (0, 0) true)⟩,
+        ⟨(1, 0), Payload.publish 5 .expire⟩]) ∈
       (((application 0).run zeroWindowRacePrelude (initial 0)).map fun state =>
         (state.application.boundValue?, state.application.signal,
           state.application.signalAt, state.application.clock,
@@ -181,12 +183,12 @@ theorem zero_window_queued_opening_valid (state : (application 0).State)
     (hsignal : state.application.signal.isSome = true)
     (hpublication : state.application.publication = none)
     (hpending : state.pool.pending =
-      [⟨(0, 1), Payload.publish (.opening (0, 0) true)⟩,
-        ⟨(1, 0), Payload.publish .expire⟩]) :
+      [⟨(0, 1), Payload.publish 5 (.opening (0, 0) true)⟩,
+        ⟨(1, 0), Payload.publish 5 .expire⟩]) :
     ((application 0).includePending state (0, 1)).application.publication =
       some (some true) := by
   have hlookup : state.pool.lookup (0, 1) =
-      some ⟨(0, 1), Payload.publish (.opening (0, 0) true)⟩ := by
+      some ⟨(0, 1), Payload.publish 5 (.opening (0, 0) true)⟩ := by
     simp [MessagePool.lookup, hpending]
   have hready := publication_ready_of_signal (window := 0)
     state.application hinvariant hsignal hpublication
@@ -199,9 +201,10 @@ theorem zero_window_queued_opening_valid (state : (application 0).State)
       verifyOpening_true_of_invariant before (by simpa [before] using hinvariant)
         (by simpa [before] using hbound), rfl⟩
   have hhandle : handle 0 before
-      ⟨(0, 1), Payload.publish (.opening (0, 0) true)⟩ =
+      ⟨(0, 1), Payload.publish 5 (.opening (0, 0) true)⟩ =
       some { before with publication := some (some true), responseAt := before.clock } := by
-    simp only [handle, hresolve, Option.bind_eq_bind, Option.bind_some]
+    simp only [handle, publication_resolve_addressed, hresolve,
+      Option.bind_eq_bind, Option.bind_some]
   dsimp only [before] at hhandle
   rw [(application 0).includePending_accept state (0, 1) _ _ hlookup hhandle]
 
@@ -234,8 +237,8 @@ theorem zero_window_serviced_publication_race
     (hexpired : execution.native.application.signalAt < execution.native.application.clock)
     (hpublication : execution.native.application.publication = none)
     (hpending : execution.native.pool.pending =
-      [⟨(0, 1), Payload.publish (.opening (0, 0) true)⟩,
-        ⟨(1, 0), Payload.publish .expire⟩])
+      [⟨(0, 1), Payload.publish 5 (.opening (0, 0) true)⟩,
+        ⟨(1, 0), Payload.publish 5 .expire⟩])
     (hnext : next ∈ ((application 0).runPolicies players
       (serviceEnvironment expirationFirst) (List.replicate 8 .environment)
       execution).support) :
@@ -254,7 +257,7 @@ theorem zero_window_serviced_publication_race
     rfl
   rw [hservicePolicy] at hcommand
   simp only [expirationFirst, MessageApplication.State.environmentView, hpending,
-    publicationExpirationId?, FinDist.mem_support_pure] at hcommand
+    publicationExpirationId?, if_true, FinDist.mem_support_pure] at hcommand
   subst command
   have hnative : middle.native = (application 0).includePending execution.native (1, 0) := by
     simp only [MessageApplication.environmentPolicyStep, MessageApplication.advance,
@@ -262,15 +265,15 @@ theorem zero_window_serviced_publication_race
       FinDist.pure_bind, FinDist.mem_support_pure] at hmiddle
     exact congrArg MessageApplication.PolicyExecution.native hmiddle
   have hlookup : execution.native.pool.lookup (1, 0) =
-      some ⟨(1, 0), Payload.publish .expire⟩ := by
+      some ⟨(1, 0), Payload.publish 5 .expire⟩ := by
     simp [MessagePool.lookup, hpending]
   have hready := publication_ready_of_signal (window := 0)
     execution.native.application hinvariant hsignal hpublication
   let before := execution.native.application
-  have hhandle : handle 0 before ⟨(1, 0), Payload.publish .expire⟩ =
+  have hhandle : handle 0 before ⟨(1, 0), Payload.publish 5 .expire⟩ =
       some { before with publication := some none, responseAt := before.clock } := by
     dsimp only [before]
-    simp only [handle, ConditionalPublication.resolve?]
+    simp only [handle, publication_resolve_addressed, ConditionalPublication.resolve?]
     rw [hready]
     simp [Publication.publicationSite_eq, hexpired]
   have hmiddleApplication : middle.native.application =

@@ -54,16 +54,19 @@ private theorem handle_service (state next : DisclosureState)
           simp only [handle, response_resolve_map] at hhandle
           split at hhandle <;> cases hhandle
           rfl
-      | publish request =>
+      | publish endpoint request =>
+          have hendpoint := publish_endpoint window state next
+            ⟨id, .publish endpoint request⟩ endpoint request rfl hhandle
+          subst endpoint
           cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
               state.clock state.verifyOpening state.acceptedReference state.done (fun _ => true)
               ⟨id, request⟩ with
           | none =>
-              simp only [handle, hresolve, Option.bind_eq_bind, Option.bind_none,
-                reduceCtorEq] at hhandle
+              simp only [handle, publication_resolve_addressed, hresolve,
+                Option.bind_eq_bind, Option.bind_none, reduceCtorEq] at hhandle
           | some result =>
-              simp only [handle, hresolve, Option.bind_eq_bind, Option.bind_some,
-                Option.some.injEq] at hhandle
+              simp only [handle, publication_resolve_addressed, hresolve,
+                Option.bind_eq_bind, Option.bind_some, Option.some.injEq] at hhandle
               cases hhandle
               rfl
       | cleartext value | malformed => simp [handle] at hhandle
@@ -128,16 +131,19 @@ theorem handle_ownerBindingInvariant (secret : Bool) (state next : DisclosureSta
         | expireInitial =>
             rw [expireInitial_before_deadline window state id.1 id.2 hearly] at hhandle
             contradiction
-        | publish request =>
+        | publish endpoint request =>
+            have hendpoint := publish_endpoint window state next
+              ⟨id, .publish endpoint request⟩ endpoint request rfl hhandle
+            subst endpoint
             cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
                 state.clock state.verifyOpening state.acceptedReference state.done (fun _ => true)
                 ⟨id, request⟩ with
             | none =>
-                simp only [handle, hresolve, Option.bind_eq_bind, Option.bind_none,
-                  reduceCtorEq] at hhandle
+                simp only [handle, publication_resolve_addressed, hresolve,
+                  Option.bind_eq_bind, Option.bind_none, reduceCtorEq] at hhandle
             | some result =>
-                simp only [handle, hresolve, Option.bind_eq_bind, Option.bind_some,
-                  Option.some.injEq] at hhandle
+                simp only [handle, publication_resolve_addressed, hresolve,
+                  Option.bind_eq_bind, Option.bind_some, Option.some.injEq] at hhandle
                 cases hhandle
                 exact Or.inl hunresolved
         | respond value =>

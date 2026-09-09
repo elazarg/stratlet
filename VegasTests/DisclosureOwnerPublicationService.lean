@@ -29,7 +29,7 @@ inclusion selector. A positive window protects the first publication opportunity
 theorem owner_choice_by_two_cycles (secret : Bool) (complete : Bool → Bool → Bool)
     (hwindow : 1 ≤ window)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (howner : players 0 = ownerPolicy secret complete)
+    (howner : players 0 = ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete))
     (selector : (application window).EnvironmentPolicy)
     (hselector : (application window).InclusionService (fun _ => True) selector)
     (next : (application window).PolicyExecution)
@@ -45,8 +45,8 @@ theorem owner_choice_by_two_cycles (secret : Bool) (complete : Bool → Bool →
   have hsecond' : next ∈ ((application window).runPolicies players (serviceEnvironment selector)
       serviceCycle before).support := by
     simpa [serviceSchedule] using hsecond
-  obtain ⟨haccepted, hstored, _, hsignalSome, horigin, hclock, hpublication, hresponse,
-      hnotSubmitted, hnoPublication⟩ :=
+  obtain ⟨haccepted, hstored, hmarker, hsignalSome, horigin, hclock, hpublication, hresponse,
+      hnotSubmitted, hnoPublication, hcache⟩ :=
     owner_initial_cycle secret complete players howner selector hselector before hbefore
   obtain ⟨_, hhistory, hempty, _⟩ :=
     service_game_invariants players selector hselector 1 before hbefore
@@ -67,9 +67,11 @@ theorem owner_choice_by_two_cycles (secret : Bool) (complete : Bool → Bool →
       service_cycle_parts players selector before next hphase hempty hsecond'
     have hpublic := (service_arrivals_public players selector before arrived hphase harrived).1
     obtain ⟨serial, hpending⟩ := owner_publication_arrival secret signal complete players howner
-      selector before arrived hphase haccepted hsignal hpublication hresponse hnotSubmitted harrived
+      selector before arrived hphase haccepted hcache hmarker hsignal hpublication hresponse
+        hnotSubmitted harrived
     have hsafeArrived := owner_publication_policy_provenance secret signal complete players howner
-      (serviceEnvironment selector) serviceArrivals before arrived haccepted hsignal hsafe harrived
+      (serviceEnvironment selector) serviceArrivals before arrived haccepted hcache hsignal
+        hsafe harrived
     have hinvariant : Invariant arrived.native.application := by
       apply (application window).runPolicies_application_invariant Invariant
         privateStep_invariant (handle_invariant window) environmentStep_invariant

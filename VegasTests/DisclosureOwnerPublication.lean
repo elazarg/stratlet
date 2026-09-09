@@ -27,7 +27,7 @@ payloads and responder-authored packets are unrestricted. -/
 def OwnerPublicationSafe (request : ConditionalPublication.Payload TestPlayer Bool)
     (message : Message TestPlayer Payload) : Prop :=
   message.sender = 0 →
-    ∀ candidate, message.payload = .publish candidate → candidate = request
+    ∀ candidate, message.payload = .publish 5 candidate → candidate = request
 
 private theorem owner_request_resolves (secret signal : Bool) (result : Option Bool)
     (hresult : result = none ∨ result = some secret) (state : DisclosureState)
@@ -36,7 +36,7 @@ private theorem owner_request_resolves (secret signal : Bool) (result : Option B
     (hstored : state.acceptedService.lookup (0, 0) = some secret)
     (hsignal : state.signal = some signal) (hpublication : state.publication = none) :
     handle window state ⟨(0, serial),
-        .publish ((Publication.publicationSite 0).requestPayload result)⟩ =
+        .publish 5 ((Publication.publicationSite 0).requestPayload result)⟩ =
       some { state with publication := some result, responseAt := state.clock } := by
   have hready := publication_ready_of_signal (window := window) state hinvariant
     (by simp [hsignal]) hpublication
@@ -55,7 +55,8 @@ private theorem owner_request_resolves (secret signal : Bool) (result : Option B
     rcases hresult with rfl | rfl
     · trivial
     · exact ⟨hverify, rfl⟩
-  simp only [handle, hresolve, Option.bind_eq_bind, Option.bind_some]
+  simp only [handle, publication_resolve_addressed, hresolve,
+    Option.bind_eq_bind, Option.bind_some]
 
 private theorem handle_publication_none_or_owner_result (result : Option Bool)
     (state next : DisclosureState) (message : Message TestPlayer Payload)
@@ -78,10 +79,14 @@ private theorem handle_publication_none_or_owner_result (result : Option Bool)
           split at hhandle <;> try contradiction
           cases hhandle
           exact Or.inl hpublication
-      | publish request =>
+      | publish endpoint request =>
+          have hendpoint := publish_endpoint window state next
+            ⟨id, .publish endpoint request⟩ endpoint request rfl hhandle
+          subst endpoint
           cases request with
           | opening reference claimed =>
-              simp only [handle, ConditionalPublication.resolve?] at hhandle
+              simp only [handle, publication_resolve_addressed,
+                ConditionalPublication.resolve?] at hhandle
               split at hhandle <;> try contradiction
               split at hhandle <;> try contradiction
               rename_i hopen
@@ -98,7 +103,8 @@ private theorem handle_publication_none_or_owner_result (result : Option Bool)
                   cases hhandle
                   exact Or.inr (by simp [hclaimed])
           | decline =>
-              simp only [handle, ConditionalPublication.resolve?] at hhandle
+              simp only [handle, publication_resolve_addressed,
+                ConditionalPublication.resolve?] at hhandle
               split at hhandle <;> try contradiction
               split at hhandle <;> try contradiction
               rename_i howner
@@ -112,9 +118,11 @@ private theorem handle_publication_none_or_owner_result (result : Option Bool)
                   rw [hresultState] at hrequest
                   simp [ConditionalPublication.requestPayload] at hrequest
           | expire =>
-              simp [handle, ConditionalPublication.resolve?, Nat.not_lt.mpr hearly] at hhandle
+              simp only [handle, publication_resolve_addressed] at hhandle
+              simp [ConditionalPublication.resolve?, Nat.not_lt.mpr hearly] at hhandle
           | cleartext value | malformed =>
-              simp [handle, ConditionalPublication.resolve?] at hhandle
+              simp only [handle, publication_resolve_addressed] at hhandle
+              simp [ConditionalPublication.resolve?] at hhandle
       | cleartext value | malformed => simp [handle] at hhandle
 
 private def OwnerPublicationReady (window : Nat) (secret signal : Bool)
@@ -153,14 +161,14 @@ theorem owner_publication_phase_resolves (secret signal : Bool) (result : Option
       (OwnerPublicationSafe ((Publication.publicationSite 0).requestPayload result))
         execution.native.pool)
     (hpending : ⟨(0, serial),
-        Payload.publish ((Publication.publicationSite 0).requestPayload result)⟩ ∈
+        Payload.publish 5 ((Publication.publicationSite 0).requestPayload result)⟩ ∈
       execution.native.pool.pending)
     (hnext : next ∈ ((application window).runPolicies players environment
       (List.replicate count .environment) execution).support) :
     next.native.application.publication = some result := by
   apply (application window).inclusion_phase_resolves
     (OwnerPublicationReady window secret signal result) (OwnerPublicationResolved result)
-    ⟨(0, serial), Payload.publish ((Publication.publicationSite 0).requestPayload result)⟩
+    ⟨(0, serial), Payload.publish 5 ((Publication.publicationSite 0).requestPayload result)⟩
     ?_ ?_ ?_
     players during environment hservice count execution next hslots hcapacity
     ⟨hinvariant, haccepted, hstored, hsignal, hpublication, hearly, hsafe⟩ hpending hnext

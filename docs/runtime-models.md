@@ -490,10 +490,19 @@ encoding addresses the generated publication node, distinguishes voluntary
 decline from permissionless expiration, and preserves the source value
 equivalence. The checked first-emission and acceptance theorems require matching
 source readouts and the accepted-binding, readiness, verification, and guard
-premises. The full native owner policy does not yet consume this component;
-its existing singleton publication constructor is untagged. The private initial
-choice, opaque binding phase, addressed opening controller, and settlement
-proof still need assembly on this same runtime.
+premises. Disclosure's native owner composes this component with a
+`SourceDecisionSite.controller` for private initial registration, an opaque
+binding phase, and response expiration. Publication packets carry an arbitrary
+endpoint tag; dispatch rejects wrong tags without hiding delivered traffic.
+The opening readout uses the earliest slot-scoped private command for an
+accepted commitment, or the accepted public default, together with the full
+remaining declared read footprint. This includes the fixed private marker,
+reconstructed from public marker completion. Pure initialized service proofs
+carry that exact cache through binding and disclosure. `compiledPlayers` projects
+the three strategic kernels from one written source profile; its pure benchmark has the independent
+AST's exact outcome law. The phase assembly is specific to this checked program.
+General application generation, randomized whole-profile laws, and public
+deviation simulation remain open.
 
 `SealedTimeout.messageApplication` instantiates this carrier with the timed
 sealed handler. Its state and action translations have both roundtrips, its
@@ -616,6 +625,8 @@ publication, and response. `DisclosureSourcePolicies` independently constructs
 the corresponding information-local AST policies.
 `DisclosureApplicationLaw.honest_source_law` equates actual message-policy
 execution with that written-order denotation for every public payoff list;
+`compiled_source_law` makes the complete generated policy assembly explicit
+for the checked program's pure profiles.
 `honest_settles` proves settlement for every supported run of these controllers
 under the specified inclusion script. The script triggers the actual chance
 kernel; it does not supply the sampled signal.
@@ -649,8 +660,9 @@ about the shared policy runner, with local native-inclusion premises.
 premises for initial binding, ordinary response, and all three overdue expiration
 calls. Competing messages may resolve the phase first, so these results guarantee
 phase resolution rather than a particular chosen value. They begin with a ready
-request already pending; controller submission deadlines and timeout-race
-exclusion remain unproved.
+request already pending and do not themselves establish controller submission
+deadlines or timeout-race exclusion. The initialized results below establish
+these facts for unchanged deterministic controllers under the stated service.
 
 `Interaction/MessageApplicationArrival.lean` proves that player preparation,
 submission, replay, and recipient delivery retain pending envelopes during a

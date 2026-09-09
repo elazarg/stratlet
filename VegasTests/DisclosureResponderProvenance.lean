@@ -199,7 +199,7 @@ private theorem responseSubmitted_append_nonresponse
   | submit payload =>
       cases payload with
       | respond value => exact (hcommand value rfl).elim
-      | bind handle | expireInitial | publish request | expireResponse | cleartext value |
+      | bind handle | expireInitial | publish endpoint request | expireResponse | cleartext value |
           malformed => simp
 
 /-- From initialization, an absent publication rules out responder response

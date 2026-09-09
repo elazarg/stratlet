@@ -116,8 +116,10 @@ theorem handle_signal_fixed (state next : DisclosureState)
     (hhandle : handle window state message = some next) :
     next.signal = state.signal ∧ next.signalAt = state.signalAt := by
   cases hpayload : message.payload
-  case publish request =>
-    simp only [handle, hpayload] at hhandle
+  case publish endpoint request =>
+    have hendpoint := publish_endpoint window state next message endpoint request hpayload hhandle
+    subst endpoint
+    simp only [handle, hpayload, publication_resolve_addressed] at hhandle
     cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
         state.clock state.verifyOpening state.acceptedReference state.done (fun _ => true)
         ⟨message.id, request⟩ with
@@ -184,16 +186,17 @@ theorem include_publication_expiration_resolves (state : (application window).St
     (hinvariant : Invariant state.application)
     (hsignal : state.application.signal.isSome = true)
     (hexpired : state.application.signalAt + window < state.application.clock)
-    (hlookup : state.pool.lookup id = some ⟨(caller, serial), Payload.publish .expire⟩) :
+    (hlookup : state.pool.lookup id = some ⟨(caller, serial), Payload.publish 5 .expire⟩) :
     ((application window).includePending state id).application.publication.isSome = true := by
   cases hpublication : state.application.publication with
   | none =>
       have hready := publication_ready_of_signal (window := window)
         state.application hinvariant hsignal hpublication
-      have hhandle : handle window state.application ⟨(caller, serial), .publish .expire⟩ =
+      have hhandle : handle window state.application ⟨(caller, serial), .publish 5 .expire⟩ =
           some { state.application with
             publication := some none, responseAt := state.application.clock } := by
-        simp only [handle, ConditionalPublication.resolve?, hready, Bool.not_true,
+        simp only [handle, publication_resolve_addressed,
+          ConditionalPublication.resolve?, hready, Bool.not_true,
           Bool.false_eq_true, ↓reduceIte]
         simp [Publication.publicationSite_eq, hexpired]
       rw [(application window).includePending_accept state id _ _ hlookup hhandle]
@@ -214,7 +217,7 @@ theorem publication_expiration_phase_resolves (caller : TestPlayer) (serial : Na
     (hinvariant : Invariant execution.native.application)
     (hsignal : execution.native.application.signal.isSome = true)
     (hexpired : execution.native.application.signalAt + window < execution.native.application.clock)
-    (hpending : ⟨(caller, serial), Payload.publish .expire⟩ ∈ execution.native.pool.pending)
+    (hpending : ⟨(caller, serial), Payload.publish 5 .expire⟩ ∈ execution.native.pool.pending)
     (hnext : next ∈ ((application window).runPolicies players environment
       (List.replicate count .environment) execution).support) :
     next.native.application.publication.isSome = true := by
@@ -222,7 +225,7 @@ theorem publication_expiration_phase_resolves (caller : TestPlayer) (serial : Na
     (fun state => Invariant state.application ∧ state.application.signal.isSome = true ∧
       state.application.signalAt + window < state.application.clock)
     (fun state => state.application.publication.isSome = true)
-    ⟨(caller, serial), .publish .expire⟩ include_publication_persists ?_
+    ⟨(caller, serial), .publish 5 .expire⟩ include_publication_persists ?_
     (fun state id hready hlookup => include_publication_expiration_resolves state id caller serial
       hready.1 hready.2.1 hready.2.2 hlookup)
     players during environment hservice count execution next hslots hcapacity

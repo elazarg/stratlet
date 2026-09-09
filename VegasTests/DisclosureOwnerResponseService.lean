@@ -66,11 +66,12 @@ private theorem owner_response_expiry_emit_ready (secret : Bool)
     (history : List (application window).PlayerEntry)
     (view : (application window).View)
     (hemit : .submit .expireResponse ∈
-      (ownerPolicy secret complete history view).support) :
+      (ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete)
+        history view).support) :
     view.application.publication.isSome = true ∧
       view.application.response = none ∧
       view.application.responseAt + window < view.application.clock := by
-  unfold ownerPolicy at hemit
+  rw [ownerPolicy_pure_eq] at hemit
   simp only [FinDist.mem_support_pure] at hemit
   split at hemit
   · contradiction
@@ -82,10 +83,9 @@ private theorem owner_response_expiry_emit_ready (secret : Bool)
       · contradiction
       · split at hemit
         · split at hemit
+          · unfold pureOpeningCommand at hemit
+            split at hemit <;> cases hemit
           · contradiction
-          · split at hemit
-            · split at hemit <;> simp_all
-            · split at hemit <;> simp_all
         · split at hemit
           · rename_i hexpired
             simp only [Bool.and_eq_true, decide_eq_true_eq] at hexpired
@@ -109,7 +109,7 @@ resolved or remains pending at the same overdue response checkpoint. -/
 theorem owner_response_expiration_submission (secret : Bool)
     (complete : Bool → Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (howner : players 0 = ownerPolicy secret complete)
+    (howner : players 0 = ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (next : (application window).PolicyExecution)
@@ -193,7 +193,7 @@ theorem owner_response_expiration_submission (secret : Bool)
 private theorem owner_response_expiry_arrival (secret : Bool)
     (complete : Bool → Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (howner : players 0 = ownerPolicy secret complete)
+    (howner : players 0 = ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete))
     (selector : (application window).EnvironmentPolicy)
     (execution next : (application window).PolicyExecution)
     (hphase : execution.environmentHistory.length % 13 = 0)
@@ -231,7 +231,7 @@ owner controller is unchanged and its earlier one-shot expiry is accounted. -/
 theorem owner_response_expiration_cycle (secret : Bool)
     (complete : Bool → Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (howner : players 0 = ownerPolicy secret complete)
+    (howner : players 0 = ownerPolicy (pureInitialDecision secret) (pureOpeningDecision complete))
     (selector : (application window).EnvironmentPolicy)
     (hselector : (application window).InclusionService (fun _ => True) selector)
     (execution next : (application window).PolicyExecution)

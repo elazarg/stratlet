@@ -95,7 +95,7 @@ namespace DisclosureState
 inductive Payload where
   | bind (handle : CommitmentHandle TestPlayer Nat)
   | expireInitial
-  | publish (request : ConditionalPublication.Payload TestPlayer Bool)
+  | publish (endpoint : Nat) (request : ConditionalPublication.Payload TestPlayer Bool)
   | respond (value : Bool)
   | expireResponse
   | cleartext (value : Bool)
@@ -185,6 +185,19 @@ def environmentStep (state : DisclosureState) : EnvironmentCommand → FinDist D
       else FinDist.pure state
   | .advance clock => FinDist.pure (if state.clock ≤ clock then { state with clock } else state)
 
+/-- Routing at the source-generated publication address preserves the native
+conditional-publication call, including its sender and serial. -/
+@[simp] theorem publication_resolve_addressed (deadline now : Nat)
+    (verify : IdealCommitments.Opening
+      (Principal := TestPlayer) (Slot := Nat) (Value := Bool) → Bool)
+    (accepted : Option (CommitmentHandle TestPlayer Nat)) (completed : Nat → Bool)
+    (canOpen : Bool → Bool) (id : MessageId TestPlayer)
+    (request : ConditionalPublication.Payload TestPlayer Bool) :
+    (Publication.publicationSite deadline).resolveAddressed? now verify accepted completed
+        canOpen ⟨id, (5, request)⟩ =
+      (Publication.publicationSite deadline).resolve? now verify accepted completed
+        canOpen ⟨id, request⟩ := rfl
+
 /-- Acceptance freezes the privileged verifier without exposing its result.
 Only a subsequent authenticated opening tests the captured commitment. -/
 def handle (window : Nat) (state : DisclosureState)
@@ -200,10 +213,10 @@ def handle (window : Nat) (state : DisclosureState)
       if state.accepted.isNone ∧ window < state.clock then
         some { state with accepted := some (.publicDefault false) }
       else none
-  | .publish request => do
-      let result ← (Publication.publicationSite (state.signalAt + window)).resolve? state.clock
-        state.verifyOpening state.acceptedReference state.done (fun _ => true)
-        ⟨message.id, request⟩
+  | .publish endpoint request => do
+      let result ← (Publication.publicationSite (state.signalAt + window)).resolveAddressed?
+        state.clock state.verifyOpening state.acceptedReference state.done (fun _ => true)
+          ⟨message.id, (endpoint, request)⟩
       some { state with publication := some result, responseAt := state.clock }
   | .respond value =>
       (responseEndpoint.resolve? state.done responseValidator ⟨message.id, value⟩).map
@@ -213,6 +226,29 @@ def handle (window : Nat) (state : DisclosureState)
         some { state with response := some false }
       else none
   | .cleartext _ | .malformed => none
+
+/-- Publication messages are dispatched by the generated source endpoint.
+Other addresses remain valid raw traffic but have no application effect. -/
+theorem publish_wrong_endpoint (window : Nat) (state : DisclosureState)
+    (id : MessageId TestPlayer) (endpoint : Nat)
+    (request : ConditionalPublication.Payload TestPlayer Bool) (hne : endpoint ≠ 5) :
+    handle window state ⟨id, .publish endpoint request⟩ = none := by
+  simp [handle, ConditionalPublication.resolveAddressed?, Message.dispatchEndpoint?,
+    Message.routeEndpoint?, Publication.publicationSite_eq, hne]
+
+/-- Acceptance entails the exact generated publication address. -/
+theorem publish_endpoint (window : Nat) (state next : DisclosureState)
+    (message : Message TestPlayer Payload) (endpoint : Nat)
+    (request : ConditionalPublication.Payload TestPlayer Bool)
+    (hpayload : message.payload = .publish endpoint request)
+    (hhandle : handle window state message = some next) : endpoint = 5 := by
+  by_contra hne
+  have hreject := publish_wrong_endpoint window state message.id endpoint request hne
+  have heq : message = ⟨message.id, .publish endpoint request⟩ := by
+    cases message
+    simp_all
+  rw [heq, hreject] at hhandle
+  contradiction
 
 def application (window : Nat) : MessageApplication TestPlayer where
   Application := DisclosureState
@@ -338,17 +374,22 @@ theorem expireResponse_completed (window : Nat) (state : DisclosureState)
 
 /-- A completed publication cannot be repeated to re-arm the response clock. -/
 theorem publish_after_resolution (window : Nat) (state : DisclosureState)
-    (id : MessageId TestPlayer) (request : ConditionalPublication.Payload TestPlayer Bool)
+    (id : MessageId TestPlayer) (endpoint : Nat)
+    (request : ConditionalPublication.Payload TestPlayer Bool)
     (result : Option Bool) (hpublication : state.publication = some result) :
-    handle window state ⟨id, .publish request⟩ = none := by
-  simp [handle, ConditionalPublication.resolve?, ConditionalPublication.ready,
+    handle window state ⟨id, .publish endpoint request⟩ = none := by
+  simp [handle, ConditionalPublication.resolveAddressed?, Message.dispatchEndpoint?,
+    Message.routeEndpoint?, ConditionalPublication.resolve?, ConditionalPublication.ready,
     Publication.publicationSite_eq, done, hpublication]
 
 theorem publication_arms_response (window : Nat) (state next : DisclosureState)
-    (id : MessageId TestPlayer) (request : ConditionalPublication.Payload TestPlayer Bool)
-    (hhandle : handle window state ⟨id, .publish request⟩ = some next) :
+    (id : MessageId TestPlayer) (endpoint : Nat)
+    (request : ConditionalPublication.Payload TestPlayer Bool)
+    (hhandle : handle window state ⟨id, .publish endpoint request⟩ = some next) :
     next.responseAt = state.clock := by
-  simp only [handle] at hhandle
+  have hendpoint := publish_endpoint window state next _ endpoint request rfl hhandle
+  subst endpoint
+  simp only [handle, publication_resolve_addressed] at hhandle
   cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
       state.clock state.verifyOpening state.acceptedReference state.done (fun _ => true)
       ⟨id, request⟩ with

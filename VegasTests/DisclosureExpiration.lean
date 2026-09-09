@@ -24,7 +24,7 @@ def responseExpiryActions (window : Nat) (secret : Bool) :
     List (application window).Action :=
   [.privateCommand 0 (0, secret), .submit 0 (.bind (0, 0)), .include (0, 0),
     .environment .marker, .environment .sample,
-    .submit 0 (.publish (.opening (0, 0) secret)), .include (0, 1),
+    .submit 0 (.publish 5 (.opening (0, 0) secret)), .include (0, 1),
     .environment (.advance (window + 1)),
     .submit 0 .expireResponse, .include (0, 2)]
 
@@ -46,6 +46,7 @@ theorem response_expiration_run (window : Nat) (secret : Bool) :
     MessagePool.empty, MessagePool.removeFirst, privateStep, handle, environmentStep,
     Message.sender, IdealCommitments.freezeAt, IdealCommitments.lookup,
     IdealCommitments.empty, IdealCommitments.sealValue, IdealCommitments.verify,
+    ConditionalPublication.resolveAddressed?, Message.dispatchEndpoint?, Message.routeEndpoint?,
     ConditionalPublication.resolve?, ConditionalPublication.ready,
     acceptedReference, DisclosureBinding.reference, verifyOpening, DisclosureBinding.verify,
     Publication.publicationSite_eq, done, responseReady, PublicChoice.ready, hrequires,

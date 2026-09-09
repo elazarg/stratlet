@@ -43,8 +43,8 @@ private theorem handle_firstArm (origin : Nat) (state : DisclosureState)
           cases message with
           | mk id payload =>
             cases payload with
-            | publish request =>
-                rw [publication_arms_response window state next id request hhandle]
+            | publish endpoint request =>
+                rw [publication_arms_response window state next id endpoint request hhandle]
                 exact hstate.1
             | bind binding =>
                 simp only [handle, Fin.isValue, Option.isNone_iff_eq_none,
@@ -102,8 +102,11 @@ private theorem handle_response_none_of_prePublicationSafe (origin : Nat)
           simp [done, hpublication] at hdone
         · have hclock := harm.1
           omega
-    | publish request =>
-        simp only [handle] at hhandle
+    | publish endpoint request =>
+        have hendpoint := publish_endpoint window state next
+          ⟨id, .publish endpoint request⟩ endpoint request rfl hhandle
+        subst endpoint
+        simp only [handle, publication_resolve_addressed] at hhandle
         cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
             state.clock state.verifyOpening state.acceptedReference state.done (fun _ => true)
             ⟨id, request⟩ with
