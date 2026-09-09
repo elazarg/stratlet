@@ -380,6 +380,39 @@ justifies the controllers' one-shot submission flags. Clock progression,
 milestone persistence, controller history, and exact unchanged-player choices
 remain separate obligations before deriving the bounds or strategic laws.
 
+#### Deviation-law proof targets
+
+The intended comparison fixes the adaptive inclusion selector, assumes the
+slotted service and `w >= 1`, and uses a sufficiently long schedule (the proposed
+uniform bound is `2*w + 4` cycles). Neither an arbitrary environment nor the
+inclusion predicate alone supplies the required opportunity guarantees.
+The first source endpoint may use pure compiled policies with behavioral source
+replacements, but draft-level coverage requires randomized source profiles too.
+
+After settlement and exact unchanged-player choices, reconstruct laws rather
+than choosing an independent source witness for each supported outcome:
+
+- For an owner replacement, factor the decoded law into an initial binding
+  distribution, independent source chance, an opening kernel conditional on
+  binding and signal, and the unchanged source response kernel. Legal openings
+  are decline or the retained binding. Unopenable accepted commitments use the
+  existing decoder's `false` witness and permit only decline.
+- For a responder replacement, retain the unchanged owner's initial and
+  disclosure laws and reconstruct a response kernel depending on signal and
+  actual publication. With a randomized honest binding, this requires proving
+  conditional independence from that binding given those public inputs; a
+  fixed-secret example cannot establish that information-flow property.
+
+Finite-law disintegration can construct these kernels once their factorization
+properties are proved. Zero-mass observations need legal fallback policies.
+The candidate translation is profile-local and environment-dependent, not a
+uniform translator for all opponent profiles. Runtime traffic and receipts
+remain observations of the actual policies but are not equated with source
+terminal environments. Randomized controllers must retain their own sampled
+initial choice and sample each later source decision once; extra polling must
+not create resampling opportunities for compiled play. These obligations are
+not discharged by the scripted honest law or by source-support correspondence.
+
 1. Relate the emitted resolution entry point and call-entry deadline policy
    to the gate and complete handler semantics. Treat source handler
    elaboration as an explicit compiler obligation.
