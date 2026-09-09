@@ -26,6 +26,9 @@ import VegasTests.DisclosureCheckpoint
 import VegasTests.DisclosureInformation
 import VegasTests.DisclosureResponse
 import VegasTests.DisclosureOpening
+import VegasTests.DisclosurePublication
+import VegasTests.DisclosurePublicationOrder
+import VegasTests.DisclosureResolutionGuard
 import VegasTests.DisclosureLaw
 import VegasTests.DisclosureSites
 import VegasTests.DisclosurePolicy

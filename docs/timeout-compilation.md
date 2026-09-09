@@ -245,14 +245,32 @@ themselves. See [runtime models](runtime-models.md) and the
 
 ## Next integration gate
 
+The conditional-publication component supplies a local source-resolution
+bridge without adopting the final-expiration instance's global stop policy.
+`ConditionalOpeningSite` derives the paired choice/reveal metadata from a
+source accounting certificate. `ConditionalResolution` proves accepted
+results perform legal source steps and every legal source choice has a
+canonical accepted request, under the appropriate soundness/completeness
+directions of the application validator. `ConditionalExecution` proves the
+accepted effect follows the two actual compiled graph kernels. The compiler
+must also maintain source/store and original-handle correspondence.
+
+This component distinguishes commitment verification from program legality.
+An opening can verify correctly but be forbidden by a continuation guard after
+earlier quitting. The application supplies that check; source well-formedness
+does not force all bound openings to remain legal. Publication also retains
+previously delivered payloads, including an opening overtaken by expiration.
+These facts do not yet supply a whole-program timeout implementation or a
+strategic comparison.
+
 1. Relate the emitted resolution entry point and call-entry deadline policy
    to the gate and complete handler semantics. Treat source handler
    elaboration as an explicit compiler obligation.
-2. Extend the integrated final-expiration instance with the chosen source's
-   actual resolution continuation and observations. Its opening/expiration
-   race is operationally specified; identifying its final-failure disposition
-   with a source quit remains a separate proof. Preserve the original bound
-   value and both calls' observable success or rejection throughout.
+2. Integrate conditional publication into the chosen source's complete public
+   application and controller, including its actual continuation and
+   observations. Do not reinterpret the final-expiration instance's global
+   failure as that continuation. Preserve the original bound value and both
+   calls' observable success or rejection throughout.
 3. Prove that a supported source program's resolution executes its prescribed
    continuation or settlement while retaining bound values and observations.
    Eligibility for this backend is distinct from source well-formedness.

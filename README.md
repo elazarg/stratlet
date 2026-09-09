@@ -48,6 +48,10 @@ and whole-interaction strategic proofs. The timed instance has its own local
 policy game over actual message inclusion, clock updates, and public receipts;
 its supported outcomes retain the source-prefix guarantee, but expiration is
 not reinterpreted as a nullable source choice or source termination.
+The separate conditional-publication compiler component relates accepted
+opening/decline/expiration to certified source choices and the corresponding
+compiled graph steps. It checks opening legality separately from commitment
+verification; whole-program public-runtime strategy correspondence remains open.
 The `Interaction` library provides a native pool and explicit ideal commitment
 service. A certified homogeneous commit/reveal backend connects actual
 checked core programs, through their event graphs, to this public-message

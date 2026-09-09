@@ -6,6 +6,7 @@ import Interaction.DependencyGate
 import Interaction.DependencyGateLaws
 import Interaction.Deadline
 import Interaction.IdealCommitments
+import Interaction.ConditionalPublication
 import Interaction.SealedProgram
 import Interaction.SealedProgramLaws
 import Interaction.SealedExecution

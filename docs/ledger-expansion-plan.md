@@ -22,8 +22,8 @@ The acceptance inventory has two axes:
 
 | Requirement | Public-message path | Required endpoint |
 | --- | --- | --- |
-| Independent source meaning | Checked source-to-graph connection and terminal native support; source quitting integration remains open | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
-| Source coverage | Homogeneous unrestricted commit/reveal fragment, without samples | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
+| Independent source meaning | Checked source-to-graph connection, terminal native support, and local conditional-publication correspondence; whole-program quitting integration remains open | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
+| Source coverage | Homogeneous unrestricted commit/reveal full-run fragment; general certified-site resolution components | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
 | Hostile interaction | Raw traffic, local delivery, replay, public inclusion, ideal binding/hiding; timed final-expiration instance | Whole interaction, failure, deadline and observation behavior under the theorem's complete player/environment policy classes. |
 | Strategic comparison | Release-time hiding/choice independence and selective-publication obstruction | Compiled-profile law plus arbitrary unilateral-deviation comparison, with the corresponding source-outcome bounds and equilibrium results. |
 | Substantive application | The private-window sealed offer and a public-message compiled-prefix fixture | The application, its emitted controllers/handlers, and its guarantees use the same public-message compiler path. |
@@ -260,6 +260,23 @@ retained binding through its certified conditional-publication site. The
 remaining obligations are owner-independent execution of forced steps with
 correct observations and a runtime codec preserving the same-owner typed
 binding. Accounting alone supplies neither mechanism.
+
+The conditional-publication compiler component supplies the local resolution
+edge: generated metadata, source/validator correspondence in both directions,
+and execution by the actual paired graph kernels. It still needs integration
+into the whole public application and its controllers. The next strategic
+gate includes the prefix establishing the original binding, all subsequent
+player choices, persistent quitting, and settlement under the stated services;
+starting a proof at an already represented disclosure checkpoint does not
+complete that gate.
+
+Integrate through the existing message execution and application boundary,
+generalizing the application parameter where the second concrete client needs
+it. Do not add a separate optional-disclosure runner or policy evaluator.
+The emitted controller must check disclosure fences before submitting an
+opening, not only before its application effect is accepted: recipient delivery
+can reveal the payload before inclusion. Retain the actual clock, receipts,
+and local message histories in the policy game while proving the comparison.
 
 Choose a finite checked core program with two real players, source-defined
 nonresponse outcomes, and a later decision that can expose an information

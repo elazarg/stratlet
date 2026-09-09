@@ -5,6 +5,10 @@ Authors: VegasCore contributors
 -/
 
 import Vegas.Compile.Compiler
+import Vegas.Compile.ConditionalExecution
+import Vegas.Compile.ConditionalOpeningSite
+import Vegas.Compile.ConditionalPublication
+import Vegas.Compile.ConditionalResolution
 import Vegas.Compile.DecisionSite
 import Vegas.Compile.FieldMap
 import Vegas.Compile.SourceAdequacy
@@ -16,7 +20,6 @@ import Vegas.Compile.SourceExecution
 import Vegas.Compile.SourceExecutionGraph
 import Vegas.Compile.SourceExecutionLaw
 import Vegas.Compile.SourceExecutionOutcome
-import Vegas.Compile.SourceExecutionLaw
 import Vegas.Compile.SourceOutcome
 import Vegas.Compile.SourceObservation
 import Vegas.Compile.SourcePolicy

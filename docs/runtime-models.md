@@ -430,6 +430,61 @@ interface, and general deviation adequacy remain open. The fixed schedule is
 not a model of arbitrary asynchronous activation or player-owned builder
 capabilities.
 
+### Source-certified conditional publication
+
+`Interaction.ConditionalPublication` classifies opening, owner decline, and
+permissionless expiration messages. Its application-supplied metadata names
+the accepted original handle, completion prerequisites, and deadline. A valid
+opening must pass both ideal commitment verification and the application's
+`canOpen` predicate. Cleartext and malformed messages remain possible traffic
+but do not resolve the site. Expiration is strict and must actually be included;
+the clock reading alone executes nothing.
+
+`CommitmentAccounting.OpeningSite` locates a conditional-publication certificate
+inside an actual source accounting derivation. `ConditionalOpeningSite` derives
+the corresponding compiler-generated choice and reveal nodes, their exact rows,
+and the original typed source field. Backend handle allocation is explicit:
+an initial sealed field need not have a producer node, and a graph field id is
+not automatically a commitment slot.
+
+`ConditionalResolution` proves the local comparison in both directions.
+Every accepted result is decline or the original bound value and performs the
+existing legal source commit/reveal steps, assuming the represented binding and
+opening-validator soundness. Conversely, every legal source value has an
+accepted canonical owner request at a ready site, assuming validator
+completeness. Both validator obligations concern the stored bound value;
+commitment verification handles false claims about that value. The accounting
+certificate alone does not imply that opening is always legal. In particular,
+the persistent-quitting guard can allow only decline.
+
+The `runtime_resolution_reachable` theorem in `ConditionalExecution` combines
+the emitted metadata, runtime validation, source/store agreement, and actual
+primitive graph kernels. An accepted result justifies the decoded effect of
+executing the adjacent choice and reveal, preserving graph reachability.
+An enclosing handler must actually apply that effect. The readiness test
+includes prerequisites of both nodes, excluding only the internal
+choice-to-reveal edge.
+`DisclosurePublicationOrder` proves that the concrete optional-disclosure
+site needs no additional waiting once its choice is ready, and that its
+responder cannot execute before publication.
+
+`DisclosurePublication` instantiates the metadata with the checked source's
+accounting site. Its transactional handler is related both to actual source
+`SmallStep.Star` steps and to the generic graph-reachability theorem. Concrete
+submit/deliver/include executions check opening, decline, and expiration.
+These fixtures start at a represented disclosure checkpoint; they do not yet
+generate or prove the entire public interaction establishing that checkpoint.
+
+These are local compiler and execution results, not whole-interaction
+deviation adequacy. The service binding, represented source checkpoint, and
+validator correspondence must be maintained by the enclosing application.
+The classifier does not implement initial nonparticipation, all later forced
+steps, or settlement. Atomic execution also removes the intermediate graph
+observation point; the two primitive-step laws do not identify the histories.
+Inclusion retains public traffic and recipient inboxes. If an opening was
+delivered before expiration, the recipient retains its value even when the
+application later records decline.
+
 ### Replay and application identity
 
 `MessagePool.replay` copies an envelope available in the broadcaster's sent

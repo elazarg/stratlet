@@ -66,6 +66,40 @@ theorem viewEnvOfReadEnv_eq_sourceView
     (fieldRefOfView_mem_visibleFieldRefs state who binding)
   exact Option.some.inj (hread.symm.trans (hagrees binding))
 
+/-- A legal source choice is an actual primitive graph commitment at its
+compiled row, when the runtime store represents the source environment. -/
+def BuildState.sourceCommitStep
+    {Γ : VCtx P L} {name : VarId} {ty : L.Ty} {G : Graph P L}
+    (state : BuildState P L Γ) (who : P)
+    (guard : L.Expr ((name, ty) :: eraseVCtx (viewVCtx who Γ)) L.bool)
+    (cfg : Config G) (env : VEnv L Γ) (hagrees : state.Agrees cfg.store env)
+    (node : Fin G.nodeCount)
+    (hrow : G.nodes[node]? = some (state.commitEvent who guard))
+    (hready : Ready G cfg node) (value : L.Val ty)
+    (hlegal : evalGuard guard value ((env.toView who).eraseEnv) = true) :
+    CommitStep G cfg who ⟨node, ⟨ty, value⟩⟩ := by
+  have havailable := visibleFieldRefs_store_available state who cfg.store hagrees.available
+  let reads := ReadEnv.ofStore cfg.store (visibleFieldRefs state who) havailable
+  have hreads : ReadEnv.ofStore? cfg.store (visibleFieldRefs state who) = some reads := by
+    unfold ReadEnv.ofStore?
+    rw [dif_pos havailable]
+  refine {
+    row := state.commitEvent who guard
+    guard := eventGuardOf state who guard
+    row_get := hrow
+    sem_eq := rfl
+    ready := hready
+    value := value
+    value_ok := by
+      change (⟨ty, value⟩ : TypedValue L).as? ty = some value
+      simp [TypedValue.as?]
+    env := reads
+    env_ok := hreads
+    guard_ok := ?_ }
+  rw [eventGuardOf_eval_eq_eval,
+    viewEnvOfReadEnv_eq_sourceView state who cfg.store env (hagrees.view who) reads hreads]
+  exact hlegal
+
 /-- Compiled sample code has the source law at every matching store. -/
 theorem eventDistOf_eval_eq_source
     {Γ : VCtx P L} {ty : L.Ty} (state : BuildState P L Γ)

@@ -13,6 +13,7 @@ import Vegas.Core.Finite
 import Vegas.Core.FiniteDomain
 import Vegas.Core.ForcedChoice
 import Vegas.Core.Obligations
+import Vegas.Core.OpeningSite
 import Vegas.Core.Scope
 import Vegas.Core.SmallStep
 import Vegas.Core.Strategy

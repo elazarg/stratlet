@@ -9,9 +9,10 @@ import VegasTests.OptionalDisclosure
 /-!
 # The concrete disclosure graph's execution spine
 
-These configuration facts describe a lower-level encoding, not an accepted
-`WFProgram` or a source-to-runtime strategy correspondence. The graph uses the
-existing construction boundary and leaves the original binding sealed.
+These configuration facts describe the optional-disclosure source's compiled
+graph. Its accounting certificate is supplied in `DisclosureAccounting`.
+The original binding remains sealed; the graph execution facts alone do not
+establish a public-runtime strategy correspondence.
 -/
 
 noncomputable section
