@@ -165,14 +165,6 @@ theorem activeAt_iff_of_public_eq {G : Graph Player L} {left right : Config G}
   apply activeAt_iff_of_done_eq
   exact congrArg PublicObservation.done hpublic
 
-/-- The same fact when both public and private observations are available. -/
-theorem activeAt_iff_of_obs_eq {G : Graph Player L} {left right : Config G}
-    {who : Player}
-    (hpublic : publicObserve G left = publicObserve G right)
-    (_hown : observe G left who = observe G right who) :
-    ActiveAt G left who ↔ ActiveAt G right who :=
-  activeAt_iff_of_public_eq hpublic
-
 /-- Players active at a public view.  The existential makes this total on
 unrealizable observations; public determinacy makes it exact on every view
 actually produced by a configuration. -/
@@ -207,9 +199,9 @@ theorem menuAllows_iff_of_obs_eq {G : Graph Player L} (hwf : G.WF)
     (choice : Option (FrontierAction G who)) :
     MenuAllows G left who choice ↔ MenuAllows G right who choice := by
   cases choice with
-  | none => exact not_congr (activeAt_iff_of_obs_eq hpublic hown)
+  | none => exact not_congr (activeAt_iff_of_public_eq hpublic)
   | some action =>
-      exact and_congr (activeAt_iff_of_obs_eq hpublic hown)
+      exact and_congr (activeAt_iff_of_public_eq hpublic)
         (FrontierAction.available_iff_of_observe_eq hwf hown)
 
 /-! ## Automatic closure

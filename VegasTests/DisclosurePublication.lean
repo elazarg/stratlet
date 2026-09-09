@@ -6,6 +6,7 @@ Authors: VegasCore contributors
 
 import Interaction.TransactionalInclusion
 import Vegas.Compile.ConditionalExecution
+import Vegas.Compile.ConditionalOpeningController
 import VegasTests.DisclosureAccounting
 import VegasTests.DisclosureOpening
 
@@ -38,6 +39,30 @@ def accountingSite : CommitmentAccounting.OpeningSite DisclosureAccounting.optio
 private def compilerInitial : ToEventGraph.BuildState TestPlayer simpleExpr source.Γ :=
   ToEventGraph.BuildState.fromInitial
     (ToEventGraph.initialState source.Γ source.env source.wctx)
+
+private def identityTransport :
+    MessageApplication.ChoiceEncoding (Nat × Payload) (Nat × Payload) where
+  encode := id
+  decode := some
+  decode_encode := by intro value; rfl
+  decode_sound := by
+    intro wire value hdecode
+    exact Option.some.inj hdecode
+
+private def openingChoiceEncoding :=
+  accountingSite.choiceEncoding source.fresh compilerInitial 0 10 identityTransport
+
+theorem opening_choice_encodes_decline :
+    openingChoiceEncoding.encode none = (5, .decline) := rfl
+
+theorem opening_choice_encodes_bound_value (secret : Bool) :
+    openingChoiceEncoding.encode (some secret) = (5, .opening (0, 0) secret) := rfl
+
+theorem opening_choice_rejects_wrong_endpoint :
+    openingChoiceEncoding.decode (6, .decline) = none := rfl
+
+theorem opening_choice_does_not_cache_expiry :
+    openingChoiceEncoding.decode (5, .expire) = none := rfl
 
 def publicationSite (deadline : Nat) : ConditionalPublication TestPlayer :=
   graph.conditionalPublication 0 0 (node 4) (node 5) deadline

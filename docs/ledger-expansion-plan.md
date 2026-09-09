@@ -283,6 +283,14 @@ real submission records the draw in own command history; subsequent polls can
 wait or retry that value. Disclosure's native responder uses this component,
 and its first ready invocation records the source response law. The existing
 deterministic settlement guarantees remain checked specializations.
+The shared sample-once mechanism also handles private registration commands.
+Choice encodings enforce canonicality; endpoint tags separately establish
+disjoint decoding and dispatch. `ConditionalOpeningController` composes the
+certified source value equivalence with addressed opening/decline requests and
+proves their local source law and acceptance conditions. The next assembly
+step connects source-generated private registration, opaque binding submission,
+and this addressed opening controller to the native owner policy. Its current
+singleton publication constructor does not yet carry the routing tag.
 Whole-application generation, randomized full-profile laws, and the
 public-runtime strategic comparison remain open; these local components do
 not establish intermediate-observation equivalence.
@@ -294,6 +302,14 @@ and its shared policy game retains checked source-prefix support. A separately
 specified lottery exercises the same machinery without Vegas imports. These
 clients establish runtime reuse, not the full non-Vegas strategic comparison
 required by R3.
+
+Policy execution must have one implementation per operational carrier.
+`SealedPolicies` and `SealedTimeoutPolicies` still implement their own policy
+runners alongside `MessageApplicationPolicies`. The timed native bridge is
+exact but does not yet transport policy histories and games. Consolidate that
+layer through checked policy transport before extending it; for the untimed
+model, account explicitly for its weaker receipt observations. A native-run
+correspondence alone does not justify equating these policy games.
 
 Integrate conditional publication and source continuation through this shared
 application boundary. Do not add a separate optional-disclosure runner or

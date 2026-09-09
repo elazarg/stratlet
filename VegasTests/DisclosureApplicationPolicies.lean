@@ -48,7 +48,7 @@ def responseSubmitted (history : List (application window).PlayerEntry) : Bool :
     | _ => false
 
 theorem response_cache_none_iff (history : List (application window).PlayerEntry) :
-    responseCodec.cachedValue (application window) history = none ↔
+    responseCommandEncoding.cachedValue (application window) history = none ↔
       responseSubmitted history = false := by
   induction history with
   | nil => simp [responseSubmitted]
@@ -56,10 +56,11 @@ theorem response_cache_none_iff (history : List (application window).PlayerEntry
       rcases entry with ⟨view, command⟩
       cases command with
       | submit payload => cases payload <;>
-          simp_all [MessageApplication.SubmissionCodec.cachedValue, responseCodec,
-            responseSubmitted]
+          simp_all [MessageApplication.ChoiceEncoding.cachedValue,
+            responseCommandEncoding, responseCodec, responseSubmitted]
       | privateCommand command | replay id | wait =>
-          simpa [MessageApplication.SubmissionCodec.cachedValue, responseSubmitted] using ih
+          simpa [MessageApplication.ChoiceEncoding.cachedValue,
+            responseCommandEncoding, responseSubmitted] using ih
 
 def initialExpirySubmitted (history : List (application window).PlayerEntry) : Bool :=
   history.any fun entry =>

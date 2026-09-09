@@ -38,7 +38,7 @@ The executable readout receives only the owner's history and current runtime
 view. The source policy's legality proof is erased before payload encoding. -/
 def controller (site : PublicChoiceSite prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) (app : MessageApplication P)
-    (codec : SubmissionCodec (L.Val site.ty) app.Payload)
+    (codec : ChoiceEncoding (L.Val site.ty) app.Payload)
     (done : app.View → Nat → Bool)
     (readout? : List app.PlayerEntry → app.View → Option (ChoiceReads site fresh state))
     (sourcePolicy :
@@ -47,7 +47,7 @@ def controller (site : PublicChoiceSite prog) (fresh : FreshBindings prog)
           evalGuard site.guard value visible = true })
     (retry : List app.PlayerEntry → app.View → Bool) :
     ChoiceController app (L.Val site.ty) (ChoiceReads site fresh state) where
-  codec := codec
+  codec := codec.submission app
   ready := fun view => (site.runtimeSite fresh state).ready (done view)
   resolved := fun view => done view (site.runtimeSite fresh state).publicationNode
   readout? := readout?
@@ -62,7 +62,7 @@ chosen value as a submission payload. -/
 theorem controller_first_submission_source_law
     (site : PublicChoiceSite prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) (app : MessageApplication P)
-    (codec : SubmissionCodec (L.Val site.ty) app.Payload)
+    (codec : ChoiceEncoding (L.Val site.ty) app.Payload)
     (done : app.View → Nat → Bool)
     (readout? : List app.PlayerEntry → app.View → Option (ChoiceReads site fresh state))
     (sourcePolicy :
@@ -74,7 +74,7 @@ theorem controller_first_submission_source_law
     (representedStore : Store L) (env : VEnv L site.context)
     (reads : ChoiceReads site fresh state)
     (hresolved : done view (site.runtimeSite fresh state).publicationNode = false)
-    (hcache : codec.cachedValue app history = none)
+    (hcache : (codec.submission app).cachedValue app history = none)
     (hready : (site.runtimeSite fresh state).ready (done view) = true)
     (hreadout : readout? history view = some reads)
     (hagrees : (site.siteState fresh state).ViewAgrees site.owner representedStore env)
@@ -107,7 +107,7 @@ actual generated endpoint. -/
 theorem controller_submission_resolves
     (site : PublicChoiceSite prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) (app : MessageApplication P)
-    (codec : SubmissionCodec (L.Val site.ty) app.Payload)
+    (codec : ChoiceEncoding (L.Val site.ty) app.Payload)
     (doneView : app.View → Nat → Bool)
     (readout? : List app.PlayerEntry → app.View → Option (ChoiceReads site fresh state))
     (sourcePolicy :

@@ -4,7 +4,7 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
-import Interaction.ConditionalPublication
+import Interaction.ConditionalPublicationRouting
 import Interaction.TransactionalInclusion
 
 /-! # Conditional-publication application regressions
@@ -155,5 +155,62 @@ opening payload remains recipient-local knowledge. -/
 #guard (openingThenExpiry.pool.inbox 1).head?.any
   (fun message => isOpeningTrue message.payload)
 #guard openingThenExpiry.pool.ledger.head?.any (fun message => isExpiry message.payload)
+
+namespace Routing
+
+/-- A second decision concerning the very same sealed resource. -/
+def laterSite : Interaction.ConditionalPublication Principal :=
+  { site with choiceNode := 5, publicationNode := 6 }
+
+def handler (target : Interaction.ConditionalPublication Principal) (now : Nat)
+    (state : Application) (message : Message Principal (Nat × Payload)) : Option Application :=
+  match target.resolveAddressed? now state.service.verify state.accepted state.done
+      (fun _ => state.openingAllowed) message with
+  | none => none
+  | some choice => some { state with
+      completed := target.publicationNode :: target.choiceNode :: state.completed
+      result := some choice }
+
+def submitDeliverInclude (target : Interaction.ConditionalPublication Principal)
+    (address : Nat) (payload : Payload) :=
+  let submitted := (MessagePool.empty Principal (Nat × Payload)).submit 0 (address, payload)
+  let delivered := (submitted.2.deliver 1 submitted.1).state
+  delivered.includeApplication initial submitted.1 (handler target 5)
+
+/- The unaddressed request is meaningful at either ready site. Tag checking,
+not a coincidental guard or missing prerequisite, prevents cross-site use. -/
+example : site.resolve? 5 service.verify initial.accepted initial.done (fun _ => true)
+    ⟨(0, 0), .opening (0, 0) true⟩ = some (some true) := by decide
+
+example : laterSite.resolve? 5 service.verify initial.accepted initial.done (fun _ => true)
+    ⟨(0, 0), .opening (0, 0) true⟩ = some (some true) := by decide
+
+def intended := submitDeliverInclude site site.publicationNode (.opening (0, 0) true)
+def misdirected := submitDeliverInclude laterSite site.publicationNode (.opening (0, 0) true)
+def laterIntended := submitDeliverInclude laterSite laterSite.publicationNode .decline
+
+#guard intended.receipt = some true
+#guard intended.application.result = some (some true)
+#guard misdirected.receipt = some false
+#guard misdirected.application.result = none
+#guard misdirected.pool.ledger.length = 1
+#guard (misdirected.pool.inbox 1).length = 1
+#guard laterIntended.receipt = some true
+#guard laterIntended.application.result = some none
+
+example : (laterSite.addressedChoiceEncoding (Value := Bool)).decode
+    (site.publicationNode, .opening (0, 0) true) = none := by decide
+
+example : (laterSite.addressedChoiceEncoding (Value := Bool)).decode
+    (site.publicationNode, .decline) = none := by decide
+
+/- Expiration resolves to decline, but cannot seed a voluntary-choice cache. -/
+example : (site.addressedChoiceEncoding (Value := Bool)).decode
+    (site.publicationNode, .expire) = none := by decide
+
+example : site.resolveAddressed? 11 service.verify initial.accepted initial.done
+    (fun _ => true) ⟨(1, 0), (site.publicationNode, .expire)⟩ = some none := by decide
+
+end Routing
 
 end InteractionTests.ConditionalPublication

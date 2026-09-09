@@ -458,16 +458,22 @@ application chance are composed as separate kernels. Every supported policy
 outcome follows a supported native execution of its recorded action trace;
 application invariants therefore lift to arbitrary supported policy runs.
 
-`ChoiceController` samples an immediately public choice at its first submission
-and retains the value in the principal's own chronological command history.
-Subsequent invocations wait or retry that value according to an explicit retry
-policy. `ChoiceControllerHistory` expresses the full first-invocation law as
-the decision kernel followed by the native submission step, derives its exact
-cache law, and proves cache retention through arbitrary later invocations.
-The sample is recorded at submission, independently of delivery or acceptance.
+`ChoiceController` samples a choice at its first encoded private command or
+public submission and retains the value in the principal's own chronological
+command history. Subsequent invocations wait or retry that value according to
+an explicit retry policy. `ChoiceControllerHistory` expresses the full
+first-invocation law as the decision kernel followed by the native player step,
+derives its exact cache law, and proves cache retention through arbitrary later
+invocations. The sample is recorded independently of delivery or acceptance.
+`ChoiceEncoding` requires roundtrip decoding and canonical accepted commands;
+its private-command and submission lifts use the same controller and history
+proofs. Endpoint tagging separately proves disjoint decoding and rejects
+misaddressed messages before invoking the application handler.
 The non-Vegas stochastic regression checks two pre-inclusion polls: both pending
 requests and both history entries contain one shared draw, not two independent
-samples.
+samples. `InteractionTests/PrivateChoice.lean` instead registers one ideal
+commitment, checks agreement of service lookup and the cached draw after a
+second poll, and proves the public pending pool remains empty.
 
 `Vegas/Compile/PublicChoiceController.lean` adapts source decision kernels to
 this controller using the generated endpoint and the complete declared choice
@@ -477,6 +483,17 @@ only public application fields, and the first ready invocation records exactly
 the source response law. Deterministic service guarantees instantiate pure
 source kernels. These local sampling and memory laws supply neither a complete
 randomized source-profile law nor deviation simulation for the public runtime.
+
+`Vegas/Compile/ConditionalOpeningController.lean` supplies the corresponding
+local source-kernel adapter for certified optional openings. Its canonical
+encoding addresses the generated publication node, distinguishes voluntary
+decline from permissionless expiration, and preserves the source value
+equivalence. The checked first-emission and acceptance theorems require matching
+source readouts and the accepted-binding, readiness, verification, and guard
+premises. The full native owner policy does not yet consume this component;
+its existing singleton publication constructor is untagged. The private initial
+choice, opaque binding phase, addressed opening controller, and settlement
+proof still need assembly on this same runtime.
 
 `SealedTimeout.messageApplication` instantiates this carrier with the timed
 sealed handler. Its state and action translations have both roundtrips, its

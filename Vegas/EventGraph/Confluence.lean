@@ -9,7 +9,8 @@ import Vegas.EventGraph.Execution
 /-!
 # Confluent coarsening of the event graph
 
-The small-step semantics fixes a single schedule (see `Vegas.Core.Schedule`).
+The source small-step semantics executes the written program order
+(see `Vegas.Core.SmallStep`).
 The event graph deliberately does *not*: `EventGraph.Execution` exposes available
 events without choosing an order. This module justifies that move at the level
 of the raw graph configuration.

@@ -121,6 +121,19 @@ def EventGuard.PubliclyValidatable {Player : Type} [DecidableEq Player]
     (graph : Graph Player L) : Prop :=
   ∀ ref, ref ∈ guard.validationReads → graph.fieldRefPublic ref
 
+/-- Agreement on all public graph fields specializes to the exact dependency
+footprint of a publicly validatable guard. -/
+theorem EventGuard.validationReads_agree_of_publiclyValidatable
+    {Player : Type} [DecidableEq Player]
+    (guard : EventGuard L) (graph : Graph Player L) (left right : Store L)
+    (hvalid : guard.PubliclyValidatable graph)
+    (hagrees : ∀ ref, graph.fieldRefPublic ref →
+      Store.getAs left ref.field ref.ty = Store.getAs right ref.field ref.ty) :
+    ∀ ref (_href : ref ∈ guard.validationReads),
+      Store.getAs left ref.field ref.ty = Store.getAs right ref.field ref.ty := by
+  intro ref href
+  exact hagrees ref (hvalid ref href)
+
 /-- Evaluate retained guard code from only its public stored dependencies. -/
 def EventGuard.evalValidation (guard : EventGuard L) (action : L.Val guard.ty)
     (reads : ReadEnv L guard.validationReads) : Bool :=

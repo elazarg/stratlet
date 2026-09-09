@@ -376,12 +376,16 @@ and validator evaluation is executable on supplied metadata and stores; the
 current metadata construction uses the noncomputable compiler elaboration.
 
 `Interaction.ChoiceController` supplies the companion sample-once controller.
-For an immediately public choice, the first submission records the draw in
-the principal's actual chronological command history. An endpoint-specific
-codec recovers that earliest value; cached invocations wait or resubmit its
-encoding without invoking the decision kernel. The concrete codec must reject
-other endpoints. `ChoiceControllerHistory` expresses the complete first-invocation
-law as a kernel draw followed by the actual native submission step, derives its
+Its first encoded command records the draw in the principal's actual
+chronological command history. The same mechanism supports private registration
+and public submission; cached invocations wait or repeat that command without
+invoking the decision kernel. `ChoiceEncoding` checks both roundtrip decoding
+and canonicality of every accepted command. Canonicality alone does not separate
+endpoints. `ChoiceEncoding.atEndpoint` makes differently tagged accepted domains
+disjoint, and `Message.dispatchEndpoint?` checks that tag before invoking the
+handler while retaining the original message identity.
+`ChoiceControllerHistory` expresses the complete first-invocation
+law as a kernel draw followed by the actual native player step, derives its
 cached-value law, and proves retention through every supported continuation of
 the native runner. Cache retention alone does not constrain arbitrary future
 commands; the controller's separate submission law establishes retry fidelity.
@@ -419,18 +423,28 @@ Conditional openings already have generated metadata in
 site table. These local generation steps do not themselves establish strategic
 equivalence between atomic publication and intermediate graph observations.
 
-The next owner-controller component uses that metadata and the existing source
-decision kernel for conditional publication. Whole-application assembly must
-give each endpoint a distinct wire address: a binding handle alone cannot
-distinguish two publication decisions about the same binding, and a bare decline
-payload carries no site identity. Generate a routing tag from the endpoint's
-node identity and check it at dispatch. The local-choice codec must recognize
-only that site's voluntary opening or decline, not a permissionless expiration
-request that happens to produce the same public result.
+`ConditionalOpeningController` uses that metadata, the source certificate's
+value equivalence, and the existing source decision kernel. It proves the first
+ready emission's source law and acceptance of supported legal choices under
+matching readout, accepted-binding, verification, readiness, and guard premises.
+The generated encoding carries the publication-node identity: a binding handle
+alone cannot distinguish two publication decisions about the same binding,
+and a bare decline payload carries no site identity. Only voluntary opening
+and decline decode as cached source choices; permissionless expiration remains
+a separate request. The addressed handler checks the same identity at dispatch.
+Closed tests instantiate the encoding at a checked source occurrence, and a
+runtime-general test rejects cross-site traffic through actual delivery and
+inclusion. This component is not yet integrated into the complete native owner
+policy; the existing singleton disclosure application has an untagged publication
+constructor and needs an explicit routing integration.
 
 Initial sealed choice requires the corresponding private-registration path:
 sample the source kernel into a real slot-scoped private command, recover that
 draw from own history, and submit the opaque binding without sampling again.
+`InteractionTests.PrivateChoice` checks private registration and cache agreement
+for one shared draw through the native runner, without producing public traffic.
+It exercises the common controller mechanism, not a generated initial-choice
+compiler or its subsequent binding phase.
 Its correctness must relate the recorded command, service lookup, and accepted
 binding snapshot. The conditional-opening controller then reconstructs its
 source view from that retained choice and public observations. Compose these

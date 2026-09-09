@@ -37,12 +37,19 @@ def PublicState.done (view : PublicState) : Nat → Bool
 theorem observe_done (state : DisclosureState) : state.observe.done = state.done := rfl
 
 /-- The endpoint's wire constructor separates responses from all other calls. -/
-def responseCodec : SubmissionCodec Bool Payload where
+def responseCodec : ChoiceEncoding Bool Payload where
   encode := .respond
   decode
     | .respond value => some value
     | _ => none
   decode_encode _ := rfl
+  decode_sound payload value hdecode := by
+    cases payload <;> simp_all
+
+/-- Response choices as actual player submission commands. -/
+def responseCommandEncoding :
+    ChoiceEncoding Bool (application window).PlayerCommand :=
+  responseCodec.submission (application window)
 
 theorem responseCodec_decode_iff (payload : Payload) (value : Bool) :
     responseCodec.decode payload = some value ↔ payload = .respond value := by
@@ -139,7 +146,7 @@ theorem responseController_first_submission (policy : ResponseDecision)
     (retry : List (application window).PlayerEntry → (application window).View → Bool)
     (history : List (application window).PlayerEntry) (view : (application window).View)
     (binding : DisclosureBinding) (secret signal : Bool) (publication : Option Bool)
-    (hcache : responseCodec.cachedValue (application window) history = none)
+    (hcache : responseCommandEncoding.cachedValue (application window) history = none)
     (haccepted : view.application.accepted = some binding)
     (hmarker : view.application.markerDone = true)
     (hsignal : view.application.signal = some signal)
@@ -177,7 +184,7 @@ depends on axioms:
 theorem responseController_first_pure (response : Bool → Option Bool → Bool)
     (history : List (application window).PlayerEntry) (view : (application window).View)
     (binding : DisclosureBinding) (signal : Bool) (publication : Option Bool)
-    (hcache : responseCodec.cachedValue (application window) history = none)
+    (hcache : responseCommandEncoding.cachedValue (application window) history = none)
     (haccepted : view.application.accepted = some binding)
     (hmarker : view.application.markerDone = true)
     (hsignal : view.application.signal = some signal)
@@ -195,9 +202,10 @@ theorem responseController_first_pure (response : Bool → Option Bool → Bool)
 theorem responseController_recorded (policy : ResponseDecision)
     (history : List (application window).PlayerEntry) (view : (application window).View)
     (value : Bool)
-    (hcache : responseCodec.cachedValue (application window) history = some value) :
+    (hcache : responseCommandEncoding.cachedValue (application window) history = some value) :
     (responseController policy (fun _ _ => false)).policy
       (application window) history view = FinDist.pure .wait := by
+  unfold responseCommandEncoding at hcache
   unfold ChoiceController.policy
   split
   · rfl
@@ -210,10 +218,10 @@ theorem responseController_pure_eq (response : Bool → Option Bool → Bool)
     (responseController (pureResponseDecision response) (fun _ _ => false)).policy
         (application window) history view =
       FinDist.pure (if responseEndpoint.ready view.application.done &&
-          (responseCodec.cachedValue (application window) history).isNone then
+          (responseCommandEncoding.cachedValue (application window) history).isNone then
         .submit (.respond (response (view.application.signal.getD false)
           (view.application.publication.getD none))) else .wait) := by
-  cases hcache : responseCodec.cachedValue (application window) history with
+  cases hcache : responseCommandEncoding.cachedValue (application window) history with
   | some value =>
       rw [responseController_recorded _ history view value hcache]
       simp

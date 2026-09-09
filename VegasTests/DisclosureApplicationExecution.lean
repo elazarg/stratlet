@@ -121,7 +121,7 @@ theorem honest_policy_data (window : Nat) (secret : Bool)
   all_goals simp only [application, observe, PublicChoice.ready, responseEndpoint_choiceNode,
     responseEndpoint_publicationNode, responseEndpoint_requires,
     responseGraphPrerequisites_eq, PublicState.done,
-    MessageApplication.SubmissionCodec.cachedValue_nil, Option.isSome_some, Option.isSome_none,
+    MessageApplication.ChoiceEncoding.cachedValue_nil, Option.isSome_some, Option.isSome_none,
     Option.isNone_none, Bool.not_false, Bool.and_self, ↓reduceIte,
     List.all_cons, List.all_nil, Option.getD_some,
     FinDist.pure_bind, MessageApplication.playerStep,

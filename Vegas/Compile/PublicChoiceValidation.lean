@@ -79,6 +79,27 @@ theorem validator_source {Γ : VCtx P L} {prog : VegasCore P L Γ}
     viewEnvOfReadEnv_eq_sourceView current site.owner representedStore env
       (hagrees.view site.owner) reads hreads]
 
+/-- A publicly validatable site needs only agreement between the runtime and
+represented stores on public graph fields; the guard certificate restricts
+that premise to the validator's actual dependency footprint. -/
+theorem validator_source_of_publiclyValidatable
+    {Γ : VCtx P L} {prog : VegasCore P L Γ}
+    (site : PublicChoiceSite prog) (fresh : FreshBindings prog)
+    (state : BuildState P L Γ) (representedStore publicStore : Store L)
+    (env : VEnv L site.context)
+    (heligible : site.PubliclyValidatable fresh state)
+    (hagrees : (site.siteState fresh state).Agrees representedStore env)
+    (hpublicStore : ∀ ref,
+      (compileCore prog fresh state).graph.fieldRefPublic ref →
+        Store.getAs publicStore ref.field ref.ty =
+          Store.getAs representedStore ref.field ref.ty)
+    (chosen : L.Val site.ty) :
+    site.validator fresh state publicStore chosen =
+      evalGuard site.guard chosen ((env.toView site.owner).eraseEnv) := by
+  apply site.validator_source fresh state representedStore publicStore env hagrees
+  exact (site.compiledGuard fresh state).validationReads_agree_of_publiclyValidatable
+    (compileCore prog fresh state).graph publicStore representedStore heligible hpublicStore
+
 end PublicChoiceSite
 
 end Vegas

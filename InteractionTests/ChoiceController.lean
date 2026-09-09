@@ -44,17 +44,19 @@ def application : MessageApplication Principal where
   observePlayer := fun state _ => state
   observeEnvironment := fun _ => ()
 
-def codec : MessageApplication.SubmissionCodec Bool Payload where
+def codec : MessageApplication.ChoiceEncoding Bool Payload where
   encode := .choice
   decode
     | .choice value => some value
     | .other _ => none
   decode_encode := by intro value; rfl
+  decode_sound payload value hdecode := by
+    cases payload <;> simp_all
 
 def fair : FinDist Bool := FinDist.uniformOfFintype
 
 def controller : application.ChoiceController Bool Unit where
-  codec := codec
+  codec := codec.submission application
   ready := fun _ => true
   resolved := fun view => view.application
   readout? := fun _ _ => some ()

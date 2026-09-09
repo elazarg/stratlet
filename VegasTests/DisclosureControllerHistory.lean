@@ -50,7 +50,7 @@ theorem responder_invoke_first_source_law
     (binding : DisclosureBinding) (secret signal : Bool)
     (publication : Option Bool)
     (hplayers : players 1 = responderPolicy policy)
-    (hcache : responseCodec.cachedValue (application window)
+    (hcache : responseCommandEncoding.cachedValue (application window)
       (execution.principalHistory 1) = none)
     (haccepted : execution.native.application.accepted = some binding)
     (hmarker : execution.native.application.markerDone = true)
@@ -95,7 +95,7 @@ theorem responder_invoke_first_cached_source_law
     (binding : DisclosureBinding) (secret signal : Bool)
     (publication : Option Bool)
     (hplayers : players 1 = responderPolicy policy)
-    (hcache : responseCodec.cachedValue (application window)
+    (hcache : responseCommandEncoding.cachedValue (application window)
       (execution.principalHistory 1) = none)
     (haccepted : execution.native.application.accepted = some binding)
     (hmarker : execution.native.application.markerDone = true)
@@ -103,7 +103,7 @@ theorem responder_invoke_first_cached_source_law
     (hpublication : execution.native.application.publication = some publication)
     (hresponse : execution.native.application.response = none) :
     ((application window).invoke players environment execution (.player 1)).map
-        (fun next => responseCodec.cachedValue (application window)
+        (fun next => responseCommandEncoding.cachedValue (application window)
           (next.principalHistory 1)) =
       (policy (((responseEnv secret signal publication).toView 1).eraseEnv)).map
         (some ∘ Subtype.val) := by
@@ -116,7 +116,7 @@ theorem responder_invoke_first_cached_source_law
   simp only [MessageApplication.playerStep, MessageApplication.advance,
     MessageApplication.PlayerCommand.toAction, MessageApplication.step,
     FinDist.pure_bind, FinDist.map_pure, ↓reduceIte]
-  have hrecorded := responseCodec.cachedValue_append_encoded_of_none
+  have hrecorded := responseCommandEncoding.cachedValue_append_encoded_of_none
     (application window) (execution.principalHistory 1)
       (State.observe (application window) execution.native 1) chosen.1 hcache
   exact congrArg FinDist.pure hrecorded

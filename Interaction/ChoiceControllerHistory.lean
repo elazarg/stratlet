@@ -28,7 +28,7 @@ variable {Value : Type uValue} {Input : Type uInput}
 namespace ChoiceController
 
 /-- The complete first-invocation law samples the decision kernel and runs the
-actual submission step. Native state, traffic, and both kinds of local history
+actual encoded command. Native state, traffic, and both kinds of local history
 remain in the outcome; this is not just a cached-value marginal. -/
 theorem invoke_uncached_ready [DecidableEq Principal]
     (controller : ChoiceController app Value Input) (who : Principal)
@@ -46,14 +46,14 @@ theorem invoke_uncached_ready [DecidableEq Principal]
       (State.observe app execution.native who) = some input) :
     app.invoke players environment execution (.player who) =
       (controller.kernel input).bind fun value =>
-        app.playerStep who execution (.submit (controller.codec.encode value)) := by
+        app.playerStep who execution (controller.codec.encode value) := by
   rw [invoke, hpolicy, controller.policy_of_uncached_ready app
     (execution.principalHistory who) (State.observe app execution.native who)
     input hresolved hcache hready hreadout, FinDist.bind_map]
 
-/-- A ready, unresolved invocation with no cached submission records exactly
+/-- A ready, unresolved invocation with no cached command records exactly
 the source-kernel draw in the principal's actual command history.  Application
-state effects of submission cannot alter this projected law. -/
+state effects of the command cannot alter this projected law. -/
 theorem invoke_uncached_ready_cachedValue [DecidableEq Principal]
     (controller : ChoiceController app Value Input) (who : Principal)
     (players : Principal → app.PlayerPolicy) (environment : app.EnvironmentPolicy)
@@ -76,8 +76,14 @@ theorem invoke_uncached_ready_cachedValue [DecidableEq Principal]
     hpolicy hresolved hcache hready hreadout, FinDist.map_bind]
   apply FinDist.bind_congr
   intro value _
-  simp [playerStep, advance, PlayerCommand.toAction, step,
-    controller.codec.cachedValue_append_encoded_of_none app _ _ value hcache]
+  cases hcommand : controller.codec.encode value
+  all_goals
+    have hrecorded := controller.codec.cachedValue_append_encoded_of_none
+      app (execution.principalHistory who)
+        (State.observe app execution.native who) value hcache
+    rw [hcommand] at hrecorded
+    simpa [playerStep, advance, PlayerCommand.toAction, step] using
+      congrArg FinDist.pure hrecorded
 
 /-- Once an endpoint value occurs in a principal's actual history, recording
 any further player command preserves that earliest value. -/

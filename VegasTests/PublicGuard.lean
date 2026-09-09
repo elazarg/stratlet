@@ -40,6 +40,11 @@ def storedTrue : Store simpleExpr
   | 0 => some ⟨.bool, true⟩
   | _ => none
 
+def representedTrue : Store simpleExpr
+  | 0 => some ⟨.bool, true⟩
+  | 1 => some ⟨.bool, false⟩
+  | _ => none
+
 def missingStore : Store simpleExpr := fun _ => none
 
 example : publicDependencyGuard.PubliclyValidatable publicGraph := by
@@ -50,6 +55,31 @@ example : publicDependencyGuard.PubliclyValidatable publicGraph := by
   simp only [Finset.mem_singleton] at href
   subst ref
   exact ⟨_, rfl, rfl, rfl⟩
+
+example : ∀ ref (_href : ref ∈ publicDependencyGuard.validationReads),
+    Store.getAs storedTrue ref.field ref.ty =
+      Store.getAs representedTrue ref.field ref.ty := by
+  apply publicDependencyGuard.validationReads_agree_of_publiclyValidatable
+    publicGraph storedTrue representedTrue
+  · intro ref href
+    have hreads : publicDependencyGuard.validationReads =
+        {{ field := 0, ty := simpleExpr.bool }} := rfl
+    rw [hreads] at href
+    simp only [Finset.mem_singleton] at href
+    subst ref
+    exact ⟨_, rfl, rfl, rfl⟩
+  · intro ref href
+    rcases ref with ⟨field, ty⟩
+    rcases href with ⟨spec, hfield, hty, _⟩
+    cases field with
+    | zero =>
+        simp [publicGraph, Graph.field?] at hfield
+        subst spec
+        simp only at hty
+        subst ty
+        rfl
+    | succ field =>
+        simp [publicGraph, Graph.field?] at hfield
 
 example : publicDependencyGuard.validate storedTrue true = true := by
   decide
