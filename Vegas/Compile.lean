@@ -32,6 +32,9 @@ import Vegas.Compile.PublicChoiceImage
 import Vegas.Compile.SampleImage
 import Vegas.Compile.SampleImageRefinement
 import Vegas.Compile.ApplicationImageController
+import Vegas.Compile.ConditionalImageController
+import Vegas.Compile.ApplicationImageReadout
+import Vegas.Compile.ApplicationImageRegistration
 import Vegas.Compile.ApplicationImageRefinement
 import Vegas.Compile.BindingImageRefinement
 import Vegas.Compile.ApplicationImageOutcome

@@ -66,6 +66,11 @@ and cannot reroll after completion. They assume ideal unbiased entropy; the
 environment selects the invocation time, not the sampled value. Sealed-input
 provisioning and whole-program controller assembly remain outside this generated
 fragment.
+Generated-controller readout uses public resolved values and the owner's private
+registration history. Its source correspondence requires available reads and
+cache/accepted-snapshot agreement; registering after an unprepared handle was
+accepted does not establish that agreement. The repeated-disclosure controller
+has checked local source-kernel laws, not a whole-program strategic theorem.
 The `Interaction` library provides a native pool and explicit ideal commitment
 service. A certified homogeneous commit/reveal backend connects actual
 checked core programs, through their event graphs, to this public-message

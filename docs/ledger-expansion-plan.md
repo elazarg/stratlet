@@ -281,17 +281,33 @@ copy. The native update preserves the original accepted handle and frozen
 snapshot. `GeneratedPersistentDisclosure` supplies the ten-node derivation,
 an exact opening execution law from empty-pool initialization, a check that
 decline blocks later opening, and completed-run source public-outcome witnesses.
-The next controller obligation is to reconstruct the later site's
-complete owner-visible readout from the initial private cache and current
-public fields, then instantiate the source-kernel first-submission law at that
-actual invocation. Polling and retries must retain that endpoint's sampled
-choice without confusing it with an earlier endpoint using the same binding.
-Earlier paired choices must be reconstructed from their resolved public
-values, not from cached attempted requests: an opening overtaken by expiration
-can leave an intended `some value` in private history while the source choice
-represented by the accepted transaction is `none`.
-This local law must then be composed across initialization, both disclosure
-sites, the intervening response, and the stated service assumptions.
+`ApplicationImageReadout` reconstructs the full declared choice footprint from
+public memory and private registration history. Its graph/source correspondence
+requires cached originals to match their accepted snapshots; compiled source
+occurrences supply the typed field metadata. Earlier paired choices come from
+their resolved public values, not cached attempted requests: an opening overtaken
+by expiration can leave an intended `some value` in history while the accepted
+transaction represents `none`.
+
+`GeneratedPersistentDisclosureController` instantiates that readout and the
+generated conditional controller at the second site. The local laws recover the
+arbitrary randomized source decision at the concrete opened and declined native
+checkpoints, under the original-registration and empty-second-cache premises.
+They also check endpoint separation and waiting after a recorded second choice.
+These are local laws for supplied histories, not a theorem that a generated
+whole-program policy run reaches those histories and checkpoints.
+
+The next composition invariant must establish private registration before
+binding acceptance, then maintain cache/snapshot correspondence and availability
+of every source-visible field. Acceptance of an unprepared handle followed by
+registration is permitted operationally and does not satisfy that invariant.
+`ApplicationImageRegistration` supplies the unconditional history/preparation
+invariant and preservation of an already cached-and-bound snapshot under all
+later policy commands. The missing construction arranges that binding through
+the generated player's actual submission and inclusion path.
+Compose the local laws across initialization, both disclosure sites, the
+intervening response, and the stated service assumptions. This must use actual
+policy invocations, not just the specified raw-action executions.
 
 Ordinary adjacent choice/reveal sites have a corresponding local component:
 `PublicChoiceSite` derives metadata and guard code from `SourceDecisionSite`,

@@ -468,7 +468,9 @@ prove that a commitment was prepared or accepted: initialization, controller
 provenance, and service must establish that availability separately.
 `GeneratedPersistentDisclosure` compiles the unchanged ten-node source through
 both derivation cases. Its exact native execution law opens the original
-snapshot at both sites even after the private preparation slot is overwritten.
+snapshot at both sites despite attempted re-registration with the opposite
+value. The ideal preparation service is itself first-write-wins; this execution
+does not exercise replacement of an existing preparation.
 A separate execution checks that an earlier decline rejects a later opening
 and still permits a completing decline. Completed opening runs instantiate the
 general written-order source public-outcome theorem. These concrete laws use
@@ -535,8 +537,23 @@ The image controller uses a canonical dynamically typed packet at the same
 generated publication address; another endpoint's packet cannot populate its
 cache. Every supported first ready submission of this controller is accepted
 at the represented checkpoint, for arbitrary randomized source kernels.
-Whole-image controller dispatch and complete observation readouts still
-need to be supplied by source-program assembly.
+`ConditionalImageController` installs the conditional source kernel with the
+image's actual accepted-handle and completion projections. The reusable
+`ApplicationImageReadout` reconstructs the full declared source-choice
+footprint. It prefers actual public fields, including both fields of resolved
+pairs, and falls back to the owner's first recorded private registration only
+for an accepted canonical original binding. No attempted opening supplies a
+resolved source choice. This loader receives public memory and local command
+history; the source environment and frozen service values are proof-only.
+
+Its source-view equality theorem separates availability from cache/snapshot
+correspondence. First-write-wins registration makes the first recorded value
+the relevant private memory, but acceptance may precede registration and freeze
+an absent value. Consequently, a canonical handle plus a later cache entry does
+not establish correspondence. Source-program controller assembly must establish
+preparation before binding submission and maintain that provenance. Whole-image
+dispatch and availability of every declared source observation remain to be
+proved for the generated assembly.
 
 Whole-program randomized laws should compose segment laws from every related
 native checkpoint, retaining both an exact outcome law and a support invariant

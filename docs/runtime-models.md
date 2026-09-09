@@ -476,8 +476,35 @@ and represented graph reachability through that inclusion. Its relation permits
 unopened values to be missing from public memory. `ApplicationImageController`
 connects the source-kernel controller to the handler's canonical typed address
 and proves that encoded packets are accepted exactly for legal source choices
-at the stated matching, ready checkpoints. Full source-view readouts remain
-assembly inputs, not values obtained from a hidden runtime source environment.
+at the stated matching, ready checkpoints. `ConditionalImageController` supplies
+the corresponding typed transport and source-kernel law for conditional
+publications, using the image's actual accepted-handle and completion maps.
+`ApplicationImageReadout` loads the complete source choice footprint from
+current public memory and the owner's first slot-scoped private registrations.
+Resolved public fields take precedence: an attempted opening cannot replace a
+publicly resolved decline. Missing private fields can be recovered only for an
+accepted canonical owner/field handle. The source-view theorem uses native
+refinement, typed field metadata, operational availability, and correspondence
+between cached registrations and accepted snapshots. Source environments and
+service snapshots occur only in its proof, not in the readout's inputs.
+
+Snapshot correspondence is not implied by the public accepted handle. The
+runtime permits acceptance of an unprepared handle followed by a registration;
+that later value cannot open the frozen handle. Generated controller assembly
+must establish registration before binding submission, rather than infer
+snapshot correspondence from the subsequent history. Whole-image controller
+dispatch, availability, and this ordering invariant remain separate obligations.
+`ApplicationImageRegistration` proves that, from
+the canonical empty-service initialization, every principal's earliest recorded
+registration equals its current preparation-table entry. This holds for all
+supported policy executions, including arbitrary re-registration and traffic.
+It establishes history-to-preparation provenance, not history-to-frozen-snapshot
+correspondence when acceptance preceded preparation.
+The same module's post-binding continuation theorem starts with a cached value
+and the native binding update that snapshots it. Every supported later policy
+run preserves both the cache entry and the exact accepted snapshot, even with
+arbitrary further registrations. Connecting that update to a successful
+generated binding submission/inclusion remains part of controller assembly.
 The public initializer filters out sealed initial fields and establishes the
 representation relation. The mixed-type checked program in
 `VegasTests/ApplicationImage.lean` exercises generated Boolean and optional
@@ -564,6 +591,15 @@ branch. Repeating the chance invocation leaves this law unchanged. A supported
 completed run is then given an actual written-order source witness by the
 general compiler theorem. This is a concrete completion example, not a
 whole-program policy or service theorem.
+
+`VegasTests/GeneratedPersistentDisclosureController.lean` installs the generated
+second conditional controller with the full owner-local readout. At the concrete
+opened and declined checkpoints it proves the exact first-submission law for
+arbitrary randomized source kernels and histories with the stated cache contents.
+It checks that first-site opening traffic cannot populate the second-site cache
+and that an already recorded second choice is not sampled again. These are local
+controller laws; they do not establish the whole-program policy-prefix invariant
+or a service guarantee.
 
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.
