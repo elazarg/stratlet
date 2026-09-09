@@ -14,10 +14,10 @@ its owner chooses a fresh optional value constrained to `none` or the original
 Boolean. Only this optional copy is revealed, before the other player's reply.
 The marker makes the public coin causally later than the initial binding.
 
-This is a concrete encoding probe, not a frontend correctness theorem or a
-real commitment protocol. In particular, the private equality guard is ideal.
-Strict literal reveal-completeness rejects this term. A separate accounting
-certificate can instead record the explicit optional resolution.
+This is a finite core interaction, not a frontend correctness theorem or a
+cryptographic commitment protocol. In particular, the private equality guard is
+ideal. Strict literal reveal-completeness rejects this term; the accounting
+certificate in `VegasTests.DisclosureAccounting` records its optional resolution.
 -/
 
 noncomputable section
@@ -231,12 +231,13 @@ theorem quitting_and_completion_distinct (secret signal response : Bool) :
   split at hpayoff <;> norm_num at hpayoff
 
 /-- Each permitted opening and arbitrary reply has an actual source execution.
-This is support-level execution evidence, not yet a policy-law comparison. -/
-theorem source_execution (secret signal : Bool) (opening : Option Bool) (response : Bool)
+This theorem establishes support; source-policy laws are separate results. -/
+theorem source_execution (payouts : List (TestPlayer × Expr PayoffContext .int))
+    (secret signal : Bool) (opening : Option Bool) (response : Bool)
     (hopening : opening = none ∨ opening = some secret) :
-    SmallStep.Star (SourceConfig.initial core)
-      ⟨TerminalContext, terminalEnv secret signal opening response, .ret [(0, payoff)]⟩ := by
-  unfold SourceConfig.initial core coreWithPayoffs
+    SmallStep.Star (SourceConfig.initial (coreWithPayoffs payouts))
+      ⟨TerminalContext, terminalEnv secret signal opening response, .ret payouts⟩ := by
+  unfold SourceConfig.initial coreWithPayoffs
   refine SmallStep.Star.trans (.single (.commit _ _ secret rfl)) ?_
   refine SmallStep.Star.trans (.single (.commit _ _ false rfl)) ?_
   refine SmallStep.Star.trans (.single (.reveal .here _)) ?_
@@ -261,7 +262,7 @@ theorem signal_dependent_execution (secret signal response : Bool) :
     SmallStep.Star (SourceConfig.initial core)
       ⟨TerminalContext, terminalEnv secret signal (signalDependentOpening secret signal) response,
         .ret [(0, payoff)]⟩ := by
-  apply source_execution
+  apply source_execution [(0, payoff)]
   cases signal <;> simp [signalDependentOpening]
 
 theorem different_openings_after_signals (secret : Bool) :

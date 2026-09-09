@@ -478,10 +478,44 @@ cryptographic-security theorem.
 The untimed receipt-free sealed instance remains a distinct weaker model;
 extra receipt observations are not silently erased from the shared game.
 
-The remaining integration is a whole source-generated application with chance,
-conditional publication, and continued execution after quitting. The shared
-carrier supplies its execution and policy machinery; it does not implement
-those source continuations or establish their strategic comparison.
+`VegasTests/DisclosureApplication` specializes the checked optional-disclosure
+program to this same carrier, with no graph configuration in operational state.
+The application includes binding, the forced marker, one-shot public chance,
+conditional publication, and the responder's continuation. Its publication
+window starts at the sampled signal's clock. Disclosure, decline, and included
+expiration all reach the response phase; initial withholding and missing
+responses remain unresolved. Binding acceptance uses privileged ideal-service
+occupancy, an early validity check that is stronger than accepting arbitrary
+opaque commitments and discovering invalidity at opening.
+
+`DisclosureApplicationInvariant` and `DisclosureApplicationSource` prove that
+arbitrary supported player/environment policy executions from empty decode to
+reachable graph prefixes with exactly the native completion flags. A completed
+native outcome is equivalent to a terminal decoded prefix and reconstructs an
+actual written-order source execution, including the retained binding and the
+compiled evaluation of any public payout list. `DisclosureReachability`
+supplies actual protocol witnesses for every valid canonical phase.
+These are support results, not a strategic backtranslation or settlement
+guarantee for arbitrary policies.
+
+`DisclosureApplicationExecution.honest_policy_data` proves the complete shared
+policy-run law from empty for a fixed initial binding, any valid deterministic
+signal-dependent disclosure rule, and any deterministic public response rule.
+The law retains the hidden binding in addition to the public signal, optional
+publication, and response. `DisclosureSourcePolicies` independently constructs
+the corresponding information-local AST policies.
+`DisclosureApplicationLaw.honest_source_law` equates actual message-policy
+execution with that written-order denotation for every public payoff list;
+`honest_settles` proves settlement for every supported run of these controllers
+under the specified inclusion script. The script triggers the actual chance
+kernel; it does not supply the sampled signal.
+
+This honest-law instance prescribes the invocation and inclusion sequence. It
+is not an admission theorem for a class of delayed-delivery services, does not
+cover arbitrary source randomization, and does not compare runtime deviations.
+The remaining integration requires a general source-generated application,
+executable resolution at every potentially silent decision, and complete
+source-policy and deviation laws under explicitly justified services.
 
 ### Source-certified conditional publication
 

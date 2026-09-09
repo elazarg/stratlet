@@ -245,6 +245,42 @@ themselves. See [runtime models](runtime-models.md) and the
 
 ## Next integration gate
 
+### Initial defaults and privately prepared commitments
+
+Private commitment preparation, public submission, and ledger acceptance are
+separate operations. An owner can prepare a value and withhold its submission.
+A source-designated initial default therefore cannot be implemented by
+overwriting that private commitment, treating it as submitted, or making a
+private preparation step publish an application decision.
+
+A candidate implementation records the accepted source binding as either an
+owner-submitted opaque commitment or an explicit public default. A deadline
+call can choose the latter without modifying private storage or forging an
+owner-authored message. Subsequent validation uses the accepted alternative,
+not an unsubmitted commitment the owner prepared earlier. Response defaults
+likewise need an actual resolution call at a ready decision; advancing the
+clock alone does not perform the call. These mechanisms remain to be
+integrated and proved against the source-designated actions.
+
+There is a separate commitment-validity boundary. The disclosure application
+currently checks ideal-service occupancy when accepting the binding. Ordinary
+opaque commitments can instead be accepted without a valid opening. Removing
+the occupancy test while retaining mutable preparation is unsound: an owner
+could register the value after acceptance and public chance. A faithful
+extension needs immutable accepted binding information, including permanently
+unopenable commitments. Their acceptance must not reveal hidden validity or
+delay chance on that basis; otherwise the model still supplies early ideal
+validation. Opening failure and its timeout continuation must be operational.
+
+Public fallback and failure calls add observations. Their source-value
+legality does not prove strategic preservation, but their visibility alone
+does not refute unilateral Nash preservation either. Compiled opponents may
+ignore auxiliary traffic, and a deviator may already know its own fallback.
+The comparison must establish the actual observation and deviation law. A
+claim of impossibility needs a witness for that claim and policy class.
+
+### Whole-program comparison
+
 The conditional-publication component supplies a local source-resolution
 bridge without adopting the final-expiration instance's global stop policy.
 `ConditionalOpeningSite` derives the paired choice/reveal metadata from a
@@ -262,6 +298,15 @@ does not force all bound openings to remain legal. Publication also retains
 previously delivered payloads, including an opening overtaken by expiration.
 These facts do not yet supply a whole-program timeout implementation or a
 strategic comparison.
+
+The shared `DisclosureApplication` instance includes binding, forced marker,
+public chance, publication, and the responder's continuation. Decline and
+included expiration resolve publication without terminating that continuation.
+Its publication deadline is armed by the public sample. Arbitrary supported
+policy runs have checked source-prefix support; specified pure controllers and
+an inclusion script have the actual AST's complete outcome law from empty.
+Initial and response nonparticipation remain pending, so this instance does
+not yet provide the whole-program timeout contract below.
 
 1. Relate the emitted resolution entry point and call-entry deadline policy
    to the gate and complete handler semantics. Treat source handler

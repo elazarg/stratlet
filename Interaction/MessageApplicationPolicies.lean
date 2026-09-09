@@ -147,6 +147,16 @@ def policyGame [DecidableEq Principal]
 
 /-! ## Local-history laws -/
 
+/-- Recording a player command preserves the native transition law. -/
+theorem playerStep_native [DecidableEq Principal] (who : Principal)
+    (execution : app.PolicyExecution) (command : app.PlayerCommand) :
+    (app.playerStep who execution command).map PolicyExecution.native =
+      match command.toAction app who with
+      | none => FinDist.pure execution.native
+      | some action => app.step execution.native action := by
+  cases hcommand : command.toAction app who <;>
+    simp [playerStep, advance, hcommand, FinDist.map_bind]
+
 /-- Recording an environment command preserves the native transition law. -/
 theorem environmentStep_native [DecidableEq Principal]
     (execution : app.PolicyExecution) (command : app.EnvironmentPolicyCommand) :

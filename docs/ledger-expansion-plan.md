@@ -291,6 +291,23 @@ opening, not only before its application effect is accepted: recipient delivery
 can reveal the payload before inclusion. Retain the actual clock, receipts,
 and local message histories in the policy game while proving the comparison.
 
+The concrete `DisclosureApplication` specialization exercises these stages
+through the shared runner, with an armed publication window and a continuation
+after decline or expiry. Its all-policy invariant gives reachable decoded
+prefixes, exact completion flags, and written-source support for completed
+outcomes. The complete run from empty also has the independent AST's exact
+terminal-environment law for pure source rules and a specified inclusion
+script, with the retained secret included in the readout. This proves
+settlement for those scripted compiled runs, not under arbitrary controllers
+or service policies. Initial nonparticipation and missing response are still
+pending. Extend the comparison to randomized source policies and a justified
+service discipline, implement source-designated resolution, and prove the
+unilateral-deviation law before treating this instance as the positive
+strategic compiler comparison to generalize. The
+[initial-default design](timeout-compilation.md#initial-defaults-and-privately-prepared-commitments)
+separates unsubmitted private preparation, accepted binding, public defaults,
+and the additional obligation to admit permanently unopenable commitments.
+
 Choose a finite checked core program with two real players, source-defined
 nonresponse outcomes, and a later decision that can expose an information
 mistake. The pending-commitment experiment motivates a sealed-choice slice:

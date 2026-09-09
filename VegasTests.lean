@@ -28,6 +28,8 @@ import VegasTests.DisclosureResponse
 import VegasTests.DisclosureOpening
 import VegasTests.DisclosurePublication
 import VegasTests.DisclosurePublicationOrder
+import VegasTests.DisclosureApplicationSource
+import VegasTests.DisclosureApplicationLaw
 import VegasTests.DisclosureResolutionGuard
 import VegasTests.DisclosureLaw
 import VegasTests.DisclosureSites

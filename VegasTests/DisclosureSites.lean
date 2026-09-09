@@ -109,14 +109,13 @@ def openingChoiceAt (secret signal : Bool) (complete : Bool) :
   rw [hinfo] at hchoice
   exact hchoice
 
-theorem response_site_realizable (signal : Bool) (opening : Option Bool) :
-    ∃ history : program.execution.History,
-      history.state.1 = cfg ⟨opening.getD false, signal, opening, false⟩ 6 := by
+theorem response_site_realizable (secret signal : Bool) (opening : Option Bool)
+    (hvalid : opening = none ∨ opening = some secret) :
+    ∃ middle final : program.execution.History,
+      middle.state.1 = cfg ⟨secret, signal, opening, false⟩ 5 ∧
+      final.state.1 = cfg ⟨secret, signal, opening, false⟩ 6 := by
   classical
-  let secret := opening.getD false
   let data : RunData := ⟨secret, signal, none, false⟩
-  have hvalid : opening = none ∨ opening = some data.secret := by
-    cases opening <;> simp [data, secret]
   obtain ⟨history, hsummary⟩ := opening_site_realizable secret signal
   have hstate : history.state.1 = cfg data 4 := congrArg Prod.fst hsummary
   let choice := openingChoice history data hstate opening hvalid
@@ -155,7 +154,7 @@ theorem response_site_realizable (signal : Bool) (opening : Option Bool) :
   let command' := (⟨joint', hlegal'⟩ :
     {joint // program.execution.Legal middle.state joint})
   obtain ⟨last, hlast⟩ := (program.execution.step middle.state command').support_nonempty
-  refine ⟨middle.extend command'.2 hlast, ?_⟩
+  refine ⟨middle, middle.extend command'.2 hlast, hn, ?_⟩
   have hmem : last.1 ∈
       ((program.execution.step middle.state command').map Subtype.val).support := by
     rw [FinDist.support_map]
@@ -168,8 +167,11 @@ theorem response_site_realizable (signal : Bool) (opening : Option Bool) :
 def responseChoiceAt (signal : Bool) (opening : Option Bool) (bit : Bool) :
     program.information.Choice 1 (responseInfo signal opening) := by
   refine ⟨some (responseAction bit), ?_⟩
-  obtain ⟨history, hstate⟩ := response_site_realizable signal opening
   let data : RunData := ⟨opening.getD false, signal, opening, false⟩
+  have hvalid : opening = none ∨ opening = some data.secret := by
+    cases opening <;> simp [data]
+  obtain ⟨_, history, _, hstate⟩ :=
+    response_site_realizable data.secret signal opening hvalid
   have hinfo := response_information history data hstate
   have hchoice := (responseChoice history data hstate bit).2
   change some (responseAction bit) ∈
@@ -198,8 +200,11 @@ theorem openingChoiceAt_exhaustive (secret signal : Bool)
 theorem responseChoiceAt_exhaustive (signal : Bool) (opening : Option Bool)
     (choice : program.information.Choice 1 (responseInfo signal opening)) :
     ∃ bit, choice = responseChoiceAt signal opening bit := by
-  obtain ⟨history, hstate⟩ := response_site_realizable signal opening
   let data : RunData := ⟨opening.getD false, signal, opening, false⟩
+  have hvalid : opening = none ∨ opening = some data.secret := by
+    cases opening <;> simp [data]
+  obtain ⟨_, history, _, hstate⟩ :=
+    response_site_realizable data.secret signal opening hvalid
   have hinfo := response_information history data hstate
   have hmember : choice.1 ∈ program.information.menu 1
       (program.information.infoOf 1 history.trace) := by
