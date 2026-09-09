@@ -51,7 +51,7 @@ def declineOnly : Application := { initial with openingAllowed := false }
 
 def handler (now : Nat) (state : Application)
     (message : Message Principal Payload) : Option Application :=
-  match site.resolve? now state.service state.accepted state.done
+  match site.resolve? now state.service.verify state.accepted state.done
       (fun _ => state.openingAllowed) message with
   | none => none
   | some choice => some {

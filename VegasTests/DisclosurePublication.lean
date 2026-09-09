@@ -68,7 +68,7 @@ def initial (data : RunData) : Application :=
 
 def handler (deadline now : Nat) (state : Application)
     (message : Message TestPlayer Payload) : Option Application :=
-  match (publicationSite deadline).resolve? now state.service state.accepted state.done
+  match (publicationSite deadline).resolve? now state.service.verify state.accepted state.done
       (fun _ => true) message with
   | none => none
   | some choice => some {

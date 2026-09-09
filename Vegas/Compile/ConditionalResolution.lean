@@ -49,16 +49,17 @@ theorem legal_choice_resolves
         canOpen (env.get opening.binding) = true)
     (serial : Nat) (chosen : L.Val copyTy)
     (hlegal : evalGuard guard chosen ((env.toView who).eraseEnv) = true) :
-    site.resolve? now service accepted done canOpen
+    site.resolve? now service.verify accepted done canOpen
         ⟨(who, serial), site.requestPayload (opening.encoding chosen)⟩ =
       some (opening.encoding chosen) := by
   subst who
   rcases opening.sound env chosen hlegal with hdecline | hopen
   · rw [hdecline]
-    exact (site.resolve_requestPayload now service accepted done canOpen hready serial none).mpr
+    exact (site.resolve_requestPayload now service.verify accepted done canOpen
+      hready serial none).mpr
       trivial
   · rw [hopen]
-    apply (site.resolve_requestPayload now service accepted done canOpen hready serial
+    apply (site.resolve_requestPayload now service.verify accepted done canOpen hready serial
       (some (env.get opening.binding))).mpr
     constructor
     · simp [IdealCommitments.verify, hstored]
@@ -90,7 +91,7 @@ theorem runtime_resolution_legal
       evalGuard guard (opening.encoding.symm (some (env.get opening.binding)))
         ((env.toView who).eraseEnv) = true)
     (result : Option (L.Val opening.secretTy))
-    (hresolve : site.resolve? now service accepted done canOpen message =
+    (hresolve : site.resolve? now service.verify accepted done canOpen message =
       some result) :
     (result = none ∨ result = some (env.get opening.binding)) ∧
       evalGuard guard (opening.encoding.symm result)
@@ -102,7 +103,7 @@ theorem runtime_resolution_legal
   rcases hresult with rfl | rfl
   · exact opening.decline_legal env
   · apply hcanOpen
-    exact site.resolve_some_canOpen now service accepted done canOpen message
+    exact site.resolve_some_canOpen now service.verify accepted done canOpen message
       (env.get opening.binding) hresolve
 
 /-- An accepted runtime resolution follows the existing adjacent source
@@ -124,7 +125,7 @@ theorem runtime_resolution_steps
       evalGuard guard (opening.encoding.symm (some (env.get opening.binding)))
         ((env.toView who).eraseEnv) = true)
     (result : Option (L.Val opening.secretTy))
-    (hresolve : site.resolve? now service accepted done canOpen message = some result)
+    (hresolve : site.resolve? now service.verify accepted done canOpen message = some result)
     (publicName : VarId)
     (tail : VegasCore P L
       ((publicName, .pub copyTy) :: (copyName, .sealed who copyTy) :: Γ)) :

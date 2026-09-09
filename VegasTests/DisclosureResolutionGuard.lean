@@ -53,13 +53,13 @@ theorem canOpen_matches_second_guard_after_refusal
   simp at this
 
 theorem opening_rejected_after_refusal (secret : Bool) :
-    site.resolve? 5 (service secret) (some (0, 0)) done canOpen
+    site.resolve? 5 (service secret).verify (some (0, 0)) done canOpen
       ⟨(0, 0), .opening (0, 0) secret⟩ = (none : Option (Option Bool)) := by
-  exact site.resolve_opening_when_closed 5 (service secret) (some (0, 0))
+  exact site.resolve_opening_when_closed 5 (service secret).verify (some (0, 0))
     done canOpen ⟨(0, 0), .opening (0, 0) secret⟩ (0, 0) secret rfl rfl
 
 theorem decline_accepted_after_refusal (secret : Bool) :
-    site.resolve? 5 (service secret) (some (0, 0)) done canOpen
+    site.resolve? 5 (service secret).verify (some (0, 0)) done canOpen
       ⟨(0, 0), .decline⟩ = some (none : Option Bool) := by
   rfl
 

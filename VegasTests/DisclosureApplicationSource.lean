@@ -62,7 +62,7 @@ theorem outcome_source (payouts : Payouts) (state : DisclosureState)
     (hinvariant : Invariant state) (signal : Bool) (opening : Option Bool) (response : Bool)
     (houtcome : state.outcome? = some (signal, opening, response)) :
     ∃ secret,
-      (state.acceptedService.lookup (0, 0)).getD false = secret ∧
+      state.boundValue?.getD false = secret ∧
       state.decodedConfig = cfg ⟨secret, signal, opening, response⟩ 8 ∧
       SmallStep.Star (SourceConfig.initial (coreWithPayoffs payouts))
         ⟨TerminalContext, terminalEnv secret signal opening response, .ret payouts⟩ ∧
@@ -70,7 +70,7 @@ theorem outcome_source (payouts : Payouts) (state : DisclosureState)
         some (evalPayoffs payouts (terminalEnv secret signal opening response)) := by
   obtain ⟨hsignal, hpublication, hresponse⟩ :=
     (outcome_eq_some_iff state signal opening response).mp houtcome
-  let secret := (state.acceptedService.lookup (0, 0)).getD false
+  let secret := state.boundValue?.getD false
   have hvalid : opening = none ∨ opening = some secret := by
     have hdata := data_valid state hinvariant
     simpa only [RunData.Valid, data, hpublication, Option.getD_some] using hdata
@@ -91,7 +91,7 @@ theorem policy_outcome_source (payouts : Payouts) (window : Nat)
     (signal : Bool) (opening : Option Bool) (response : Bool)
     (houtcome : next.native.application.outcome? = some (signal, opening, response)) :
     ∃ secret,
-      (next.native.application.acceptedService.lookup (0, 0)).getD false = secret ∧
+      next.native.application.boundValue?.getD false = secret ∧
       next.native.application.decodedConfig = cfg ⟨secret, signal, opening, response⟩ 8 ∧
       SmallStep.Star (SourceConfig.initial (coreWithPayoffs payouts))
         ⟨TerminalContext, terminalEnv secret signal opening response, .ret payouts⟩ ∧

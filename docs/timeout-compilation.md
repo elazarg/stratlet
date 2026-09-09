@@ -253,12 +253,30 @@ A source-designated initial default therefore cannot be implemented by
 overwriting that private commitment, treating it as submitted, or making a
 private preparation step publish an application decision.
 
-A candidate implementation records the accepted source binding as either an
-owner-submitted opaque commitment or an explicit public default. A deadline
-call can choose the latter without modifying private storage or forging an
-owner-authored message. Subsequent validation uses the accepted alternative,
-not an unsubmitted commitment the owner prepared earlier. The initial-default
-mechanism remains to be integrated and proved against its source action.
+The disclosure application records the accepted source binding as either an
+owner-submitted opaque commitment or an explicit public default. An included
+permissionless initial expiration chooses the latter without modifying private
+storage or forging an owner-authored message. Subsequent validation uses the
+accepted alternative, not an unsubmitted commitment the owner prepared earlier.
+The generic publication kernel takes its opening validator independently of
+the source guard: verification of a captured commitment and comparison with a
+public default are separate implementations of that interface.
+
+The initial deadline is the configured window from clock-zero initialization.
+Early calls and calls after a binding is accepted reject; a late ordinary
+binding may win until expiration is included. The source default is `false`,
+the existing initial action used by the finite sealed-offer interface. It is
+not a new initial quit branch or the richer frontend's persistent abandonment.
+The checked full native execution contains no owner action: the responder's
+calls expire initial selection, expire disclosure after source chance, and
+respond. Its source execution uses that exact initial default. Separate checks
+retain private preparation and reject attempts to bind or disclose a different
+prepared value after the default. Drivers and service guarantees remain open.
+An owner that resumes after resolution must reconstruct continuation state
+from the accepted disposition, rather than treating an unsubmitted private
+intention as the source's selected value. The specified honest inclusion
+script never takes the initial-default branch; its law alone does not verify
+such recovery behavior.
 
 The response default has an actual permissionless entry point. Successful
 publication arms a response window, and an included overdue call selects the
@@ -321,10 +339,11 @@ included expiration resolve publication without terminating that continuation.
 Its publication deadline is armed by the public sample. Arbitrary supported
 policy runs have checked source-prefix support; specified pure controllers and
 an inclusion script have the actual AST's complete outcome law from empty.
-Initial nonparticipation remains pending. Response nonparticipation can be
-resolved by its expiration handler, but the required driver and inclusion
-guarantees are unproved. This instance does not yet provide the whole-program
-timeout contract below.
+Every nontrivial source decision in this finite instance has an explicit
+nonresponse handler. The forced marker and chance are environment-triggered
+fixed application work. Drivers and inclusion/opportunity guarantees are
+unproved, so the instance does not yet provide the whole-program timeout
+contract below.
 
 1. Relate the emitted resolution entry point and call-entry deadline policy
    to the gate and complete handler semantics. Treat source handler

@@ -484,7 +484,9 @@ The application includes binding, the forced marker, one-shot public chance,
 conditional publication, and the responder's continuation. Its publication
 window starts at the sampled signal's clock. Disclosure, decline, and included
 expiration all reach the response phase and arm its own window. Initial
-withholding remains unresolved. Binding accepts the canonical opaque handle even
+expiration is a permissionless call that installs an explicit public default
+`false`. The public state distinguishes that disposition from an accepted
+opaque commitment. Binding accepts the canonical opaque handle even
 when it has no opening. Acceptance captures a private verifier; both service
 tables are omitted from player and environment observations. Acceptance's
 public result and the marker/chance/clock observation laws are independent of
@@ -517,6 +519,25 @@ an actual written-order source execution for every public payout list and
 every invariant state meeting its public readiness/deadline conditions.
 These are handler and included-call execution results. Controllers and a
 service discipline ensuring that the required calls occur remain to be proved.
+
+`DisclosureInitialExpiration.initial_expiration_run` gives the complete native
+law with no owner action: the responder submits the initial expiration,
+expires disclosure after the source chance step, and responds. The result
+retains the public-default disposition, the chance law, and inclusion receipts.
+Its source theorem fixes the initial source value to `false` rather than
+reconstructing an arbitrary witness. Initial expiration preserves private
+preparation; later binding cannot replace the installed default, and an opening
+claiming the other Boolean rejects even if that value was privately prepared.
+Early initial expiration and expiration after an accepted binding also reject.
+The initial deadline is measured from this instance's clock-zero initialization.
+A late ordinary binding can win until the expiration is included.
+
+The publication kernel takes an opening validator separately from the source
+guard predicate. Opaque bindings use the captured ideal verifier; public
+defaults compare the claimed value to the recorded public value. No private
+commitment is created or modified to implement the default. All-policy native
+source-support and the specified honest law include these new handlers, but
+neither they nor the scripts supply a service or deviation-comparison theorem.
 
 This ideal instance captures binding at inclusion. Private preparation while
 the handle is still pending remains possible. A cryptographic realization must

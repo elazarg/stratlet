@@ -24,16 +24,58 @@ namespace VegasTests.OptionalDisclosure.DisclosureState
 
 open Interaction GameTheory.Math.Probability
 
-/-- The owner attempts preparation only after the accepted binding and public
-signal. Expiration is a real responder-authored message, not a clock effect. -/
-def unopenableActions (window : Nat) (lateValue response : Bool) :
+private def unopenablePrefix (window : Nat) : List (application window).Action :=
+  [.submit 0 (.bind (0, 0)), .include (0, 0), .environment .marker, .environment .sample]
+
+private def unopenableSuffix (window : Nat) (lateValue response : Bool) :
     List (application window).Action :=
-  [.submit 0 (.bind (0, 0)), .include (0, 0), .environment .marker,
-    .environment .sample, .privateCommand 0 (0, lateValue),
+  [.privateCommand 0 (0, lateValue),
     .submit 0 (.publish (.opening (0, 0) lateValue)), .deliver 1 (0, 1), .include (0, 1),
     .environment (.advance (window + 1)),
     .submit 1 (.publish .expire), .include (1, 0),
     .submit 1 (.respond response), .include (1, 1)]
+
+private def unopenableAtSignal (window : Nat) (signal : Bool) : (application window).State :=
+  { application := { empty with
+      accepted := some (.commitment (0, 0)), markerDone := true, signal := some signal }
+    pool := { MessagePool.empty TestPlayer Payload with
+      ledger := [⟨(0, 0), .bind (0, 0)⟩]
+      sent := fun who => if who = 0 then [⟨(0, 0), .bind (0, 0)⟩] else []
+      nextSerial := fun who => if who = 0 then 1 else 0 }
+    receipts := [((0, 0), true)] }
+
+private theorem unopenable_prefix_law (window : Nat) :
+    (application window).run (unopenablePrefix window) (initial window) =
+      fairCoin.denote.map (unopenableAtSignal window) := by
+  simp [unopenablePrefix, unopenableAtSignal, MessageApplication.run,
+    MessageApplication.step, application, initial, MessageApplication.State.initial,
+    empty, MessageApplication.includePending, MessagePool.includeApplication,
+    MessagePool.includePending, MessagePool.lookup, MessagePool.submit, MessagePool.empty,
+    MessagePool.removeFirst, handle, environmentStep, Message.sender,
+    IdealCommitments.freezeAt, IdealCommitments.lookup, IdealCommitments.empty,
+    FinDist.map_eq_bind]
+
+private theorem unopenable_suffix_law (window : Nat) (signal lateValue response : Bool) :
+    (((application window).run (unopenableSuffix window lateValue response)
+      (unopenableAtSignal window signal)).map fun state =>
+        (state.application.outcome?, state.receipts, state.pool.inbox 1)) =
+      FinDist.pure (some (signal, none, response),
+        [((0, 0), true), ((0, 1), false), ((1, 0), true), ((1, 1), true)],
+        [⟨(0, 1), Payload.publish (.opening (0, 0) lateValue)⟩]) := by
+  simp [unopenableSuffix, unopenableAtSignal, MessageApplication.run, MessageApplication.step,
+    application, empty, MessageApplication.includePending, MessagePool.includeApplication,
+    MessagePool.includePending, MessagePool.lookup, MessagePool.submit, MessagePool.empty,
+    MessagePool.removeFirst, MessagePool.deliver, privateStep, handle, environmentStep,
+    Message.sender, IdealCommitments.lookup, IdealCommitments.empty, IdealCommitments.sealValue,
+    IdealCommitments.verify, ConditionalPublication.resolve?, ConditionalPublication.ready,
+    acceptedReference, DisclosureBinding.reference, verifyOpening, DisclosureBinding.verify,
+    Publication.publicationSite_eq, done, responseReady, responsePrerequisites_eq, outcome?]
+
+/-- The owner attempts preparation only after the accepted binding and public
+signal. Expiration is a real responder-authored message, not a clock effect. -/
+def unopenableActions (window : Nat) (lateValue response : Bool) :
+    List (application window).Action :=
+  unopenablePrefix window ++ unopenableSuffix window lateValue response
 
 /-- The complete native law retains the source chance, successful binding,
 rejected opening receipt, delivered failed message, and source decline followed
@@ -46,20 +88,10 @@ theorem unopenable_run (window : Nat) (lateValue response : Bool) :
         (some (signal, none, response),
           [((0, 0), true), ((0, 1), false), ((1, 0), true), ((1, 1), true)],
           [⟨(0, 1), Payload.publish (.opening (0, 0) lateValue)⟩])) := by
-  simp only [application, outcome?, Option.bind_eq_bind, Fin.isValue, unopenableActions,
-    initial, MessageApplication.State.initial, empty, IdealCommitments.empty, MessagePool.empty,
-    MessageApplication.run, MessageApplication.step, MessagePool.submit, List.nil_append, zero_add,
-    MessageApplication.includePending, MessagePool.includeApplication, MessagePool.includePending,
-    MessagePool.lookup, handle, Message.sender, IdealCommitments.freezeAt, IdealCommitments.lookup,
-    ConditionalPublication.resolve?, ConditionalPublication.ready, Publication.publicationSite_eq,
-    done, List.all_cons, List.all_nil, IdealCommitments.verify, and_true, responseReady,
-    Bool.and_self, responsePrerequisites_eq, environmentStep, FinDist.map_eq_bind,
-    FinDist.pure_bind, privateStep, IdealCommitments.sealValue, MessagePool.deliver,
-    FinDist.bind_bind, decide_true, List.find?_cons_of_pos, MessagePool.removeFirst, ↓reduceIte,
-    Option.isNone_none, and_self, Option.isSome_some, Bool.not_false, List.cons_append,
-    Nat.reduceAdd, true_and, BEq.rfl, Option.isSome_none, Bool.not_true, Bool.false_eq_true,
-    Option.none_beq_some, Option.bind_none, one_ne_zero, Nat.zero_le, Nat.lt_add_one,
-    Option.bind_some]
+  rw [unopenableActions, MessageApplication.run_append, unopenable_prefix_law]
+  rw [FinDist.bind_map, FinDist.map_bind]
+  simp only [unopenable_suffix_law]
+  rw [FinDist.map_eq_bind]
 
 /--
 info: 'VegasTests.OptionalDisclosure.DisclosureState.unopenable_run' depends on axioms:

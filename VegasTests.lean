@@ -32,6 +32,7 @@ import VegasTests.DisclosureApplicationSource
 import VegasTests.DisclosureApplicationLaw
 import VegasTests.DisclosureMalformed
 import VegasTests.DisclosureExpiration
+import VegasTests.DisclosureInitialExpiration
 import VegasTests.DisclosureResolutionGuard
 import VegasTests.DisclosureLaw
 import VegasTests.DisclosureSites

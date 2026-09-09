@@ -19,8 +19,9 @@ The environment may execute the forced public marker and trigger the source
 chance kernel. Neither operation consults the owner's policy or selects a
 chance outcome. A publication window starts when that signal is sampled.
 Decline and expiration continue to the source responder decision. Its own
-expiration selects the source rejection action; initial withholding remains
-unresolved in this instance. Each expiration requires an included call.
+expiration selects the source rejection action. Initial expiration installs a
+public default instead of an owner commitment, leaving private preparation
+unchanged. Each expiration requires an included call; none guarantees service.
 
 This is a concrete application specialization, not a general source-to-message
 compiler or a strategic equivalence of its atomic two-node operations.
@@ -36,10 +37,49 @@ namespace VegasTests.OptionalDisclosure
 
 open Vegas EventGraph Interaction GameTheory.Math.Probability
 
+/-- The public disposition of the initial source decision. An installed
+default is distinguishable from an owner-submitted opaque commitment. -/
+inductive DisclosureBinding where
+  | commitment (handle : CommitmentHandle TestPlayer Nat)
+  | publicDefault (value : Bool)
+
+namespace DisclosureBinding
+
+def reference : DisclosureBinding → CommitmentHandle TestPlayer Nat
+  | .commitment handle => handle
+  | .publicDefault _ => (0, 0)
+
+def value? (service : IdealCommitments TestPlayer Nat Bool) : DisclosureBinding → Option Bool
+  | .commitment handle => service.lookup handle
+  | .publicDefault value => some value
+
+def verify (service : IdealCommitments TestPlayer Nat Bool) (binding : DisclosureBinding)
+    (opening : IdealCommitments.Opening
+      (Principal := TestPlayer) (Slot := Nat) (Value := Bool)) : Bool :=
+  match binding with
+  | .commitment handle => opening.handle == handle && service.verify opening
+  | .publicDefault value => opening.claimed == value
+
+theorem verify_value (service : IdealCommitments TestPlayer Nat Bool)
+    (binding : DisclosureBinding) (opening : IdealCommitments.Opening
+      (Principal := TestPlayer) (Slot := Nat) (Value := Bool))
+    (hverify : binding.verify service opening = true) :
+    binding.value? service = some opening.claimed := by
+  cases binding with
+  | commitment handle =>
+      simp only [verify, Bool.and_eq_true, beq_iff_eq] at hverify
+      have hstored := (IdealCommitments.verify_eq_true_iff service opening).mp hverify.2
+      simpa only [value?, hverify.1] using hstored
+  | publicDefault value =>
+      simp only [verify, beq_iff_eq] at hverify
+      exact congrArg some hverify.symm
+
+end DisclosureBinding
+
 structure DisclosureState where
   service : IdealCommitments TestPlayer Nat Bool
   acceptedService : IdealCommitments TestPlayer Nat Bool
-  accepted : Option (CommitmentHandle TestPlayer Nat)
+  accepted : Option DisclosureBinding
   markerDone : Bool
   signal : Option Bool
   signalAt : Nat
@@ -52,6 +92,7 @@ namespace DisclosureState
 
 inductive Payload where
   | bind (handle : CommitmentHandle TestPlayer Nat)
+  | expireInitial
   | publish (request : ConditionalPublication.Payload TestPlayer Bool)
   | respond (value : Bool)
   | expireResponse
@@ -64,7 +105,7 @@ inductive EnvironmentCommand where
   | advance (clock : Nat)
 
 structure PublicState where
-  accepted : Option (CommitmentHandle TestPlayer Nat)
+  accepted : Option DisclosureBinding
   markerDone : Bool
   signal : Option Bool
   signalAt : Nat
@@ -79,6 +120,30 @@ def observe (state : DisclosureState) : PublicState :=
 
 def empty : DisclosureState :=
   ⟨IdealCommitments.empty, IdealCommitments.empty, none, false, none, 0, none, 0, none, 0⟩
+
+def acceptedReference (state : DisclosureState) : Option (CommitmentHandle TestPlayer Nat) :=
+  state.accepted.map DisclosureBinding.reference
+
+def boundValue? (state : DisclosureState) : Option Bool :=
+  state.accepted.bind (DisclosureBinding.value? state.acceptedService)
+
+def verifyOpening (state : DisclosureState) (opening : IdealCommitments.Opening
+    (Principal := TestPlayer) (Slot := Nat) (Value := Bool)) : Bool :=
+  match state.accepted with
+  | none => false
+  | some binding => binding.verify state.acceptedService opening
+
+theorem verifyOpening_value (state : DisclosureState) (opening : IdealCommitments.Opening
+    (Principal := TestPlayer) (Slot := Nat) (Value := Bool))
+    (hverify : state.verifyOpening opening = true) :
+    state.boundValue? = some opening.claimed := by
+  cases haccepted : state.accepted with
+  | none => simp [verifyOpening, haccepted] at hverify
+  | some binding =>
+      simp only [verifyOpening, haccepted] at hverify
+      exact (show state.boundValue? = binding.value? state.acceptedService by
+        simp [boundValue?, haccepted]).trans
+          (binding.verify_value state.acceptedService opening hverify)
 
 /-- Both members of an atomic source pair have completed together. -/
 def done (state : DisclosureState) : Nat → Bool
@@ -118,12 +183,17 @@ def handle (window : Nat) (state : DisclosureState)
   | .bind handle =>
       if message.sender = 0 ∧ handle = (0, 0) ∧ state.accepted.isNone then
         some { state with
-          accepted := some handle
+          accepted := some (.commitment handle)
           acceptedService := state.service.freezeAt handle }
+      else none
+  | .expireInitial =>
+      if state.accepted.isNone ∧ window < state.clock then
+        some { state with accepted := some (.publicDefault false) }
       else none
   | .publish request => do
       let result ← (Publication.publicationSite (state.signalAt + window)).resolve? state.clock
-        state.acceptedService state.accepted state.done (fun _ => true) ⟨message.id, request⟩
+        state.verifyOpening state.acceptedReference state.done (fun _ => true)
+        ⟨message.id, request⟩
       some { state with publication := some result, responseAt := state.clock }
   | .respond value =>
       if message.sender = 1 ∧ state.responseReady then
@@ -151,11 +221,12 @@ def application (window : Nat) : MessageApplication TestPlayer where
 def initial (window : Nat) : (application window).State :=
   MessageApplication.State.initial (application window) empty
 
-/-- Proof-facing source reconstruction. A permanently unopenable commitment
-uses `false` as a source witness and can resolve only to decline. This convention
-does not publish a default, repair the commitment, or settle a pending run. -/
+/-- Proof-facing source reconstruction uses the accepted commitment or public
+default. A permanently unopenable commitment uses `false` as a source witness
+and can resolve only to decline. That convention neither installs a public
+default nor repairs the commitment or settles a pending run. -/
 def data (state : DisclosureState) : RunData :=
-  ⟨(state.acceptedService.lookup (0, 0)).getD false, state.signal.getD false,
+  ⟨state.boundValue?.getD false, state.signal.getD false,
     state.publication.getD none, state.response.getD false⟩
 
 def phase (state : DisclosureState) : Fin 9 :=
@@ -183,6 +254,49 @@ theorem unresolved_publication (state : DisclosureState) (h : state.publication 
 
 theorem responsePrerequisites_eq :
     responsePrerequisites = [2, 3, 5, 0, 1, 4] := rfl
+
+/-- Initial expiration records a public source default. It leaves every
+privately prepared commitment and the captured commitment verifier unchanged. -/
+theorem expireInitial_accepts (window : Nat) (state : DisclosureState)
+    (caller : TestPlayer) (serial : Nat) (haccepted : state.accepted = none)
+    (hexpired : window < state.clock) :
+    handle window state ⟨(caller, serial), .expireInitial⟩ =
+      some { state with accepted := some (.publicDefault false) } := by
+  simp [handle, haccepted, hexpired]
+
+theorem expireInitial_before_deadline (window : Nat) (state : DisclosureState)
+    (caller : TestPlayer) (serial : Nat) (hearly : state.clock ≤ window) :
+    handle window state ⟨(caller, serial), .expireInitial⟩ = none := by
+  simp [handle, Nat.not_lt.mpr hearly]
+
+theorem expireInitial_after_resolution (window : Nat) (state : DisclosureState)
+    (caller : TestPlayer) (serial : Nat) (haccepted : state.accepted.isSome = true) :
+    handle window state ⟨(caller, serial), .expireInitial⟩ = none := by
+  have hnone : state.accepted.isNone = false := by
+    cases hbinding : state.accepted <;> simp_all
+  simp [handle, hnone]
+
+theorem bind_after_resolution (window : Nat) (state : DisclosureState)
+    (id : MessageId TestPlayer) (reference : CommitmentHandle TestPlayer Nat)
+    (haccepted : state.accepted.isSome = true) :
+    handle window state ⟨id, .bind reference⟩ = none := by
+  have hnone : state.accepted.isNone = false := by
+    cases hbinding : state.accepted <;> simp_all
+  simp [handle, hnone]
+
+/-- A public default uses its recorded public value, independently of a
+private commitment that was prepared but never accepted. -/
+theorem publicDefault_value (state : DisclosureState) (value : Bool)
+    (haccepted : state.accepted = some (.publicDefault value)) :
+    state.boundValue? = some value := by
+  simp [boundValue?, haccepted, DisclosureBinding.value?]
+
+theorem publicDefault_verification (state : DisclosureState) (value : Bool)
+    (haccepted : state.accepted = some (.publicDefault value))
+    (opening : IdealCommitments.Opening
+      (Principal := TestPlayer) (Slot := Nat) (Value := Bool)) :
+    state.verifyOpening opening = (opening.claimed == value) := by
+  simp [verifyOpening, haccepted, DisclosureBinding.verify]
 
 theorem responseReady_publication (state : DisclosureState)
     (hready : state.responseReady = true) : state.publication.isSome = true := by
@@ -224,7 +338,7 @@ theorem publication_arms_response (window : Nat) (state next : DisclosureState)
     next.responseAt = state.clock := by
   simp only [handle] at hhandle
   cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
-      state.clock state.acceptedService state.accepted state.done (fun _ => true)
+      state.clock state.verifyOpening state.acceptedReference state.done (fun _ => true)
       ⟨id, request⟩ with
   | none =>
       rw [hresolve] at hhandle
@@ -270,14 +384,14 @@ theorem bind_accepts (window : Nat) (state : DisclosureState) (serial : Nat)
     (haccepted : state.accepted = none) :
     handle window state ⟨(0, serial), .bind (0, 0)⟩ =
       some { state with
-        accepted := some (0, 0)
+        accepted := some (.commitment (0, 0))
         acceptedService := state.service.freezeAt (0, 0) } := by
   simp [handle, Message.sender, haccepted]
 
 theorem bind_public_result (window : Nat) (state : DisclosureState) (serial : Nat)
     (service : IdealCommitments TestPlayer Nat Bool) (haccepted : state.accepted = none) :
     (handle window { state with service } ⟨(0, serial), .bind (0, 0)⟩).map observe =
-      some { state.observe with accepted := some (0, 0) } := by
+      some { state.observe with accepted := some (.commitment (0, 0)) } := by
   rw [bind_accepts window { state with service } serial haccepted]
   rfl
 

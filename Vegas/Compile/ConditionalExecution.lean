@@ -107,7 +107,7 @@ theorem runtime_resolution_reachable
         ((env.toView site.data.owner).eraseEnv) = true)
     (result : Option (L.Val site.data.specification.secretTy))
     (hresolve : (runtimeSite site fresh state sourceSlot deadline).resolve?
-      now service accepted done canOpen message = some result)
+      now service.verify accepted done canOpen message = some result)
     (hreachable : Reachable (compileCore prog fresh state).graph cfg) :
     Reachable (compileCore prog fresh state).graph
       (completePublication site fresh state cfg result) := by
@@ -115,7 +115,7 @@ theorem runtime_resolution_reachable
     (runtimeSite site fresh state sourceSlot deadline) rfl now service accepted done canOpen
     message env hstored hcanOpen result hresolve
   have hready := (runtimeSite site fresh state sourceSlot deadline).resolve_success_inversion
-    now service accepted done canOpen message result hresolve
+    now service.verify accepted done canOpen message result hresolve
   exact completePublication_reachable site fresh state cfg env hagrees sourceSlot deadline
     accepted done hcompleted hready result hlegal.2 hreachable
 

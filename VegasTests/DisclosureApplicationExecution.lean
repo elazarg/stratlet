@@ -98,6 +98,8 @@ theorem honest_policy_data (window : Nat) (secret : Bool)
     MessageApplication.step, MessageApplication.includePending, MessagePool.includeApplication,
     MessagePool.includePending, MessagePool.lookup, decide_true, List.find?_cons_of_pos,
     MessagePool.removeFirst, handle, ConditionalPublication.resolve?, ConditionalPublication.ready,
+    acceptedReference, DisclosureBinding.reference, Option.map_some,
+    verifyOpening, DisclosureBinding.verify,
     Publication.publicationSite_eq, BEq.rfl, done, Option.isSome_none, Bool.not_false,
     Bool.and_self, List.all_cons, Option.isSome_some, List.all_nil, Bool.not_true,
     Bool.false_eq_true, Message.sender, Option.bind_eq_bind, Option.bind_some,
@@ -123,6 +125,7 @@ theorem honest_policy_data (window : Nat) (secret : Bool)
   all_goals try simp only [MessageApplication.runPolicies, Fin.isValue, FinDist.map_pure,
     policyData?,
     outcome?, Option.bind_eq_bind, Option.bind_some, Option.isSome_some, ↓reduceIte, data,
+    boundValue?, DisclosureBinding.value?,
     Option.getD_some, FinDist.bind_pure]
   all_goals simp only [IdealCommitments.lookup, Fin.isValue, and_self, ↓reduceIte,
     Option.getD_some, MessageApplication.invoke, honestEnvironment, List.length_cons,
@@ -134,7 +137,8 @@ theorem honest_policy_data (window : Nat) (secret : Bool)
     List.cons_append, List.nil_append, handle, Message.sender, responseReady, done,
     Option.isSome_none, Bool.not_false, Bool.and_self, responsePrerequisites_eq, List.all_cons,
     Option.isSome_some, List.all_nil, MessageApplication.State.environmentView, observe,
-    FinDist.map_pure, policyData?, outcome?, Option.bind_eq_bind, Option.bind_some, data]
+    FinDist.map_pure, policyData?, outcome?, Option.bind_eq_bind, Option.bind_some, data,
+    boundValue?, DisclosureBinding.value?]
 
 /--
 info: 'VegasTests.OptionalDisclosure.DisclosureState.honest_policy_data' depends on axioms:

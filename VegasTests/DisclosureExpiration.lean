@@ -44,6 +44,7 @@ theorem response_expiration_run (window : Nat) (secret : Bool) :
     Message.sender, IdealCommitments.freezeAt, IdealCommitments.lookup,
     IdealCommitments.empty, IdealCommitments.sealValue, IdealCommitments.verify,
     ConditionalPublication.resolve?, ConditionalPublication.ready,
+    acceptedReference, DisclosureBinding.reference, verifyOpening, DisclosureBinding.verify,
     Publication.publicationSite_eq, done, responseReady, responsePrerequisites_eq,
     outcome?, FinDist.map_eq_bind]
 
