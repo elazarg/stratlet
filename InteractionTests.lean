@@ -4,6 +4,7 @@ import InteractionTests.ConditionalPublication
 import InteractionTests.ChoiceController
 import InteractionTests.PrivateChoice
 import InteractionTests.MessageApplication
+import InteractionTests.MessageCounters
 import InteractionTests.SealedPolicies
 import InteractionTests.TimeoutGate
 import InteractionTests.SealedTimeout

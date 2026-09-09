@@ -22,6 +22,9 @@ allocation. Conditional deadlines are supplied separately by publication node.
 Conditional endpoints can discharge an original binding or publish a later
 copy of a retained binding. Both use the same source guard certificate; only
 their accounting derivations differ.
+This derivation does not certify a prior emitted binding for every conditional
+endpoint. Whole-program realization needs a binding-origin condition or separate
+initial provisioning; a public-choice instruction creates no commitment handle.
 Initial sealed-input provisioning and whole-program strategy correspondence are
 separate from this code-generation derivation.
 -/

@@ -143,9 +143,8 @@ theorem conditional_resolution_refines
   · exact hnext
 
 /-- A legal source choice produces a canonical dynamically typed packet that
-the generated application image accepts. The frozen premise is deliberately
-typed: it states that binding admission captured the represented source
-binding. -/
+the generated application image accepts. Only an opening needs a recoverable
+frozen value; a legal decline also works with an unopenable accepted binding. -/
 theorem canonical_request_accepted
     (image : ApplicationImage P L) (site : ConditionalPublicationSite prog)
     (fresh : FreshBindings prog)
@@ -166,9 +165,9 @@ theorem canonical_request_accepted
     (chosen : L.Val site.choice.ty)
     (hlegal : evalGuard site.choice.guard chosen
       ((env.toView site.choice.owner).eraseEnv) = true)
-    (hfrozen : native.frozen (site.sourceField fresh state) =
-      some ⟨site.specification.secretTy,
-        env.get site.specification.binding⟩)
+    (hfrozen : ∀ value, site.specification.encoding chosen = some value →
+      (native.frozen (site.sourceField fresh state)).bind
+        (fun typed => typed.as? site.specification.secretTy) = some value)
     (serial : Nat) :
     let code := site.code fresh state sourceSlot deadline
     image.handle native
@@ -194,7 +193,7 @@ theorem canonical_request_accepted
           env chosen value hlegal hresult
         constructor
         · simp [ApplicationImage.State.verify, code,
-            ConditionalPublicationSite.code, hfrozen, hvalue, TypedValue.as?]
+            ConditionalPublicationSite.code, hfrozen value hresult]
         · change site.canOpen fresh state native.memory.store value = true
           rw [site.canOpen_source fresh state representedStore native.memory.store env
             heligible hagrees hpublicStore value hvalue]

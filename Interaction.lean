@@ -3,11 +3,13 @@ import Interaction.MessagePoolFreshness
 import Interaction.MessageRouting
 import Interaction.MessageReplay
 import Interaction.MessageInvariant
+import Interaction.MessagePoolCounters
 import Interaction.TransactionalInclusion
 import Interaction.MessageApplication
 import Interaction.MessageApplicationLaws
 import Interaction.MessageApplicationPolicies
 import Interaction.MessageApplicationPolicyLaws
+import Interaction.MessageApplicationCounters
 import Interaction.MessageApplicationPolicyHistory
 import Interaction.MessageApplicationPolicyInvariant
 import Interaction.MessageApplicationService

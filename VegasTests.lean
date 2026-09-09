@@ -11,6 +11,10 @@ import VegasTests.PublicGuard
 import VegasTests.ApplicationImage
 import VegasTests.ApplicationSampleExecution
 import VegasTests.PublicChoiceSourceCoupling
+import VegasTests.BindingSourceCoupling
+import VegasTests.ConditionalSourceCoupling
+import VegasTests.ApplicationBindingOrigins
+import VegasTests.PublicConditionalOrigin
 import VegasTests.PublicChoiceImageExecution
 import VegasTests.ConditionalApplicationImage
 import VegasTests.SourceStrategy

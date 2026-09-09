@@ -344,21 +344,53 @@ The exact-law induction should use the existing `CoupledAt` source/graph
 checkpoint, native refinement, and membership in an actual initialized policy
 run. Coverage and typed registration provenance follow from that membership;
 they should not become repeated assumptions of a second evaluator.
+`Interaction/MessageApplicationCounters.lean` also derives freshness of the
+next allocated envelope identifier from initialized policy-run membership,
+for arbitrary policies, delivery, and replay. Use this invariant to discharge
+the local lookup-absence premise in submission/inclusion phase laws.
 `ApplicationSampleExecution` supplies the source-coupled native chance phase.
 `PublicChoiceImageExecution` supplies the source-kernel submission/inclusion law,
 and `PublicChoiceSourceCoupling` advances the exact source continuation through
-the actual public-choice handler. The remaining composition obligations are:
+the actual public-choice handler. `BindingSourceCoupling` and
+`ConditionalSourceCoupling` supply the corresponding actual-inclusion continuations:
+a prepared binding adds its chosen source value, and an opening or decline adds
+the chosen optional value and its publication. Readiness follows from the
+completed source prefix. The conditional endpoint additionally needs an accepted
+binding identity; only opening needs a recoverable frozen value.
+
+`ApplicationBindingOrigins` gives a decidable metadata condition for those
+identities: each commitment-backed conditional instruction has an earlier
+binding with the matching field, owner, and slot. This is not enforced by the
+`ApplicationPlan` index and does not imply that the earlier binding was included.
+In particular, publishing a source field through `publicChoice` does not create
+a commitment handle. The realization theorem must consume a binding-origin
+certificate, or code generation must select a different representation for
+already-public values. This is a backend condition, not a source-WF restriction.
+`PublicConditionalOrigin` checks the distinction on a valid source and generated
+plan, not just a hand-written image: the first public inclusion stores the value,
+but the later commitment-backed endpoint has no accepted handle.
+
+The remaining composition obligations are:
 
 - Combine binding registration, submission, and inclusion into a phase coupling
-  with the matching source commitment. Give conditional opening/decline the
-  analogous coupling, using the source guard and accepted snapshot.
+  with the matching source commitment. Compose the conditional reference
+  strategy's first-submission law with its checked inclusion continuation too.
+  The individual kernel and source-successor laws must identify one joint law
+  on full policy executions, retaining their histories.
 - Establish freshness of every unexecuted endpoint's registration and voluntary
-  submission caches. Empty initialized histories give the base case; allocated
-  field/address separation must prove preservation. Refinement and correctness
-  of an existing cache do not establish this absence property.
+  submission caches. `ApplicationPolicyFreshness` provides initialization and
+  preservation through environment steps and through player commands that the
+  remaining encodings reject. Allocated field/address separation must discharge
+  that rejection premise for the actual lifted policies. Refinement and
+  correctness of an existing cache do not establish this absence property.
 - Prove that the original lifted profile dispatches to the current source suffix
   throughout each continuation. Completed flags persist; switching the profile
   parameter between phases without a policy-law equality is insufficient.
+  A proof-only suffix relation can retain the original plan/profile and its
+  structural continuation, transporting profiles with `afterSample`,
+  `afterCommit`, and `afterReveal`. Its first useful theorem equates the original
+  and suffix policies at every local history with matching completion flags;
+  the source-prefix coupling supplies those flags.
 - Define an observation-local service that includes the pending source request
   and invokes the next chance instruction, then prove its phase equations under
   a source-order invocation schedule. No source environment may be an input.

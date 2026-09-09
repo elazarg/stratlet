@@ -94,6 +94,18 @@ end ChoiceController
 
 namespace ChoiceEncoding
 
+/-- Appending one command outside an encoding's domain preserves an empty
+earliest-command cache. -/
+theorem cachedValue_append_unrecognized
+    (encoding : ChoiceEncoding Value app.PlayerCommand)
+    (history : List app.PlayerEntry) (view : app.View)
+    (command : app.PlayerCommand)
+    (hcache : encoding.cachedValue app history = none)
+    (hdecode : encoding.decode command = none) :
+    encoding.cachedValue app (history ++ [⟨view, command⟩]) = none := by
+  rw [encoding.cachedValue_append_of_none app history _ hcache]
+  simp [cachedValue, hdecode]
+
 /-- Once an endpoint value occurs in a principal's actual history, recording
 any further player command preserves that earliest value. -/
 theorem playerStep_cachedValue_of_some [DecidableEq Principal]

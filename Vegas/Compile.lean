@@ -18,6 +18,7 @@ import Vegas.Compile.PublicChoiceController
 import Vegas.Compile.ApplicationImage
 import Vegas.Compile.ApplicationImageSamples
 import Vegas.Compile.ApplicationImageBindings
+import Vegas.Compile.ApplicationBindingOrigins
 import Vegas.Compile.ApplicationImageInvariants
 import Vegas.Compile.ApplicationPlan
 import Vegas.Compile.ApplicationPlanCoverage
@@ -45,7 +46,10 @@ import Vegas.Compile.BindingImageExecution
 import Vegas.Compile.ApplicationSampleExecution
 import Vegas.Compile.PublicChoiceImageExecution
 import Vegas.Compile.PublicChoiceSourceCoupling
+import Vegas.Compile.BindingSourceCoupling
+import Vegas.Compile.ConditionalSourceCoupling
 import Vegas.Compile.ApplicationPolicy
+import Vegas.Compile.ApplicationPolicyFreshness
 import Vegas.Compile.ApplicationPolicyLocality
 import Vegas.Compile.ApplicationPolicyBindings
 import Vegas.Compile.ApplicationPolicyProvenance

@@ -704,6 +704,13 @@ freshly submitted envelope. It checks successful acceptance and the exact memory
 receipt, ledger, and source-step effects. The service premise selects that
 envelope; unrelated pending traffic is allowed. `MessagePoolFreshness` supplies
 the runtime-general lookup fact from absence of the newly allocated identifier.
+`MessagePoolCounters` derives that absence from a retained-message invariant:
+each envelope's serial is below its sender's next allocation counter.
+`MessageApplicationCounters` preserves the invariant through arbitrary native
+actions and initialized policy runs, including delivery and replay. Thus the
+local identifier-freshness premise can be discharged from actual initialized
+execution, without a fairness or policy restriction. This concerns envelope
+identifiers, not the separate source-choice caches below.
 `VegasTests/PublicChoiceImageExecution.lean` applies this phase law to an arbitrary
 whole-source profile's first lifted strategy with the actual owner-local loader.
 `PublicChoiceSite.include_source_coupling` further connects actual generated
@@ -714,9 +721,46 @@ not merely a possible source execution unrelated to the native successor.
 both owners' inclusions in the generated mixed-type application, carrying the
 first coupled continuation into the second rather than reinitializing it.
 
+`BindingSourceCoupling` derives head binding readiness from the completed source
+prefix. Actual inclusion of its prepared canonical handle preserves native
+refinement at the exact one-commit source successor and retains the chosen
+value in the accepted snapshot. `ConditionalSourceCoupling` derives conditional
+readiness from the prefix and an actual accepted handle. It proves that actual
+opening or decline inclusion preserves the exact two-step source continuation.
+Only opening requires recovery of a frozen value. There is no upper clock bound:
+the endpoint accepts its owner's request after the deadline when no competing
+expiration has resolved it. `VegasTests/ConditionalSourceCoupling.lean` composes
+both inclusions in one generated program and checks an unprepared, unopenable
+binding followed by a source-coupled decline. The hidden source witness in that
+case creates no native opening value. It is an existential witness for this
+continuation; a whole-policy argument must establish a consistent witness
+across later continuations or derive it from prepared-value provenance.
+
+`ApplicationBindingOrigins` makes a further representation condition checkable.
+Each conditional instruction must have an earlier binding instruction with the
+same source field, owner, and commitment slot. The certificate supplies that
+metadata witness, not delivery, acceptedness, or private registration. It is
+currently an additional condition, not a consequence of `ApplicationPlan`.
+An ordinary public choice can write the source field without creating the
+accepted commitment handle required by the conditional handler. The tests
+check the positive origin certificate for generated persistent disclosure.
+`VegasTests/PublicConditionalOrigin.lean` gives a checked source and generated
+plan containing an ordinary public pair followed by a conditional copy. Its
+image fails the origin condition, and actual first inclusion leaves the later
+endpoint unready despite storing the source value. General realization
+must either require that certificate or use another backend representation for
+already-public values; changing source well-formedness is unnecessary.
+
+`ApplicationPolicyFreshness` records empty caches for the remaining emitted
+instructions using their actual slot/address encodings. Empty histories establish
+it initially. Environment actions preserve it, and player actions preserve it
+when each remaining instruction rejects the appended command. These are laws of
+the shared policy runner. Deriving rejection from generated allocation and
+reference-strategy dispatch is still a composition obligation.
+
 These are constructor-local ingredients, not a whole-program profile law.
-Composition still needs the corresponding binding and conditional phase
-couplings, freshness of every unexecuted choice cache, and persistent dispatch
+Composition still needs joint phase laws for binding and conditional publication,
+freshness of every unexecuted choice cache, and persistent dispatch
 under the same original lifted profile. The source environment, graph witness,
 and compiler cursor remain proof-only. An actual observation-local service and
 its invocation assumptions must also be connected to the composed law; no
@@ -725,8 +769,10 @@ completion or arbitrary-deviation theorem follows from these local results.
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.
 This includes absent and ill-typed snapshots and requires no well-formed-image
-premise. It fixes acceptance-time verification data; source consistency of that
-data is additionally established by the generated-plan refinement relation.
+premise. It fixes acceptance-time verification data. The generated-plan
+refinement relation additionally constrains successfully recovered typed values
+to agree with the represented graph binding; absent or ill-typed snapshots
+remain allowed.
 
 `VegasTests/ConditionalApplicationImage.lean` uses a checked three-node source
 with an unrestricted initial binding and an accounted optional publication.
