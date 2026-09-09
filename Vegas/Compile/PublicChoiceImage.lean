@@ -11,7 +11,7 @@ import Vegas.Compile.PublicChoiceValidation
 /-! # Public-choice application images generated from source occurrences
 
 An adjacent source choice/reveal occurrence emits one executable public-choice
-instruction. Finite occurrence lists form an application image. The correctness
+instruction. The correctness
 statements connect actual pending-message inclusion to the source guard and its
 two source steps; source environments remain proof data, not runtime state.
 -/
@@ -69,13 +69,6 @@ theorem code_resolves_iff_source_legal
 end PublicChoiceSite
 
 namespace ApplicationImage
-
-/-- Assemble the executable instructions emitted by a finite list of adjacent
-source choice/reveal occurrences. -/
-def ofPublicChoices {Γ : VCtx P L} {prog : VegasCore P L Γ}
-    (sites : List (PublicChoiceSite prog)) (fresh : FreshBindings prog)
-    (state : BuildState P L Γ) : ApplicationImage P L where
-  instructions := sites.map fun site => .publicChoice (site.code fresh state)
 
 /-- A legal canonical source choice is accepted by actual pending-message
 inclusion with the exact public memory, receipt, ledger, and message-knowledge

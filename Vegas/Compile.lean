@@ -17,6 +17,10 @@ import Vegas.Compile.PublicChoiceValidation
 import Vegas.Compile.PublicChoiceController
 import Vegas.Compile.ApplicationImage
 import Vegas.Compile.ApplicationImageBindings
+import Vegas.Compile.ApplicationImageInvariants
+import Vegas.Compile.ApplicationPlan
+import Vegas.Compile.ApplicationPlanCoverage
+import Vegas.Compile.ApplicationPlanAllocation
 import Vegas.Compile.ConditionalOpeningValidation
 import Vegas.Compile.ConditionalImage
 import Vegas.Compile.ConditionalImageRefinement

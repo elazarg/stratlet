@@ -514,13 +514,35 @@ recoverable frozen value with the source binding; it also covers declines and
 expiry when no value can be recovered. These are endpoint laws, not a premise
 that an entire public-message execution already simulates its source.
 
-This image remains an instruction subset, not whole-program compilation.
-Chance, initial default resolution, publicly forced execution, automatic
-occurrence selection, coherent whole-image allocation, assembled source-policy
-correspondence, and unilateral deviation simulation remain to be integrated.
-Local soundness of a resolved conditional instruction does not establish these
-whole-run properties or certify that an opaque binding already represents a
-legal source choice.
+`ApplicationPlan` generates an image by structural consumption of the existing
+source and accounting tree, rather than a supplied list of selected occurrences.
+Its certificates check backend eligibility: public guard dependencies for
+ordinary choices, the exact permitted private dependency for conditional
+openings, and an unrestricted original guard for opaque bindings. The last
+condition is necessary for the current unvalidated binding instruction: a later
+opening guard need not enforce the original binding's restrictions.
+
+`ApplicationPlanCoverage` proves exact consecutive graph-node coverage and
+unique dispatch addresses; emitted membership gives exact lookup.
+`ApplicationPlanAllocation` proves canonical target fields, no duplicate field
+allocation, and the shared source-field/commitment-slot convention. The checked
+mixed-type and conditional examples use this structural generator and its
+coverage/lookup theorems. These are compiler allocation results, not a
+whole-execution simulation.
+
+Chance, unpaired literal reveals, initial default resolution, and autonomous
+publicly forced execution have no derivation constructors yet. Initial sealed
+inputs also require explicit provisioning; filtering them out of public memory
+does not implement it. A complete initialized program artifact, output
+projection, assembled source-policy correspondence, and unilateral deviation
+simulation remain to be integrated. Local soundness of a conditional instruction
+does not establish these whole-run properties.
+
+`ApplicationImageInvariants` proves that every accepted handle and its frozen
+snapshot persist through arbitrary supported native and policy executions.
+This includes absent and ill-typed snapshots and requires no well-formed-image
+premise. It fixes acceptance-time verification data; source consistency of that
+data belongs to the separate compilation relation.
 
 `VegasTests/ConditionalApplicationImage.lean` uses a checked three-node source
 with an unrestricted initial binding and an accounted optional publication.

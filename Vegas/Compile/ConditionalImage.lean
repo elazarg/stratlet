@@ -10,8 +10,10 @@ import Vegas.Compile.ConditionalOpeningValidation
 /-! # Generated binding and conditional-publication instructions
 
 The instructions use the same compiler allocation as ordinary public choices.
-Opaque binding admission does not establish source guard legality: that remains
-an obligation of the binding controller and of deviation backtranslation.
+Opaque binding admission does not establish source guard legality. Generated
+application plans require unrestricted original guards until a binding
+validation mechanism is supplied; controller legality alone does not constrain
+arbitrary runtime deviations.
 Conditional validation checks the retained source guard using public fields
 and the acceptance-time verified claim. No source environment is runtime data.
 -/
@@ -38,8 +40,8 @@ def compiledNode {who : P} {Γ Δ : VCtx P L} {prog : VegasCore P L Γ}
     rw [← hnode]
     exact node.isLt⟩
 
-/-- Generate opaque binding metadata. The slot allocation is distinct from
-the compiler's source-field allocation and is supplied by application assembly. -/
+/-- Generate opaque binding metadata. Assembly supplies the service slot;
+structural application plans use the compiler's source-field address. -/
 def bindingCode {who : P} {Γ Δ : VCtx P L} {prog : VegasCore P L Γ}
     {name : VarId} {ty : L.Ty}
     {guard : L.Expr ((name, ty) :: eraseVCtx (viewVCtx who Δ)) L.bool}

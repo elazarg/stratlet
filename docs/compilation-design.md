@@ -404,13 +404,34 @@ Environment commands advance a monotone public clock. Expiry still requires a
 real included request; this mechanism provides neither service fairness nor
 protection against clock advancement preempting an honest request.
 
-This instruction subset does not yet implement chance, public initial defaults,
-or autonomous execution of publicly forced source choices. Source occurrence
-lists provide the dispatch input; automatic whole-program classification,
-image coverage, generated controller dispatch, and their execution-law invariant
-remain obligations. Assembly must prove address uniqueness across instruction
-kinds, canonical field writers, and exact binding/publication owner-slot-field
-linkage. Arbitrary manually assembled images have no such guarantee.
+`ApplicationPlan` is a structural backend derivation indexed by the existing
+source, commitment-accounting proof, freshness proof, and compiler cursor.
+It consumes each source operation through an implemented instruction: an opaque
+binding, an ordinary adjacent choice/reveal pair, or an accounted conditional
+pair. It emits directly into `ApplicationImage`; it introduces neither source
+syntax nor another evaluator. Backend certificates are supplied explicitly,
+not inferred by a total automatic checker. No derivation constructor discards
+an unsupported source event.
+
+`ApplicationPlan.coveredNodes_eq_range` in `ApplicationPlanCoverage` proves
+that flattening the emitted instruction blocks yields exactly the consecutive graph nodes added
+after the incoming compiler cursor. Hence nodes and dispatch addresses do not
+repeat, and every emitted instruction is found at its own address. This applies
+to a whole source from an empty node cursor and to compilation of a suffix.
+`ApplicationPlanAllocation` checks the canonical node-to-field equations and
+distinct allocated fields. Binding slots use the source-field allocation;
+conditional instructions use that same field as their source slot. These facts
+do not yet prove the complete predecessor binding relation or its runtime
+snapshot invariant. Arbitrary manually assembled images have no such guarantee.
+
+The derivation has no constructors for chance, unpaired literal reveals, public
+initial defaults, or autonomous execution of publicly forced source choices.
+Those source programs remain valid; this backend needs additional instruction
+implementations to compile them. The public initializer also does not provision
+sealed initial inputs. A whole-program entry must either account for that
+provisioning or explicitly require no sealed initial inputs. Generated controller
+dispatch, complete initialization and output projection, and the whole-run
+execution-law invariant remain obligations.
 The local refinement uses a checked lookup of the emitted instruction,
 public-validator eligibility, snapshot consistency, public-store agreement,
 and readiness; it does not assume a strategic correspondence as an image
@@ -427,9 +448,10 @@ only the later opening guard therefore cannot support arbitrary-deviation
 preservation for all guarded source bindings. This is a limitation of that
 instruction scheme, not an impossibility for public-message runtimes generally.
 
-The first strategically supported opaque-binding fragment should require a
-certificate that every value is legal at each original binding decision.
-This is backend eligibility, not a change to source well-formedness. More
+`ApplicationPlan.binding` requires `UnrestrictedBinding`: every value is legal
+at the original binding decision in every source environment. This discharges
+that particular eligibility condition; it does not by itself prove strategic
+preservation. It changes backend eligibility, not source well-formedness. More
 general bindings need their original guard checked against the original source
 observation. Its public dependencies may be captured at the relevant checkpoint;
 private dependencies require a suitable ideal validation or cryptographic proof
@@ -438,6 +460,13 @@ but unopenable if admission is to remain independent of private validity.
 Source-kernel legality is enough for compiled honest preparation, but does not
 constrain an arbitrary runtime deviator. The local conditional source theorems
 do not discharge this original-binding obligation.
+
+`ApplicationImage.AcceptedSnapshot` records a field's accepted handle together
+with its frozen value, including absent or dynamically ill-typed values.
+`run_acceptedSnapshot` and `runPolicies_acceptedSnapshot` prove that both remain
+fixed through arbitrary supported native and policy executions. These are
+runtime invariants for any image. Relating a frozen value to the source binding
+still requires the generated assembly and whole-run relation.
 
 `Memory.Represents` relates public storage and completion flags to a proof-only
 graph configuration. Every stored value agrees, public graph fields have
@@ -463,6 +492,26 @@ binding snapshots. It must distinguish a public default from a private cached
 choice. This relation supplies no executable controller input. Equality of a
 decoded marginal alone is insufficient: different message histories can have
 the same decoded source state but lead to different later policy calls.
+
+The assembly proof should first establish support-level refinement for arbitrary
+accepted packets. Lookup inversion must recover the source occurrence and its
+backend certificates from the structural derivation. A successful opaque bind
+can be represented by its well-typed frozen value; for an unopenable binding,
+source `Legal` supplies a ghost legal choice. `UnrestrictedBinding` alone is
+insufficient for that existence argument when the value type is empty. Each
+successful handler update must preserve the represented reachable graph state,
+public readouts, and consistency of recoverable frozen values. The shared native
+and policy runners then lift that invariant to complete executions.
+
+Source outcomes include sealed terminal bindings. The public application must
+report its actual public terminal bindings, with payout evaluation as one
+projection, rather than reconstruct hidden values from public memory. A
+support-level terminal theorem can provide a ghost source execution witnessing
+that public outcome. Equality of whole-profile outcome laws needs the separate
+controller and information proof. In particular, unrestricted clock advancement
+and permissionless expiry can select a legal decline before an honest opening;
+the honest law needs a stated service/deadline condition excluding such
+preemption. Event coverage and source-legal settlement alone do not imply it.
 
 `Interaction.ChoiceController` supplies the companion sample-once controller.
 Its first encoded command records the draw in the principal's actual

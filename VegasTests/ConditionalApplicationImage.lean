@@ -6,6 +6,7 @@ Authors: VegasCore contributors
 
 import Vegas.Compile.ConditionalImage
 import Vegas.Compile.ApplicationImageBindings
+import Vegas.Compile.ApplicationPlanAllocation
 import VegasTests.Game
 
 /-! # Generated conditional application image
@@ -102,22 +103,75 @@ theorem opening_publicly_validatable :
   rw [hsource]
   simpa using href
 
+def guardedOriginal :
+    Expr ((0, .bool) :: ([] : CtxSimple)) .bool :=
+  .var 0 .here
+
+/-- The source remains valid, but the current opaque-binding backend cannot
+admit a guard that rejects some initial values. -/
+theorem guarded_original_not_unrestricted :
+    ¬UnrestrictedBinding (Γ := ([] : VCtx Player simpleExpr))
+      (name := 0) (who := (0 : Player)) (ty := .bool) guardedOriginal := by
+  intro unrestricted
+  have hrejected := unrestricted (VEnv.empty simpleExpr) false
+  change false = true at hrejected
+  contradiction
+
 def bindingCode : BindingCode Player :=
   initialSite.bindingCode source.fresh compilerInitial 0
 
 def conditionalCode (deadline : Nat) : ConditionalCode Player simpleExpr :=
   openingSite.code source.fresh compilerInitial 0 deadline
 
-def image (deadline : Nat) : ApplicationImage Player simpleExpr where
-  instructions := [.bind bindingCode, .conditional (conditionalCode deadline)]
+def applicationPlan : ApplicationPlan plan source.fresh compilerInitial := by
+  apply ApplicationPlan.binding
+  · intro _ _
+    rfl
+  apply ApplicationPlan.conditional
+  · exact opening_publicly_validatable
+  apply ApplicationPlan.ret
+
+def image (deadline : Nat) : ApplicationImage Player simpleExpr :=
+  applicationPlan.image (fun _ => deadline)
 
 @[simp] theorem image_lookup_binding (deadline : Nat) :
     (image deadline).lookup bindingCode.node = some (.bind bindingCode) := by
+  change (applicationPlan.image (fun _ => deadline)).lookup
+    ((ApplicationInstruction.bind bindingCode : ApplicationInstruction Player simpleExpr).address) =
+      some (.bind bindingCode)
+  apply applicationPlan.image_lookup_of_mem (fun _ => deadline)
+  change _ ∈ [_ , _]
+  apply List.mem_cons.mpr
+  left
   rfl
 
 @[simp] theorem image_lookup_conditional (deadline : Nat) :
     (image deadline).lookup (conditionalCode deadline).endpoint.publicationNode =
       some (.conditional (conditionalCode deadline)) := by
+  change (applicationPlan.image (fun _ => deadline)).lookup
+    (ApplicationInstruction.conditional (conditionalCode deadline)).address =
+      some (.conditional (conditionalCode deadline))
+  apply applicationPlan.image_lookup_of_mem (fun _ => deadline)
+  change _ ∈ [_ , _]
+  apply List.mem_cons.mpr
+  right
+  apply List.mem_singleton.mpr
+  rfl
+
+theorem generated_full_node_coverage (deadline : Nat) :
+    (applicationPlan.instructions (fun _ => deadline)).flatMap
+        ApplicationInstruction.coveredNodes = List.range 3 := by
+  have hcoverage := applicationPlan.coveredNodes_eq_range (fun _ => deadline)
+  change _ = List.range 3 at hcoverage
+  change List.range 0 ++ _ = List.range 3 at hcoverage
+  simpa only [List.range_zero, List.nil_append] using hcoverage
+
+/-- The binding owns its private field; the conditional pair allocates fresh
+copy/publication fields instead of reallocating the original source field. -/
+theorem generated_full_field_allocation (deadline : Nat) :
+    (applicationPlan.instructions (fun _ => deadline)).flatMap
+        ApplicationInstruction.allocatedFields = [0, 1, 2] := by
+  rw [applicationPlan.allocatedFields_eq_map, generated_full_node_coverage]
   rfl
 
 abbrev compiled := compileCore source.prog source.fresh compilerInitial

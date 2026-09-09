@@ -5,6 +5,8 @@ Authors: VegasCore contributors
 -/
 
 import Vegas.Compile.ApplicationImageRefinement
+import Vegas.Compile.ApplicationPlanAllocation
+import VegasTests.Game
 
 /-! # A mixed-type generated public-choice image
 
@@ -95,9 +97,47 @@ def secondSite : PublicChoiceSite source.prog where
   decision := .commit (.reveal (.here _ _))
   adjacent := rfl
 
+theorem first_publicly_validatable :
+    firstSite.PubliclyValidatable source.fresh compilerInitial := by
+  intro ref href
+  change ref ∈ ({({ field := 0, ty := .bool } : FieldRef simpleExpr)} :
+    Finset (FieldRef simpleExpr)) at href
+  have href' : ref = ({ field := 0, ty := .bool } : FieldRef simpleExpr) := by
+    simpa using href
+  subst ref
+  exact ⟨⟨.bool, none, .initial true⟩, rfl, rfl, rfl⟩
+
+theorem second_publicly_validatable :
+    secondSite.PubliclyValidatable source.fresh compilerInitial := by
+  intro ref href
+  change ref ∈ (∅ : Finset (FieldRef simpleExpr)) at href
+  simp at href
+
+def applicationPlan : ApplicationPlan checked.accounted source.fresh compilerInitial := by
+  apply ApplicationPlan.publicChoice
+  · exact first_publicly_validatable
+  apply ApplicationPlan.publicChoice
+  · exact second_publicly_validatable
+  apply ApplicationPlan.ret
+
 def image : Vegas.ApplicationImage Player simpleExpr :=
-  Vegas.ApplicationImage.ofPublicChoices [firstSite, secondSite]
-    source.fresh compilerInitial
+  applicationPlan.image (fun _ => 0)
+
+theorem generated_full_node_coverage :
+    (applicationPlan.instructions (fun _ => 0)).flatMap
+        ApplicationInstruction.coveredNodes = List.range 4 := by
+  have hcoverage := applicationPlan.coveredNodes_eq_range (fun _ => 0)
+  change _ = List.range 4 at hcoverage
+  change List.range 0 ++ _ = List.range 4 at hcoverage
+  simpa only [List.range_zero, List.nil_append] using hcoverage
+
+/-- The public input occupies field zero; generated instructions allocate only
+the four subsequent fields, with no separate handwritten allocation table. -/
+theorem generated_full_field_allocation :
+    (applicationPlan.instructions (fun _ => 0)).flatMap
+        ApplicationInstruction.allocatedFields = [1, 2, 3, 4] := by
+  rw [applicationPlan.allocatedFields_eq_map, generated_full_node_coverage]
+  rfl
 
 def firstCode : PublicChoiceCode Player simpleExpr :=
   firstSite.code source.fresh compilerInitial
@@ -145,9 +185,24 @@ def acceptedActions : List image.application.Action :=
     .submit 1 secondMessage.payload, .include (1, 0)]
 
 theorem image_lookup_first : image.lookup firstAddress = some (.publicChoice firstCode) := by
+  change (applicationPlan.image (fun _ => 0)).lookup
+    (ApplicationInstruction.publicChoice firstCode).address =
+      some (.publicChoice firstCode)
+  apply applicationPlan.image_lookup_of_mem (fun _ => 0)
+  change _ ∈ [_ , _]
+  apply List.mem_cons.mpr
+  left
   rfl
 
 theorem image_lookup_second : image.lookup secondAddress = some (.publicChoice secondCode) := by
+  change (applicationPlan.image (fun _ => 0)).lookup
+    (ApplicationInstruction.publicChoice secondCode).address =
+      some (.publicChoice secondCode)
+  apply applicationPlan.image_lookup_of_mem (fun _ => 0)
+  change _ ∈ [_ , _]
+  apply List.mem_cons.mpr
+  right
+  apply List.mem_singleton.mpr
   rfl
 
 theorem accepted_run :
@@ -251,5 +306,27 @@ theorem delivered_rejection_stays_known :
   rw [show rejectedDelivered.application = initialState by rfl, hincluded]
   refine ⟨rfl, rfl, ?_⟩
   rfl
+
+def unsupportedSampleCore : VegasCore Player simpleExpr [] :=
+  .sample 0 (.weighted (b := .bool) fairCoin) (.ret [])
+
+theorem unsupportedSampleFresh : FreshBindings unsupportedSampleCore := by
+  simp [unsupportedSampleCore, FreshBindings, Fresh]
+
+def unsupportedSampleAccounting : CommitmentAccounting ∅ unsupportedSampleCore := by
+  unfold unsupportedSampleCore
+  apply CommitmentAccounting.sample
+  exact CommitmentAccounting.ret rfl
+
+def unsupportedSampleState : BuildState Player simpleExpr [] :=
+  BuildState.fromInitial (ToEventGraph.initialState [] (VEnv.empty simpleExpr) (by simp))
+
+/-- This is a backend-eligibility failure, not a source rejection: the current
+application plan has no constructor that could silently discard a chance node. -/
+theorem sample_requires_an_instruction :
+    ¬Nonempty (ApplicationPlan unsupportedSampleAccounting unsupportedSampleFresh
+      unsupportedSampleState) := by
+  rintro ⟨plan⟩
+  cases plan
 
 end VegasTests.ApplicationImage
