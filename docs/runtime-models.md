@@ -483,8 +483,8 @@ program to this same carrier, with no graph configuration in operational state.
 The application includes binding, the forced marker, one-shot public chance,
 conditional publication, and the responder's continuation. Its publication
 window starts at the sampled signal's clock. Disclosure, decline, and included
-expiration all reach the response phase; initial withholding and missing
-responses remain unresolved. Binding accepts the canonical opaque handle even
+expiration all reach the response phase and arm its own window. Initial
+withholding remains unresolved. Binding accepts the canonical opaque handle even
 when it has no opening. Acceptance captures a private verifier; both service
 tables are omitted from player and environment observations. Acceptance's
 public result and the marker/chance/clock observation laws are independent of
@@ -501,6 +501,22 @@ empty: acceptance, public chance, late preparation, a delivered and rejected
 opening, clock advance, an included permissionless expiration, and response.
 Its law retains chance, public receipts, and the failed opening in the
 responder's inbox. Rejection does not erase that message.
+
+Response expiration is a separate permissionless entry point selecting the
+existing source rejection action `false`. Its window starts at publication's
+successful inclusion, not at initial binding or the public sample. Early
+expiration and expiration after a completed response reject. Publication cannot
+be repeated to restart the response window; accepted handlers preserve its
+value and window origin after resolution. Advancing the clock alone resolves
+neither decision. The deadline enables expiration: a normal response can still
+win until an expiration call is included.
+`DisclosureExpiration.response_expiration_run` proves the complete native law
+when the owner discloses and later expires an absent responder; no responder
+action occurs. `response_expiration_source` connects the expiration handler to
+an actual written-order source execution for every public payout list and
+every invariant state meeting its public readiness/deadline conditions.
+These are handler and included-call execution results. Controllers and a
+service discipline ensuring that the required calls occur remain to be proved.
 
 This ideal instance captures binding at inclusion. Private preparation while
 the handle is still pending remains possible. A cryptographic realization must

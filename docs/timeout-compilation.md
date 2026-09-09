@@ -257,10 +257,19 @@ A candidate implementation records the accepted source binding as either an
 owner-submitted opaque commitment or an explicit public default. A deadline
 call can choose the latter without modifying private storage or forging an
 owner-authored message. Subsequent validation uses the accepted alternative,
-not an unsubmitted commitment the owner prepared earlier. Response defaults
-likewise need an actual resolution call at a ready decision; advancing the
-clock alone does not perform the call. These mechanisms remain to be
-integrated and proved against the source-designated actions.
+not an unsubmitted commitment the owner prepared earlier. The initial-default
+mechanism remains to be integrated and proved against its source action.
+
+The response default has an actual permissionless entry point. Successful
+publication arms a response window, and an included overdue call selects the
+source's rejection action `false`. A repeated publication cannot reset that
+window; early calls and calls after response completion reject. Clock advance
+does not execute the call. The native owner-disclosure/response-expiration
+execution has the expected chance law and public receipts without any responder
+action, and the handler has a written-source support theorem for arbitrary
+public payouts. This does not yet supply timeout-driving compiled controllers
+or a service contract that guarantees settlement under deviations. Deadlines
+enable the fallback; a normal response may win until expiration is included.
 
 There is a separate commitment-validity boundary. The disclosure application
 accepts an opaque handle without testing whether it has an opening, and
@@ -312,8 +321,10 @@ included expiration resolve publication without terminating that continuation.
 Its publication deadline is armed by the public sample. Arbitrary supported
 policy runs have checked source-prefix support; specified pure controllers and
 an inclusion script have the actual AST's complete outcome law from empty.
-Initial and response nonparticipation remain pending, so this instance does
-not yet provide the whole-program timeout contract below.
+Initial nonparticipation remains pending. Response nonparticipation can be
+resolved by its expiration handler, but the required driver and inclusion
+guarantees are unproved. This instance does not yet provide the whole-program
+timeout contract below.
 
 1. Relate the emitted resolution entry point and call-entry deadline policy
    to the gate and complete handler semantics. Treat source handler

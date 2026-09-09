@@ -18,8 +18,9 @@ gate come from the actual compiled graph.
 The environment may execute the forced public marker and trigger the source
 chance kernel. Neither operation consults the owner's policy or selects a
 chance outcome. A publication window starts when that signal is sampled.
-Decline and expiration continue to the source responder decision; initial
-withholding and missing responses remain unresolved in this instance.
+Decline and expiration continue to the source responder decision. Its own
+expiration selects the source rejection action; initial withholding remains
+unresolved in this instance. Each expiration requires an included call.
 
 This is a concrete application specialization, not a general source-to-message
 compiler or a strategic equivalence of its atomic two-node operations.
@@ -43,6 +44,7 @@ structure DisclosureState where
   signal : Option Bool
   signalAt : Nat
   publication : Option (Option Bool)
+  responseAt : Nat
   response : Option Bool
   clock : Nat
 
@@ -52,6 +54,7 @@ inductive Payload where
   | bind (handle : CommitmentHandle TestPlayer Nat)
   | publish (request : ConditionalPublication.Payload TestPlayer Bool)
   | respond (value : Bool)
+  | expireResponse
   | cleartext (value : Bool)
   | malformed
 
@@ -66,15 +69,16 @@ structure PublicState where
   signal : Option Bool
   signalAt : Nat
   publication : Option (Option Bool)
+  responseAt : Nat
   response : Option Bool
   clock : Nat
 
 def observe (state : DisclosureState) : PublicState :=
   ⟨state.accepted, state.markerDone, state.signal, state.signalAt,
-    state.publication, state.response, state.clock⟩
+    state.publication, state.responseAt, state.response, state.clock⟩
 
 def empty : DisclosureState :=
-  ⟨IdealCommitments.empty, IdealCommitments.empty, none, false, none, 0, none, none, 0⟩
+  ⟨IdealCommitments.empty, IdealCommitments.empty, none, false, none, 0, none, 0, none, 0⟩
 
 /-- Both members of an atomic source pair have completed together. -/
 def done (state : DisclosureState) : Nat → Bool
@@ -120,10 +124,14 @@ def handle (window : Nat) (state : DisclosureState)
   | .publish request => do
       let result ← (Publication.publicationSite (state.signalAt + window)).resolve? state.clock
         state.acceptedService state.accepted state.done (fun _ => true) ⟨message.id, request⟩
-      some { state with publication := some result }
+      some { state with publication := some result, responseAt := state.clock }
   | .respond value =>
       if message.sender = 1 ∧ state.responseReady then
         some { state with response := some value }
+      else none
+  | .expireResponse =>
+      if state.responseReady ∧ state.responseAt + window < state.clock then
+        some { state with response := some false }
       else none
   | .cleartext _ | .malformed => none
 
@@ -175,6 +183,65 @@ theorem unresolved_publication (state : DisclosureState) (h : state.publication 
 
 theorem responsePrerequisites_eq :
     responsePrerequisites = [2, 3, 5, 0, 1, 4] := rfl
+
+theorem responseReady_publication (state : DisclosureState)
+    (hready : state.responseReady = true) : state.publication.isSome = true := by
+  simp only [responseReady, Bool.and_eq_true, Bool.not_eq_true', List.all_eq_true] at hready
+  have hpublicationDone := hready.2 5 (by simp [responsePrerequisites_eq])
+  simpa [done] using hpublicationDone
+
+/-- The deadline authorizes a permissionless call selecting the existing
+source rejection action; it does not synthesize a responder-authored packet. -/
+theorem expireResponse_accepts (window : Nat) (state : DisclosureState)
+    (caller : TestPlayer) (serial : Nat) (hready : state.responseReady = true)
+    (hexpired : state.responseAt + window < state.clock) :
+    handle window state ⟨(caller, serial), .expireResponse⟩ =
+      some { state with response := some false } := by
+  simp [handle, hready, hexpired]
+
+theorem expireResponse_before_deadline (window : Nat) (state : DisclosureState)
+    (caller : TestPlayer) (serial : Nat) (hearly : state.clock ≤ state.responseAt + window) :
+    handle window state ⟨(caller, serial), .expireResponse⟩ = none := by
+  simp [handle, Nat.not_lt.mpr hearly]
+
+theorem expireResponse_completed (window : Nat) (state : DisclosureState)
+    (caller : TestPlayer) (serial : Nat) (value : Bool)
+    (hresponse : state.response = some value) :
+    handle window state ⟨(caller, serial), .expireResponse⟩ = none := by
+  simp [handle, responseReady, done, hresponse]
+
+/-- A completed publication cannot be repeated to re-arm the response clock. -/
+theorem publish_after_resolution (window : Nat) (state : DisclosureState)
+    (id : MessageId TestPlayer) (request : ConditionalPublication.Payload TestPlayer Bool)
+    (result : Option Bool) (hpublication : state.publication = some result) :
+    handle window state ⟨id, .publish request⟩ = none := by
+  simp [handle, ConditionalPublication.resolve?, ConditionalPublication.ready,
+    Publication.publicationSite_eq, done, hpublication]
+
+theorem publication_arms_response (window : Nat) (state next : DisclosureState)
+    (id : MessageId TestPlayer) (request : ConditionalPublication.Payload TestPlayer Bool)
+    (hhandle : handle window state ⟨id, .publish request⟩ = some next) :
+    next.responseAt = state.clock := by
+  simp only [handle] at hhandle
+  cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
+      state.clock state.acceptedService state.accepted state.done (fun _ => true)
+      ⟨id, request⟩ with
+  | none =>
+      rw [hresolve] at hhandle
+      simp at hhandle
+  | some result =>
+      rw [hresolve] at hhandle
+      cases hhandle
+      rfl
+
+/-- The clock only enables calls. Neither publication nor response is resolved
+by advancing it, including past both deadlines. -/
+theorem advance_no_resolution (state : DisclosureState) (clock : Nat) :
+    (environmentStep state (.advance clock)).map
+        (fun next => (next.publication, next.response)) =
+      FinDist.pure (state.publication, state.response) := by
+  simp only [environmentStep]
+  split <;> simp
 
 theorem sample_once (state : DisclosureState) (signal : Bool) :
     environmentStep { state with signal := some signal } .sample =

@@ -299,9 +299,12 @@ outcomes. The complete run from empty also has the independent AST's exact
 terminal-environment law for pure source rules and a specified inclusion
 script, with the retained secret included in the readout. This proves
 settlement for those scripted compiled runs, not under arbitrary controllers
-or service policies. Initial nonparticipation and missing response are still
-pending. Extend the comparison to randomized source policies and a justified
-service discipline, implement source-designated resolution, and prove the
+or service policies. Initial nonparticipation is still pending. Response
+nonparticipation has a source-correct permissionless expiration handler,
+including a complete native execution with no responder actions; its compiled
+driver and service guarantee remain open. Extend the comparison to randomized
+source policies and a justified service discipline, finish source-designated
+resolution, and prove the
 unilateral-deviation law before treating this instance as the positive
 strategic compiler comparison to generalize. The
 [initial-default design](timeout-compilation.md#initial-defaults-and-privately-prepared-commitments)
@@ -310,8 +313,9 @@ and permanently unopenable commitments. The instance accepts unopenable handles
 without a validity signal and freezes their verifier at inclusion. Arbitrary
 native continuations cannot repair them; a checked failed-opening/expiration
 execution reaches the responder and retains the failed traffic. Creation-time
-cryptographic binding remains a realization obligation. This result does not
-implement the initial or response defaults or complete the strategic gate.
+cryptographic binding remains a realization obligation. The initial default,
+timeout-driving controllers, and whole-interaction comparison are still
+required to complete the strategic gate.
 
 Choose a finite checked core program with two real players, source-defined
 nonresponse outcomes, and a later decision that can expose an information

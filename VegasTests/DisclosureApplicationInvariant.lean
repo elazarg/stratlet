@@ -56,7 +56,7 @@ theorem done_iff_decodedConfig_done (state : DisclosureState)
     (hinvariant : Invariant state) (index : Fin graph.nodeCount) :
     state.done index.val = true ↔ index ∈ state.decodedConfig.done := by
   rcases state with ⟨service, acceptedService, accepted, markerDone, signal, signalAt,
-    publication, response, clock⟩
+    publication, responseAt, response, clock⟩
   cases accepted <;> cases markerDone <;> cases signal <;>
     cases publication <;> cases response <;> fin_cases index <;>
     simp_all [Invariant, done, decodedConfig, phase, cfg, Config.completeNodes,
@@ -138,11 +138,14 @@ theorem handle_invariant (window : Nat) (state : DisclosureState)
       cases hhandle
       refine ⟨haccepted, hmarker, hsignal, hpublication, hresult, ?_⟩
       intro _
-      rcases hrespond with ⟨_, hready⟩
-      simp only [responseReady, Bool.and_eq_true, Bool.not_eq_true',
-        List.all_eq_true] at hready
-      have hpublicationDone := hready.2 5 (by simp [responsePrerequisites_eq])
-      simpa [done] using hpublicationDone
+      exact responseReady_publication state hrespond.2
+  | expireResponse =>
+      simp only [handle, hpayload] at hhandle
+      split at hhandle <;> try contradiction
+      rename_i hexpired
+      cases hhandle
+      exact ⟨haccepted, hmarker, hsignal, hpublication, hresult,
+        fun _ => responseReady_publication state hexpired.1⟩
   | cleartext value => simp [handle, hpayload] at hhandle
   | malformed => simp [handle, hpayload] at hhandle
 
@@ -208,6 +211,11 @@ theorem handle_binding (window : Nat) (state : DisclosureState)
       split at hhandle <;> try contradiction
       cases hhandle
       exact ⟨rfl, rfl⟩
+  | expireResponse =>
+      simp only [handle, hpayload] at hhandle
+      split at hhandle <;> try contradiction
+      cases hhandle
+      exact ⟨rfl, rfl⟩
   | cleartext value => simp [handle, hpayload] at hhandle
   | malformed => simp [handle, hpayload] at hhandle
 
@@ -232,6 +240,28 @@ theorem environmentStep_binding (state : DisclosureState) (command : Environment
       simp only [environmentStep, FinDist.mem_support_pure] at hnext
       subst next
       split <;> exact ⟨rfl, rfl⟩
+
+/-- Once publication resolves, accepted calls preserve both its value and the
+response window's origin. Repeated or failed traffic cannot restart that window. -/
+theorem handle_publication_fixed (window : Nat) (state : DisclosureState)
+    (message : Message TestPlayer Payload) (next : DisclosureState) (result : Option Bool)
+    (hpublication : state.publication = some result)
+    (hhandle : handle window state message = some next) :
+    next.publication = state.publication ∧ next.responseAt = state.responseAt := by
+  cases hpayload : message.payload
+  case publish request =>
+    cases message with
+    | mk id payload =>
+        cases hpayload
+        rw [publish_after_resolution window state id request result hpublication] at hhandle
+        cases hhandle
+  all_goals
+    simp only [handle, hpayload] at hhandle
+    first
+    | contradiction
+    | split at hhandle <;> try contradiction
+      cases hhandle
+      exact ⟨rfl, rfl⟩
 
 /-- Once accepted, both the public binding and its private verifier survive
 every finite native continuation, including late preparation and rebinding. -/

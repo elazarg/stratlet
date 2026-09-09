@@ -46,17 +46,20 @@ theorem unopenable_run (window : Nat) (lateValue response : Bool) :
         (some (signal, none, response),
           [((0, 0), true), ((0, 1), false), ((1, 0), true), ((1, 1), true)],
           [⟨(0, 1), Payload.publish (.opening (0, 0) lateValue)⟩])) := by
-  simp [unopenableActions, MessageApplication.run, MessageApplication.step,
-    application, initial, MessageApplication.State.initial, empty,
-    MessageApplication.includePending, MessagePool.includeApplication,
-    MessagePool.includePending, MessagePool.lookup, MessagePool.submit,
-    MessagePool.empty, MessagePool.removeFirst, MessagePool.deliver,
-    privateStep, handle, environmentStep, Message.sender,
-    IdealCommitments.freezeAt, IdealCommitments.lookup, IdealCommitments.empty,
-    IdealCommitments.sealValue, IdealCommitments.verify,
-    ConditionalPublication.resolve?, ConditionalPublication.ready,
-    Publication.publicationSite_eq, done, responseReady, responsePrerequisites_eq,
-    outcome?, FinDist.map_eq_bind]
+  simp only [application, outcome?, Option.bind_eq_bind, Fin.isValue, unopenableActions,
+    initial, MessageApplication.State.initial, empty, IdealCommitments.empty, MessagePool.empty,
+    MessageApplication.run, MessageApplication.step, MessagePool.submit, List.nil_append, zero_add,
+    MessageApplication.includePending, MessagePool.includeApplication, MessagePool.includePending,
+    MessagePool.lookup, handle, Message.sender, IdealCommitments.freezeAt, IdealCommitments.lookup,
+    ConditionalPublication.resolve?, ConditionalPublication.ready, Publication.publicationSite_eq,
+    done, List.all_cons, List.all_nil, IdealCommitments.verify, and_true, responseReady,
+    Bool.and_self, responsePrerequisites_eq, environmentStep, FinDist.map_eq_bind,
+    FinDist.pure_bind, privateStep, IdealCommitments.sealValue, MessagePool.deliver,
+    FinDist.bind_bind, decide_true, List.find?_cons_of_pos, MessagePool.removeFirst, ↓reduceIte,
+    Option.isNone_none, and_self, Option.isSome_some, Bool.not_false, List.cons_append,
+    Nat.reduceAdd, true_and, BEq.rfl, Option.isSome_none, Bool.not_true, Bool.false_eq_true,
+    Option.none_beq_some, Option.bind_none, one_ne_zero, Nat.zero_le, Nat.lt_add_one,
+    Option.bind_some]
 
 /--
 info: 'VegasTests.OptionalDisclosure.DisclosureState.unopenable_run' depends on axioms:
