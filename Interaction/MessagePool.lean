@@ -127,6 +127,12 @@ def replay (state : MessagePool Principal Payload) (broadcaster : Principal)
           if who = broadcaster then state.sent broadcaster ++ [message] else state.sent who }⟩
   | none => Result.invalid state
 
+theorem replay_pending_length_le (state : MessagePool Principal Payload)
+    (broadcaster : Principal) (id : MessageId Principal) :
+    (state.replay broadcaster id).state.pending.length ≤ state.pending.length + 1 := by
+  unfold replay
+  split <;> simp [Result.invalid]
+
 @[simp] theorem deliver_invalid (state : MessagePool Principal Payload) (observer : Principal)
     (id : MessageId Principal) (hmissing : state.lookup id = none) :
     deliver state observer id = Result.invalid state := by
@@ -172,6 +178,28 @@ theorem include_pending_of_lookup (state : MessagePool Principal Payload)
     (includePending state id).state.pending =
       removeFirst id state.pending := by
   simp [includePending, hlookup]
+
+theorem removeFirst_length_of_find (id : MessageId Principal)
+    (messages : List (Message Principal Payload)) (message : Message Principal Payload)
+    (hfind : messages.find? (fun candidate => candidate.id = id) = some message) :
+    (removeFirst id messages).length + 1 = messages.length := by
+  induction messages with
+  | nil => simp at hfind
+  | cons first rest ih =>
+      by_cases hfirst : first.id = id
+      · simp [removeFirst, hfirst]
+      · have hrest : rest.find? (fun candidate => candidate.id = id) = some message := by
+          simpa [List.find?, hfirst] using hfind
+        simpa [removeFirst, hfirst, Nat.add_assoc] using congrArg Nat.succ (ih hrest)
+
+/-- Inclusion consumes one pending copy even when the application rejects it,
+and even when other copies carry the same identifier. -/
+theorem include_pending_length (state : MessagePool Principal Payload)
+    (id : MessageId Principal) (message : Message Principal Payload)
+    (hlookup : state.lookup id = some message) :
+    (includePending state id).state.pending.length + 1 = state.pending.length := by
+  rw [include_pending_of_lookup state id message hlookup]
+  exact removeFirst_length_of_find id state.pending message hlookup
 
 theorem include_preserves_inbox (state : MessagePool Principal Payload)
     (id : MessageId Principal) (who : Principal) :

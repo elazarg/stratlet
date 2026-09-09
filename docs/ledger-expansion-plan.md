@@ -302,9 +302,12 @@ settlement for those scripted compiled runs, not under arbitrary controllers
 or service policies. Initial and response nonparticipation have source-correct
 permissionless expiration handlers, with complete native execution laws for
 an absent owner and an absent responder. Initial expiration records a public
-default without changing private preparation. Compiled timeout drivers and
-service guarantees remain open. Extend the comparison to randomized source
-policies and a justified service discipline, implement those drivers, and prove
+default without changing private preparation. Concrete pure controllers drive
+these expirations and recover from public defaults. The slotted service admits
+player reactions after delivery and before inclusion, and its capacity theorem
+drains the pool under arbitrary player policies. Timely source-choice opportunity
+and settlement remain open. Extend the comparison to randomized source
+policies, discharge those service obligations, and prove
 the unilateral-deviation law before treating this instance as the positive
 strategic compiler comparison to generalize. The
 [initial-default design](timeout-compilation.md#initial-defaults-and-privately-prepared-commitments)
@@ -314,7 +317,7 @@ without a validity signal and freezes their verifier at inclusion. Arbitrary
 native continuations cannot repair them; a checked failed-opening/expiration
 execution reaches the responder and retains the failed traffic. Creation-time
 cryptographic binding remains a realization obligation. Timeout-driving
-controllers and the whole-interaction comparison are still
+controller progress and the whole-interaction comparison are still
 required to complete the strategic gate.
 
 Choose a finite checked core program with two real players, source-defined

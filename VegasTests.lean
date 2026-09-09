@@ -33,6 +33,8 @@ import VegasTests.DisclosureApplicationLaw
 import VegasTests.DisclosureMalformed
 import VegasTests.DisclosureExpiration
 import VegasTests.DisclosureInitialExpiration
+import VegasTests.DisclosureService
+import VegasTests.DisclosureServiceReaction
 import VegasTests.DisclosureResolutionGuard
 import VegasTests.DisclosureLaw
 import VegasTests.DisclosureSites

@@ -271,12 +271,13 @@ The checked full native execution contains no owner action: the responder's
 calls expire initial selection, expire disclosure after source chance, and
 respond. Its source execution uses that exact initial default. Separate checks
 retain private preparation and reject attempts to bind or disclose a different
-prepared value after the default. Drivers and service guarantees remain open.
-An owner that resumes after resolution must reconstruct continuation state
-from the accepted disposition, rather than treating an unsubmitted private
-intention as the source's selected value. The specified honest inclusion
-script never takes the initial-default branch; its law alone does not verify
-such recovery behavior.
+prepared value after the default. The pure owner controller reconstructs its
+continuation choice from the accepted disposition rather than its unsubmitted
+private intention; a local recovery theorem checks that behavior even with an
+empty local history. The responder controller submits initial expiration when
+its public deadline is overdue. Whole-execution opportunity and settlement
+proofs remain open; the specified honest inclusion script does not take the
+default branch.
 
 The response default has an actual permissionless entry point. Successful
 publication arms a response window, and an included overdue call selects the
@@ -285,9 +286,9 @@ window; early calls and calls after response completion reject. Clock advance
 does not execute the call. The native owner-disclosure/response-expiration
 execution has the expected chance law and public receipts without any responder
 action, and the handler has a written-source support theorem for arbitrary
-public payouts. This does not yet supply timeout-driving compiled controllers
-or a service contract that guarantees settlement under deviations. Deadlines
-enable the fallback; a normal response may win until expiration is included.
+public payouts. The pure owner controller submits response expiration after
+observing its deadline, but settlement under deviations remains unproved.
+Deadlines enable the fallback; a normal response may win until expiration is included.
 
 There is a separate commitment-validity boundary. The disclosure application
 accepts an opaque handle without testing whether it has an opening, and
@@ -341,9 +342,43 @@ policy runs have checked source-prefix support; specified pure controllers and
 an inclusion script have the actual AST's complete outcome law from empty.
 Every nontrivial source decision in this finite instance has an explicit
 nonresponse handler. The forced marker and chance are environment-triggered
-fixed application work. Drivers and inclusion/opportunity guarantees are
-unproved, so the instance does not yet provide the whole-program timeout
-contract below.
+fixed application work. Pure timeout-driving controllers and an instantiated
+slotted inclusion service are available. Players can react to pending delivery,
+and reserved capacity drains the queue even under arbitrary player policies.
+The remaining proof must connect this capacity result to timely source-choice
+opportunity, actual application progress, and settlement under unilateral
+deviations. The instance does not yet provide the whole-program timeout contract below.
+
+#### Service settlement proof targets
+
+For the slotted service, number cycles from one; the intended cycle invariant
+gives clock `c - 1` at the start of cycle `c`, and clock `c` and an empty queue
+at its end. The following are mathematical proof targets, not exported Lean
+settlement results. For a window `w >= 1`, the proposed complete-cycle bounds are:
+
+| Policies | Settlement bound |
+| --- | --- |
+| Both compiled pure controllers | 3 |
+| Arbitrary owner, unchanged responder | `2*w + 4` |
+| Unchanged owner, arbitrary responder | `w + 3` |
+
+The one-cycle lag between observing resolution and acting explains the window
+condition. With `w = 0`, an expiration can be eligible in the same inclusion
+phase as an unchanged player's first normal publication or response. Ordering
+expiration first can select the default. This race needs a checked negative
+control, and the positive proof must exclude it without restricting the
+deviator's raw commands.
+
+The key inclusion-phase invariant is: the concrete resolver envelope is still
+pending, or its application milestone already holds. Milestones must be
+preserved by interfering includes. While a milestone is false, removing that
+resolver must establish it; its readiness, authority, and deadline conditions
+must therefore remain valid. Queue clearance then implies the milestone.
+Ledger membership alone is insufficient: it neither implies acceptance nor
+distinguishes earlier publication from a pending replay. This invariant also
+justifies the controllers' one-shot submission flags. Clock progression,
+milestone persistence, controller history, and exact unchanged-player choices
+remain separate obligations before deriving the bounds or strategic laws.
 
 1. Relate the emitted resolution entry point and call-entry deadline policy
    to the gate and complete handler semantics. Treat source handler

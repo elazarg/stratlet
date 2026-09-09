@@ -517,8 +517,8 @@ when the owner discloses and later expires an absent responder; no responder
 action occurs. `response_expiration_source` connects the expiration handler to
 an actual written-order source execution for every public payout list and
 every invariant state meeting its public readiness/deadline conditions.
-These are handler and included-call execution results. Controllers and a
-service discipline ensuring that the required calls occur remain to be proved.
+These are handler and included-call execution results. The timeout-driving
+controllers described below still need a settlement proof under their services.
 
 `DisclosureInitialExpiration.initial_expiration_run` gives the complete native
 law with no owner action: the responder submits the initial expiration,
@@ -558,8 +558,8 @@ These are support results, not a strategic backtranslation or settlement
 guarantee for arbitrary policies.
 
 `DisclosureApplicationExecution.honest_policy_data` proves the complete shared
-policy-run law from empty for a fixed initial binding, any valid deterministic
-signal-dependent disclosure rule, and any deterministic public response rule.
+policy-run law from empty for a fixed initial binding, any deterministic
+binding-and-signal-dependent disclosure rule, and any deterministic public response rule.
 The law retains the hidden binding in addition to the public signal, optional
 publication, and response. `DisclosureSourcePolicies` independently constructs
 the corresponding information-local AST policies.
@@ -569,12 +569,35 @@ execution with that written-order denotation for every public payoff list;
 under the specified inclusion script. The script triggers the actual chance
 kernel; it does not supply the sampled signal.
 
+The same pure controllers drive permissionless expiration: the responder
+resolves initial silence and absent publication, while the owner resolves an
+absent response. The owner evaluates continuation rules at the accepted public
+default when present, rather than its unsubmitted private intention. Local
+controller laws check those choices, release gating, and completed-response
+inactivity; they do not guarantee that the corresponding calls occur in time.
+
+`DisclosureService` supplies a bounded service instance over the same policy
+runner. Each cycle has two player invocations per principal, two deliveries,
+another two invocations per principal, eight inclusion opportunities, the
+marker and chance triggers, and one clock increment. Thus players can react
+to delivered packets before inclusion. The inclusion selector may inspect the
+entire environment view and choose any existing pending identifier; FIFO is
+one concrete instance. The generic arrival bound counts every player invocation,
+including replay and malformed submissions. Every complete cycle, and every
+finite sequence of cycles from empty, drains the pending pool for all player
+policies. This is resource accounting under a fixed phase discipline, not
+Ethereum service, application settlement, or source-choice preservation.
+`DisclosureServiceReaction` checks that a delivered cleartext packet can induce
+value-dependent outgoing traffic while the ledger is still empty. The opaque
+packet control checks this particular receiver, not arbitrary-receiver hiding.
+
 This honest-law instance prescribes the invocation and inclusion sequence. It
 is not an admission theorem for a class of delayed-delivery services, does not
 cover arbitrary source randomization, and does not compare runtime deviations.
 The remaining integration requires a general source-generated application,
-executable resolution at every potentially silent decision, and complete
-source-policy and deviation laws under explicitly justified services.
+timely opportunity and settlement under the service discipline, and complete
+randomized source-policy and deviation laws. Queue clearance alone does not
+establish those properties.
 
 ### Source-certified conditional publication
 

@@ -59,6 +59,10 @@ inductive Invocation where
   | player (who : Principal)
   | environment
 
+def Invocation.isEnvironment : @Invocation Principal → Bool
+  | .player _ => false
+  | .environment => true
+
 /-- Policy-facing bounded execution. The native action trace is proof-facing
 and is not included in either observation projection. -/
 structure PolicyExecution where
@@ -133,6 +137,20 @@ def runPolicies [DecidableEq Principal]
       (invoke app players environment execution invocation).bind
         (runPolicies players environment rest)
 
+theorem runPolicies_append [DecidableEq Principal]
+    (players : Principal → app.PlayerPolicy) (environment : app.EnvironmentPolicy)
+    (first second : List (@Invocation Principal)) (execution : app.PolicyExecution) :
+    app.runPolicies players environment (first ++ second) execution =
+      (app.runPolicies players environment first execution).bind
+        (app.runPolicies players environment second) := by
+  induction first generalizing execution with
+  | nil => simp [runPolicies]
+  | cons invocation rest ih =>
+      simp only [List.cons_append, runPolicies, FinDist.bind_bind]
+      congr 1
+      funext next
+      exact ih next
+
 def policySignature (Principal : Type uPrincipal)
     (app : MessageApplication Principal) : GameSignature Principal where
   Strategy := fun _ => app.PlayerPolicy
@@ -189,6 +207,60 @@ theorem environmentStep_principalHistory [DecidableEq Principal]
   simp only [FinDist.mem_support_pure] at hnext
   subst next
   rfl
+
+theorem environmentStep_history_length [DecidableEq Principal]
+    (execution : app.PolicyExecution) (command : app.EnvironmentPolicyCommand)
+    (next : app.PolicyExecution)
+    (hnext : next ∈ (app.environmentPolicyStep execution command).support) :
+    next.environmentHistory.length = execution.environmentHistory.length + 1 := by
+  simp only [environmentPolicyStep, FinDist.support_bind, Set.mem_iUnion] at hnext
+  obtain ⟨advanced, _, hnext⟩ := hnext
+  simp only [FinDist.mem_support_pure] at hnext
+  subst next
+  simp
+
+theorem playerStep_environmentHistory [DecidableEq Principal]
+    (who : Principal) (execution : app.PolicyExecution) (command : app.PlayerCommand)
+    (next : app.PolicyExecution)
+    (hnext : next ∈ (app.playerStep who execution command).support) :
+    next.environmentHistory = execution.environmentHistory := by
+  simp only [playerStep, FinDist.support_bind, Set.mem_iUnion] at hnext
+  obtain ⟨advanced, _, hnext⟩ := hnext
+  simp only [FinDist.mem_support_pure] at hnext
+  subst next
+  rfl
+
+/-- Environment policy memory counts its own invocations, including waits,
+independently of intervening player commands and application success. -/
+theorem runPolicies_environmentHistory_length [DecidableEq Principal]
+    (players : Principal → app.PlayerPolicy) (environment : app.EnvironmentPolicy)
+    (schedule : List (@Invocation Principal)) (execution next : app.PolicyExecution)
+    (hnext : next ∈ (app.runPolicies players environment schedule execution).support) :
+    next.environmentHistory.length = execution.environmentHistory.length +
+      schedule.countP Invocation.isEnvironment := by
+  induction schedule generalizing execution with
+  | nil =>
+      simp only [runPolicies, FinDist.mem_support_pure] at hnext
+      subst next
+      simp
+  | cons invocation rest ih =>
+      simp only [runPolicies, FinDist.support_bind, Set.mem_iUnion] at hnext
+      obtain ⟨middle, hmiddle, hnext⟩ := hnext
+      have htail := ih middle hnext
+      cases invocation with
+      | player who =>
+          simp only [invoke, FinDist.support_bind, Set.mem_iUnion] at hmiddle
+          obtain ⟨command, _, hstep⟩ := hmiddle
+          have hhistory := app.playerStep_environmentHistory who execution command middle hstep
+          simp only [List.countP_cons, Invocation.isEnvironment, Bool.false_eq_true, ↓reduceIte]
+          rw [htail, hhistory]
+          omega
+      | environment =>
+          simp only [invoke, FinDist.support_bind, Set.mem_iUnion] at hmiddle
+          obtain ⟨command, _, hstep⟩ := hmiddle
+          have hhistory := app.environmentStep_history_length execution command middle hstep
+          simp only [List.countP_cons, Invocation.isEnvironment, ↓reduceIte]
+          omega
 
 /-- Waiting records the invocation and sampled view but performs no native
 action and leaves the proof-facing action trace unchanged. -/

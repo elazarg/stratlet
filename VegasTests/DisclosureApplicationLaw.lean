@@ -35,20 +35,15 @@ theorem honest_source_law (payouts : List (TestPlayer × Expr PayoffContext .int
     (response : Bool → Option Bool → Bool) :
     (((application window).policyGame honestEnvironment honestSchedule
       (initial window)).play
-        (honestPlayers secret
-          (fun signal => if complete secret signal then some secret else none) response)).map
+        (honestPlayers secret complete response)).map
             sourceOutcome? =
       (denoteSource (coreWithPayoffs payouts)
         (SourcePolicies.pureProfile payouts secret complete response)
         (VEnv.empty simpleExpr)).map some := by
-  have hvalid : OpeningValid secret
-      (fun signal => if complete secret signal then some secret else none) := by
-    intro signal
-    cases complete secret signal <;> simp
   have hlaw := congrArg
     (fun law : FinDist (Option RunData) => law.map
       (Option.map fun data => terminalEnv data.secret data.signal data.opening data.response))
-    (honest_policy_data window secret _ response hvalid)
+    (honest_policy_data window secret complete response)
   rw [SourcePolicies.pure_law, FinDist.map_comp]
   simp only [FinDist.map_comp, Function.comp_def, Option.map_some] at hlaw
   exact hlaw
@@ -56,18 +51,18 @@ theorem honest_source_law (payouts : List (TestPlayer × Expr PayoffContext .int
 /-- Every supported run of these controllers and this inclusion script
 settles. This is not termination under arbitrary delivery policies. -/
 theorem honest_settles (window : Nat) (secret : Bool)
-    (opening : Bool → Option Bool) (response : Bool → Option Bool → Bool)
-    (hvalid : OpeningValid secret opening) (next : (application window).PolicyExecution)
+    (complete : Bool → Bool → Bool) (response : Bool → Option Bool → Bool)
+    (next : (application window).PolicyExecution)
     (hnext : next ∈ (((application window).policyGame honestEnvironment honestSchedule
-      (initial window)).play (honestPlayers secret opening response)).support) :
+      (initial window)).play (honestPlayers secret complete response)).support) :
     next.native.application.outcome?.isSome = true := by
   have hmem : policyData? next ∈
       ((((application window).policyGame honestEnvironment honestSchedule
-        (initial window)).play (honestPlayers secret opening response)).map
+        (initial window)).play (honestPlayers secret complete response)).map
           policyData?).support := by
     rw [FinDist.support_map]
     exact ⟨next, hnext, rfl⟩
-  rw [honest_policy_data window secret opening response hvalid, FinDist.support_map] at hmem
+  rw [honest_policy_data window secret complete response, FinDist.support_map] at hmem
   obtain ⟨signal, _, hdata⟩ := hmem
   cases hresult : next.native.application.outcome?.isSome
   · simp [policyData?, hresult] at hdata
