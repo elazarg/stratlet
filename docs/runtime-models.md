@@ -644,10 +644,24 @@ responder's raw messages or the selector's payload inspection.
 invariant lifting, including native state and command histories. Its retained
 message predicate is preserved through submission, delivery, inclusion, and
 replay. The disclosure proofs instantiate it before and after the public signal;
-they do not replace the runtime with a second evaluator. The remaining
-example-specific operational obligation is preservation of an unchanged
-responder's selected reply. Termination on both sides and preservation of the
-owner's choices do not establish the full strategic outcome-law comparison.
+they do not replace the runtime with a second evaluator.
+
+`DisclosureResponderSettlement.responder_choice_preserved` proves the other
+choice guarantee: for a positive window, any resolved response at a complete
+service-cycle boundary equals the unchanged responder's selected function of
+the actual signal and publication. `responder_settles_to_choice` guarantees
+that exact reply by `2 * window + 4` cycles. Both begin at initialization,
+permit arbitrary opposing policies and admitted adaptive inclusion selectors,
+and retain full-pool provenance through replay. When publication first occurs
+during inclusion, no responder response packet is present and the response
+deadline is newly armed. The next cycle supplies a timely response opportunity;
+after resolution, its value is immutable.
+
+These theorems meet the disclosure operational integration gate for its
+deterministic source controllers. The next task is generation of public
+applications and controllers from checked programs, using disclosure as a
+regression instance. Randomized outcome-law and strategic deviation comparison
+remain obligations of that compilation edge.
 
 `Interaction/MessageApplicationPolicyHistory.lean` supplies the reusable
 history fact: if a principal's policy satisfies a law of its observed view and

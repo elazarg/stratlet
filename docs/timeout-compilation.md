@@ -349,8 +349,8 @@ The service clock advances once per complete cycle. Stable pending resolvers
 also have application-progress proofs for initial binding, ordinary response,
 and all three expiration calls. These phase results start with an already
 pending, ready request. Initialized settlement with either player unchanged is
-also checked below. The owner's source choices are preserved with a positive
-window; preservation of an unchanged responder's selected reply remains open.
+also checked below. With a positive window, the unchanged owner's source
+choices and the unchanged responder's selected reply are preserved.
 The instance does not yet provide the whole-program timeout contract below.
 
 #### Service settlement guarantees and remaining targets
@@ -392,6 +392,24 @@ second-cycle inclusion when `w >= 1`. Pool-wide provenance proves that any
 owner-authored publication packet is the one selected by the unchanged policy.
 It covers pending, ledger, delivered, and sent copies, so the argument includes
 replay rather than excluding it by a scheduler restriction.
+
+`DisclosureResponderSettlement.responder_choice_preserved` proves exact reply
+preservation at every complete-cycle boundary for `w >= 1`. The invariant says
+that a resolved response is the controller's selected reply, and an unresolved
+published response has a fresh window: `clock <= responseAt + 1`. Before
+publication, full-pool provenance excludes any responder-authored response
+packet. If publication first occurs during inclusion, its window is armed at
+that phase's clock, so expiration cannot resolve the response in that phase.
+The next service cycle submits and includes the selected reply before its
+deadline is overdue. Arbitrary owner traffic, stale expiration requests, and
+replay are included in the argument. `responder_settles_to_choice` combines
+this preservation with the `2*w + 4` completion bound.
+
+These guarantees are for the concrete deterministic source controllers against
+arbitrary opposing policies under the specified service. They complete the
+example's operational integration gate. Generation of the application and
+controllers, randomized profile laws, and deviation simulation remain the
+general compiler obligations; the support-level results do not establish them.
 
 The one-cycle lag between observing resolution and acting explains the window
 condition. With `w = 0`, an expiration can be eligible in the same inclusion
@@ -443,8 +461,8 @@ one-shot flags to exact publication-expiration and response requests. These
 facts discharge the history obligations of the initialized settlement theorem;
 they do not imply that the responder's chosen value wins a timeout race.
 The corresponding owner-response-expiration instance discharges the owner-side
-history obligation. Preservation of an unchanged responder's exact selected
-reply remains an obligation before deriving the strategic laws.
+history obligation. Exact choice preservation additionally uses the timely
+inclusion and full-pool provenance proofs described above.
 
 #### Deviation-law proof targets
 

@@ -339,11 +339,14 @@ edge. Its example-specific work has a finite acceptance gate:
    lifting use the shared runtime. The instance discharges application-specific
    obligations without maintaining a second evaluator.
 
-The initialized disclosure instance has checked termination guarantees with
-either player unchanged and, with a positive timeout window, preservation of
-the unchanged owner's binding and publication. It still needs preservation of
-an unchanged responder's selected reply. The checked terms and their explicit
-service bounds are documented in [timeout-compilation.md](timeout-compilation.md).
+This operational integration gate is checked for the disclosure instance's
+deterministic source controllers under the slotted service and a positive
+timeout window. From initialization, either unchanged controller guarantees
+completion against an arbitrary opposing policy; the owner's binding and
+publication and the responder's selected reply are preserved. These are
+support-level guarantees, not randomized outcome-law or deviation adequacy.
+The checked terms and their explicit service bounds are documented in
+[timeout-compilation.md](timeout-compilation.md).
 
 After this gate, the next implementation task is generation of the public
 application and controllers from checked source programs. Disclosure becomes
@@ -354,6 +357,19 @@ of the example. Additional disclosure variants, optimized bounds, and richer
 cryptographic mechanisms are outside this gate unless they expose an obligation
 needed by that compiler edge. An abstraction failure redirects work to the
 edge itself; it is not a reason to expand the fixture indefinitely.
+
+The next concrete generation slice is the executable endpoint for an ordinary
+adjacent source choice and reveal. Reuse `DecisionSite` for compiled node
+identification and `choice_publication_laws` for the paired graph effect;
+replace disclosure's handwritten response handler with an instance of that
+generated endpoint. The acceptance test is equality with the existing native
+handler on the represented states, plus preservation of its graph/source
+correspondence. Then generate the companion controller from the source decision
+kernel, sampling once and retaining the selected request across polling.
+Conditional openings already have generated metadata in
+`ConditionalOpeningSite.runtimeSite`; consume it rather than introduce another
+site table. These local generation steps do not themselves establish strategic
+equivalence between atomic publication and intermediate graph observations.
 
 ## 6. Ownership and dependencies
 

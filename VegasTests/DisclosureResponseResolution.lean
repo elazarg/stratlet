@@ -48,6 +48,43 @@ theorem handle_response_fixed (state next : DisclosureState)
       cases hhandle
       rfl
 
+theorem environmentStep_response (state next : DisclosureState)
+    (command : EnvironmentCommand)
+    (hnext : next ∈ (environmentStep state command).support) :
+    next.response = state.response := by
+  cases command with
+  | marker | advance clock =>
+      simp only [environmentStep, FinDist.mem_support_pure] at hnext
+      split at hnext <;> subst next <;> rfl
+  | sample =>
+      simp only [environmentStep] at hnext
+      split at hnext
+      · simp only [FinDist.support_map, Set.mem_image] at hnext
+        obtain ⟨signal, _, rfl⟩ := hnext
+        rfl
+      · simp only [FinDist.mem_support_pure] at hnext
+        subst next
+        rfl
+
+/-- A resolved response survives every policy-driven continuation exactly. -/
+theorem runPolicies_response_fixed
+    (players : TestPlayer → (application window).PlayerPolicy)
+    (environment : (application window).EnvironmentPolicy)
+    (schedule : List (@MessageApplication.Invocation TestPlayer))
+    (execution next : (application window).PolicyExecution) (value : Bool)
+    (hresponse : execution.native.application.response = some value)
+    (hnext : next ∈ ((application window).runPolicies players environment schedule
+      execution).support) : next.native.application.response = some value := by
+  apply (application window).runPolicies_application_invariant
+    (fun state => state.response = some value) ?_ ?_ ?_
+    players environment schedule execution next hresponse hnext
+  · intro _ _ _ hstate
+    exact hstate
+  · intro state message final hstate hhandle
+    exact (handle_response_fixed state final message value hstate hhandle).trans hstate
+  · intro state command final hstate hfinal
+    exact (environmentStep_response state final command hfinal).trans hstate
+
 theorem include_response_persists (state : (application window).State)
     (id : MessageId TestPlayer) (hresponse : state.application.response.isSome = true) :
     ((application window).includePending state id).application.response.isSome = true := by

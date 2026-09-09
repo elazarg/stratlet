@@ -305,20 +305,22 @@ an absent owner and an absent responder. Initial expiration records a public
 default without changing private preparation. Concrete pure controllers drive
 these expirations and recover from public defaults. The slotted service admits
 player reactions after delivery and before inclusion, and its capacity theorem
-drains the pool under arbitrary player policies. Timely source-choice opportunity
-and settlement remain open. Extend the comparison to randomized source
-policies, discharge those service obligations, and prove
-the unilateral-deviation law before treating this instance as the positive
-strategic compiler comparison to generalize. The
+drains the pool under arbitrary player policies. Under this service and a
+positive window, initialized settlement and exact unchanged-player choices are
+checked with either deterministic compiled controller unchanged. This meets
+the [operational integration gate](compilation-design.md#disclosure-integration-exit-gate).
+Generate the public application and controllers from checked programs, keeping
+disclosure as a regression instance. Randomized source-profile laws and
+unilateral-deviation simulation belong at that reusable compilation edge and
+remain unproved for the public service. The
 [initial-default design](timeout-compilation.md#initial-defaults-and-privately-prepared-commitments)
 separates unsubmitted private preparation, accepted binding, public defaults,
 and permanently unopenable commitments. The instance accepts unopenable handles
 without a validity signal and freezes their verifier at inclusion. Arbitrary
 native continuations cannot repair them; a checked failed-opening/expiration
 execution reaches the responder and retains the failed traffic. Creation-time
-cryptographic binding remains a realization obligation. Timeout-driving
-controller progress and the whole-interaction comparison are still
-required to complete the strategic gate.
+cryptographic binding remains a realization obligation. The whole-interaction
+strategic comparison is still required to complete the strategic gate.
 
 Choose a finite checked core program with two real players, source-defined
 nonresponse outcomes, and a later decision that can expose an information

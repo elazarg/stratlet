@@ -17,24 +17,6 @@ open Interaction GameTheory.Math.Probability
 
 variable {window : Nat}
 
-private theorem environmentStep_response (state next : DisclosureState)
-    (command : EnvironmentCommand)
-    (hnext : next ∈ (environmentStep state command).support) :
-    next.response = state.response := by
-  cases command with
-  | marker | advance clock =>
-      simp only [environmentStep, FinDist.mem_support_pure] at hnext
-      split at hnext <;> subst next <;> rfl
-  | sample =>
-      simp only [environmentStep] at hnext
-      split at hnext
-      · simp only [FinDist.support_map, Set.mem_image] at hnext
-        obtain ⟨signal, _, rfl⟩ := hnext
-        rfl
-      · simp only [FinDist.mem_support_pure] at hnext
-        subst next
-        rfl
-
 private theorem responder_emits_response_only_when_ready
     (response : Bool → Option Bool → Bool)
     (history : List (application window).PlayerEntry)

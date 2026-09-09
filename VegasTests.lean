@@ -59,6 +59,11 @@ import VegasTests.DisclosureOwnerPublicationService
 import VegasTests.DisclosureOwnerResponseService
 import VegasTests.DisclosureResponseTimeOrigins
 import VegasTests.DisclosureOwnerSettlement
+import VegasTests.DisclosureResponderProvenance
+import VegasTests.DisclosureResponderChoice
+import VegasTests.DisclosureFreshPublication
+import VegasTests.DisclosureResponderService
+import VegasTests.DisclosureResponderSettlement
 import VegasTests.DisclosureResolutionGuard
 import VegasTests.DisclosureLaw
 import VegasTests.DisclosureSites
