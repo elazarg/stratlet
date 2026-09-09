@@ -689,6 +689,39 @@ This is an initialization limitation, not an impossibility of private-input
 provisioning. General source-prefix probability coupling, service-driven completion,
 and arbitrary unilateral-deviation correspondence remain unproved for this path.
 
+`ApplicationPlan.sample_phase_source_coupling` in `ApplicationSampleExecution` proves the native
+chance phase's exact law on complete policy executions. A source/graph checkpoint
+and native refinement identify the distribution with the written source kernel.
+Every supported draw advances the source environment by that same value and
+preserves refinement at the specific successor and completed compiler prefix.
+The environment invokes the sample address; it cannot select the kernel's draw.
+`VegasTests/ApplicationSampleExecution.lean` instantiates both the law and the
+continuation guarantee on a generated chance-only program.
+
+`PublicChoiceSite.publicChoice_phase_source_law` gives the full two-invocation
+law of a ready reference strategy's source choice followed by inclusion of its
+freshly submitted envelope. It checks successful acceptance and the exact memory,
+receipt, ledger, and source-step effects. The service premise selects that
+envelope; unrelated pending traffic is allowed. `MessagePoolFreshness` supplies
+the runtime-general lookup fact from absence of the newly allocated identifier.
+`VegasTests/PublicChoiceImageExecution.lean` applies this phase law to an arbitrary
+whole-source profile's first lifted strategy with the actual owner-local loader.
+`PublicChoiceSite.include_source_coupling` further connects actual generated
+inclusion to the exact source continuation with both bindings added and the
+completed prefix advanced by two. It derives readiness, validation, and native refinement,
+not merely a possible source execution unrelated to the native successor.
+`VegasTests/PublicChoiceSourceCoupling.lean` exercises this guarantee through
+both owners' inclusions in the generated mixed-type application, carrying the
+first coupled continuation into the second rather than reinitializing it.
+
+These are constructor-local ingredients, not a whole-program profile law.
+Composition still needs the corresponding binding and conditional phase
+couplings, freshness of every unexecuted choice cache, and persistent dispatch
+under the same original lifted profile. The source environment, graph witness,
+and compiler cursor remain proof-only. An actual observation-local service and
+its invocation assumptions must also be connected to the composed law; no
+completion or arbitrary-deviation theorem follows from these local results.
+
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.
 This includes absent and ill-typed snapshots and requires no well-formed-image

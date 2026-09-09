@@ -340,6 +340,40 @@ Compose the local laws across initialization, both disclosure sites, the
 intervening response, and the stated service assumptions. This must use actual
 policy invocations, not just the specified raw-action executions.
 
+The exact-law induction should use the existing `CoupledAt` source/graph
+checkpoint, native refinement, and membership in an actual initialized policy
+run. Coverage and typed registration provenance follow from that membership;
+they should not become repeated assumptions of a second evaluator.
+`ApplicationSampleExecution` supplies the source-coupled native chance phase.
+`PublicChoiceImageExecution` supplies the source-kernel submission/inclusion law,
+and `PublicChoiceSourceCoupling` advances the exact source continuation through
+the actual public-choice handler. The remaining composition obligations are:
+
+- Combine binding registration, submission, and inclusion into a phase coupling
+  with the matching source commitment. Give conditional opening/decline the
+  analogous coupling, using the source guard and accepted snapshot.
+- Establish freshness of every unexecuted endpoint's registration and voluntary
+  submission caches. Empty initialized histories give the base case; allocated
+  field/address separation must prove preservation. Refinement and correctness
+  of an existing cache do not establish this absence property.
+- Prove that the original lifted profile dispatches to the current source suffix
+  throughout each continuation. Completed flags persist; switching the profile
+  parameter between phases without a policy-law equality is insufficient.
+- Define an observation-local service that includes the pending source request
+  and invokes the next chance instruction, then prove its phase equations under
+  a source-order invocation schedule. No source environment may be an input.
+- Compose full execution laws with the source kernels and derive the terminal
+  outcome comparison by projection. A per-phase source-step witness alone does
+  not identify the joint probability law of successive source choices.
+
+For this first forward theorem, competing successful expiry must not resolve an
+endpoint before its chosen owner request is included. Clock advancement alone
+does not reject an opening: the handler accepts it after the deadline if the
+endpoint remains unresolved. Arbitrary withholding and resolution service need
+their own whole-interaction argument; the forward service script must not be
+presented as covering those deviations. Initially sealed owner-visible inputs
+also require provisioning beyond the current public-only initializer.
+
 Ordinary adjacent choice/reveal sites have a corresponding local component:
 `PublicChoiceSite` derives metadata and guard code from `SourceDecisionSite`,
 and the shared `PublicChoice` endpoint performs authentication, readiness, and

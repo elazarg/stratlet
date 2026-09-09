@@ -42,6 +42,9 @@ import Vegas.Compile.ApplicationImageReadoutAvailability
 import Vegas.Compile.SourceReadoutAvailability
 import Vegas.Compile.BindingImageController
 import Vegas.Compile.BindingImageExecution
+import Vegas.Compile.ApplicationSampleExecution
+import Vegas.Compile.PublicChoiceImageExecution
+import Vegas.Compile.PublicChoiceSourceCoupling
 import Vegas.Compile.ApplicationPolicy
 import Vegas.Compile.ApplicationPolicyLocality
 import Vegas.Compile.ApplicationPolicyBindings

@@ -9,6 +9,9 @@ import VegasTests.Language
 import VegasTests.CoreFinite
 import VegasTests.PublicGuard
 import VegasTests.ApplicationImage
+import VegasTests.ApplicationSampleExecution
+import VegasTests.PublicChoiceSourceCoupling
+import VegasTests.PublicChoiceImageExecution
 import VegasTests.ConditionalApplicationImage
 import VegasTests.SourceStrategy
 import VegasTests.Machine
