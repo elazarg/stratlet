@@ -11,7 +11,7 @@ The checked correspondence supplies playerwise strategy compilation, a
 terminal outcome decoder, and two laws:
 
 1. Every compiled profile has the source profile's decoded outcome law.
-2. Every unilateral target deviation has the law of a source deviation, or an
+2. Every unilateral target deviation has the law of a source deviation, or a
    finite mixture of source deviations, against unchanged
    source opponents.
 
@@ -94,3 +94,27 @@ for a fixed deviated profile. CE requires a recommendation-local translation;
 profile-local mixture existence alone does not supply it. Thus the checked
 scheduled result is a Nash/bound guarantee, not a claimed CE impossibility or
 a universal CE transport instance.
+
+## Public-message application
+
+`ApplicationPlan.service_source_public_law` connects the same independent
+written-order source denotation to the public-message application. Its
+reference execution uses the original source profile's lifted player policies,
+the image's serial service, and the image's invocation list. The law observes
+completion together with the executable public-terminal readout; it equates
+that distribution with successful completion and the source terminal public
+projection. It does not reconstruct sealed terminal values from public storage.
+
+The structural backend plan, initial controller-read publicity, and earlier
+binding origins are explicit premises. They do not weaken source
+well-formedness or assert that every checked source admits this backend plan.
+`ForwardCheckpoint` retains an actual run of the original profile and proves
+service alignment, cache freshness, exact source-prefix refinement, and
+accepted bindings throughout the induction. Source environments and compiler
+cursors occur only in these proofs, not as runtime-policy inputs.
+
+This forward law is independent of the source-to-private-request deviation
+theorem above. Public-message deviation simulation, including completion or
+source-level resolution of silence and malformed commitments under an admitted
+service, remains open. A missing or rejected submission can stall the serial
+reference execution; its service theorem is not a fairness or timeout theorem.

@@ -44,6 +44,14 @@ the public outcome of an actual written-order source execution. The explicit
 backend plan is a premise; progress, sealed-input provisioning, and strategic
 correspondence for public messages are not conclusions. These support claims
 are audited in `Paper/Source.lean` separately from the private-window laws.
+`Vegas/Compile/ApplicationForwardLaw.lean` additionally proves the independent
+source profile's public-terminal law for the generated serial reference run,
+including completion. Initial controller reads must be public and conditional
+endpoints must have earlier generated binding origins. The theorem retains the
+original source profile throughout the shared policy runner; it does not
+simulate arbitrary public-message deviations. The mixed-feature regression is
+`VegasTests/GeneratedApplicationSourceLaw.lean`, and the paper-facing statement
+is `Paper.Source.public_application_reference_law` in the `Vegas` namespace.
 `lake --wfail build Paper` is the focused paper-proof build. Do not run `lake
 update` to reproduce a pinned revision: it may resolve different dependencies.
 The cache download is a build optimization, not evidence that our theorem
@@ -110,6 +118,7 @@ module; inspect its definitions and proof, not only the theorem name.
 | How are pure/mixed/behavioral policies connected? | `Vegas/Game/Kuhn.lean`; checked GameTheory laws plus Vegas-specific finite-site coverage |
 | How are order-aware deviations handled? | `Vegas/Scheduled/Replay.lean`, `Predraw.lean`, `Equilibrium.lean` |
 | What closes the main composition? | `Vegas/Scheduled/SourceCorrespondence.lean`; independent-source laws, deviation mixtures, and same-error equilibrium correspondence through serialization and requests |
+| Which whole-program law reaches public messages? | `Vegas/Compile/ApplicationForwardLaw.lean`; generated reference-service completion and the independent source public-outcome law, with explicit backend eligibility |
 | Where are concrete integration witnesses? | `VegasTests/ScheduledRequest.lean`, `QuittingImplementation.lean`, `QuittingWindow.lean`, root `Paper.lean` |
 | Where does an independent disclosure game reach the runtime? | `VegasTests/DisclosureCorrespondence.lean`, `DisclosurePayoff.lean`, `SealedOfferEquilibrium.lean`, `SealedOfferRuntime.lean` |
 

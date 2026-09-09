@@ -8,6 +8,7 @@ import Vegas.Game.SourceCorrelated
 import Vegas.Scheduled.SourceCorrespondence
 import Vegas.Core.AccountingIntegrity
 import Vegas.Compile.ApplicationPlanOutcome
+import Vegas.Compile.ApplicationForwardLaw
 
 /-! # Paper-facing independent-source correspondence claims -/
 
@@ -86,6 +87,34 @@ theorem public_application_policy_outcome (source : WFProgram Player L)
         some terminalEnv.erasePubEnv :=
   ApplicationPlan.runPolicies_source_public_outcome source plan deadlineOf players environment
     schedule next hnext hfinished
+
+/-- For an eligible application plan, lifting one source profile and running
+the emitted serial reference service gives the source law of joint completion
+and public terminal output. -/
+theorem public_application_reference_law (source : WFProgram Player L)
+    (plan : ApplicationPlan source.accounted source.core.fresh
+      (ToEventGraph.BuildState.fromInitial
+        (ToEventGraph.initialState source.core.Γ source.core.env source.core.wctx)))
+    (deadlineOf : Nat → Nat)
+    (profile : SourceBehavioralProfile source.core.prog)
+    (hinitial : plan.InitialControllerReadsPublic)
+    (horigins : (plan.image deadlineOf).HasBindingOrigins) :
+    (((plan.image deadlineOf).application.runPolicies
+      (plan.liftProfile deadlineOf profile) (plan.image deadlineOf).serialService
+      (plan.image deadlineOf).serviceInvocations (plan.initialExecution deadlineOf)).map
+        (fun out =>
+          (out.native.application.memory.finished
+              (ToEventGraph.compile source.core).graph.nodeCount,
+            (ToEventGraph.compile source.core).readPublicTerminal?
+              out.native.application.memory))) =
+      (denoteSource source.core.prog profile source.core.env).map fun terminal =>
+        (true, some (cast (congrArg (VEnv L)
+          (ToEventGraph.compileCore_terminalCtx_eq_sourceTerminalCtx source.core.prog
+            source.core.fresh
+            (ToEventGraph.BuildState.fromInitial
+              (ToEventGraph.initialState source.core.Γ source.core.env
+                source.core.wctx))).symm) terminal).erasePubEnv) :=
+  plan.service_source_public_law source deadlineOf profile hinitial horigins
 
 variable [Fintype Player]
 
@@ -345,5 +374,10 @@ theorem scheduled_request_approximate_nash_iff (source : WFProgram Player L)
 [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.Source.public_application_policy_outcome
+
+/-- info: 'Vegas.Paper.Source.public_application_reference_law' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Source.public_application_reference_law
 
 end Vegas.Paper.Source

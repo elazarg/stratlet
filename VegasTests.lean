@@ -131,3 +131,4 @@ import VegasTests.PendingTimeout
 import VegasTests.PendingTimeoutPolicies
 import VegasTests.PendingTimeoutSource
 import VegasTests.PendingTimeoutHiding
+import VegasTests.GeneratedApplicationSourceLaw

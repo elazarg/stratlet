@@ -2,6 +2,7 @@
   "prose:source-decisions": ["Vegas.Paper.source_strategy_support", "Vegas.Paper.source_decision_information", "Vegas.Paper.source_publication_barrier", "Vegas.Paper.source_decision_roundtrip", "Vegas.Paper.graph_decision_roundtrip"],
   "prose:commitment-accounting": ["Vegas.Paper.Source.committed_binding_accounted", "Vegas.Paper.Source.initial_binding_accounted", "Vegas.Paper.Source.binding_resolutions_nodup"],
   "prose:public-application-support": ["Vegas.Paper.Source.public_application_outcome", "Vegas.Paper.Source.public_application_policy_outcome"],
+  "prose:public-application-forward": ["Vegas.Paper.Source.public_application_reference_law"],
   "prose:correlated-transport": ["Vegas.Paper.correlated_transport", "Vegas.Paper.coarse_correlated_transport", "Vegas.Paper.correlated_correspondence", "Vegas.Paper.Source.native_correlated_preservation", "Vegas.Paper.Source.native_coarse_correlated_iff"],
   "thm:source-correspondence": ["Vegas.Paper.Source.native_honest_law", "Vegas.Paper.Source.native_unilateral_law", "Vegas.Paper.Source.native_nash_iff", "Vegas.Paper.Source.native_approximate_nash_iff"],
   "thm:trace-utility": ["Vegas.Paper.Valuation.decoder_boundary", "Vegas.Paper.Valuation.trace_incentive", "Vegas.Paper.Valuation.trace_regret"],

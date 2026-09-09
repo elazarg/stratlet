@@ -61,16 +61,23 @@ Arbitrary supported native and randomized policy executions preserve a reachable
 graph witness. A completed run's executable public readout has an actual
 written-order source execution witness. These support theorems impose no
 fairness assumption, but prove neither settlement nor equality of profile laws.
+The separate `ApplicationPlan.service_source_public_law` starts from the same
+canonical initialization and runs the original source profile's lifted policies
+under the generated serial reference service. For plans with public initial
+controller reads and valid binding origins, every supported reference run
+finishes, and its public-terminal distribution is exactly the independent
+written-order source distribution projected to public bindings. This covers all
+application-plan constructors, including repeated conditional publication.
+It is a reference-service forward law, not an arbitrary-deviation simulation.
 Chance instructions retain the source distribution, require public dependencies,
 and cannot reroll after completion. They assume ideal unbiased entropy; the
 environment selects the invocation time, not the sampled value. Sealed-input
-provisioning and whole-program controller assembly remain outside this generated
-fragment.
+provisioning, completion under withholding or competing expiry, and strategic
+correspondence for arbitrary public-message deviations remain separate obligations.
 Generated-controller readout uses public resolved values and the owner's private
-registration history. Its source correspondence requires available reads and
-cache/accepted-snapshot agreement; registering after an unprepared handle was
-accepted does not establish that agreement. The repeated-disclosure controller
-has checked local source-kernel laws, not a whole-program strategic theorem.
+registration history. The forward proof derives available reads and
+cache/accepted-snapshot agreement throughout the generated run; registering
+after an unprepared handle was accepted would not establish that agreement.
 The `Interaction` library provides a native pool and explicit ideal commitment
 service. A certified homogeneous commit/reveal backend connects actual
 checked core programs, through their event graphs, to this public-message

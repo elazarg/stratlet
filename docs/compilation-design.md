@@ -496,12 +496,12 @@ does not exercise replacement of an existing preparation.
 A separate execution checks that an earlier decline rejects a later opening
 and still permits a completing decline. Completed opening runs instantiate the
 general written-order source public-outcome theorem. These concrete laws use
-specified raw actions, not whole-program lifted behavioral strategies.
-The public initializer also does not provision
-sealed initial inputs. A whole-program entry must either account for that
-provisioning or explicitly require no sealed initial inputs. Structural reference
-strategy dispatch is supplied by `ApplicationPlan.liftProfile`; complete
-initialization and whole-profile execution laws remain obligations.
+specified raw actions and complement the general reference execution described
+below. The public initializer does not provision sealed initial inputs.
+`ApplicationPlan.InitialControllerReadsPublic` therefore requires exactly the
+source-initial fields read by generated player controllers to be public. This is
+a backend eligibility predicate, not part of source well-formedness; a backend
+for sealed initial controller inputs must provide them explicitly.
 Public terminal readout and arbitrary-traffic support refinement
 are supplied by `ApplicationImageOutcome` and `ApplicationPlanRefinement`.
 The local refinement uses a checked lookup of the emitted instruction,
@@ -593,17 +593,19 @@ these facts prove successful loading of every declared choice input in
 `ApplicationPlan.runPolicies_ownerReadout?_of_ready`. Initial fields in that
 footprint must be public; sealed initial-input provisioning remains separate.
 The source-view theorem additionally identifies the recovered values with a
-supplied related source environment. Establishing that environment and the
-source-prefix probability coupling throughout execution remains the next step.
+supplied related source environment.
 
-Whole-program randomized laws should compose segment laws from every related
-native checkpoint, retaining both an exact outcome law and a support invariant
-for the next segment. A proof-only relation tracks the source cursor and
-environment, public storage, completion, per-site cached choices, and accepted
-binding snapshots. It must distinguish a public default from a private cached
-choice. This relation supplies no executable controller input. Equality of a
-decoded marginal alone is insufficient: different message histories can have
-the same decoded source state but lead to different later policy calls.
+`ApplicationPlan.ForwardCheckpoint` supplies the whole-profile composition
+boundary. It retains a `ProfileContinuation` from one original plan and source
+profile, an exact `CoupledAt` source/graph prefix, native refinement, support in
+the actual initialized run, service-index alignment, fresh caches for the
+remaining instructions, and canonical accepted handles before the source
+cursor. Coverage, registration consistency, typed registration provenance, and
+fresh envelope identifiers are derived from that initialized-run witness rather
+than duplicated in the checkpoint. The per-head chance, binding, public-choice,
+and conditional laws preserve this checkpoint on every supported branch while
+continuing to invoke the original lifted profile. The source environment and
+compiler cursor remain proof data and are never controller inputs.
 
 `ApplicationPlan.handle_refines` establishes support-level refinement for
 arbitrary accepted packets. Lookup inversion recovers the source occurrence and
@@ -624,11 +626,25 @@ terminal theorem in `ApplicationPlanOutcome` supplies an actual written-order
 source execution witnessing that public outcome. It starts at canonical native
 initialization, consumes the whole-run refinement, and uses an executable scan
 of completion flags; it does not assume a source simulation as a premise.
-Equality of whole-profile outcome laws needs the separate
-controller and information proof. In particular, unrestricted clock advancement
-and permissionless expiry can select a legal decline before an honest opening;
-the honest law needs a stated service/deadline condition excluding such
-preemption. Event coverage and source-legal settlement alone do not imply it.
+`ApplicationPlan.service_source_public_law` supplies the corresponding
+whole-profile law for every eligible `ApplicationPlan`: under the original
+proof-level source profile lifted to runtime policies and the generated
+source-ordered `serialService`, the actual shared runner's joint
+`(finished, readPublicTerminal?)` distribution equals the independent
+`denoteSource` distribution mapped to `(true, some publicTerminal)`. Requiring
+both fields prevents a partial public readout from masquerading as termination.
+The theorem assumes `InitialControllerReadsPublic` and `HasBindingOrigins`; the
+latter ensures that every commitment-backed conditional endpoint has an earlier
+generated binding whose actual acceptance is established by the forward
+checkpoint. Sealed source values remain proof witnesses rather than fabricated
+public outputs.
+
+This is a reference-service execution law, not a strategic preservation or
+arbitrary-environment progress theorem. The serial service advances once per
+emitted instruction and does not retry a wait or rejected request. Unrestricted
+clock advancement, withholding, and permissionless expiry can therefore require
+a different service theorem and a deviation comparison. Event coverage and
+source-legal settlement alone do not exclude such preemption.
 
 `Interaction.ChoiceController` supplies the companion sample-once controller.
 Its first encoded command records the draw in the principal's actual
@@ -670,9 +686,11 @@ stuttering. The disclosure responder submits once. A separate non-Vegas
 regression invokes a stochastic retrying controller twice before inclusion and
 checks that both pending messages and command history contain the same draw.
 Completion still requires the separate service/deadline theorem. The structural
-whole-image strategy lift has coordinatewise locality, but randomized full-profile
-laws and unilateral deviation simulation remain open; a local first-emission
-law does not establish them.
+whole-image strategy lift has coordinatewise locality. Its exact randomized
+profile law is established for the generated serial reference service by
+`ApplicationPlan.service_source_public_law`; unilateral deviation simulation
+and progress under other services remain open. A local first-emission law alone
+does not establish those stronger claims.
 
 Conditional openings already have generated metadata in
 `ConditionalPublicationSite.runtimeSite`; consume it rather than introduce another
@@ -717,8 +735,10 @@ pure-profile benchmark compares this assembled native execution with the
 independent AST denotation. The source marker and all other declared reads must
 be available before disclosure; initialized service proofs derive matching
 cache and readiness facts rather than assume them on arbitrary histories.
-These pure-policy results do not establish randomized whole-profile laws or
-unilateral deviation simulation for the assembled public-message execution.
+The general application-plan forward law separately covers arbitrary randomized
+source profiles under its serial reference service and eligibility predicates.
+Neither result supplies unilateral deviation simulation for the open
+public-message execution.
 
 ## 6. Ownership and dependencies
 

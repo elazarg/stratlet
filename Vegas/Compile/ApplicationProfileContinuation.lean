@@ -199,7 +199,7 @@ environment or compiler cursor to the policy. -/
 theorem liftProfileIn_eq_of_refines
     (continuation : ProfileContinuation root rootProfile plan profile)
     (image : ApplicationImage P L) (deadlineOf : Nat → Nat)
-    (current : CoupledAt (compileCore rootProg rootFresh rootState).graph state)
+    (current : CoupledAt (compileCore prog fresh state).graph state)
     (native : image.application.State)
     (hrefines : native.application.Refines current.current.graph.1)
     (player : P) (history : List image.application.PlayerEntry) :
@@ -209,13 +209,12 @@ theorem liftProfileIn_eq_of_refines
         (MessageApplication.State.observe image.application native player) := by
   apply continuation.liftProfileIn_eq image deadlineOf player history
   have hbound : state.nodes.length ≤
-      (compileCore rootProg rootFresh rootState).graph.nodeCount := by
-    change state.nodes.length ≤ (compileCore rootProg rootFresh rootState).nodes.length
-    rw [continuation.compile_eq]
+      (compileCore prog fresh state).graph.nodeCount := by
+    change state.nodes.length ≤ (compileCore prog fresh state).nodes.length
     exact (compileCore_nodes_prefix prog fresh state).length_le
   intro node hnode
   change native.application.memory.done node = true
-  let index : Fin (compileCore rootProg rootFresh rootState).graph.nodeCount :=
+  let index : Fin (compileCore prog fresh state).graph.nodeCount :=
     ⟨node, Nat.lt_of_lt_of_le hnode hbound⟩
   exact (hrefines.memory.completed index).mpr ((current.completedPrefix index).mpr hnode)
 

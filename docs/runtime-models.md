@@ -492,9 +492,9 @@ Snapshot correspondence is not implied by the public accepted handle. The
 runtime permits acceptance of an unprepared handle followed by a registration;
 that later value cannot open the frozen handle. The reference strategy lifting
 must establish registration before binding submission, rather than infer
-snapshot correspondence from the subsequent history. Structural dispatch is
-defined, and its accepted-binding provenance is proved below. Whole-run readout
-availability and exact source-profile laws remain separate proof obligations.
+snapshot correspondence from the subsequent history. Structural dispatch,
+accepted-binding provenance, and the reference-service source-profile law are
+described below; none constrains arbitrary runtime strategies.
 `ApplicationImageRegistration` proves that, from
 the canonical empty-service initialization, every principal's earliest recorded
 registration equals its current preparation-table entry. This holds for all
@@ -505,8 +505,8 @@ The same module's post-binding continuation theorem starts with a cached value
 and the native binding update that snapshots it. Every supported later policy
 run preserves both the cache entry and the exact accepted snapshot, even with
 arbitrary further registrations. `ApplicationImageBindingInclusion` connects
-an actual recorded inclusion to that snapshot. Proving successful inclusion at
-every binding reached by the reference strategy remains a composition obligation.
+an actual recorded inclusion to that snapshot. The forward checkpoint uses this
+path at every binding serviced by the generated source-order execution.
 The public initializer filters out sealed initial fields and establishes the
 representation relation. The mixed-type checked program in
 `VegasTests/ApplicationImage.lean` exercises generated Boolean and optional
@@ -574,8 +574,11 @@ fields. Its premises do not restrict messages to generated packets.
 Unpaired literal reveals, initial default resolution, and autonomous
 publicly forced execution have no derivation constructors yet. Initial sealed
 inputs also require explicit provisioning; filtering them out of public memory
-does not implement it. Complete initialization, assembled source-policy
-correspondence, and unilateral deviation simulation remain to be integrated.
+does not implement it. `InitialControllerReadsPublic` states the narrower
+backend condition used by the reference execution: every source-initial field
+actually read by a generated player controller is public. It is not implied by
+source well-formedness. Unilateral deviation simulation and alternative-service
+progress remain to be integrated.
 `ApplicationImageOutcome` decodes actual public terminal fields, rejecting
 missing or ill-typed public data and ignoring sealed fields.
 `ApplicationPlanOutcome` starts at the actual empty-pool initialization and
@@ -643,7 +646,8 @@ binding, the subsequent guarded public marker, and actual application chance.
 The six-invocation prefix has the exact joint law of the arbitrary source initial
 choice and the source coin, retaining complete histories and native traces.
 Both inclusions are checked successful. This remains a specified-service prefix
-law, not a general whole-program law, settlement theorem, or deviation comparison.
+law and a focused regression for the general construction, not a settlement or
+deviation comparison.
 
 `Vegas/Compile/ApplicationPolicyProvenance.lean` proves
 `ApplicationPlan.runPolicies_lifted_registeredBindings`. For any structural plan,
@@ -686,8 +690,10 @@ public inputs load by the general theorem; a sealed initial field has a source
 value but no value in the owner's native readout under the public-only initializer,
 despite refinement, completed-field coverage, and vacuous binding provenance.
 This is an initialization limitation, not an impossibility of private-input
-provisioning. General source-prefix probability coupling, service-driven completion,
-and arbitrary unilateral-deviation correspondence remain unproved for this path.
+provisioning. The generated serial reference service now has a general
+source-prefix coupling and completion law under the explicit eligibility
+conditions below. Arbitrary-service progress and unilateral-deviation
+correspondence remain unproved for this path.
 
 `ApplicationPlan.sample_phase_source_coupling` in `ApplicationSampleExecution` proves the native
 chance phase's exact law on complete policy executions. A source/graph checkpoint
@@ -832,15 +838,24 @@ completed public outcomes. The result covers opening and decline with arbitrary
 source randomization. It is a complete-program integration theorem for this
 fixture, not a compilation theorem for every application plan.
 
-General composition still needs the induction preserving the invariants and
-service alignment while connecting all phase laws to the independent source
-denotation.
-Its terminal base case, `CoupledAt.finished_public_readout`, certifies both actual
-completion and the exact public source projection. The field-readout law alone
-does not imply completion, so the composed statement must retain both facts.
-The source environment, graph witness, and compiler cursor remain proof-only.
-No general completion or arbitrary-deviation theorem follows from these local
-results.
+`ApplicationPlan.ForwardCheckpoint` packages the general induction state: the
+original plan/profile's structural continuation, a `CoupledAt` source/graph
+prefix, native refinement, membership in the actual initialized run under that
+same original lift, service-history alignment, fresh remaining caches, and
+canonical accepted bindings before the source cursor. Coverage, registration
+provenance, and envelope freshness are derived from run membership. Each checked
+head phase preserves the checkpoint and advances the independent source
+denotation; no source environment or compiler cursor is passed to a policy.
+
+`ApplicationPlan.service_source_public_law` runs the complete generated
+invocation list with `ApplicationPlan.liftProfile` and `serialService`. For every
+source behavioral profile and plan satisfying `InitialControllerReadsPublic`
+and `HasBindingOrigins`, its actual joint completion/public-readout distribution
+equals `denoteSource` mapped to `(true, some publicTerminal)`. The completion bit
+is essential: reading available public fields alone does not prove termination.
+The theorem is a whole-program reference execution law, not fairness under a
+different environment, settlement against deviating players, or a unilateral
+strategy-correspondence result.
 
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.
@@ -881,7 +896,8 @@ its timeout branches remain part of that same policy. The native readout uses
 only public application fields, and the first ready invocation records exactly
 the source response law. Deterministic service guarantees instantiate pure
 source kernels. These local sampling and memory laws supply neither a complete
-randomized source-profile law nor deviation simulation for the public runtime.
+randomized source-profile law nor deviation simulation by themselves; the
+application-plan forward induction supplies the former under `serialService`.
 
 `Vegas/Compile/ConditionalOpeningController.lean` supplies the corresponding
 local source-kernel adapter for certified optional openings. Its canonical
@@ -900,8 +916,9 @@ reconstructed from public marker completion. Pure initialized service proofs
 carry that exact cache through binding and disclosure. `compiledPlayers` projects
 the three strategic kernels from one written source profile; its pure benchmark has the independent
 AST's exact outcome law. The phase assembly is specific to this checked program.
-General application generation, randomized whole-profile laws, and public
-deviation simulation remain open.
+General application generation and randomized reference-profile execution are
+provided by `ApplicationPlan` and `ApplicationForwardLaw`. Public deviation
+simulation remains open.
 
 `SealedTimeout.messageApplication` instantiates this carrier with the timed
 sealed handler. Its state and action translations have both roundtrips, its
@@ -1120,10 +1137,11 @@ deadline is newly armed. The next cycle supplies a timely response opportunity;
 after resolution, its value is immutable.
 
 These theorems meet the disclosure operational integration gate for its
-deterministic source controllers. The next task is generation of public
-applications and controllers from checked programs, using disclosure as a
-regression instance. Randomized outcome-law and strategic deviation comparison
-remain obligations of that compilation edge.
+deterministic source controllers. The generated-application path now supplies
+structural source-profile lifting and its randomized completion/public-outcome
+law under the serial reference service, with disclosure as a regression
+instance. Strategic deviation comparison and progress under the broader
+adaptive service class remain obligations of that compilation edge.
 
 `Interaction/MessageApplicationPolicyHistory.lean` supplies the reusable
 history fact: if a principal's policy satisfies a law of its observed view and

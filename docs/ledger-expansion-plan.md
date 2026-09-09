@@ -54,12 +54,9 @@ hypothesis, or a trace example alone is not completion.
 
 ### Whole-program forward-law checkpoint
 
-The next composition theorem should relate the independent source denotation
-to the shared application's completion and public terminal readout for every
-eligible plan. `VegasTests/ApplicationServiceSource.lean` checks this endpoint
-for a complete binding/disclosure program under every source behavioral profile,
-using the original lifted profile, emitted-image service, and generated script.
-The general structural induction still needs a proof-side checkpoint carrying:
+`ApplicationPlan.service_source_public_law` relates the independent source
+denotation to the shared application's completion and public terminal readout
+for every eligible `ApplicationPlan`. Its proof-side `ForwardCheckpoint` carries:
 
 - The original plan/profile's `ProfileContinuation` to the current suffix.
 - The exact source/graph prefix (`CoupledAt`) and native `State.Refines`.
@@ -70,32 +67,37 @@ The general structural induction still needs a proof-side checkpoint carrying:
 - `AcceptedBindingPrefix`: canonical accepted handles for every generated
   binding before the current source prefix.
 
-The initialized-run witness already supplies message-identifier freshness,
-memory coverage, registration consistency, and typed registration provenance.
-These should be derived, not stored again in the checkpoint. Static binding
+The initialized-run witness supplies message-identifier freshness, memory
+coverage, registration consistency, and typed registration provenance; these
+are derived rather than stored again in the checkpoint. Static binding
 origins locate an earlier binding for each conditional; the dynamic accepted
 prefix supplies its handle. The checked snapshot bridge then recovers the
 source value without a separate evolving snapshot-value invariant.
 
-First prove one structural head step using the existing phase laws, preserving
-this checkpoint for each supported successor. Compose with the source
-denotation's existing equations and the shared runner's append/bind laws.
-The terminal statement must certify completion as well as the public-outcome
-distribution: compare the joint `(finished, public readout)` law with the source
-law mapped to `(true, some public outcome)`, or prove the equivalent explicit
-completion conjunct. `readPublicTerminal?` alone is a field reader and does not
-check completion. The checked `CoupledAt.finished_public_readout` supplies both
-facts at the terminal checkpoint. Sealed source values remain witnesses and
-need not be decoded from public runtime memory.
+The chance, binding, public-choice, and conditional head theorems preserve this
+checkpoint on every supported successor. Structural induction composes them
+with the existing `denoteSource` equations and the shared runner's append/bind
+laws. The result compares the joint `(finished, readPublicTerminal?)` law with
+the source law mapped to `(true, some public outcome)`. `readPublicTerminal?`
+alone remains only a field reader; `CoupledAt.finished_public_readout` supplies
+both termination and the exact public projection. Sealed source values remain
+proof witnesses and are not decoded from public runtime memory.
+
+The entry theorem assumes `InitialControllerReadsPublic`: only source-initial
+fields in generated player-controller footprints must be public. This is a
+backend condition, not source well-formedness, and does not provision sealed
+initial inputs. It also assumes `HasBindingOrigins`, because a conditional
+endpoint needs an actual earlier generated binding; an ordinary public write
+does not synthesize a commitment handle.
 
 `ApplicationImage.serialService` and `serviceInvocations` supply a concrete
 source-ordered reference service on the shared runner. The service indexes
 emitted instructions by its own environment-history length. It invokes chance
 at sample heads and otherwise includes the instruction owner's most recent
 submission if it remains pending, without inspecting payload contents. Its exact
-post-submission command and history-count laws are checked. The composition
-must establish their premises on every supported branch, starting with empty
-environment history and the image-derived invocation list.
+post-submission command and history-count laws are checked. The forward proof
+establishes their premises from empty environment history and the image-derived
+invocation list while retaining the same original lifted source profile.
 
 This finite service advances its index even after a wait or rejected request;
 it is not a fairness, retry, or withholding-resolution mechanism. Those need a
@@ -326,12 +328,11 @@ edge: generated metadata, source/validator correspondence in both directions,
 and execution by the actual paired graph kernels. Structural application plans
 integrate these instructions, with arbitrary-traffic support refinement and
 source public-outcome witnesses for completed executions. Structural source-profile
-lifting supplies reference runtime strategies; its general exact randomized
-execution law remains open. The next strategic
-gate includes the prefix establishing the original binding, all subsequent
-player choices, persistent quitting, and settlement under the stated services;
-starting a proof at an already represented disclosure checkpoint does not
-complete that gate.
+lifting supplies reference runtime strategies. Its exact randomized law under
+the generated serial reference service now covers every eligible plan and source
+profile, including completion and the public terminal readout. The next
+strategic gate still compares arbitrary target deviations under the stated
+service class; the reference law alone does not discharge that comparison.
 
 Conditional endpoint generation is independent of the original binding's
 accounting discharge. `ConditionalPublicationSite` combines an adjacent
@@ -354,13 +355,15 @@ conditional reference-policy combinator at the second site. The local laws
 recover the arbitrary randomized source decision at the concrete opened and declined native
 checkpoints, under the original-registration and empty-second-cache premises.
 They also check endpoint separation and waiting after a recorded second choice.
-These are local laws for supplied histories, not a theorem that a generated
-whole-program policy run reaches those histories and checkpoints.
+These local laws take supplied histories; the separate forward-checkpoint
+induction establishes their histories and checkpoints in the generated serial
+reference run.
 
-The composition invariant must establish private registration before binding
-acceptance, then maintain cache/snapshot correspondence and availability of
+The forward composition establishes private registration before binding
+acceptance, then maintains cache/snapshot correspondence and availability of
 every source-visible field. Acceptance of an unprepared handle followed by
-registration is permitted operationally and does not satisfy that invariant.
+registration remains permitted operationally and does not satisfy that
+reference invariant.
 `ApplicationImageRegistration` supplies the unconditional history/preparation
 invariant and preservation of an already cached-and-bound snapshot under all
 later policy commands. `BindingImageController` and `BindingImageExecution`
@@ -374,10 +377,9 @@ dispatch in the full image, and `ApplicationPolicyLocality` proves coordinatewis
 dependence on source policies. `GeneratedApplicationPolicy` composes the binding,
 the forced marker, and chance under that same lifted whole-source profile, with
 successful inclusions and an exact six-invocation joint law. These are reference
-strategies for the open protocol, not generated player software. The next general
-probability proof must maintain a source-prefix relation covering accepted values
-and every declared source observation. `ApplicationPolicyProvenance` establishes
-the cache/snapshot component generally: if one player follows the lift, every
+strategies for the open protocol, not generated player software.
+`ApplicationPolicyProvenance` establishes the cache/snapshot component generally:
+if one player follows the lift, every
 accepted handle belonging to it retains its first private registration, under
 arbitrary opponents, environment, and finite invocation list. It also supplies
 cache existence and graph-field type agreement for accepted bindings.
@@ -386,20 +388,16 @@ or accepted canonical handles under arbitrary policies. `SourceReadoutAvailabili
 combines these execution invariants with native refinement and graph readiness:
 the lifted owner can load the complete choice footprint, provided its initial
 fields are public. The loader receives no source environment. Sealed initial-input
-provisioning remains separate, and the source-prefix probability coupling must
-still establish the source environment whose view the readout reconstructs.
-Compose the local laws across initialization, both disclosure sites, the
-intervening response, and the stated service assumptions. This must use actual
-policy invocations, not just the specified raw-action executions.
+provisioning remains separate. The forward checkpoint supplies the proof-only
+source environment whose view the readout reconstructs, while policies still
+receive only native histories and observations.
 
-The exact-law induction should use the existing `CoupledAt` source/graph
-checkpoint, native refinement, and membership in an actual initialized policy
-run. Coverage and typed registration provenance follow from that membership;
-they should not become repeated assumptions of a second evaluator.
-`Interaction/MessageApplicationCounters.lean` also derives freshness of the
-next allocated envelope identifier from initialized policy-run membership,
-for arbitrary policies, delivery, and replay. Use this invariant to discharge
-the local lookup-absence premise in submission/inclusion phase laws.
+The exact-law induction uses `ApplicationPlan.ForwardCheckpoint`, retaining the
+original plan/profile, its structural suffix, `CoupledAt`, native refinement,
+membership in the actual initialized policy run, service-index alignment,
+remaining-cache freshness, and the accepted-binding prefix. Coverage, typed
+registration provenance, and fresh envelope identifiers follow from run
+membership rather than becoming inputs to a second evaluator.
 `ApplicationSampleExecution` supplies the source-coupled native chance phase.
 `PublicChoiceImageExecution` supplies the source-kernel submission/inclusion law,
 and `PublicChoiceSourceCoupling` advances the exact source continuation through
@@ -415,43 +413,31 @@ identities: each commitment-backed conditional instruction has an earlier
 binding with the matching field, owner, and slot. This is not enforced by the
 `ApplicationPlan` index and does not imply that the earlier binding was included.
 In particular, publishing a source field through `publicChoice` does not create
-a commitment handle. The realization theorem must consume a binding-origin
-certificate, or code generation must select a different representation for
-already-public values. This is a backend condition, not a source-WF restriction.
+a commitment handle. The reference realization theorem therefore consumes a
+binding-origin certificate; another backend could instead select a different
+representation for already-public values. This is a backend condition, not a
+source-WF restriction.
 `PublicConditionalOrigin` checks the distinction on a valid source and generated
 plan, not just a hand-written image: the first public inclusion stores the value,
 but the later commitment-backed endpoint has no accepted handle.
 
-The remaining composition obligations are:
+`ApplicationPhaseCaches` lifts codec separation through each full phase;
+`ProfileContinuation` keeps the original lifted profile installed while moving
+to its `afterSample`, `afterCommit`, and `afterReveal` suffixes. The binding,
+public-choice, and conditional phase laws join source kernels to actual
+submission and inclusion on complete policy executions. Structural induction
+then derives the joint terminal distribution, rather than merely collecting
+unrelated per-phase support witnesses.
 
-- Combine binding registration, submission, and inclusion into a phase coupling
-  with the matching source commitment. Compose the conditional reference
-  strategy's first-submission law with its checked inclusion continuation too.
-  The individual kernel and source-successor laws must identify one joint law
-  on full policy executions, retaining their histories.
-- Establish freshness of every unexecuted endpoint's registration and voluntary
-  submission caches. `ApplicationPolicyFreshness` provides initialization and
-  preservation through environment steps and through player commands that the
-  remaining encodings reject. Allocated field/address separation must discharge
-  that rejection premise for the actual lifted policies. Refinement and
-  correctness of an existing cache do not establish this absence property.
-- Prove that the original lifted profile dispatches to the current source suffix
-  throughout each continuation. Completed flags persist; switching the profile
-  parameter between phases without a policy-law equality is insufficient.
-  A proof-only suffix relation can retain the original plan/profile and its
-  structural continuation, transporting profiles with `afterSample`,
-  `afterCommit`, and `afterReveal`. Its first useful theorem equates the original
-  and suffix policies at every local history with matching completion flags;
-  the source-prefix coupling supplies those flags.
-- Define an observation-local service that includes the pending source request
-  and invokes the next chance instruction, then prove its phase equations under
-  a source-order invocation schedule. No source environment may be an input.
-- Compose full execution laws with the source kernels and derive the terminal
-  outcome comparison by projection. A per-phase source-step witness alone does
-  not identify the joint probability law of successive source choices.
+What remains is the strategic edge: compare arbitrary player replacements and
+admitted adaptive environment policies against this reference execution, using
+the same opponents and external policy on both sides. The serial witness is not
+a fairness contract and does not resolve withholding, retries, or competing
+expiry under deviations.
 
-For this first forward theorem, competing successful expiry must not resolve an
-endpoint before its chosen owner request is included. Clock advancement alone
+The checked forward theorem uses a serial service under which a competing
+expiration does not resolve an endpoint before its chosen owner request is
+included. Clock advancement alone
 does not reject an opening: the handler accepts it after the deadline if the
 endpoint remains unresolved. Arbitrary withholding and resolution service need
 their own whole-interaction argument; the forward service script must not be
@@ -485,9 +471,10 @@ public default, and reconstructs the complete declared source view. Native routi
 wrong-tag raw messages and rejects their application effect. The complete pure
 benchmark and initialized service proofs use this assembly, with all three
 strategic kernels projected from the written source profile.
-Randomized full-profile laws and the public-runtime strategic comparison remain
-open; the structural lifting and local components do not establish
-intermediate-observation equivalence.
+The application-plan forward theorem supplies the randomized reference-profile
+law under `serialService`. The public-runtime strategic comparison remains open:
+that law does not establish intermediate-observation equivalence for arbitrary
+target deviations.
 
 Generated chance instructions use the exact `EventDist.eval` kernel, with an
 address-only environment command and no reroll after completion. This assumes
@@ -496,8 +483,9 @@ Conditional endpoints are certified independently of whether a site performs
 the unique accounting discharge. Their private guard dependencies prevent
 treating later optional copies as ordinary publicly validated choices. The
 persistent-disclosure instance exercises the generated repeated endpoints and
-whole-run support invariant; execution of its structurally lifted randomized
-profile through both disclosure sites remains part of the composition gate above.
+whole-run support invariant. When its initial-read and binding-origin
+certificates are supplied, the general forward theorem covers its structurally
+lifted randomized profile through both disclosure sites.
 Initial sealed-input provisioning/defaults and automatic execution of publicly
 forced choices remain additional gates, not assumptions supplied by accounting.
 
@@ -622,7 +610,8 @@ prefix/pending theorem and cannot be presented as an unconditional terminal law.
    proof obligation for the lift, not a claim that it is emitted client software.
 2. Actual application execution and decoding agree with the source outcome
    interpretation on completed runs.
-3. Compiled-profile law correspondence holds under the stated services.
+3. Extend the checked compiled-profile law under `serialService` only when a
+   broader stated service supplies the required progress and resolution facts.
 4. Analyze all target unilateral replacements at the same fixed environment
    policy, retaining other compiled principals. Prove a uniform translation,
    a precisely scoped mixture/quantitative statement, or a concrete obstruction.

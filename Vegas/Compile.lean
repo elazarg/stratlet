@@ -56,9 +56,18 @@ import Vegas.Compile.ConditionalSnapshot
 import Vegas.Compile.ConditionalPhaseExecution
 import Vegas.Compile.ApplicationPolicy
 import Vegas.Compile.ApplicationProfileContinuation
+import Vegas.Compile.ApplicationContinuationReadout
+import Vegas.Compile.ApplicationInitialReads
+import Vegas.Compile.ApplicationForwardCheckpoint
+import Vegas.Compile.ApplicationSampleForward
+import Vegas.Compile.ApplicationBindingForward
+import Vegas.Compile.ApplicationPublicChoiceForward
+import Vegas.Compile.ApplicationConditionalForward
+import Vegas.Compile.ApplicationForwardLaw
 import Vegas.Compile.ApplicationPolicyFreshness
 import Vegas.Compile.ApplicationCacheSeparation
 import Vegas.Compile.ApplicationPolicyCache
+import Vegas.Compile.ApplicationPhaseCaches
 import Vegas.Compile.ApplicationPolicyLocality
 import Vegas.Compile.ApplicationPolicyBindings
 import Vegas.Compile.ApplicationPolicyProvenance
@@ -107,6 +116,7 @@ nodes, exact finite laws, and terminal payoff projections.
 Structural application plans generate binding, chance, and publication instructions.
 Arbitrary supported public-message executions refine reachable graph states;
 completed runs have the public outcome of a written-order source execution.
-General whole-profile laws and strategic correspondence for this target remain separate
-obligations.
+The generated serial reference execution finishes with the independent source
+public-outcome law, under explicit initial-read and binding-origin conditions.
+Strategic correspondence and progress under arbitrary deviations remain separate obligations.
 -/
