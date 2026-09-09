@@ -877,9 +877,12 @@ but do not resolve the site. Expiration is strict and must actually be included;
 the clock reading alone executes nothing.
 
 `CommitmentAccounting.OpeningSite` locates a conditional-publication certificate
-inside an actual source accounting derivation. `ConditionalOpeningSite` derives
-the corresponding compiler-generated choice and reveal nodes, their exact rows,
-and the original typed source field. Backend handle allocation is explicit:
+inside an actual source accounting derivation. It converts to a
+`ConditionalPublicationSite`, whose `PublicChoiceSite` supplies the generated
+choice/reveal nodes and exact rows. The conditional certificate identifies the
+original typed source field. Later copies of a retained binding can supply
+this certificate independently of the original accounting discharge. Backend
+handle allocation is explicit:
 an initial sealed field need not have a producer node, and a graph field id is
 not automatically a commitment slot.
 

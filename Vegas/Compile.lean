@@ -6,7 +6,7 @@ Authors: VegasCore contributors
 
 import Vegas.Compile.Compiler
 import Vegas.Compile.ConditionalExecution
-import Vegas.Compile.ConditionalOpeningSite
+import Vegas.Compile.ConditionalPublicationSite
 import Vegas.Compile.ConditionalOpeningController
 import Vegas.Compile.ConditionalPublication
 import Vegas.Compile.ConditionalResolution

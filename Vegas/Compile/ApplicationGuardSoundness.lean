@@ -48,21 +48,22 @@ theorem SourceDecisionSite.unrestricted_guard_eval
 /-- Decline is graph-legal at every possible declared readout of the source
 opening site, including concurrent checkpoints with unrelated hidden fields
 still absent. No registered or recoverable native binding is required. -/
-theorem CommitmentAccounting.OpeningSite.decline_guard_eval
-    {Γ : VCtx P L} {pending : Finset VarId} {prog : VegasCore P L Γ}
-    {accounted : CommitmentAccounting pending prog} (site : accounted.OpeningSite)
+theorem ConditionalPublicationSite.decline_guard_eval
+    {Γ : VCtx P L} {prog : VegasCore P L Γ}
+    (site : ConditionalPublicationSite prog)
     (fresh : FreshBindings prog) (state : BuildState P L Γ)
     (initial : VEnv L Γ) (legal : Legal prog)
-    (reads : ReadEnv L (site.compiledGuard fresh state).choiceReads) :
-    (site.compiledGuard fresh state).eval (site.data.specification.encoding.symm none) reads =
+    (reads : ReadEnv L (site.choice.compiledGuard fresh state).choiceReads) :
+    (site.choice.compiledGuard fresh state).eval (site.specification.encoding.symm none) reads =
       true := by
-  obtain ⟨baseline⟩ := site.data.decision.context_nonempty initial legal
-  obtain ⟨env, hview⟩ := VEnv.exists_toView_eq site.data.owner baseline
-    ((decisionSiteState site.data.decision fresh state).wctx.viewVCtx)
-    (visibleEnvOfReadEnv (decisionSiteState site.data.decision fresh state) site.data.owner reads)
-  have hlegal := site.data.specification.decline_legal env
+  obtain ⟨baseline⟩ := site.choice.decision.context_nonempty initial legal
+  obtain ⟨env, hview⟩ := VEnv.exists_toView_eq site.choice.owner baseline
+    ((decisionSiteState site.choice.decision fresh state).wctx.viewVCtx)
+    (visibleEnvOfReadEnv (decisionSiteState site.choice.decision fresh state)
+      site.choice.owner reads)
+  have hlegal := site.specification.decline_legal env
   rw [hview, visibleEnvOfReadEnv_erase] at hlegal
-  exact (eventGuardOf_eval_eq_eval _ site.data.owner site.data.guard _ reads).trans hlegal
+  exact (eventGuardOf_eval_eq_eval _ site.choice.owner site.choice.guard _ reads).trans hlegal
 
 end Vegas
 
@@ -71,7 +72,7 @@ end Vegas
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.SourceDecisionSite.unrestricted_guard_eval
 
-/-- info: 'Vegas.CommitmentAccounting.OpeningSite.decline_guard_eval' depends on axioms:
+/-- info: 'Vegas.ConditionalPublicationSite.decline_guard_eval' depends on axioms:
 [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
-#print axioms Vegas.CommitmentAccounting.OpeningSite.decline_guard_eval
+#print axioms Vegas.ConditionalPublicationSite.decline_guard_eval

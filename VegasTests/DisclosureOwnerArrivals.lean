@@ -53,7 +53,7 @@ theorem owner_initial_pair (secret : Bool) (complete : Bool → Bool → Bool)
   simp [MessagePool.submit, MessagePool.empty, IdealCommitments.sealValue,
     IdealCommitments.lookup, IdealCommitments.empty, initialCachedValue,
     initialCommandEncoding, initialChoiceEncoding, openingCommandEncoding,
-    openingPayloadEncoding, Vegas.CommitmentAccounting.OpeningSite.choiceEncoding,
+    openingPayloadEncoding, Vegas.ConditionalPublicationSite.choiceEncoding,
     MessageApplication.ChoiceEncoding.trans, openingTransport, bindingSubmitted,
     openingSubmitted, observe, empty]
 

@@ -54,6 +54,9 @@ compiled graph steps. It checks opening legality separately from commitment
 verification; whole-program public-runtime strategy correspondence remains open.
 Structural `ApplicationPlan` derivations generate binding, chance, public-choice, and
 conditional-publication instructions with their backend eligibility conditions.
+Conditional-publication eligibility is independent of the original binding's
+accounting discharge, so later certified copies can reuse that binding under
+their own source guards.
 Arbitrary supported native and randomized policy executions preserve a reachable
 graph witness. A completed run's executable public readout has an actual
 written-order source execution witness. These support theorems impose no

@@ -19,6 +19,9 @@ one adjacent pair. There are no cases that discard a sample or a literal reveal.
 Opaque bindings require an unrestricted original guard because the current
 binding instruction does not validate that guard. Slots use the source-field
 allocation. Conditional deadlines are supplied separately by publication node.
+Conditional endpoints can discharge an original binding or publish a later
+copy of a retained binding. Both use the same source guard certificate; only
+their accounting derivations differ.
 Initial sealed-input provisioning and whole-program strategy correspondence are
 separate from this code-generation derivation.
 -/
@@ -30,21 +33,6 @@ namespace Vegas
 open EventGraph ToEventGraph
 
 variable {P : Type} [DecidableEq P] {L : IExpr}
-
-/-- The canonical occurrence for a source pair at the current compiler cursor. -/
-def PublicChoiceSite.atHead {Γ : VCtx P L} (name publicName : VarId) (who : P)
-    {ty : L.Ty} (guard : L.Expr ((name, ty) :: eraseVCtx (viewVCtx who Γ)) L.bool)
-    (tail : VegasCore P L ((publicName, .pub ty) :: (name, .sealed who ty) :: Γ)) :
-    PublicChoiceSite (.commit name who guard (.reveal publicName who name .here tail)) where
-  context := Γ
-  choiceName := name
-  publicName := publicName
-  owner := who
-  ty := ty
-  guard := guard
-  tail := tail
-  decision := .here guard (.reveal publicName who name .here tail)
-  adjacent := rfl
 
 /-- Backend admissibility of an unvalidated opaque binding. This is stronger
 than the source's nonempty-menu requirement and does not change source WF. -/
@@ -104,12 +92,28 @@ inductive ApplicationPlan :
       {accounted : CommitmentAccounting (pending.erase spec.source) tail}
       {fresh : FreshBindings (.commit name who guard (.reveal publicName who name .here tail))}
       {state : BuildState P L Γ}
-      (publicGuard : (CommitmentAccounting.OpeningSite.here
-        spec unresolved newName accounted).PubliclyValidatable fresh state)
+      (publicGuard : ConditionalPublicationSite.PubliclyValidatable
+        (ConditionalPublicationSite.atHead name publicName who guard tail spec) fresh state)
       (next : ApplicationPlan accounted fresh.2.2
         (((state.addCommitEvent name who guard fresh.1).1).addRevealEvent
           publicName who .here fresh.2.1).1) :
       ApplicationPlan (.opening spec unresolved newName accounted) fresh state
+  /-- A conditional endpoint for a copy with its own accounting discharge. -/
+  | conditionalCopy {Γ : VCtx P L} {pending : Finset VarId} {name publicName : VarId}
+      {who : P} {ty : L.Ty}
+      {guard : L.Expr ((name, ty) :: eraseVCtx (viewVCtx who Γ)) L.bool}
+      {tail : VegasCore P L ((publicName, .pub ty) :: (name, .sealed who ty) :: Γ)}
+      (spec : ConditionalOpening guard)
+      {newName : name ∉ pending} {unresolved : name ∈ insert name pending}
+      {accounted : CommitmentAccounting ((insert name pending).erase name) tail}
+      {fresh : FreshBindings (.commit name who guard (.reveal publicName who name .here tail))}
+      {state : BuildState P L Γ}
+      (publicGuard : ConditionalPublicationSite.PubliclyValidatable
+        (ConditionalPublicationSite.atHead name publicName who guard tail spec) fresh state)
+      (next : ApplicationPlan accounted fresh.2.2
+        (((state.addCommitEvent name who guard fresh.1).1).addRevealEvent
+          publicName who .here fresh.2.1).1) :
+      ApplicationPlan (.commit newName (.reveal unresolved accounted)) fresh state
 
 namespace ApplicationPlan
 
@@ -197,11 +201,18 @@ def instructions (deadlineOf : Nat → Nat) :
       .publicChoice ((PublicChoiceSite.atHead name publicName who guard tail).code fresh state) ::
         instructions deadlineOf next
   | _, _, _, _, _, _,
-      .conditional (spec := spec) (unresolved := unresolved) (newName := newName)
-        (accounted := accounted) (fresh := fresh) (state := state) _ next =>
-      let site := CommitmentAccounting.OpeningSite.here spec unresolved newName accounted
+      .conditional (name := name) (publicName := publicName) (who := who)
+        (guard := guard) (tail := tail) (spec := spec)
+        (fresh := fresh) (state := state) _ next =>
+      let site := ConditionalPublicationSite.atHead name publicName who guard tail spec
       .conditional (site.code fresh state (site.sourceField fresh state)
-        (deadlineOf (site.publicationNode fresh state))) :: instructions deadlineOf next
+        (deadlineOf (site.choice.publicationNode fresh state))) :: instructions deadlineOf next
+  | _, _, _, _, _, _,
+      .conditionalCopy (name := name) (publicName := publicName) (who := who)
+        (guard := guard) (tail := tail) (fresh := fresh) (state := state) spec _ next =>
+      let site := ConditionalPublicationSite.atHead name publicName who guard tail spec
+      .conditional (site.code fresh state (site.sourceField fresh state)
+        (deadlineOf (site.choice.publicationNode fresh state))) :: instructions deadlineOf next
 
 /-- The application image is generated from the complete derivation, rather
 than an externally supplied list of selected source occurrences. -/

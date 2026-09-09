@@ -92,12 +92,12 @@ theorem instructions_allocated
           PublicChoiceSite.runtimeSite, Graph.publicChoice, Graph.nodeTarget,
           BuildResult.graph]
       · simpa using ih instruction hmem
-  | conditional publicGuard next ih =>
+  | conditional publicGuard next ih | conditionalCopy spec publicGuard next ih =>
       simp only [instructions, List.mem_cons]
       intro instruction hmem
       rcases hmem with rfl | hmem
-      · simp [ApplicationInstruction.AllocatedAt, CommitmentAccounting.OpeningSite.code,
-          CommitmentAccounting.OpeningSite.runtimeSite, Graph.conditionalPublication,
+      · simp [ApplicationInstruction.AllocatedAt, ConditionalPublicationSite.code,
+          ConditionalPublicationSite.runtimeSite, Graph.conditionalPublication,
           Graph.nodeTarget, BuildResult.graph]
       · simpa using ih instruction hmem
 

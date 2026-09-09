@@ -154,7 +154,7 @@ theorem handle_refines (plan : ApplicationPlan accounted fresh build)
                   cases plan.origin_of_lookup deadlineOf address (.conditional code) hlookup with
                   | conditional site publicGuard =>
                       let code := site.code fresh build (site.sourceField fresh build)
-                        (deadlineOf (site.publicationNode fresh build))
+                        (deadlineOf (site.choice.publicationNode fresh build))
                       simp only [ApplicationImage.handle, hlookup, Option.bind_eq_bind,
                         Option.bind_some] at hnext
                       change ((code.decode payload).bind fun decoded =>
@@ -177,7 +177,7 @@ theorem handle_refines (plan : ApplicationPlan accounted fresh build)
                               cases hnext
                               exact ⟨_, site.resolution_refines fresh build
                                 (site.sourceField fresh build)
-                                (deadlineOf (site.publicationNode fresh build)) initial legal
+                                (deadlineOf (site.choice.publicationNode fresh build)) initial legal
                                 native cfg hrefines publicGuard ⟨id, decoded⟩ result hresolved⟩
 
 /-- Arbitrary native action lists retain a reachable source-graph witness.

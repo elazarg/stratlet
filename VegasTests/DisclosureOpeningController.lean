@@ -26,10 +26,10 @@ variable {window : Nat}
 
 abbrev OpeningDecision :=
   (visible : Env simpleExpr.Val (eraseVCtx
-    (viewVCtx Publication.accountingSite.data.owner
-      Publication.accountingSite.data.context))) →
-    FinDist {value : simpleExpr.Val Publication.accountingSite.data.copyTy //
-      evalGuard Publication.accountingSite.data.guard value visible = true}
+    (viewVCtx Publication.publicationCertificate.choice.owner
+      Publication.publicationCertificate.choice.context))) →
+    FinDist {value : simpleExpr.Val Publication.publicationCertificate.choice.ty //
+      evalGuard Publication.publicationCertificate.choice.guard value visible = true}
 
 /-- The application constructor is a canonical transport for addressed
 conditional-publication requests. Other application payloads are outside its
@@ -48,7 +48,7 @@ def openingTransport :
 /-- Canonical opening payloads are independent of the timeout attached to the
 runtime publication site. -/
 def openingPayloadEncoding : ChoiceEncoding (Option Bool) Payload :=
-  Publication.accountingSite.choiceEncoding source.fresh compilerInitial
+  Publication.publicationCertificate.choiceEncoding source.fresh compilerInitial
     0 0 openingTransport
 
 /-- Canonical opening choices as actual player submission commands. -/
@@ -71,7 +71,7 @@ def openingCommandEncoding :
     openingPayloadEncoding.decode (.publish 5 .expire) = none := rfl
 
 theorem opening_specification :
-    Publication.accountingSite.data.specification = DisclosureAccounting.optionalSpec := rfl
+    Publication.publicationCertificate.specification = DisclosureAccounting.optionalSpec := rfl
 
 /-- The source value supplied to the opening decision. Commitments require the
 actual slot-zero private command in the owner's history; a public default is
@@ -107,20 +107,20 @@ def openingReadStore (history : List (application window).PlayerEntry)
 
 theorem opening_choiceReads :
     (eventGuardOf
-      (decisionSiteState Publication.accountingSite.data.decision source.fresh
+      (decisionSiteState Publication.publicationCertificate.choice.decision source.fresh
         compilerInitial)
-      (0 : TestPlayer) Publication.accountingSite.data.guard).choiceReads =
+      (0 : TestPlayer) Publication.publicationCertificate.choice.guard).choiceReads =
       {{ field := 3, ty := .bool }, { field := 2, ty := .bool },
         { field := 1, ty := .bool }, { field := 0, ty := .bool }} := rfl
 
 def openingReadout? (history : List (application window).PlayerEntry)
     (view : (application window).View) :
-    Option (Publication.accountingSite.ChoiceReads source.fresh compilerInitial) :=
+    Option (Publication.publicationCertificate.ChoiceReads source.fresh compilerInitial) :=
   ReadEnv.ofStoreExec? (openingReadStore history view)
     (eventGuardOf
-      (decisionSiteState Publication.accountingSite.data.decision source.fresh
+      (decisionSiteState Publication.publicationCertificate.choice.decision source.fresh
         compilerInitial)
-      (0 : TestPlayer) Publication.accountingSite.data.guard).choiceReads
+      (0 : TestPlayer) Publication.publicationCertificate.choice.guard).choiceReads
 
 /-- The native read store represents the complete source-visible environment,
 including the private initial source recovered from command history. -/
@@ -130,7 +130,7 @@ theorem openingReadStore_view_agrees
     (hbound : openingBound? history view = some secret)
     (hmarker : view.application.markerDone = true)
     (hsignal : view.application.signal = some signal) :
-    (decisionSiteState Publication.accountingSite.data.decision source.fresh
+    (decisionSiteState Publication.publicationCertificate.choice.decision source.fresh
       compilerInitial).ViewAgrees 0 (openingReadStore history view)
         (openingEnv secret signal) := by
   intro name ty binding
@@ -164,9 +164,9 @@ theorem openingReadout_available
     ∃ reads, openingReadout? history view = some reads := by
   have available : ∀ ref, ref ∈
       (eventGuardOf
-        (decisionSiteState Publication.accountingSite.data.decision source.fresh
+        (decisionSiteState Publication.publicationCertificate.choice.decision source.fresh
           compilerInitial)
-        (0 : TestPlayer) Publication.accountingSite.data.guard).choiceReads →
+        (0 : TestPlayer) Publication.publicationCertificate.choice.guard).choiceReads →
       (Store.getAs (openingReadStore history view) ref.field ref.ty).isSome := by
     intro ref href
     rw [opening_choiceReads] at href
@@ -175,9 +175,9 @@ theorem openingReadout_available
       simp [Store.getAs, openingReadStore, hbound, hmarker, hsignal, TypedValue.as?]
   let reads := ReadEnv.ofStoreChecked (openingReadStore history view)
     (eventGuardOf
-      (decisionSiteState Publication.accountingSite.data.decision source.fresh
+      (decisionSiteState Publication.publicationCertificate.choice.decision source.fresh
         compilerInitial)
-      (0 : TestPlayer) Publication.accountingSite.data.guard).choiceReads available
+      (0 : TestPlayer) Publication.publicationCertificate.choice.guard).choiceReads available
   refine ⟨reads, ?_⟩
   unfold openingReadout? ReadEnv.ofStoreExec?
   rw [dif_pos available]
@@ -199,7 +199,7 @@ theorem openingReadout_none_of_bound_none
 /-- Fixed-deadline metadata used by the observation-local native policy. -/
 def openingController (deadline : Nat) (policy : OpeningDecision)
     (retry : List (application window).PlayerEntry → (application window).View → Bool) :=
-  Publication.accountingSite.controller source.fresh compilerInitial 0 deadline
+  Publication.publicationCertificate.controller source.fresh compilerInitial 0 deadline
     (application window) openingTransport
     (fun view => view.application.accepted.map DisclosureBinding.reference)
     (fun view => view.application.done) openingReadout? policy retry
@@ -262,7 +262,7 @@ theorem openingPolicy_first_submission (policy : OpeningDecision)
           (view.application.signalAt + window)).requestPayload chosen.1)) := by
   obtain ⟨reads, hreadout⟩ := openingReadout_available history view secret signal
     hbound hmarker hsignal
-  have hlaw := Publication.accountingSite.controller_first_submission_source_law
+  have hlaw := Publication.publicationCertificate.controller_first_submission_source_law
     source.fresh compilerInitial 0 (view.application.signalAt + window)
     (application window) openingTransport
     (fun observed => observed.application.accepted.map DisclosureBinding.reference)
@@ -286,8 +286,8 @@ theorem openingPolicy_first_submission (policy : OpeningDecision)
 /-- Deterministic optional disclosure as a source decision kernel. -/
 def pureOpeningDecision (complete : Bool → Bool → Bool) : OpeningDecision :=
   fun (visible : Env simpleExpr.Val (eraseVCtx
-      (viewVCtx Publication.accountingSite.data.owner
-        Publication.accountingSite.data.context))) =>
+      (viewVCtx Publication.publicationCertificate.choice.owner
+        Publication.publicationCertificate.choice.context))) =>
     let bound : Bool := visible.get (.there (.there (.there .here)))
     let signal : Bool := visible.get .here
     let opening := if complete bound signal then some bound else none
@@ -331,7 +331,7 @@ theorem pureProfile_opening_decision
     (secret : Bool) (complete : Bool → Bool → Bool)
     (response : Bool → Option Bool → Bool) :
     SourcePolicies.pureProfile [(0, payoff)] secret complete response 0
-      Publication.accountingSite.data.decision = pureOpeningDecision complete := rfl
+      Publication.publicationCertificate.choice.decision = pureOpeningDecision complete := rfl
 
 theorem openingPolicy_first_pure (complete : Bool → Bool → Bool)
     (history : List (application window).PlayerEntry) (view : (application window).View)

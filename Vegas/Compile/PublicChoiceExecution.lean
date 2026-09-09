@@ -33,15 +33,6 @@ def completePublication (site : PublicChoiceSite prog) (fresh : FreshBindings pr
   (cfg.completeNode (choiceNode site fresh state) typed).completeNode
     (publicationNode site fresh state) typed
 
-private theorem publicationNode_ne_choiceNode
-    (site : PublicChoiceSite prog) (fresh : FreshBindings prog)
-    (state : BuildState P L Γ) :
-    publicationNode site fresh state ≠ choiceNode site fresh state := by
-  intro heq
-  have hval := congrArg Fin.val heq
-  simp only [publicationNode_val, choiceNode_val] at hval
-  omega
-
 /-- A legal source value performs exactly the adjacent commit and reveal in
 the represented source program. -/
 theorem completePublication_source_steps

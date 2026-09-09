@@ -208,7 +208,8 @@ theorem responderPolicy_pure_eq (response : Bool → Option Bool → Bool)
 Protocol control, delivery, and deadline resolution remain native operations. -/
 def compiledPlayers (profile : Vegas.SourceBehavioralProfile source.prog) :
     TestPlayer → (application window).PlayerPolicy
-  | 0 => ownerPolicy (profile 0 initialSite) (profile 0 Publication.accountingSite.data.decision)
+  | 0 => ownerPolicy (profile 0 initialSite)
+      (profile 0 Publication.publicationCertificate.choice.decision)
   | 1 => responderPolicy (profile 1 responseOccurrence.decision)
 
 theorem compiledPlayers_pure (secret : Bool) (complete : Bool → Bool → Bool)

@@ -34,6 +34,22 @@ structure PublicChoiceSite {Γ : VCtx P L} (prog : VegasCore P L Γ) where
 
 namespace PublicChoiceSite
 
+/-- The canonical occurrence for an adjacent source commitment/publication
+pair at the current source cursor. -/
+def atHead {Γ : VCtx P L} (name publicName : VarId) (who : P)
+    {ty : L.Ty} (guard : L.Expr ((name, ty) :: eraseVCtx (viewVCtx who Γ)) L.bool)
+    (tail : VegasCore P L ((publicName, .pub ty) :: (name, .sealed who ty) :: Γ)) :
+    PublicChoiceSite (.commit name who guard (.reveal publicName who name .here tail)) where
+  context := Γ
+  choiceName := name
+  publicName := publicName
+  owner := who
+  ty := ty
+  guard := guard
+  tail := tail
+  decision := .here guard (.reveal publicName who name .here tail)
+  adjacent := rfl
+
 def siteState {Γ : VCtx P L} {prog : VegasCore P L Γ}
     (site : PublicChoiceSite prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) : BuildState P L site.context :=
@@ -128,6 +144,14 @@ def publicationNode {Γ : VCtx P L} {prog : VegasCore P L Γ}
     (state : BuildState P L Γ) :
     (publicationNode site fresh state : Nat) =
       (site.siteState fresh state).nodes.length + 1 := rfl
+
+theorem publicationNode_ne_choiceNode {Γ : VCtx P L} {prog : VegasCore P L Γ}
+    (site : PublicChoiceSite prog) (fresh : FreshBindings prog)
+    (state : BuildState P L Γ) :
+    publicationNode site fresh state ≠ choiceNode site fresh state := by
+  intro heq
+  have := congrArg Fin.val heq
+  simp at this
 
 theorem choiceNode_row {Γ : VCtx P L} {prog : VegasCore P L Γ}
     (site : PublicChoiceSite prog) (fresh : FreshBindings prog)

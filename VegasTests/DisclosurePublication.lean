@@ -36,6 +36,11 @@ def accountingSite : CommitmentAccounting.OpeningSite DisclosureAccounting.optio
   apply CommitmentAccounting.OpeningSite.sample
   apply CommitmentAccounting.OpeningSite.here
 
+/-- The accounting witness supplies the ordinary adjacent choice occurrence
+and its conditional-opening certificate to the backend. -/
+def publicationCertificate : ConditionalPublicationSite source.prog :=
+  accountingSite.conditionalPublicationSite
+
 private def compilerInitial : ToEventGraph.BuildState TestPlayer simpleExpr source.Γ :=
   ToEventGraph.BuildState.fromInitial
     (ToEventGraph.initialState source.Γ source.env source.wctx)
@@ -50,7 +55,7 @@ private def identityTransport :
     exact Option.some.inj hdecode
 
 private def openingChoiceEncoding :=
-  accountingSite.choiceEncoding source.fresh compilerInitial 0 10 identityTransport
+  publicationCertificate.choiceEncoding source.fresh compilerInitial 0 10 identityTransport
 
 theorem opening_choice_encodes_decline :
     openingChoiceEncoding.encode none = (5, .decline) := rfl
@@ -71,7 +76,7 @@ def publicationSite (deadline : Nat) : ConditionalPublication TestPlayer :=
     publicationSite deadline = ⟨0, 0, 4, 5, [0, 1, 2, 3, 0, 1], deadline⟩ := rfl
 
 theorem publicationSite_from_accounting (deadline : Nat) :
-    publicationSite deadline = accountingSite.runtimeSite OptionalDisclosure.source.fresh
+    publicationSite deadline = publicationCertificate.runtimeSite OptionalDisclosure.source.fresh
       compilerInitial 0 deadline := by
   rfl
 
@@ -151,21 +156,21 @@ commit/reveal steps, with the continuation selected by its accounting site. -/
 theorem handler_source_steps (data : RunData) (deadline now : Nat)
     (message : Message TestPlayer Payload) (next : Application)
     (hhandler : handler deadline now (initial data) message = some next) :
-    let found := accountingSite.data
+    let found := publicationCertificate.choice
     let env := openingEnv data.secret data.signal
     ∃ choice, next.config = cfg { data with opening := choice } 6 ∧
       SmallStep.Star
-        ⟨found.context, env, .commit found.copyName found.owner found.guard
-          (.reveal found.publicName found.owner found.copyName .here found.tail)⟩
-        ⟨(found.publicName, .pub found.copyTy) ::
-            (found.copyName, .sealed found.owner found.copyTy) :: found.context,
+        ⟨found.context, env, .commit found.choiceName found.owner found.guard
+          (.reveal found.publicName found.owner found.choiceName .here found.tail)⟩
+        ⟨(found.publicName, .pub found.ty) ::
+            (found.choiceName, .sealed found.owner found.ty) :: found.context,
           (env.cons choice).cons choice, found.tail⟩ := by
   obtain ⟨choice, _, hnext, hlegal⟩ := handler_success data deadline now message next hhandler
   exact ⟨choice, hnext, DisclosureAccounting.optionalSpec.commit_reveal_steps
-    5 accountingSite.data.tail (openingEnv data.secret data.signal) choice hlegal⟩
+    5 publicationCertificate.choice.tail (openingEnv data.secret data.signal) choice hlegal⟩
 
 private theorem checkpoint_agrees (data : RunData) :
-    (ToEventGraph.decisionSiteState accountingSite.data.decision source.fresh
+    (ToEventGraph.decisionSiteState publicationCertificate.choice.decision source.fresh
       compilerInitial).Agrees (cfg data 4).store (openingEnv data.secret data.signal) := by
   intro name ty binding
   cases binding with
@@ -194,11 +199,11 @@ theorem handler_graph_reachable (data : RunData) (deadline now : Nat)
     change decide (index.val ∈ [0, 1, 2, 3]) = true ↔
       index ∈ ({node 3, node 2, node 1, node 0} : Finset (Fin graph.nodeCount))
     fin_cases index <;> decide
-  have hready : (accountingSite.runtimeSite source.fresh compilerInitial 0 deadline).ready
+  have hready : (publicationCertificate.runtimeSite source.fresh compilerInitial 0 deadline).ready
       (some (0, 0)) (initial data).done = true := by
     rw [← publicationSite_from_accounting]
     rfl
-  have hresult := accountingSite.completePublication_reachable source.fresh compilerInitial
+  have hresult := publicationCertificate.completePublication_reachable source.fresh compilerInitial
     (cfg data 4) (openingEnv data.secret data.signal) (checkpoint_agrees data)
     0 deadline (some (0, 0)) (initial data).done hcompleted hready choice hlegal hreachable
   rw [hnext]

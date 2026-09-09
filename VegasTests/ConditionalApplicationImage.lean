@@ -92,16 +92,19 @@ def openingSite : CommitmentAccounting.OpeningSite plan := by
   apply CommitmentAccounting.OpeningSite.commit
   apply CommitmentAccounting.OpeningSite.here
 
+def conditionalSite : ConditionalPublicationSite source.prog :=
+  openingSite.conditionalPublicationSite
+
 def compilerInitial : BuildState Player simpleExpr source.Γ :=
   BuildState.fromInitial (initialState source.Γ source.env source.wctx)
 
 theorem opening_publicly_validatable :
-    openingSite.PubliclyValidatable source.fresh compilerInitial := by
+    conditionalSite.PubliclyValidatable source.fresh compilerInitial := by
   intro ref href
   left
   change ref ∈ ({({ field := 0, ty := .bool } : FieldRef simpleExpr)} :
     Finset (FieldRef simpleExpr)) at href
-  have hsource : openingSite.sourceRef source.fresh compilerInitial =
+  have hsource : conditionalSite.sourceRef source.fresh compilerInitial =
       ({ field := 0, ty := .bool } : FieldRef simpleExpr) := rfl
   rw [hsource]
   simpa using href
@@ -124,7 +127,7 @@ def bindingCode : BindingCode Player :=
   initialSite.bindingCode source.fresh compilerInitial 0
 
 def conditionalCode (deadline : Nat) : ConditionalCode Player simpleExpr :=
-  openingSite.code source.fresh compilerInitial 0 deadline
+  conditionalSite.code source.fresh compilerInitial 0 deadline
 
 def applicationPlan : ApplicationPlan plan source.fresh compilerInitial := by
   apply ApplicationPlan.binding

@@ -128,6 +128,28 @@ theorem refusal_forces_later_refusal (secret signal response : Bool) (later : Op
   exact (((second_guard_iff secret signal response none later).mp hlegal).resolve_right
     (by simp)).2
 
+/-- The second guard permits only decline or the retained binding, for every
+source environment rather than just the canonical execution environments. -/
+theorem second_guard_sound (env : VEnv simpleExpr SecondContext) (chosen : Option Bool)
+    (hlegal : evalGuard (Player := Player) (L := simpleExpr) secondGuard chosen
+      ((env.toView 0).eraseEnv) = true) :
+    chosen = none ∨ chosen = some (env.get
+      (.there (.there (.there (.there (.there (.there (.there .here)))))))) := by
+  change (if (env.get (.there (.there .here))).isNone then chosen.isNone
+    else !(!chosen.isNone && !decide (chosen = some (env.get
+      (.there (.there (.there (.there (.there (.there (.there .here))))))))))) = true at hlegal
+  generalize env.get (.there (.there .here)) = first at hlegal
+  generalize env.get
+    (.there (.there (.there (.there (.there (.there (.there .here))))))) = secret
+      at hlegal ⊢
+  fin_cases chosen <;> fin_cases first <;> fin_cases secret <;> simp_all
+
+/-- Decline remains legal at the later site, independently of earlier choices. -/
+theorem second_decline_legal (env : VEnv simpleExpr SecondContext) :
+    evalGuard (Player := Player) (L := simpleExpr) secondGuard none
+      ((env.toView 0).eraseEnv) = true := by
+  simp [evalGuard, secondGuard, orBool, evalExpr]
+
 instance fieldCountNeZero : NeZero graph.fieldCount := ⟨by decide⟩
 
 theorem original_not_read_by_responder (index : Fin graph.nodeCount)

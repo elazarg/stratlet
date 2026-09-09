@@ -70,13 +70,14 @@ theorem coveredNodes_eq_range
         PublicChoiceSite.siteState, decisionSiteState,
         BuildState.addCommitEvent_nodes, BuildState.addRevealEvent_nodes,
         List.range_succ, List.append_assoc, Nat.add_assoc] using ih
-  | conditional publicGuard next ih =>
+  | conditional publicGuard next ih | conditionalCopy spec publicGuard next ih =>
       simpa [instructions, ApplicationInstruction.coveredNodes, compileCore,
-        CommitmentAccounting.OpeningSite.code,
-        CommitmentAccounting.OpeningSite.runtimeSite, Graph.conditionalPublication,
-        CommitmentAccounting.OpeningSite.choiceNode,
-        CommitmentAccounting.OpeningSite.publicationNode,
-        CommitmentAccounting.OpeningSite.data, decisionSiteState,
+        ConditionalPublicationSite.code,
+        ConditionalPublicationSite.runtimeSite, Graph.conditionalPublication,
+        PublicChoiceSite.choiceNode,
+        PublicChoiceSite.publicationNode,
+        ConditionalPublicationSite.atHead,
+        PublicChoiceSite.atHead, PublicChoiceSite.siteState, decisionSiteState,
         BuildState.addCommitEvent_nodes, BuildState.addRevealEvent_nodes,
         List.range_succ, List.append_assoc, Nat.add_assoc] using ih
 

@@ -377,7 +377,7 @@ current metadata construction uses the noncomputable compiler elaboration.
 
 `ApplicationImage` is the shared dispatch artifact for generated chance, public-choice,
 opaque-binding, and conditional-publication instructions. `PublicChoiceSite.code`,
-`SourceDecisionSite.bindingCode`, and `CommitmentAccounting.OpeningSite.code`
+`SourceDecisionSite.bindingCode`, and `ConditionalPublicationSite.code`
 consume source occurrences and the existing compiler allocation. All instruction
 kinds share one address lookup and the same `MessageApplication` interpreter.
 The handler dynamically checks the packet's kind, type, and address before
@@ -452,21 +452,27 @@ Those source programs remain valid; this backend needs additional instruction
 implementations to compile them. A later optional copy of an already-accounted
 sealed binding is also valid source code: its own commit/reveal pair can be
 accounted independently while its guard still reads the retained original.
-The current backend's conditional case requires an accounting `OpeningSite`,
-so it cannot implement that later copy as a conditional endpoint, and ordinary
-public validation cannot read the retained sealed field. Conditional-runtime
-eligibility must be separated from the unique accounting discharge; neither
-source syntax nor source accounting needs to change. `PersistentDisclosure`
-and `DisclosureAccounting.persistentPlan` exercise this source case.
-The intended certificate is a `ConditionalPublicationSite prog` containing an
+Conditional-runtime eligibility is separate from the unique accounting
+discharge. The certificate `ConditionalPublicationSite prog` contains an
 adjacent `PublicChoiceSite prog` and a `ConditionalOpening` certificate for that
-same choice's guard. Node and row metadata should reuse the public-choice site.
+same choice's guard. Node and row metadata reuse the public-choice site.
 An accounted opening converts to this certificate; an ordinary adjacent copy
-can supply it independently. The application derivation then distinguishes
-discharge of the original binding from ordinary discharge of the new copy,
-while emitting the same conditional instruction. The certificate does not
+can supply it independently. `ApplicationPlan.conditional` discharges the
+original binding, while `ApplicationPlan.conditionalCopy` discharges the new
+copy through its ordinary commit/reveal accounting. Both emit the same
+conditional instruction and use the same refinement theorem. Publication
+preserves the original accepted handle and frozen snapshot; a later endpoint
+can consult them again, subject to its own guard and readiness conditions.
+Neither source syntax nor source accounting is extended. The certificate does not
 prove that a commitment was prepared or accepted: initialization, controller
 provenance, and service must establish that availability separately.
+`GeneratedPersistentDisclosure` compiles the unchanged ten-node source through
+both derivation cases. Its exact native execution law opens the original
+snapshot at both sites even after the private preparation slot is overwritten.
+A separate execution checks that an earlier decline rejects a later opening
+and still permits a completing decline. Completed opening runs instantiate the
+general written-order source public-outcome theorem. These concrete laws use
+specified raw actions, not generated whole-program behavioral controllers.
 The public initializer also does not provision
 sealed initial inputs. A whole-program entry must either account for that
 provisioning or explicitly require no sealed initial inputs. Generated controller
@@ -610,7 +616,7 @@ controller generation, randomized full-profile laws, and unilateral deviation
 simulation remain open; a local first-emission law does not establish them.
 
 Conditional openings already have generated metadata in
-`ConditionalOpeningSite.runtimeSite`; consume it rather than introduce another
+`ConditionalPublicationSite.runtimeSite`; consume it rather than introduce another
 site table. These local generation steps do not themselves establish strategic
 equivalence between atomic publication and intermediate graph observations.
 

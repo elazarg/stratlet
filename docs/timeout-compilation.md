@@ -320,8 +320,10 @@ claim of impossibility needs a witness for that claim and policy class.
 
 The conditional-publication component supplies a local source-resolution
 bridge without adopting the final-expiration instance's global stop policy.
-`ConditionalOpeningSite` derives the paired choice/reveal metadata from a
-source accounting certificate. `ConditionalResolution` proves accepted
+`ConditionalPublicationSite` combines the paired choice/reveal occurrence
+with a guard certificate identifying decline or opening of a retained binding.
+Source accounting can supply that certificate; later copies can supply it
+independently of the original binding's discharge. `ConditionalResolution` proves accepted
 results perform legal source steps and every legal source choice has a
 canonical accepted request, under the appropriate soundness/completeness
 directions of the application validator. `ConditionalExecution` proves the

@@ -4,7 +4,8 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
-import Vegas.Compile.ConditionalOpeningSite
+import Vegas.Compile.ConditionalPublicationSite
+import Vegas.Compile.PublicChoiceValidation
 import Vegas.Compile.PublicGuard
 import Vegas.Compile.SourceLaw
 
@@ -21,55 +22,48 @@ proofs. They are not inputs to the executable validator.
 
 noncomputable section
 
-namespace Vegas.CommitmentAccounting.OpeningSite
+namespace Vegas.ConditionalPublicationSite
 
 open Vegas.EventGraph Vegas.ToEventGraph
 
 variable {P : Type} [DecidableEq P] {L : IExpr}
-variable {Γ : VCtx P L} {pending : Finset VarId} {prog : VegasCore P L Γ}
-variable {plan : CommitmentAccounting pending prog}
-
-/-- Retained executable guard for the accounted source decision. -/
-def compiledGuard (site : plan.OpeningSite) (fresh : FreshBindings prog)
-    (state : BuildState P L Γ) : EventGuard L :=
-  eventGuardOf (decisionSiteState site.data.decision fresh state)
-    site.data.owner site.data.guard
+variable {Γ : VCtx P L} {prog : VegasCore P L Γ}
 
 /-- The exact typed graph reference of the earlier sealed source. Eligibility
 uses typed-reference equality, not numeric-address equality alone. -/
-def sourceRef (site : plan.OpeningSite) (fresh : FreshBindings prog)
+def sourceRef (site : ConditionalPublicationSite prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) : FieldRef L where
   field := sourceField site fresh state
-  ty := site.data.specification.secretTy
+  ty := site.specification.secretTy
 
 /-- Every syntactic guard dependency is either the one verified sealed source
 or an ordinary public graph field. Full choice information is intentionally
 not required by validation. -/
-def PubliclyValidatable (site : plan.OpeningSite) (fresh : FreshBindings prog)
+def PubliclyValidatable (site : ConditionalPublicationSite prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) : Prop :=
-  ∀ ref, ref ∈ (site.compiledGuard fresh state).validationReads →
+  ∀ ref, ref ∈ (site.choice.compiledGuard fresh state).validationReads →
     ref = site.sourceRef fresh state ∨
       (compileCore prog fresh state).graph.fieldRefPublic ref
 
 /-- Supply the already verified claim only to this guard evaluation. The
 private source does not become persistent public application memory. -/
-def verificationStore (site : plan.OpeningSite) (fresh : FreshBindings prog)
+def verificationStore (site : ConditionalPublicationSite prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) (publicStore : Store L)
-    (claimed : L.Val site.data.specification.secretTy) : Store L :=
+    (claimed : L.Val site.specification.secretTy) : Store L :=
   publicStore.set (sourceField site fresh state)
-    ⟨site.data.specification.secretTy, claimed⟩
+    ⟨site.specification.secretTy, claimed⟩
 
 /-- Executable opening predicate generated from compiler code, a public store,
 and the value authenticated by the commitment service. -/
-def canOpen (site : plan.OpeningSite) (fresh : FreshBindings prog)
+def canOpen (site : ConditionalPublicationSite prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) (publicStore : Store L)
-    (claimed : L.Val site.data.specification.secretTy) : Bool :=
-  (site.compiledGuard fresh state).validate
+    (claimed : L.Val site.specification.secretTy) : Bool :=
+  (site.choice.compiledGuard fresh state).validate
     (site.verificationStore fresh state publicStore claimed)
-    (site.data.specification.encoding.symm (some claimed))
+    (site.specification.encoding.symm (some claimed))
 
 private theorem public_ref_ne_source_field
-    (site : plan.OpeningSite) (fresh : FreshBindings prog)
+    (site : ConditionalPublicationSite prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) (ref : FieldRef L)
     (hpublic : (compileCore prog fresh state).graph.fieldRefPublic ref) :
     ref.field ≠ sourceField site fresh state := by
@@ -86,26 +80,26 @@ private theorem public_ref_ne_source_field
 compiled guard using the verified source field and its actual declared reads.
 No complete source environment or written-order prefix is required. -/
 theorem canOpen_eq_eval
-    (site : plan.OpeningSite) (fresh : FreshBindings prog)
+    (site : ConditionalPublicationSite prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) (representedStore publicStore : Store L)
-    (reads : ReadEnv L (site.compiledGuard fresh state).choiceReads)
+    (reads : ReadEnv L (site.choice.compiledGuard fresh state).choiceReads)
     (hreads : ReadEnv.ofStore? representedStore
-      (site.compiledGuard fresh state).choiceReads = some reads)
+      (site.choice.compiledGuard fresh state).choiceReads = some reads)
     (heligible : site.PubliclyValidatable fresh state)
     (hpublicStore : ∀ ref,
       (compileCore prog fresh state).graph.fieldRefPublic ref →
         Store.getAs publicStore ref.field ref.ty =
           Store.getAs representedStore ref.field ref.ty)
-    (claimed : L.Val site.data.specification.secretTy)
+    (claimed : L.Val site.specification.secretTy)
     (hclaimed : Store.getAs representedStore (site.sourceField fresh state)
-      site.data.specification.secretTy = some claimed) :
+      site.specification.secretTy = some claimed) :
     site.canOpen fresh state publicStore claimed =
-      (site.compiledGuard fresh state).eval
-        (site.data.specification.encoding.symm (some claimed)) reads := by
-  apply (site.compiledGuard fresh state).validate_eq_eval
+      (site.choice.compiledGuard fresh state).eval
+        (site.specification.encoding.symm (some claimed)) reads := by
+  apply (site.choice.compiledGuard fresh state).validate_eq_eval
   intro ref href
   have hread := ReadEnv.ofStore?_read hreads
-    ((site.compiledGuard fresh state).validationReads_subset_choiceReads href)
+    ((site.choice.compiledGuard fresh state).validationReads_subset_choiceReads href)
   rcases heligible ref href with hsource | hpublic
   · subst ref
     calc
@@ -121,7 +115,7 @@ theorem canOpen_eq_eval
           ref.field ref.ty = Store.getAs publicStore ref.field ref.ty :=
         Store.getAs_set_ne publicStore
           (public_ref_ne_source_field site fresh state ref hpublic)
-          ⟨site.data.specification.secretTy, claimed⟩ ref.ty
+          ⟨site.specification.secretTy, claimed⟩ ref.ty
       _ = Store.getAs representedStore ref.field ref.ty := hpublicStore ref hpublic
       _ = _ := hread
 
@@ -129,52 +123,53 @@ theorem canOpen_eq_eval
 claim is the represented source value, every other dependency is public, and
 the runtime public store agrees with the represented store on public fields. -/
 theorem canOpen_source
-    (site : plan.OpeningSite) (fresh : FreshBindings prog)
+    (site : ConditionalPublicationSite prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) (representedStore publicStore : Store L)
-    (env : VEnv L site.data.context)
+    (env : VEnv L site.choice.context)
     (heligible : site.PubliclyValidatable fresh state)
-    (hagrees : (decisionSiteState site.data.decision fresh state).Agrees
+    (hagrees : (site.choice.siteState fresh state).Agrees
       representedStore env)
     (hpublicStore : ∀ ref,
       (compileCore prog fresh state).graph.fieldRefPublic ref →
         Store.getAs publicStore ref.field ref.ty =
           Store.getAs representedStore ref.field ref.ty)
-    (claimed : L.Val site.data.specification.secretTy)
-    (hclaimed : claimed = env.get site.data.specification.binding) :
+    (claimed : L.Val site.specification.secretTy)
+    (hclaimed : claimed = env.get site.specification.binding) :
     site.canOpen fresh state publicStore claimed =
-      evalGuard site.data.guard
-        (site.data.specification.encoding.symm (some claimed))
-        ((env.toView site.data.owner).eraseEnv) := by
-  let current := decisionSiteState site.data.decision fresh state
-  have havailable := visibleFieldRefs_store_available current site.data.owner
+      evalGuard site.choice.guard
+        (site.specification.encoding.symm (some claimed))
+        ((env.toView site.choice.owner).eraseEnv) := by
+  let current := site.choice.siteState fresh state
+  have havailable := visibleFieldRefs_store_available current site.choice.owner
     representedStore hagrees.available
   let reads := ReadEnv.ofStore representedStore
-    (visibleFieldRefs current site.data.owner) havailable
+    (visibleFieldRefs current site.choice.owner) havailable
   have hreads : ReadEnv.ofStore? representedStore
-      (visibleFieldRefs current site.data.owner) = some reads := by
+      (visibleFieldRefs current site.choice.owner) = some reads := by
     unfold ReadEnv.ofStore?
     rw [dif_pos havailable]
   have hvalue : Store.getAs representedStore (site.sourceField fresh state)
-      site.data.specification.secretTy = some claimed := by
-    simpa [sourceField, hclaimed] using hagrees site.data.specification.binding
+      site.specification.secretTy = some claimed := by
+    simpa [sourceField, hclaimed] using hagrees site.specification.binding
   rw [site.canOpen_eq_eval fresh state representedStore publicStore reads hreads
     heligible hpublicStore claimed hvalue]
-  dsimp only [compiledGuard]
+  change (eventGuardOf current site.choice.owner site.choice.guard).eval
+    (site.specification.encoding.symm (some claimed)) reads = _
   rw [eventGuardOf_eval_eq_eval,
-    viewEnvOfReadEnv_eq_sourceView current site.data.owner representedStore env
-      (hagrees.view site.data.owner) reads hreads]
+    viewEnvOfReadEnv_eq_sourceView current site.choice.owner representedStore env
+      (hagrees.view site.choice.owner) reads hreads]
 
-end Vegas.CommitmentAccounting.OpeningSite
+end Vegas.ConditionalPublicationSite
 
-/-- info: 'Vegas.CommitmentAccounting.OpeningSite.canOpen_eq_eval' depends on axioms:
+/-- info: 'Vegas.ConditionalPublicationSite.canOpen_eq_eval' depends on axioms:
 [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
-#print axioms Vegas.CommitmentAccounting.OpeningSite.canOpen_eq_eval
+#print axioms Vegas.ConditionalPublicationSite.canOpen_eq_eval
 
 /--
-info: 'Vegas.CommitmentAccounting.OpeningSite.canOpen_source' depends on axioms: [propext,
+info: 'Vegas.ConditionalPublicationSite.canOpen_source' depends on axioms: [propext,
  Classical.choice,
  Quot.sound]
 -/
 #guard_msgs (whitespace := lax) in
-#print axioms Vegas.CommitmentAccounting.OpeningSite.canOpen_source
+#print axioms Vegas.ConditionalPublicationSite.canOpen_source

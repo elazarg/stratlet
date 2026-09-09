@@ -256,10 +256,11 @@ a publicly determined source choice can be selected without consulting its
 owner's current policy. The actual written-order source law is checked in
 `PersistentDisclosureSource`, including arbitrary whole-program profiles.
 This does not complete runtime resolution. `CommitmentAccounting` admits the
-retained binding through its certified conditional-publication site. The
-remaining obligations are owner-independent execution of forced steps with
-correct observations and a runtime codec preserving the same-owner typed
-binding. Accounting alone supplies neither mechanism.
+retained binding through its certified conditional-publication site. Generated
+conditional instructions preserve its same-owner typed identity and validate
+later openings against the retained snapshot and source guard. Owner-independent
+execution of forced steps with correct observations and whole-program strategy
+correspondence remain obligations beyond accounting and these local mechanisms.
 
 The conditional-publication compiler component supplies the local resolution
 edge: generated metadata, source/validator correspondence in both directions,
@@ -271,6 +272,26 @@ gate includes the prefix establishing the original binding, all subsequent
 player choices, persistent quitting, and settlement under the stated services;
 starting a proof at an already represented disclosure checkpoint does not
 complete that gate.
+
+Conditional endpoint generation is independent of the original binding's
+accounting discharge. `ConditionalPublicationSite` combines an adjacent
+public-choice occurrence with its opening-or-decline certificate;
+`ApplicationPlan.conditionalCopy` uses it for an ordinarily accounted later
+copy. The native update preserves the original accepted handle and frozen
+snapshot. `GeneratedPersistentDisclosure` supplies the ten-node derivation,
+an exact opening execution law from empty-pool initialization, a check that
+decline blocks later opening, and completed-run source public-outcome witnesses.
+The next controller obligation is to reconstruct the later site's
+complete owner-visible readout from the initial private cache and current
+public fields, then instantiate the source-kernel first-submission law at that
+actual invocation. Polling and retries must retain that endpoint's sampled
+choice without confusing it with an earlier endpoint using the same binding.
+Earlier paired choices must be reconstructed from their resolved public
+values, not from cached attempted requests: an opening overtaken by expiration
+can leave an intended `some value` in private history while the source choice
+represented by the accepted transaction is `none`.
+This local law must then be composed across initialization, both disclosure
+sites, the intervening response, and the stated service assumptions.
 
 Ordinary adjacent choice/reveal sites have a corresponding local component:
 `PublicChoiceSite` derives metadata and guard code from `SourceDecisionSite`,
