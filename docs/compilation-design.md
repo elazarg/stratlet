@@ -375,6 +375,56 @@ theorems, not whole-program randomized or strategic correspondence. Endpoint
 and validator evaluation is executable on supplied metadata and stores; the
 current metadata construction uses the noncomputable compiler elaboration.
 
+`ApplicationImage` is the shared dispatch artifact for generated public-choice
+instructions. `PublicChoiceSite.code` consumes the existing endpoint, guard,
+and compiler-allocated output addresses; `ofPublicChoices` assembles a finite
+list of these source occurrences. Native memory contains a public typed store
+and completion flags. The handler dynamically checks the packet's type and
+address before invoking the guard, and actual `MessageApplication` inclusion
+records both the storage effect and the public receipt. A source-valid choice
+at a represented, ready checkpoint has the exact two-step source effect and
+the expected native memory, ledger, and local-message effects.
+
+This instruction subset has no private or environment commands. It neither
+installs unopened source values in public memory nor implements sealed binding,
+conditional publication, chance, or timeout instructions. Extend this same
+dispatch artifact and its operational state as those instruction kinds are
+added, with one instruction-address lookup rather than separate dispatch lists.
+`Memory` is the public projection. Ideal service tables and frozen verifiers
+must live in a separate operational state wrapping that memory, not in fields
+exposed by its player/environment view. Source occurrence lists currently
+provide the dispatch input; automatic
+whole-program classification, image coverage, generated controller dispatch,
+and their execution-law invariant remain obligations. The local refinement
+uses a checked lookup of the emitted instruction, public-validator eligibility,
+public-store agreement, and readiness; it does not assume a strategic
+correspondence as an image certificate.
+
+`Memory.Represents` relates public storage and completion flags to a proof-only
+graph configuration. Every stored value agrees, public graph fields have
+matching typed readouts, and completion flags identify exactly the represented
+finite node set. Initialization copies only publicly declared graph fields;
+sealed initial values are omitted, with a checked initial representation.
+Hidden values may be absent from the public store. Generated
+public-choice inclusion preserves this relation and represented reachability,
+using the compiler-allocated node and field addresses. Arbitrary manually
+assembled images receive no field-allocation or coherence guarantee.
+The image controller uses a canonical dynamically typed packet at the same
+generated publication address; another endpoint's packet cannot populate its
+cache. Every supported first ready submission of this controller is accepted
+at the represented checkpoint, for arbitrary randomized source kernels.
+Whole-image controller dispatch and complete observation readouts still
+need to be supplied by source-program assembly.
+
+Whole-program randomized laws should compose segment laws from every related
+native checkpoint, retaining both an exact outcome law and a support invariant
+for the next segment. A proof-only relation tracks the source cursor and
+environment, public storage, completion, per-site cached choices, and accepted
+binding snapshots. It must distinguish a public default from a private cached
+choice. This relation supplies no executable controller input. Equality of a
+decoded marginal alone is insufficient: different message histories can have
+the same decoded source state but lead to different later policy calls.
+
 `Interaction.ChoiceController` supplies the companion sample-once controller.
 Its first encoded command records the draw in the principal's actual
 chronological command history. The same mechanism supports private registration

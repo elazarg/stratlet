@@ -458,6 +458,36 @@ application chance are composed as separate kernels. Every supported policy
 outcome follows a supported native execution of its recorded action trace;
 application invariants therefore lift to arbitrary supported policy runs.
 
+`Vegas/Compile/ApplicationImage.lean` instantiates this carrier for finite
+collections of ordinary public-choice instructions. Each instruction retains
+its generated endpoint, dependency-local guard, and two output fields. Raw
+messages carry an address and a dynamically packaged language value; unknown
+addresses, incorrect types, and malformed payloads are rejected without
+removing public traffic. Successful inclusion publishes the value at both
+fields and completes the pair once. The native inclusion law also preserves
+sent histories and recipient inboxes and records the ledger entry and receipt.
+`Vegas/Compile/PublicChoiceImage.lean` generates these instructions from
+certified source occurrences. `include_source_choice` connects that actual
+inclusion to the adjacent source steps under public-validation eligibility,
+matching stores, readiness, and lookup of the generated instruction.
+`ApplicationImageRefinement` proves preservation of public-memory agreement
+and represented graph reachability through that inclusion. Its relation permits
+unopened values to be missing from public memory. `ApplicationImageController`
+connects the source-kernel controller to the handler's canonical typed address
+and proves that encoded packets are accepted exactly for legal source choices
+at the stated matching, ready checkpoints. Full source-view readouts remain
+assembly inputs, not values obtained from a hidden runtime source environment.
+The public initializer filters out sealed initial fields and establishes the
+representation relation. The mixed-type checked program in
+`VegasTests/ApplicationImage.lean` exercises generated Boolean and optional
+Boolean endpoints, a guard that reads a public input, exact successful storage
+and receipts, rejected payloads, and replay through actual native execution.
+
+This image is an instruction subset, not whole-program compilation. It has
+only public memory and no private or environment-triggered instructions;
+sealed bindings, conditional openings, chance, timeouts, automatic occurrence
+selection, and assembled source-policy correspondence remain to be integrated.
+
 `ChoiceController` samples a choice at its first encoded private command or
 public submission and retains the value in the principal's own chronological
 command history. Subsequent invocations wait or retry that value according to

@@ -15,6 +15,10 @@ import Vegas.Compile.PublicChoiceSite
 import Vegas.Compile.PublicChoiceExecution
 import Vegas.Compile.PublicChoiceValidation
 import Vegas.Compile.PublicChoiceController
+import Vegas.Compile.ApplicationImage
+import Vegas.Compile.PublicChoiceImage
+import Vegas.Compile.ApplicationImageController
+import Vegas.Compile.ApplicationImageRefinement
 import Vegas.Compile.SourceChoiceController
 import Vegas.Compile.PublicGuard
 import Vegas.Compile.DecisionSite
