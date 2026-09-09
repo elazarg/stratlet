@@ -736,6 +736,38 @@ case creates no native opening value. It is an existential witness for this
 continuation; a whole-policy argument must establish a consistent witness
 across later continuations or derive it from prepared-value provenance.
 
+`SourceDecisionSite.binding_phase_source_law` in `BindingPhaseExecution` combines the source-kernel draw,
+private registration, public handle submission, and actual inclusion into an
+exact law on complete policy executions. Each supported branch reaches the
+specific one-commit source continuation with that same value in its accepted
+snapshot. The local service premise selects the new envelope after submission;
+it does not assert progress under arbitrary environments. The generated
+persistent-disclosure regression exercises this law's continuation guarantee.
+`ConditionalPublicationSite.conditional_phase_source_law` similarly gives the
+exact two-invocation law for a source opening or decline followed by actual
+inclusion, retaining the complete policy execution and exact source successor.
+Its snapshot premise concerns only supported opening choices. Decline requires
+an accepted handle but no decodable frozen value.
+The conditional-phase regression instantiates both voluntary branches after a
+real binding prefix, deriving the owner-local readout, cache state, and snapshot
+facts from the shared execution and its recorded histories.
+
+`ConditionalSnapshot` discharges the opening-value premise from existing
+invariants: typed `RegisteredBindings` provides a decodable snapshot,
+`State.Refines.bindings` identifies its value with graph storage, and source/store
+agreement identifies it with the named source binding. The conditional guard's
+certificate then identifies every legal opening with that value. This needs a
+canonical accepted handle; it does not derive acceptance from static binding
+origins. No additional evolving source-snapshot invariant is required.
+
+`ApplicationPlan.ProfileContinuation` relates a fixed original source profile
+and generated plan to their structural suffixes. Native refinement at the exact
+source prefix supplies the public completion flags needed to make the original
+lifted policy equal the suffix policy, with the same history and observation.
+This covers all plan constructors, including repeated conditional copies.
+The generated binding/disclosure regression applies the theorem after actual
+inclusions. No source environment or compiler cursor is supplied to the policy.
+
 `ApplicationBindingOrigins` makes a further representation condition checkable.
 Each conditional instruction must have an earlier binding instruction with the
 same source field, owner, and commitment slot. The certificate supplies that
@@ -755,13 +787,23 @@ already-public values; changing source well-formedness is unnecessary.
 instructions using their actual slot/address encodings. Empty histories establish
 it initially. Environment actions preserve it, and player actions preserve it
 when each remaining instruction rejects the appended command. These are laws of
-the shared policy runner. Deriving rejection from generated allocation and
-reference-strategy dispatch is still a composition obligation.
+the shared policy runner. `ApplicationPlan.bindingPolicy_rejects_next`
+derives rejection for supported head-binding commands from generated address and
+field allocation and gives preservation through actual supported player steps.
+Public-choice and conditional instructions also have address-based separation
+theorems. Conditional instructions may reuse the original binding slot:
+their choice caches recognize endpoint-addressed voluntary submissions, not
+private registrations. The repeated-disclosure regression checks two endpoints
+of the same generated artifact sharing a binding slot: either first-endpoint
+choice preserves the second endpoint's empty cache. Connecting these separation
+laws with every head's dispatch and the full execution induction remains a
+composition obligation.
 
 These are constructor-local ingredients, not a whole-program profile law.
-Composition still needs joint phase laws for binding and conditional publication,
-freshness of every unexecuted choice cache, and persistent dispatch
-under the same original lifted profile. The source environment, graph witness,
+Composition still needs the induction establishing accepted canonical binding
+handles and freshness of every unexecuted choice cache while connecting the
+phase laws and fixed-profile dispatch.
+The source environment, graph witness,
 and compiler cursor remain proof-only. An actual observation-local service and
 its invocation assumptions must also be connected to the composed law; no
 completion or arbitrary-deviation theorem follows from these local results.

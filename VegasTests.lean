@@ -12,6 +12,7 @@ import VegasTests.ApplicationImage
 import VegasTests.ApplicationSampleExecution
 import VegasTests.PublicChoiceSourceCoupling
 import VegasTests.BindingSourceCoupling
+import VegasTests.BindingPhaseExecution
 import VegasTests.ConditionalSourceCoupling
 import VegasTests.ApplicationBindingOrigins
 import VegasTests.PublicConditionalOrigin
@@ -35,6 +36,9 @@ import VegasTests.GeneratedPersistentDisclosure
 import VegasTests.GeneratedPersistentDisclosureController
 import VegasTests.GeneratedBindingPolicy
 import VegasTests.GeneratedApplicationPolicy
+import VegasTests.ApplicationProfileContinuation
+import VegasTests.ApplicationCacheSeparation
+import VegasTests.ConditionalPhaseExecution
 import VegasTests.ApplicationPolicyProvenance
 import VegasTests.ApplicationReadoutAvailability
 import VegasTests.GeneratedReadoutAvailability

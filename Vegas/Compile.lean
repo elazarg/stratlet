@@ -47,9 +47,14 @@ import Vegas.Compile.ApplicationSampleExecution
 import Vegas.Compile.PublicChoiceImageExecution
 import Vegas.Compile.PublicChoiceSourceCoupling
 import Vegas.Compile.BindingSourceCoupling
+import Vegas.Compile.BindingPhaseExecution
 import Vegas.Compile.ConditionalSourceCoupling
+import Vegas.Compile.ConditionalSnapshot
+import Vegas.Compile.ConditionalPhaseExecution
 import Vegas.Compile.ApplicationPolicy
+import Vegas.Compile.ApplicationProfileContinuation
 import Vegas.Compile.ApplicationPolicyFreshness
+import Vegas.Compile.ApplicationCacheSeparation
 import Vegas.Compile.ApplicationPolicyLocality
 import Vegas.Compile.ApplicationPolicyBindings
 import Vegas.Compile.ApplicationPolicyProvenance

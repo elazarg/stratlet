@@ -27,6 +27,43 @@ open EventGraph ToEventGraph Interaction Interaction.MessageApplication
 
 variable {P : Type} [DecidableEq P] {L : IExpr}
 
+/-- A canonical accepted handle with typed registration provenance has an
+actual decodable frozen value, and that value is exactly the one represented
+in the graph store.  `RegisteredBindings` supplies existence; the binding
+component of `State.Refines` supplies equality with the graph value. -/
+theorem RegisteredBindings.frozen_getAs_of_accepted
+    (image : ApplicationImage P L) (who : P)
+    (history : List image.application.PlayerEntry) (native : State P L)
+    {G : Graph P L} (cfg : Config G) (hrefines : native.Refines cfg)
+    (hbindings : image.RegisteredBindings who
+      (fun slot typed => ∃ spec : FieldSpec P L,
+        G.field? slot = some spec ∧ typed.ty = spec.ty) history native)
+    (field : Nat) (spec : FieldSpec P L) {requestedTy : L.Ty}
+    (hfield : G.field? field = some spec) (htype : spec.ty = requestedTy)
+    (haccepted : native.memory.accepted field = some (who, field)) :
+    ∃ value : L.Val requestedTy,
+      (native.frozen field).bind (fun typed => typed.as? requestedTy) = some value ∧
+      Store.getAs cfg.store field requestedTy = some value := by
+  subst requestedTy
+  obtain ⟨typed, _, hfrozen, actual, hactual, htyped⟩ :=
+    hbindings field (who, field) haccepted rfl
+  have hactualSpec : actual = spec := Option.some.inj (hactual.symm.trans hfield)
+  subst actual
+  let recovered : L.Val spec.ty :=
+    cast (congrArg L.Val htyped) typed.value
+  have hdecode : typed.as? spec.ty = some recovered := by
+    simp [TypedValue.as?, htyped, recovered]
+  have hfrozenDecode : (native.frozen field).bind
+      (fun value => value.as? spec.ty) = some recovered := by
+    simp only [hfrozen, Option.bind_some, hdecode]
+  obtain ⟨storedSpec, stored, hstoredField, _, hstored, hunique⟩ :=
+    hrefines.bindings field (who, field) haccepted
+  have hstoredSpec : storedSpec = spec :=
+    Option.some.inj (hstoredField.symm.trans hfield)
+  subst storedSpec
+  have heq : recovered = stored := hunique recovered hfrozenDecode
+  exact ⟨recovered, hfrozenDecode, by simpa only [heq] using hstored⟩
+
 /-- A present source-visible value is recoverable locally. Completed event
 fields use native coverage and typed cache provenance; initial fields use
 the stated public-input condition. -/
@@ -134,3 +171,8 @@ end Vegas.ApplicationImage
 [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.ApplicationImage.ownerReadout?_of_graph_reads
+
+/-- info: 'Vegas.ApplicationImage.RegisteredBindings.frozen_getAs_of_accepted' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.ApplicationImage.RegisteredBindings.frozen_getAs_of_accepted

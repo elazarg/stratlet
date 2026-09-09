@@ -53,7 +53,7 @@ def published (secret : Bool) (chosen : Option Bool) (clock : Nat) :
     (image 10).application.State :=
   (image 10).application.includePending (conditionalSubmitted secret chosen clock) (0, 1)
 
-private theorem bound_source_successor (secret : Bool) :
+theorem bound_source_successor (secret : Bool) :
     ∃ next : CoupledAt ConditionalApplicationImage.compiled.graph boundBuild,
       next.current.source = source.env.cons secret ∧
       (bound secret).application.Refines next.current.graph.1 ∧
