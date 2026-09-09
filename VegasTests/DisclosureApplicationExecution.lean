@@ -57,12 +57,12 @@ theorem honest_policy_data (window : Nat) (secret : Bool)
     FinDist.pure_bind, MessageApplication.environmentPolicyStep, MessageApplication.advance,
     MessageApplication.EnvironmentPolicyCommand.toAction, MessageApplication.step,
     MessageApplication.includePending, MessagePool.includeApplication, handle, Option.isNone_none,
-    true_and, zero_add, Publication.publicationSite_eq, Option.bind_eq_bind, List.nil_append,
+    zero_add, Publication.publicationSite_eq, Option.bind_eq_bind, List.nil_append,
     List.cons_append, MessageApplication.State.environmentView, observe]
   all_goals simp only [Fin.isValue, MessagePool.includePending, MessagePool.lookup,
     MessagePool.submit, MessagePool.empty, List.nil_append, zero_add, decide_true,
-    List.find?_cons_of_pos, Message.sender, IdealCommitments.lookup, IdealCommitments.sealValue,
-    IdealCommitments.empty, and_self, ↓reduceIte, Option.isSome_some]
+    List.find?_cons_of_pos, Message.sender, IdealCommitments.sealValue,
+    IdealCommitments.empty, and_self, ↓reduceIte]
   all_goals simp only [Fin.isValue, MessagePool.removeFirst, ↓reduceIte]
   all_goals try rw [MessageApplication.runPolicies]
   all_goals simp only [MessageApplication.invoke, honestEnvironment, Fin.isValue,
@@ -118,7 +118,8 @@ theorem honest_policy_data (window : Nat) (secret : Bool)
     MessagePool.removeFirst, List.cons_append, handle, Message.sender, responseReady, done,
     Option.isSome_none, Bool.not_false, Bool.and_self, responsePrerequisites_eq, List.all_cons,
     Option.isSome_some, List.all_nil, and_self, MessageApplication.State.environmentView, observe,
-    IdealCommitments.verify, IdealCommitments.lookup, BEq.rfl, Option.bind_some]
+    IdealCommitments.verify, IdealCommitments.freezeAt, IdealCommitments.lookup,
+    BEq.rfl, Option.bind_some]
   all_goals try simp only [MessageApplication.runPolicies, Fin.isValue, FinDist.map_pure,
     policyData?,
     outcome?, Option.bind_eq_bind, Option.bind_some, Option.isSome_some, ↓reduceIte, data,

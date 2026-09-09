@@ -484,16 +484,38 @@ The application includes binding, the forced marker, one-shot public chance,
 conditional publication, and the responder's continuation. Its publication
 window starts at the sampled signal's clock. Disclosure, decline, and included
 expiration all reach the response phase; initial withholding and missing
-responses remain unresolved. Binding acceptance uses privileged ideal-service
-occupancy, an early validity check that is stronger than accepting arbitrary
-opaque commitments and discovering invalidity at opening.
+responses remain unresolved. Binding accepts the canonical opaque handle even
+when it has no opening. Acceptance captures a private verifier; both service
+tables are omitted from player and environment observations. Acceptance's
+public result and the marker/chance/clock observation laws are independent of
+the tables. A later opening checks the captured verifier, not mutable private
+preparation.
+
+`DisclosureApplicationInvariant.run_binding` preserves the accepted binding
+and verifier under every supported finite native continuation.
+`run_unopenable_publication` proves that any publication reached from an
+accepted unopenable binding is decline, even after arbitrary late preparation
+and raw traffic. It does not force that publication to occur.
+`DisclosureMalformed.unopenable_run` checks the complete native execution from
+empty: acceptance, public chance, late preparation, a delivered and rejected
+opening, clock advance, an included permissionless expiration, and response.
+Its law retains chance, public receipts, and the failed opening in the
+responder's inbox. Rejection does not erase that message.
+
+This ideal instance captures binding at inclusion. Private preparation while
+the handle is still pending remains possible. A cryptographic realization must
+account for creation-time binding and the relationship between its packets
+and these handles; no such realization or strategy comparison is proved here.
 
 `DisclosureApplicationInvariant` and `DisclosureApplicationSource` prove that
 arbitrary supported player/environment policy executions from empty decode to
 reachable graph prefixes with exactly the native completion flags. A completed
 native outcome is equivalent to a terminal decoded prefix and reconstructs an
-actual written-order source execution, including the retained binding and the
-compiled evaluation of any public payout list. `DisclosureReachability`
+actual written-order source execution and the compiled evaluation of any public
+payout list. A valid accepted binding decodes to its stored value. An unopenable
+binding uses `false` as a source witness and can only disclose decline; this
+proof-facing convention neither installs a runtime value nor settles pending
+execution. `DisclosureReachability`
 supplies actual protocol witnesses for every valid canonical phase.
 These are support results, not a strategic backtranslation or settlement
 guarantee for arbitrary policies.

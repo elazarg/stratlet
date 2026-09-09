@@ -47,6 +47,26 @@ def lookup (state : IdealCommitments Principal Slot Value)
     (handle : CommitmentHandle Principal Slot) : Option Value :=
   state.table handle.1 handle.2
 
+/-- Capture one opaque commitment's meaning at acceptance. An absent opening
+remains absent in the captured verifier, even if the preparation service later
+registers that handle. The captured table is private ideal-service state. -/
+def freezeAt [DecidableEq Principal] [DecidableEq Slot]
+    (state : IdealCommitments Principal Slot Value)
+    (handle : CommitmentHandle Principal Slot) : IdealCommitments Principal Slot Value where
+  table owner slot := if (owner, slot) = handle then state.lookup handle else none
+
+@[simp] theorem lookup_freezeAt [DecidableEq Principal] [DecidableEq Slot]
+    (state : IdealCommitments Principal Slot Value)
+    (handle : CommitmentHandle Principal Slot) :
+    (state.freezeAt handle).lookup handle = state.lookup handle := by
+  simp [freezeAt, lookup]
+
+theorem lookup_freezeAt_other [DecidableEq Principal] [DecidableEq Slot]
+    (state : IdealCommitments Principal Slot Value)
+    (handle other : CommitmentHandle Principal Slot) (hne : other ≠ handle) :
+    (state.freezeAt handle).lookup other = none := by
+  simp [freezeAt, lookup, hne]
+
 /-- The result of a private authenticated seal request. -/
 structure SealResult where
   accepted : Bool

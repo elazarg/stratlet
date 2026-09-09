@@ -263,14 +263,21 @@ clock alone does not perform the call. These mechanisms remain to be
 integrated and proved against the source-designated actions.
 
 There is a separate commitment-validity boundary. The disclosure application
-currently checks ideal-service occupancy when accepting the binding. Ordinary
-opaque commitments can instead be accepted without a valid opening. Removing
-the occupancy test while retaining mutable preparation is unsound: an owner
-could register the value after acceptance and public chance. A faithful
-extension needs immutable accepted binding information, including permanently
-unopenable commitments. Their acceptance must not reveal hidden validity or
-delay chance on that basis; otherwise the model still supplies early ideal
-validation. Opening failure and its timeout continuation must be operational.
+accepts an opaque handle without testing whether it has an opening, and
+captures an immutable private verifier at inclusion. Acceptance and subsequent
+marker/chance readiness reveal no validity result. Later preparation cannot
+repair an accepted unopenable binding: every native continuation that resolves
+its publication selects decline. The checked hostile execution delivers and
+rejects a late opening before an included expiration continues to the responder;
+the failed message and its rejection receipt remain observable.
+
+The snapshot point is inclusion, not creation of a cryptographic packet. This
+ideal instance still permits preparation while a handle is pending. Its
+realization must relate that freedom, actual packet binding, and native
+observations; immutable accepted state alone does not prove the relation.
+An unopenable snapshot's source-support witness is `false`, with decline at
+publication. It is a legal source reconstruction, not an operational initial
+default, a settlement guarantee, or a strategic backtranslation.
 
 Public fallback and failure calls add observations. Their source-value
 legality does not prove strategic preservation, but their visibility alone

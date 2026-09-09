@@ -306,7 +306,12 @@ unilateral-deviation law before treating this instance as the positive
 strategic compiler comparison to generalize. The
 [initial-default design](timeout-compilation.md#initial-defaults-and-privately-prepared-commitments)
 separates unsubmitted private preparation, accepted binding, public defaults,
-and the additional obligation to admit permanently unopenable commitments.
+and permanently unopenable commitments. The instance accepts unopenable handles
+without a validity signal and freezes their verifier at inclusion. Arbitrary
+native continuations cannot repair them; a checked failed-opening/expiration
+execution reaches the responder and retains the failed traffic. Creation-time
+cryptographic binding remains a realization obligation. This result does not
+implement the initial or response defaults or complete the strategic gate.
 
 Choose a finite checked core program with two real players, source-defined
 nonresponse outcomes, and a later decision that can expose an information

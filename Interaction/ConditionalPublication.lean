@@ -184,6 +184,30 @@ theorem resolve_some_canOpen [DecidableEq Principal] [DecidableEq Value]
   | cleartext clear => simp [resolve?, hpayload] at hresolve
   | malformed => simp [resolve?, hpayload] at hresolve
 
+/-- A published value has an opening in the supplied ideal verifier. This
+does not assume that a valid opening existed when the handle was accepted. -/
+theorem resolve_some_lookup [DecidableEq Principal] [DecidableEq Value]
+    (site : ConditionalPublication Principal) (now : Nat)
+    (service : IdealCommitments Principal Nat Value)
+    (accepted : Option (CommitmentHandle Principal Nat)) (done : Nat → Bool)
+    (canOpen : Value → Bool)
+    (message : Message Principal (Payload Principal Value)) (value : Value)
+    (hresolve : site.resolve? now service accepted done canOpen message = some (some value)) :
+    service.lookup (site.owner, site.sourceSlot) = some value := by
+  cases hpayload : message.payload with
+  | opening handle claimed =>
+      simp only [resolve?, hpayload] at hresolve
+      split at hresolve <;> try contradiction
+      split at hresolve <;> try contradiction
+      rename_i hopen
+      cases hresolve
+      exact hopen.2.1 ▸ (IdealCommitments.verify_eq_true_iff service ⟨handle, value⟩).mp
+        hopen.2.2.1
+  | decline => simp [resolve?, hpayload] at hresolve
+  | expire => simp [resolve?, hpayload] at hresolve
+  | cleartext clear => simp [resolve?, hpayload] at hresolve
+  | malformed => simp [resolve?, hpayload] at hresolve
+
 /-- A successful resolution either publishes the explicit decline code or the
 value already stored at the site's canonical owner-scoped handle. -/
 theorem resolve_value [DecidableEq Principal] [DecidableEq Value]

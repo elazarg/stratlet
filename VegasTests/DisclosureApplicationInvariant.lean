@@ -16,14 +16,12 @@ namespace VegasTests.OptionalDisclosure.DisclosureState
 open Vegas EventGraph Interaction GameTheory.Math.Probability
 
 def Invariant (state : DisclosureState) : Prop :=
-  (state.accepted = none ∨
-    state.accepted = some (0, 0) ∧ ∃ secret, state.service.lookup (0, 0) = some secret) ∧
+  (state.accepted = none ∨ state.accepted = some (0, 0)) ∧
   (state.markerDone = true → state.accepted.isSome = true) ∧
   (state.signal.isSome = true → state.markerDone = true) ∧
   (state.publication.isSome = true → state.signal.isSome = true) ∧
   (∀ result, state.publication = some result →
-    ∃ secret, state.service.lookup (0, 0) = some secret ∧
-      (result = none ∨ result = some secret)) ∧
+    result = none ∨ state.acceptedService.lookup (0, 0) = result) ∧
   (state.response.isSome = true → state.publication.isSome = true)
 
 theorem empty_invariant : Invariant empty := by
@@ -35,9 +33,9 @@ theorem data_valid (state : DisclosureState) (hinvariant : Invariant state) :
   cases hpublication : state.publication with
   | none => simp [data, RunData.Valid, hpublication]
   | some result =>
-      rcases hresult result hpublication with ⟨secret, hstored, hchoice⟩
-      simp only [data, RunData.Valid, hpublication, Option.getD_some]
-      simpa [hstored] using hchoice
+      rcases hresult result hpublication with hnone | hstored
+      · simp [data, RunData.Valid, hpublication, hnone]
+      · cases result <;> simp [data, RunData.Valid, hpublication, hstored]
 
 theorem response_isSome_iff_phase_terminal (state : DisclosureState) :
     state.response.isSome = true ↔ state.phase = 8 := by
@@ -57,7 +55,7 @@ decoded graph configuration; default values in `data` add no completed node. -/
 theorem done_iff_decodedConfig_done (state : DisclosureState)
     (hinvariant : Invariant state) (index : Fin graph.nodeCount) :
     state.done index.val = true ↔ index ∈ state.decodedConfig.done := by
-  rcases state with ⟨service, accepted, markerDone, signal, signalAt,
+  rcases state with ⟨service, acceptedService, accepted, markerDone, signal, signalAt,
     publication, response, clock⟩
   cases accepted <;> cases markerDone <;> cases signal <;>
     cases publication <;> cases response <;> fin_cases index <;>
@@ -78,17 +76,7 @@ theorem outcome_isSome_iff_terminal (state : DisclosureState)
 theorem privateStep_invariant (state : DisclosureState) (who : TestPlayer)
     (command : Nat × Bool) (hinvariant : Invariant state) :
     Invariant (privateStep state who command) := by
-  rcases hinvariant with ⟨haccepted, hmarker, hsignal, hpublication,
-    hresult, hresponse⟩
-  refine ⟨?_, hmarker, hsignal, hpublication, ?_, hresponse⟩
-  · rcases haccepted with hnone | ⟨hcanonical, secret, hstored⟩
-    · exact Or.inl hnone
-    · exact Or.inr ⟨hcanonical, secret,
-        IdealCommitments.lookup_sealValue_of_eq_some _ _ _ _ _ _ hstored⟩
-  · intro result hresultState
-    rcases hresult result hresultState with ⟨secret, hstored, hchoice⟩
-    exact ⟨secret,
-      IdealCommitments.lookup_sealValue_of_eq_some _ _ _ _ _ _ hstored, hchoice⟩
+  exact hinvariant
 
 theorem handle_invariant (window : Nat) (state : DisclosureState)
     (message : Message TestPlayer Payload) (next : DisclosureState)
@@ -102,15 +90,17 @@ theorem handle_invariant (window : Nat) (state : DisclosureState)
       split at hhandle <;> try contradiction
       rename_i hbind
       cases hhandle
-      rcases hbind with ⟨_, rfl, _, hoccupied⟩
-      refine ⟨Or.inr ⟨rfl, ?_⟩, ?_, hsignal, hpublication, hresult, hresponse⟩
-      · simpa only [Option.isSome_iff_exists] using hoccupied
-      · intro _
-        rfl
+      rcases hbind with ⟨_, rfl, hunbound⟩
+      refine ⟨Or.inr rfl, fun _ => rfl, hsignal, hpublication, ?_, hresponse⟩
+      intro result hresultState
+      change state.publication = some result at hresultState
+      have hsome : state.publication.isSome = true := by rw [hresultState]; rfl
+      have hacceptedSome := hmarker (hsignal (hpublication hsome))
+      simp_all
   | publish request =>
       simp only [handle, hpayload] at hhandle
       cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
-          state.clock state.service state.accepted state.done (fun _ => true)
+          state.clock state.acceptedService state.accepted state.done (fun _ => true)
           ⟨message.id, request⟩ with
       | none =>
         rw [hresolve] at hhandle
@@ -120,7 +110,7 @@ theorem handle_invariant (window : Nat) (state : DisclosureState)
         cases hhandle
         have hready :=
           (Publication.publicationSite (state.signalAt + window)).resolve_success_inversion
-            state.clock state.service state.accepted state.done (fun _ => true)
+            state.clock state.acceptedService state.accepted state.done (fun _ => true)
             ⟨message.id, request⟩ result hresolve
         have hsignalSome : state.signal.isSome = true := by
           simp only [ConditionalPublication.ready, Publication.publicationSite_eq,
@@ -132,12 +122,13 @@ theorem handle_invariant (window : Nat) (state : DisclosureState)
           exact hsignalSome
         · intro choice hchoice
           cases hchoice
-          rcases haccepted with hnone | ⟨_, secret, hstored⟩
-          · simp [ConditionalPublication.ready, hnone] at hready
-          · exact ⟨secret, hstored,
-              (Publication.publicationSite (state.signalAt + window)).resolve_value
-                state.clock state.service state.accepted state.done (fun _ => true)
-                ⟨message.id, request⟩ secret (by simpa using hstored) result hresolve⟩
+          cases result with
+          | none => exact Or.inl rfl
+          | some value =>
+              exact Or.inr
+                ((Publication.publicationSite (state.signalAt + window)).resolve_some_lookup
+                state.clock state.acceptedService state.accepted state.done (fun _ => true)
+                ⟨message.id, request⟩ value hresolve)
         · intro hresponseSome
           rfl
   | respond value =>
@@ -189,5 +180,111 @@ theorem policy_invariant (window : Nat)
   exact (application window).runPolicies_initial_application_invariant Invariant
     privateStep_invariant (handle_invariant window) environmentStep_invariant
     players environment schedule (initial window) next empty_invariant hnext
+
+theorem handle_binding (window : Nat) (state : DisclosureState)
+    (message : Message TestPlayer Payload) (next : DisclosureState)
+    (hbound : state.accepted.isSome = true)
+    (hhandle : handle window state message = some next) :
+    next.accepted = state.accepted ∧ next.acceptedService = state.acceptedService := by
+  cases hpayload : message.payload with
+  | bind boundHandle =>
+      have hnone : state.accepted.isNone = false := by
+        cases haccepted : state.accepted <;> simp_all
+      simp [handle, hpayload, hnone] at hhandle
+  | publish request =>
+      simp only [handle, hpayload] at hhandle
+      cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
+          state.clock state.acceptedService state.accepted state.done (fun _ => true)
+          ⟨message.id, request⟩ with
+      | none =>
+          rw [hresolve] at hhandle
+          simp at hhandle
+      | some result =>
+          rw [hresolve] at hhandle
+          cases hhandle
+          exact ⟨rfl, rfl⟩
+  | respond value =>
+      simp only [handle, hpayload] at hhandle
+      split at hhandle <;> try contradiction
+      cases hhandle
+      exact ⟨rfl, rfl⟩
+  | cleartext value => simp [handle, hpayload] at hhandle
+  | malformed => simp [handle, hpayload] at hhandle
+
+theorem environmentStep_binding (state : DisclosureState) (command : EnvironmentCommand)
+    (next : DisclosureState) (hnext : next ∈ (environmentStep state command).support) :
+    next.accepted = state.accepted ∧ next.acceptedService = state.acceptedService := by
+  cases command with
+  | marker =>
+      simp only [environmentStep, FinDist.mem_support_pure] at hnext
+      subst next
+      split <;> exact ⟨rfl, rfl⟩
+  | sample =>
+      simp only [environmentStep] at hnext
+      split at hnext
+      · simp only [FinDist.support_map, Set.mem_image] at hnext
+        obtain ⟨signal, _, rfl⟩ := hnext
+        exact ⟨rfl, rfl⟩
+      · simp only [FinDist.mem_support_pure] at hnext
+        subst next
+        exact ⟨rfl, rfl⟩
+  | advance clock =>
+      simp only [environmentStep, FinDist.mem_support_pure] at hnext
+      subst next
+      split <;> exact ⟨rfl, rfl⟩
+
+/-- Once accepted, both the public binding and its private verifier survive
+every finite native continuation, including late preparation and rebinding. -/
+theorem run_binding (window : Nat) (state next : (application window).State)
+    (actions : List (application window).Action)
+    (hbound : state.application.accepted.isSome = true)
+    (hnext : next ∈ ((application window).run actions state).support) :
+    next.application.accepted = state.application.accepted ∧
+      next.application.acceptedService = state.application.acceptedService := by
+  apply (application window).run_application_invariant
+    (fun current => current.accepted = state.application.accepted ∧
+      current.acceptedService = state.application.acceptedService)
+    ?_ ?_ ?_ state next actions ⟨rfl, rfl⟩ hnext
+  · intro current who command hcurrent
+    exact hcurrent
+  · intro current message final hcurrent hhandle
+    have hsome : current.accepted.isSome = true := by rw [hcurrent.1]; exact hbound
+    have hpreserved := handle_binding window current message final hsome hhandle
+    exact ⟨hpreserved.1.trans hcurrent.1, hpreserved.2.trans hcurrent.2⟩
+  · intro current command final hcurrent hfinal
+    have hpreserved := environmentStep_binding current command final hfinal
+    exact ⟨hpreserved.1.trans hcurrent.1, hpreserved.2.trans hcurrent.2⟩
+
+/-- Resolution of an unopenable accepted binding can only publish decline.
+This statement does not imply that a resolution event ever occurs. -/
+theorem unopenable_publication (state : DisclosureState) (hinvariant : Invariant state)
+    (hempty : state.acceptedService.lookup (0, 0) = none)
+    (result : Option Bool) (hresult : state.publication = some result) : result = none := by
+  rcases hinvariant.2.2.2.2.1 result hresult with hnone | hstored
+  · exact hnone
+  · exact hstored.symm.trans hempty
+
+/-- Every supported continuation of an accepted unopenable binding that
+resolves publication selects decline, regardless of all subsequent actions. -/
+theorem run_unopenable_publication (window : Nat) (state next : (application window).State)
+    (actions : List (application window).Action) (hinvariant : Invariant state.application)
+    (hbound : state.application.accepted.isSome = true)
+    (hempty : state.application.acceptedService.lookup (0, 0) = none)
+    (hnext : next ∈ ((application window).run actions state).support)
+    (result : Option Bool) (hresult : next.application.publication = some result) :
+    result = none := by
+  have hpreserved := run_binding window state next actions hbound hnext
+  have hfinal := (application window).run_application_invariant Invariant
+    privateStep_invariant (handle_invariant window) environmentStep_invariant
+    state next actions hinvariant hnext
+  exact unopenable_publication next.application hfinal
+    (hpreserved.2 ▸ hempty) result hresult
+
+/--
+info: 'VegasTests.OptionalDisclosure.DisclosureState.run_unopenable_publication' depends on axioms:
+[propext, Classical.choice, Quot.sound]
+-/
+#guard_msgs (whitespace := lax) in
+#print axioms VegasTests.OptionalDisclosure.DisclosureState.run_unopenable_publication
 
 end VegasTests.OptionalDisclosure.DisclosureState

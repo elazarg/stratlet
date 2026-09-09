@@ -12,8 +12,10 @@ import VegasTests.DisclosureReachability
 
 The endpoint is the actual written source program, for any public payout list.
 Every supported policy execution yielding a completed native outcome has a
-source execution with the same hidden binding, public signal, optional opening,
-and response. Pending runs remain outside this terminal statement. This is
+source execution with the same public signal, optional opening, and response.
+Openable bindings retain their value; unopenable bindings use the fixed source
+witness `false` and can resolve only to decline. Pending runs remain outside
+this terminal statement. This is
 support correspondence, not equality of laws or strategic backtranslation.
 -/
 
@@ -53,13 +55,14 @@ theorem outcome_eq_some_iff (state : DisclosureState)
   cases hsignal : state.signal <;> cases hpublication : state.publication <;>
     cases hresponse : state.response <;> simp [outcome?, hsignal, hpublication, hresponse]
 
-/-- The completed public readout and retained private binding determine the
-actual source execution and compiled payout evaluation. -/
+/-- The completed public readout and the accepted verifier's source witness
+determine an actual source execution and compiled payout evaluation. An
+unopenable verifier uses the legal witness `false`, without repairing it. -/
 theorem outcome_source (payouts : Payouts) (state : DisclosureState)
     (hinvariant : Invariant state) (signal : Bool) (opening : Option Bool) (response : Bool)
     (houtcome : state.outcome? = some (signal, opening, response)) :
     ∃ secret,
-      state.service.lookup (0, 0) = some secret ∧
+      (state.acceptedService.lookup (0, 0)).getD false = secret ∧
       state.decodedConfig = cfg ⟨secret, signal, opening, response⟩ 8 ∧
       SmallStep.Star (SourceConfig.initial (coreWithPayoffs payouts))
         ⟨TerminalContext, terminalEnv secret signal opening response, .ret payouts⟩ ∧
@@ -67,10 +70,13 @@ theorem outcome_source (payouts : Payouts) (state : DisclosureState)
         some (evalPayoffs payouts (terminalEnv secret signal opening response)) := by
   obtain ⟨hsignal, hpublication, hresponse⟩ :=
     (outcome_eq_some_iff state signal opening response).mp houtcome
-  obtain ⟨secret, hstored, hvalid⟩ := hinvariant.2.2.2.2.1 opening hpublication
+  let secret := (state.acceptedService.lookup (0, 0)).getD false
+  have hvalid : opening = none ∨ opening = some secret := by
+    have hdata := data_valid state hinvariant
+    simpa only [RunData.Valid, data, hpublication, Option.getD_some] using hdata
   have hcfg : state.decodedConfig = cfg ⟨secret, signal, opening, response⟩ 8 := by
-    simp [decodedConfig, phase, data, hstored, hsignal, hpublication, hresponse]
-  exact ⟨secret, hstored, hcfg, source_execution payouts secret signal opening response hvalid,
+    simp [decodedConfig, phase, data, secret, hsignal, hpublication, hresponse]
+  exact ⟨secret, rfl, hcfg, source_execution payouts secret signal opening response hvalid,
     hcfg ▸ cfg_payoff payouts ⟨secret, signal, opening, response⟩⟩
 
 /-- Arbitrary controllers and adaptive environment policies retain terminal
@@ -85,7 +91,7 @@ theorem policy_outcome_source (payouts : Payouts) (window : Nat)
     (signal : Bool) (opening : Option Bool) (response : Bool)
     (houtcome : next.native.application.outcome? = some (signal, opening, response)) :
     ∃ secret,
-      next.native.application.service.lookup (0, 0) = some secret ∧
+      (next.native.application.acceptedService.lookup (0, 0)).getD false = secret ∧
       next.native.application.decodedConfig = cfg ⟨secret, signal, opening, response⟩ 8 ∧
       SmallStep.Star (SourceConfig.initial (coreWithPayoffs payouts))
         ⟨TerminalContext, terminalEnv secret signal opening response, .ret payouts⟩ ∧
