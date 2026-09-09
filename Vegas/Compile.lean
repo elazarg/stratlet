@@ -9,6 +9,11 @@ import Vegas.Compile.ConditionalExecution
 import Vegas.Compile.ConditionalOpeningSite
 import Vegas.Compile.ConditionalPublication
 import Vegas.Compile.ConditionalResolution
+import Vegas.Compile.PublicChoice
+import Vegas.Compile.PublicChoiceSite
+import Vegas.Compile.PublicChoiceExecution
+import Vegas.Compile.PublicChoiceValidation
+import Vegas.Compile.PublicGuard
 import Vegas.Compile.DecisionSite
 import Vegas.Compile.FieldMap
 import Vegas.Compile.SourceAdequacy
@@ -36,9 +41,12 @@ import Vegas.Compile.SealedSource
 import Vegas.Compile.SealedTimeoutRefinement
 
 /-!
-# Compilation: checked Vegas programs to event graphs
+# Compilation: checked Vegas programs and runtime components
 
 `Compiler` lowers a `GraphProgram` / `WFProgram` into a canonical
 `EventGraph.Graph` with typed fields, causal dependencies, guarded commit
 nodes, exact finite laws, and terminal payoff projections.
+Public-choice and conditional-publication components connect certified source
+occurrences to shared runtime handlers; whole public-application generation and
+its strategic correspondence remain separate obligations.
 -/

@@ -68,8 +68,13 @@ private theorem handle_publication_none_or_owner_result (result : Option Bool)
   cases message with
   | mk id payload =>
       cases payload with
-      | bind reference | expireInitial | respond value | expireResponse =>
+      | bind reference | expireInitial | expireResponse =>
           simp only [handle] at hhandle
+          split at hhandle <;> try contradiction
+          cases hhandle
+          exact Or.inl hpublication
+      | respond value =>
+          simp only [handle, response_resolve_map] at hhandle
           split at hhandle <;> try contradiction
           cases hhandle
           exact Or.inl hpublication

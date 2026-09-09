@@ -152,7 +152,7 @@ theorem handle_invariant (window : Nat) (state : DisclosureState)
         · intro hresponseSome
           rfl
   | respond value =>
-      simp only [handle, hpayload] at hhandle
+      simp only [handle, hpayload, response_resolve_map] at hhandle
       split at hhandle <;> try contradiction
       rename_i hrespond
       cases hhandle
@@ -231,7 +231,7 @@ theorem handle_binding (window : Nat) (state : DisclosureState)
           cases hhandle
           exact ⟨rfl, rfl⟩
   | respond value =>
-      simp only [handle, hpayload] at hhandle
+      simp only [handle, hpayload, response_resolve_map] at hhandle
       split at hhandle <;> try contradiction
       cases hhandle
       exact ⟨rfl, rfl⟩
@@ -300,6 +300,7 @@ theorem handle_publication_fixed (window : Nat) (state : DisclosureState)
         cases hhandle
   all_goals
     simp only [handle, hpayload] at hhandle
+    try rw [response_resolve_map] at hhandle
     first
     | contradiction
     | split at hhandle <;> try contradiction

@@ -111,7 +111,7 @@ theorem responder_response_submission (response : Bool → Option Bool → Bool)
     refine ⟨{ state with response := some value }, ?_, rfl⟩
     change handle window state ⟨(1, serial), .respond value⟩ =
       some { state with response := some value }
-    simp [handle, Message.sender, hresponseReady]
+    simp [handle, hresponseReady]
   · intro execution command hinvariant hcommand hemit
     subst command
     rw [hresponder] at hcommand

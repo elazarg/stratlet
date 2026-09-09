@@ -493,6 +493,20 @@ public result and the marker/chance/clock observation laws are independent of
 the tables. A later opening checks the captured verifier, not mutable private
 preparation.
 
+The response entry point delegates to `Interaction.PublicChoice`, whose owner,
+node identities, and dependency gate come from a `PublicChoiceSite` in the
+actual source. Its validator evaluates retained guard code using only its
+stored dependency footprint. The response's constant guard has no stored
+dependencies. In general, public execution additionally requires that every
+dependency is public and that the native public store contains its correct
+value; guards over private data need a different validation mechanism.
+`DisclosurePublicChoiceRefinement.respond_handle` gives the exact native
+handler equation, including rejection. Its source-step and graph-refinement
+theorems instantiate the generated validator's source agreement and paired
+graph effect. They relate the local adjacent source choice/reveal to the native
+update; they do not identify intermediate observations or whole execution laws.
+Application assembly and controllers remain specialized to this instance.
+
 `DisclosureApplicationInvariant.run_binding` preserves the accepted binding
 and verifier under every supported finite native continuation.
 `run_unopenable_publication` proves that any publication reached from an

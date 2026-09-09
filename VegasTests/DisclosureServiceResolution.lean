@@ -129,7 +129,7 @@ theorem handle_signal_fixed (state next : DisclosureState)
         cases hhandle
         exact ⟨rfl, rfl⟩
   all_goals
-    simp only [handle, hpayload] at hhandle
+    simp only [handle, hpayload, response_resolve_map] at hhandle
     first
     | contradiction
     | split at hhandle <;> try contradiction

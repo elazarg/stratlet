@@ -7,6 +7,7 @@ Authors: VegasCore contributors
 import VegasTests.Game
 import VegasTests.Language
 import VegasTests.CoreFinite
+import VegasTests.PublicGuard
 import VegasTests.SourceStrategy
 import VegasTests.Machine
 import VegasTests.ScheduledReplay
@@ -29,6 +30,8 @@ import VegasTests.DisclosureOpening
 import VegasTests.DisclosurePublication
 import VegasTests.DisclosurePublicationOrder
 import VegasTests.DisclosureApplicationSource
+import VegasTests.DisclosurePublicChoice
+import VegasTests.DisclosurePublicChoiceRefinement
 import VegasTests.DisclosureApplicationLaw
 import VegasTests.DisclosureMalformed
 import VegasTests.DisclosureExpiration

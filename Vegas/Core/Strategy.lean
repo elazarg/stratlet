@@ -64,6 +64,42 @@ def depth {who : P} : {Γ : VCtx P L} → {prog : VegasCore P L Γ} →
   | _, _, _, _, _, _, .commit site => site.depth + 1
   | _, _, _, _, _, _, .reveal site => site.depth + 1
 
+/-- The source continuation immediately following the identified decision. -/
+def continuation {who : P} {Γ : VCtx P L} {prog : VegasCore P L Γ}
+    {Δ : VCtx P L} {x : VarId} {b : L.Ty}
+    {guard : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Δ)) L.bool} :
+    SourceDecisionSite who prog Δ x b guard →
+      VegasCore P L ((x, .sealed who b) :: Δ)
+  | .here _ tail => tail
+  | .sample site => site.continuation
+  | .commit site => site.continuation
+  | .reveal site => site.continuation
+
+/-- Global freshness restricts to the continuation at a decision site. -/
+theorem continuation_fresh {who : P} {Γ : VCtx P L} {prog : VegasCore P L Γ}
+    {Δ : VCtx P L} {x : VarId} {b : L.Ty}
+    {guard : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Δ)) L.bool}
+    (site : SourceDecisionSite who prog Δ x b guard)
+    (fresh : FreshBindings prog) : FreshBindings site.continuation := by
+  induction site with
+  | here => exact fresh.2
+  | sample site ih => exact ih fresh.2
+  | commit site ih => exact ih fresh.2
+  | reveal site ih => exact ih fresh.2
+
+/-- Global freshness restricts to the decision and its continuation. -/
+theorem decision_fresh {who : P} {Γ : VCtx P L} {prog : VegasCore P L Γ}
+    {Δ : VCtx P L} {x : VarId} {b : L.Ty}
+    {guard : L.Expr ((x, b) :: eraseVCtx (viewVCtx who Δ)) L.bool}
+    (site : SourceDecisionSite who prog Δ x b guard)
+    (fresh : FreshBindings prog) :
+    FreshBindings (.commit x who guard site.continuation) := by
+  induction site with
+  | here => exact fresh
+  | sample site ih => exact ih fresh.2
+  | commit site ih => exact ih fresh.2
+  | reveal site ih => exact ih fresh.2
+
 /-- In a straight-line source term, the instruction position identifies the
 entire typed decision occurrence. -/
 theorem indices_eq_of_depth_eq {who : P} {Γ : VCtx P L} {prog : VegasCore P L Γ}

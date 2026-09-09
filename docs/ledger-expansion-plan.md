@@ -270,6 +270,17 @@ player choices, persistent quitting, and settlement under the stated services;
 starting a proof at an already represented disclosure checkpoint does not
 complete that gate.
 
+Ordinary adjacent choice/reveal sites have a corresponding local component:
+`PublicChoiceSite` derives metadata and guard code from `SourceDecisionSite`,
+and the shared `PublicChoice` endpoint performs authentication, readiness, and
+validation. The disclosure response handler directly instantiates it, with
+checked local source steps and equality of the decoded native and graph
+updates. Validation uses only actual guard dependencies, whose publicness and
+native store agreement are separate obligations. Whole-application generation,
+sample-once source controllers, and the public-runtime strategic comparison
+remain open; these local macros do not establish intermediate-observation
+equivalence.
+
 `MessageApplication` supplies the common receipt-bearing execution and
 observation-local policy boundary, with fixed application chance kernels.
 The timed sealed instance has exact state/action/observation/run correspondence,

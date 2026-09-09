@@ -19,7 +19,12 @@ noncomputable section
 
 namespace VegasTests.OptionalDisclosure.DisclosureState
 
-open Interaction GameTheory.Math.Probability
+open Vegas EventGraph Interaction GameTheory.Math.Probability
+
+private theorem initialExpiryResponseGraphPrerequisites_eq :
+    graph.publicationPrerequisites (node 6) (node 7) = [2, 3, 5, 0, 1, 4] := by
+  simpa only [responsePrerequisites, responseEndpoint_requires] using
+    responsePrerequisites_eq
 
 def initialExpiryActions (window : Nat) (response : Bool) :
     List (application window).Action :=
@@ -43,10 +48,14 @@ theorem initial_expiration_run (window : Nat) (response : Bool) :
     application, initial, MessageApplication.State.initial, empty,
     MessageApplication.includePending, MessagePool.includeApplication,
     MessagePool.includePending, MessagePool.lookup, MessagePool.submit,
-    MessagePool.empty, MessagePool.removeFirst, handle, environmentStep, Message.sender,
+    MessagePool.empty, MessagePool.removeFirst, handle, PublicChoice.resolve?_map,
+    environmentStep, Message.sender,
     ConditionalPublication.resolve?, ConditionalPublication.ready, acceptedReference,
     DisclosureBinding.reference, Publication.publicationSite_eq, done,
-    responseReady, responsePrerequisites_eq, outcome?, hclock, FinDist.map_eq_bind]
+    responseReady, responseValidator_true, responseEndpoint_owner, PublicChoice.ready,
+    responseEndpoint_choiceNode,
+    responseEndpoint_publicationNode, initialExpiryResponseGraphPrerequisites_eq,
+    outcome?, hclock, FinDist.map_eq_bind]
 
 /-- Expiration preserves unsubmitted private preparation and records an
 explicitly public default. It cannot be mistaken for a successful owner bind. -/

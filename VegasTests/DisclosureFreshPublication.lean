@@ -57,9 +57,9 @@ private theorem handle_firstArm (origin : Nat) (state : DisclosureState)
                 rcases hhandle with ⟨_, rfl⟩
                 simp [statePublication] at nextPublication
             | respond value =>
-                simp only [handle, Fin.isValue, Option.ite_none_right_eq_some,
-                  Option.some.injEq] at hhandle
-                rcases hhandle with ⟨_, rfl⟩
+                simp only [handle, response_resolve_map] at hhandle
+                split at hhandle <;> try contradiction
+                cases hhandle
                 simp [statePublication] at nextPublication
             | expireResponse =>
                 simp only [handle, Option.ite_none_right_eq_some,
@@ -84,19 +84,21 @@ private theorem handle_response_none_of_prePublicationSafe (origin : Nat)
   | mk id payload =>
     cases payload with
     | respond value =>
-        simp only [handle, Fin.isValue, Option.ite_none_right_eq_some,
-          Option.some.injEq] at hhandle
-        rcases hhandle with ⟨hsender, _, rfl⟩
+        simp only [handle, response_resolve_map] at hhandle
+        split at hhandle <;> try contradiction
+        rename_i hrespond
+        cases hhandle
         exfalso
-        exact hsafe hsender.1 value rfl
+        exact hsafe hrespond.1 value rfl
     | expireResponse =>
         simp only [handle, Option.ite_none_right_eq_some, Option.some.injEq] at hhandle
         rcases hhandle with ⟨hready, rfl⟩
         rcases harm.2 with hpublication | horigin
-        · have hnode : 4 ∈ responsePrerequisites := by decide
+        · have hnode : 4 ∈ responseEndpoint.requires := by decide
           have hready' := hready.1
-          simp only [responseReady, Bool.and_eq_true] at hready'
-          have hdone := List.all_eq_true.mp hready'.2 4 hnode
+          simp only [responseReady, PublicChoice.ready, Bool.and_eq_true,
+            Bool.not_eq_true', List.all_eq_true] at hready'
+          have hdone := hready'.2 4 hnode
           simp [done, hpublication] at hdone
         · have hclock := harm.1
           omega

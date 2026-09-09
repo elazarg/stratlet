@@ -358,14 +358,43 @@ cryptographic mechanisms are outside this gate unless they expose an obligation
 needed by that compiler edge. An abstraction failure redirects work to the
 edge itself; it is not a reason to expand the fixture indefinitely.
 
-The next concrete generation slice is the executable endpoint for an ordinary
-adjacent source choice and reveal. Reuse `DecisionSite` for compiled node
-identification and `choice_publication_laws` for the paired graph effect;
-replace disclosure's handwritten response handler with an instance of that
-generated endpoint. The acceptance test is equality with the existing native
-handler on the represented states, plus preservation of its graph/source
-correspondence. Then generate the companion controller from the source decision
-kernel, sampling once and retaining the selected request across polling.
+The ordinary adjacent choice/reveal component uses `PublicChoiceSite`, built
+on `SourceDecisionSite`, to derive node identities, ownership, readiness, and
+guard code from the source occurrence. `EventGuard.validate` reads only the
+stored dependencies of that guard; the candidate action is supplied directly.
+Public execution requires public dependencies and a native store readout that
+agrees on them. A guard depending on a sealed value requires a separate
+validation mechanism or falls outside this component's supported fragment.
+Neither source well-formedness nor adjacency establishes public validation.
+
+Disclosure's native response handler invokes this generated endpoint and
+validator. `DisclosurePublicChoiceRefinement` checks the exact handler equation,
+the local source commit/reveal steps, and equality between the generated graph
+macro and the decoded native update. These are local compiler-component
+theorems, not whole-program randomized or strategic correspondence. Endpoint
+and validator evaluation is executable on supplied metadata and stores; the
+current metadata construction uses the noncomputable compiler elaboration.
+
+The next generation step is the companion observation-local controller from
+the source decision kernel, sampling once and retaining the selected request
+across polling. Then assemble these components into whole public applications.
+
+For an immediately public choice, the existing policy carrier can retain the
+draw in its own chronological command history: sample at the first submission,
+then recover the earliest submission for this site. A site-tagged codec must
+distinguish it from other endpoints. The generic history/cache combinator
+belongs in `Interaction`, with abstract payload and value types; Vegas supplies
+the source kernel and certified observation readout. That readout may use both
+current local observations and remembered own commands, and must reconstruct
+the full source decision view, not merely the guard's validation dependencies.
+Source environments and graph configurations remain proof-facing.
+
+The controller acceptance gate is an exact first-emission law and preservation
+of its selected value through every supported later invocation. Retry cadence
+is explicit: retries are real public traffic, not erased stuttering. Start with
+the current one-submission behavior and prove its law before adding a retrying
+instance. Completion still requires the separate service/deadline theorem.
+
 Conditional openings already have generated metadata in
 `ConditionalOpeningSite.runtimeSite`; consume it rather than introduce another
 site table. These local generation steps do not themselves establish strategic

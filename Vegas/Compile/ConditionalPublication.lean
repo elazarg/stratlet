@@ -52,20 +52,16 @@ def conditionalPublication (G : Graph Player L) (owner : Player) (sourceSlot : N
   requires := G.publicationPrerequisites choice publication
   deadline := deadline
 
-/-- A successful public readiness check supplies both the first graph
-readiness and all external prerequisites of the second graph event. -/
-theorem conditionalPublication_ready (G : Graph Player L) (cfg : Config G)
-    (owner : Player) (sourceSlot : Nat) (choice publication : Fin G.nodeCount)
-    (deadline : Nat) (accepted : Option (CommitmentHandle Player Nat))
+/-- Public completion flags and the paired prerequisite list suffice for
+the graph readiness of the first event and the second event's external edges. -/
+theorem publication_ready (G : Graph Player L) (cfg : Config G)
+    (choice publication : Fin G.nodeCount)
     (done : Nat → Bool)
     (hcompleted : ∀ node : Fin G.nodeCount, done node.val = true ↔ node ∈ cfg.done)
-    (hready : (G.conditionalPublication owner sourceSlot choice publication deadline).ready
-      accepted done = true) :
+    (hchoice : done choice.val = false) (hpublication : done publication.val = false)
+    (hrequires : (G.publicationPrerequisites choice publication).all done = true) :
     Ready G cfg choice ∧ publication ∉ cfg.done ∧
       G.prereqs publication ⊆ insert choice cfg.done := by
-  simp only [ConditionalPublication.ready, conditionalPublication, Bool.and_eq_true,
-    beq_iff_eq, Bool.not_eq_true'] at hready
-  obtain ⟨⟨⟨_, hchoice⟩, hpublication⟩, hrequires⟩ := hready
   have hdone (prior : Fin G.nodeCount) (hne : prior ≠ choice)
       (hprior : prior ∈ G.prereqs choice ∨ prior ∈ G.prereqs publication) :
       prior ∈ cfg.done := by
@@ -88,6 +84,22 @@ theorem conditionalPublication_ready (G : Graph Player L) (cfg : Config G)
     by_cases heq : prior = choice
     · exact Finset.mem_insert.mpr (Or.inl heq)
     · exact Finset.mem_insert_of_mem (hdone prior heq (Or.inr hprior))
+
+/-- A successful public readiness check supplies both the first graph
+readiness and all external prerequisites of the second graph event. -/
+theorem conditionalPublication_ready (G : Graph Player L) (cfg : Config G)
+    (owner : Player) (sourceSlot : Nat) (choice publication : Fin G.nodeCount)
+    (deadline : Nat) (accepted : Option (CommitmentHandle Player Nat))
+    (done : Nat → Bool)
+    (hcompleted : ∀ node : Fin G.nodeCount, done node.val = true ↔ node ∈ cfg.done)
+    (hready : (G.conditionalPublication owner sourceSlot choice publication deadline).ready
+      accepted done = true) :
+    Ready G cfg choice ∧ publication ∉ cfg.done ∧
+      G.prereqs publication ⊆ insert choice cfg.done := by
+  simp only [ConditionalPublication.ready, conditionalPublication, Bool.and_eq_true,
+    beq_iff_eq, Bool.not_eq_true'] at hready
+  exact G.publication_ready cfg choice publication done hcompleted
+    hready.1.1.2 hready.1.2 hready.2
 
 end Graph
 

@@ -36,6 +36,9 @@ theorem response_expiration_run (window : Nat) (secret : Bool) :
       fairCoin.denote.map (fun signal =>
         (some (signal, some secret, false),
           [((0, 0), true), ((0, 1), true), ((0, 2), true)])) := by
+  have hrequires : graph.publicationPrerequisites (node 6) (node 7) =
+      [2, 3, 5, 0, 1, 4] := by
+    simpa only [responsePrerequisites, responseEndpoint_requires] using responsePrerequisites_eq
   simp [responseExpiryActions, MessageApplication.run, MessageApplication.step,
     application, initial, MessageApplication.State.initial, empty,
     MessageApplication.includePending, MessagePool.includeApplication,
@@ -45,7 +48,7 @@ theorem response_expiration_run (window : Nat) (secret : Bool) :
     IdealCommitments.empty, IdealCommitments.sealValue, IdealCommitments.verify,
     ConditionalPublication.resolve?, ConditionalPublication.ready,
     acceptedReference, DisclosureBinding.reference, verifyOpening, DisclosureBinding.verify,
-    Publication.publicationSite_eq, done, responseReady, responsePrerequisites_eq,
+    Publication.publicationSite_eq, done, responseReady, PublicChoice.ready, hrequires,
     outcome?, FinDist.map_eq_bind]
 
 /-- The source outcome reconstructed after expiration uses the actual source

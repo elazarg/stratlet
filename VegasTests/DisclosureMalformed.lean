@@ -62,6 +62,9 @@ private theorem unopenable_suffix_law (window : Nat) (signal lateValue response 
       FinDist.pure (some (signal, none, response),
         [((0, 0), true), ((0, 1), false), ((1, 0), true), ((1, 1), true)],
         [⟨(0, 1), Payload.publish (.opening (0, 0) lateValue)⟩]) := by
+  have hrequires : graph.publicationPrerequisites (node 6) (node 7) =
+      [2, 3, 5, 0, 1, 4] := by
+    simpa only [responsePrerequisites, responseEndpoint_requires] using responsePrerequisites_eq
   simp [unopenableSuffix, unopenableAtSignal, MessageApplication.run, MessageApplication.step,
     application, empty, MessageApplication.includePending, MessagePool.includeApplication,
     MessagePool.includePending, MessagePool.lookup, MessagePool.submit, MessagePool.empty,
@@ -69,7 +72,8 @@ private theorem unopenable_suffix_law (window : Nat) (signal lateValue response 
     Message.sender, IdealCommitments.lookup, IdealCommitments.empty, IdealCommitments.sealValue,
     IdealCommitments.verify, ConditionalPublication.resolve?, ConditionalPublication.ready,
     acceptedReference, DisclosureBinding.reference, verifyOpening, DisclosureBinding.verify,
-    Publication.publicationSite_eq, done, responseReady, responsePrerequisites_eq, outcome?]
+    Publication.publicationSite_eq, done, responseReady, PublicChoice.resolve?_map,
+    PublicChoice.ready, hrequires, outcome?]
 
 /-- The owner attempts preparation only after the accepted binding and public
 signal. Expiration is a real responder-authored message, not a clock effect. -/

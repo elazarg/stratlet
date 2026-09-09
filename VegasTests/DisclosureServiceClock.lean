@@ -33,8 +33,12 @@ theorem handle_clock (state next : DisclosureState)
   cases message with
   | mk id payload =>
       cases payload with
-      | bind reference | expireInitial | respond value | expireResponse =>
+      | bind reference | expireInitial | expireResponse =>
           simp only [handle] at hhandle
+          split at hhandle <;> cases hhandle
+          rfl
+      | respond value =>
+          simp only [handle, response_resolve_map] at hhandle
           split at hhandle <;> cases hhandle
           rfl
       | publish request =>

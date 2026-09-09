@@ -36,7 +36,7 @@ theorem handle_response_none_or_expected (expected : Bool)
   | mk id payload =>
       cases payload with
       | respond value =>
-          simp only [handle] at hhandle
+          simp only [handle, response_resolve_map] at hhandle
           split at hhandle <;> try contradiction
           rename_i hrequest
           have hvalue := hsafe hrequest.1 value rfl
@@ -149,7 +149,7 @@ theorem responder_choice_phase_resolves (signal : Bool) (publication : Option Bo
     have hhandle : handle window state.application
         (Message.mk (1, serial) (Payload.respond expected)) =
         some { state.application with response := some expected } := by
-      simp [handle, Message.sender, hreadyResponse]
+      simp [handle, hreadyResponse]
     rw [(application window).includePending_accept state id _ _ hlookup hhandle]
     rfl
 

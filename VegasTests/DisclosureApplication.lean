@@ -6,14 +6,16 @@ Authors: VegasCore contributors
 
 import Interaction.MessageApplicationPolicies
 import VegasTests.DisclosurePublication
+import VegasTests.DisclosurePublicChoice
 
 /-! # Public interaction for the checked disclosure program
 
 This application specializes the checked optional-disclosure source to the
 shared message runtime. Operational state contains public progress and an ideal
 commitment service, not a graph configuration. Source reconstruction is a
-separate proof-facing projection. The publication site and response dependency
-gate come from the actual compiled graph.
+separate proof-facing projection. The publication site comes from the actual
+compiled graph. The response handler uses the public-choice endpoint and guard
+validator generated from the responder's adjacent source choice and reveal.
 
 The environment may execute the forced public marker and trigger the source
 chance kernel. Neither operation consults the owner's policy or selects a
@@ -155,10 +157,18 @@ def done (state : DisclosureState) : Nat → Bool
   | _ => false
 
 def responsePrerequisites : List Nat :=
-  graph.publicationPrerequisites (node 6) (node 7)
+  responseEndpoint.requires
 
 def responseReady (state : DisclosureState) : Bool :=
-  !state.done 6 && !state.done 7 && responsePrerequisites.all state.done
+  responseEndpoint.ready state.done
+
+/-- Normal form of the generated endpoint's native application effect. -/
+@[simp] theorem response_resolve_map {Result : Type}
+    (state : DisclosureState) (id : MessageId TestPlayer) (value : Bool)
+    (record : Bool → Result) :
+    (responseEndpoint.resolve? state.done responseValidator ⟨id, value⟩).map record =
+      if id.1 = 1 ∧ state.responseReady then some (record value) else none := by
+  simp [PublicChoice.resolve?_map, responseReady, Message.sender]
 
 def privateStep (state : DisclosureState) (who : TestPlayer)
     (command : Nat × Bool) : DisclosureState :=
@@ -196,9 +206,8 @@ def handle (window : Nat) (state : DisclosureState)
         ⟨message.id, request⟩
       some { state with publication := some result, responseAt := state.clock }
   | .respond value =>
-      if message.sender = 1 ∧ state.responseReady then
-        some { state with response := some value }
-      else none
+      (responseEndpoint.resolve? state.done responseValidator ⟨message.id, value⟩).map
+        (fun chosen => { state with response := some chosen })
   | .expireResponse =>
       if state.responseReady ∧ state.responseAt + window < state.clock then
         some { state with response := some false }
@@ -300,8 +309,11 @@ theorem publicDefault_verification (state : DisclosureState) (value : Bool)
 
 theorem responseReady_publication (state : DisclosureState)
     (hready : state.responseReady = true) : state.publication.isSome = true := by
-  simp only [responseReady, Bool.and_eq_true, Bool.not_eq_true', List.all_eq_true] at hready
-  have hpublicationDone := hready.2 5 (by simp [responsePrerequisites_eq])
+  simp only [responseReady, PublicChoice.ready, Bool.and_eq_true,
+    Bool.not_eq_true', List.all_eq_true] at hready
+  have hpublicationDone := hready.2 5 (by
+    change 5 ∈ responsePrerequisites
+    simp [responsePrerequisites_eq])
   simpa [done] using hpublicationDone
 
 /-- The deadline authorizes a permissionless call selecting the existing
@@ -322,7 +334,7 @@ theorem expireResponse_completed (window : Nat) (state : DisclosureState)
     (caller : TestPlayer) (serial : Nat) (value : Bool)
     (hresponse : state.response = some value) :
     handle window state ⟨(caller, serial), .expireResponse⟩ = none := by
-  simp [handle, responseReady, done, hresponse]
+  simp [handle, responseReady, PublicChoice.ready, done, hresponse]
 
 /-- A completed publication cannot be repeated to re-arm the response clock. -/
 theorem publish_after_resolution (window : Nat) (state : DisclosureState)

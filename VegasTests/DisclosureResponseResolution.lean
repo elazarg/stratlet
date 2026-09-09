@@ -26,8 +26,18 @@ theorem handle_response_fixed (state next : DisclosureState)
     (message : Message TestPlayer Payload) (value : Bool) (hresponse : state.response = some value)
     (hhandle : handle window state message = some next) : next.response = state.response := by
   cases hpayload : message.payload
-  case respond reply => simp [handle, hpayload, responseReady, done, hresponse] at hhandle
-  case expireResponse => simp [handle, hpayload, responseReady, done, hresponse] at hhandle
+  case respond reply =>
+    simp [handle, hpayload, response_resolve_map, responseReady,
+      PublicChoice.ready, done, hresponse] at hhandle
+  case expireResponse =>
+    simp only [handle, hpayload, Option.ite_none_right_eq_some,
+      Option.some.injEq] at hhandle
+    rcases hhandle with ⟨hcondition, _⟩
+    have hchoice : state.done 6 = true := by
+      simp [done, hresponse]
+    have hnotready : responseEndpoint.ready state.done = false := by
+      simp [PublicChoice.ready, hchoice]
+    simp [responseReady, hnotready] at hcondition
   case publish request =>
     simp only [handle, hpayload] at hhandle
     cases hresolve : (Publication.publicationSite (state.signalAt + window)).resolve?
@@ -118,7 +128,14 @@ theorem response_ready_of_publication (state : DisclosureState) (hinvariant : In
   have hsignal := hinvariant.2.2.2.1 hpublication
   have hmarker := hinvariant.2.2.1 hsignal
   have haccepted := hinvariant.2.1 hmarker
-  simp [responseReady, responsePrerequisites_eq, done,
+  have hrequires : responseEndpoint.requires = [2, 3, 5, 0, 1, 4] := by
+    change responsePrerequisites = [2, 3, 5, 0, 1, 4]
+    exact responsePrerequisites_eq
+  have hgraphRequires : graph.publicationPrerequisites (node 6) (node 7) =
+      [2, 3, 5, 0, 1, 4] := by
+    rw [← responseEndpoint_requires]
+    exact hrequires
+  simp [responseReady, PublicChoice.ready, hgraphRequires, done,
     hresponse, hpublication, hsignal, hmarker, haccepted]
 
 theorem include_response_resolves (state : (application window).State)
@@ -133,7 +150,7 @@ theorem include_response_resolves (state : (application window).State)
         state.application hinvariant hpublication hresponse
       have hhandle : handle window state.application ⟨(1, serial), .respond value⟩ =
           some { state.application with response := some value } := by
-        simp [handle, Message.sender, hready]
+        simp [handle, hready]
       rw [(application window).includePending_accept state id _ _ hlookup hhandle]
       rfl
   | some response => exact include_response_persists state id (by simp [hresponse])

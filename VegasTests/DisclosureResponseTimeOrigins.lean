@@ -51,9 +51,9 @@ private theorem handle_responseTimeValid (state : DisclosureState)
             rcases hhandle with ⟨_, rfl⟩
             simp [statePublication] at hpublication
         | respond value =>
-            simp only [handle, Fin.isValue, Option.ite_none_right_eq_some,
-              Option.some.injEq] at hhandle
-            rcases hhandle with ⟨_, rfl⟩
+            simp only [handle, response_resolve_map] at hhandle
+            split at hhandle <;> try contradiction
+            cases hhandle
             simp [statePublication] at hpublication
         | expireResponse =>
             simp only [handle, Option.ite_none_right_eq_some, Option.some.injEq] at hhandle
