@@ -9,6 +9,7 @@ import VegasTests.Language
 import VegasTests.CoreFinite
 import VegasTests.PublicGuard
 import VegasTests.ApplicationImage
+import VegasTests.ConditionalApplicationImage
 import VegasTests.SourceStrategy
 import VegasTests.Machine
 import VegasTests.ScheduledReplay

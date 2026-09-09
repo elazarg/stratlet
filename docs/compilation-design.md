@@ -375,30 +375,69 @@ theorems, not whole-program randomized or strategic correspondence. Endpoint
 and validator evaluation is executable on supplied metadata and stores; the
 current metadata construction uses the noncomputable compiler elaboration.
 
-`ApplicationImage` is the shared dispatch artifact for generated public-choice
-instructions. `PublicChoiceSite.code` consumes the existing endpoint, guard,
-and compiler-allocated output addresses; `ofPublicChoices` assembles a finite
-list of these source occurrences. Native memory contains a public typed store
-and completion flags. The handler dynamically checks the packet's type and
-address before invoking the guard, and actual `MessageApplication` inclusion
-records both the storage effect and the public receipt. A source-valid choice
-at a represented, ready checkpoint has the exact two-step source effect and
-the expected native memory, ledger, and local-message effects.
+`ApplicationImage` is the shared dispatch artifact for generated public-choice,
+opaque-binding, and conditional-publication instructions. `PublicChoiceSite.code`,
+`SourceDecisionSite.bindingCode`, and `CommitmentAccounting.OpeningSite.code`
+consume source occurrences and the existing compiler allocation. All instruction
+kinds share one address lookup and the same `MessageApplication` interpreter.
+The handler dynamically checks the packet's kind, type, and address before
+invoking the relevant validator. Actual inclusion records the storage effect,
+raw packet, and public acceptance receipt.
 
-This instruction subset has no private or environment commands. It neither
-installs unopened source values in public memory nor implements sealed binding,
-conditional publication, chance, or timeout instructions. Extend this same
-dispatch artifact and its operational state as those instruction kinds are
-added, with one instruction-address lookup rather than separate dispatch lists.
-`Memory` is the public projection. Ideal service tables and frozen verifiers
-must live in a separate operational state wrapping that memory, not in fields
-exposed by its player/environment view. Source occurrence lists currently
-provide the dispatch input; automatic
-whole-program classification, image coverage, generated controller dispatch,
-and their execution-law invariant remain obligations. The local refinement
-uses a checked lookup of the emitted instruction, public-validator eligibility,
-public-store agreement, and readiness; it does not assume a strategic
-correspondence as an image certificate.
+`Memory` is the public projection: typed public storage, completion flags,
+accepted opaque references, and a clock. The operational `State` also contains
+an ideal private preparation table and frozen acceptance-time values. Neither
+player nor environment views expose these private fields. Private registration
+uses the runtime's authenticated principal capability. Binding admission checks
+public readiness and ownership, without testing registration, type, or value
+validity. Its public effect is independent of the private preparation table.
+An accepted handle may therefore be unopenable. Later registration cannot change
+its frozen verifier; accepting another binding at that source field is rejected.
+
+Conditional publication checks a typed opening against that snapshot, then
+evaluates the retained source guard. The guard's validation dependencies must
+be public except for the exact typed reference to the certified source binding.
+The verified claim is inserted at that reference transiently for validation;
+it is not installed as persistent public storage. Successful opening, explicit
+decline, and overdue expiry store the source certificate's encoded result.
+Environment commands advance a monotone public clock. Expiry still requires a
+real included request; this mechanism provides neither service fairness nor
+protection against clock advancement preempting an honest request.
+
+This instruction subset does not yet implement chance, public initial defaults,
+or autonomous execution of publicly forced source choices. Source occurrence
+lists provide the dispatch input; automatic whole-program classification,
+image coverage, generated controller dispatch, and their execution-law invariant
+remain obligations. Assembly must prove address uniqueness across instruction
+kinds, canonical field writers, and exact binding/publication owner-slot-field
+linkage. Arbitrary manually assembled images have no such guarantee.
+The local refinement uses a checked lookup of the emitted instruction,
+public-validator eligibility, snapshot consistency, public-store agreement,
+and readiness; it does not assume a strategic correspondence as an image
+certificate. Opaque binding admission itself does not certify the original
+source guard. A whole-run relation must account for unopenable bindings without
+assuming a hidden source choice has already been faithfully installed.
+
+Original binding guards are a separate compiler condition. Consider a source
+choice `secret : Bool` restricted to `true`, followed by an optional copy whose
+guard permits exactly `none` or `some secret`. The unvalidated binding instruction
+can freeze a privately registered `false`; the later equality-only opening guard
+then accepts `some false`. That public outcome has no source execution. Checking
+only the later opening guard therefore cannot support arbitrary-deviation
+preservation for all guarded source bindings. This is a limitation of that
+instruction scheme, not an impossibility for public-message runtimes generally.
+
+The first strategically supported opaque-binding fragment should require a
+certificate that every value is legal at each original binding decision.
+This is backend eligibility, not a change to source well-formedness. More
+general bindings need their original guard checked against the original source
+observation. Its public dependencies may be captured at the relevant checkpoint;
+private dependencies require a suitable ideal validation or cryptographic proof
+capability. Failed validation must leave an opaque binding publicly admissible
+but unopenable if admission is to remain independent of private validity.
+Source-kernel legality is enough for compiled honest preparation, but does not
+constrain an arbitrary runtime deviator. The local conditional source theorems
+do not discharge this original-binding obligation.
 
 `Memory.Represents` relates public storage and completion flags to a proof-only
 graph configuration. Every stored value agrees, public graph fields have

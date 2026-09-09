@@ -16,6 +16,10 @@ import Vegas.Compile.PublicChoiceExecution
 import Vegas.Compile.PublicChoiceValidation
 import Vegas.Compile.PublicChoiceController
 import Vegas.Compile.ApplicationImage
+import Vegas.Compile.ApplicationImageBindings
+import Vegas.Compile.ConditionalOpeningValidation
+import Vegas.Compile.ConditionalImage
+import Vegas.Compile.ConditionalImageRefinement
 import Vegas.Compile.PublicChoiceImage
 import Vegas.Compile.ApplicationImageController
 import Vegas.Compile.ApplicationImageRefinement

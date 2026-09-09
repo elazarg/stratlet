@@ -75,7 +75,7 @@ source choice/reveal occurrences. -/
 def ofPublicChoices {Γ : VCtx P L} {prog : VegasCore P L Γ}
     (sites : List (PublicChoiceSite prog)) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) : ApplicationImage P L where
-  choices := sites.map fun site => site.code fresh state
+  instructions := sites.map fun site => .publicChoice (site.code fresh state)
 
 /-- A legal canonical source choice is accepted by actual pending-message
 inclusion with the exact public memory, receipt, ledger, and message-knowledge
@@ -90,12 +90,12 @@ theorem include_source_choice
     (hagrees : (site.siteState fresh state).Agrees representedStore env)
     (hpublicStore : ∀ ref,
       (compileCore prog fresh state).graph.fieldRefPublic ref →
-        Store.getAs execution.application.store ref.field ref.ty =
+        Store.getAs execution.application.memory.store ref.field ref.ty =
           Store.getAs representedStore ref.field ref.ty)
     (hready : (site.runtimeSite fresh state).ready
-      execution.application.done = true)
+      execution.application.memory.done = true)
     (address serial : Nat)
-    (hcode : image.lookup address = some (site.code fresh state))
+    (hcode : image.lookup address = some (.publicChoice (site.code fresh state)))
     (value : L.Val site.ty)
     (hlookup : execution.pool.lookup (site.owner, serial) =
       some ⟨(site.owner, serial),
@@ -117,8 +117,8 @@ theorem include_source_choice
             (site.choiceName, .sealed site.owner site.ty) :: site.context,
           (env.cons value).cons value, site.tail⟩ := by
   have hresolve := (site.code_resolves_iff_source_legal fresh state representedStore
-    execution.application.store env heligible hagrees hpublicStore
-    execution.application.done hready serial value).2 hlegal
+    execution.application.memory.store env heligible hagrees hpublicStore
+    execution.application.memory.done hready serial value).2 hlegal
   have hincluded := image.include_choice execution address (site.code fresh state)
     hcode (site.owner, serial) value hlookup hresolve
   have hsteps := site.completePublication_source_steps env value hlegal

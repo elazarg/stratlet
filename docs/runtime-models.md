@@ -459,8 +459,9 @@ outcome follows a supported native execution of its recorded action trace;
 application invariants therefore lift to arbitrary supported policy runs.
 
 `Vegas/Compile/ApplicationImage.lean` instantiates this carrier for finite
-collections of ordinary public-choice instructions. Each instruction retains
-its generated endpoint, dependency-local guard, and two output fields. Raw
+collections of public-choice, binding, and conditional-publication instructions.
+An ordinary public-choice instruction retains its generated endpoint,
+dependency-local guard, and two output fields. Raw
 messages carry an address and a dynamically packaged language value; unknown
 addresses, incorrect types, and malformed payloads are rejected without
 removing public traffic. Successful inclusion publishes the value at both
@@ -483,10 +484,50 @@ representation relation. The mixed-type checked program in
 Boolean endpoints, a guard that reads a public input, exact successful storage
 and receipts, rejected payloads, and replay through actual native execution.
 
-This image is an instruction subset, not whole-program compilation. It has
-only public memory and no private or environment-triggered instructions;
-sealed bindings, conditional openings, chance, timeouts, automatic occurrence
-selection, and assembled source-policy correspondence remain to be integrated.
+`ConditionalImage` generates binding and conditional-publication metadata from
+the same source occurrences and field allocation. The image's public projection
+contains accepted handles and a monotone clock as well as store and completion
+flags. Its private operational state contains the ideal preparation service and
+acceptance-time snapshots. Binding admission neither tests nor reveals whether
+a registered value exists; wrong-type and absent registrations can be accepted
+as opaque handles. Subsequent registration cannot make a frozen unopenable
+handle openable. An authenticated opening is checked against its snapshot and
+the compiled source guard; other players cannot use it as a guessing oracle.
+This is ideal commitment functionality, not a cryptographic realization.
+
+`ConditionalOpeningValidation` proves source-guard equality when the only
+nonpublic validation dependency is the exact typed source reference supplied
+by the verified claim. Public data supplies the other dependencies. The source
+environment is proof data only. Decline and included overdue expiry use the
+certificate's source-legal declining value, including when the accepted handle
+cannot open. Explicit environment clock advancement and actual expiry traffic
+are modeled separately; no liveness or honest deadline protection follows from
+the instruction semantics alone.
+
+`ConditionalImageRefinement` connects the generated instruction to source
+execution in both local directions. A legal source choice with its correct
+frozen binding is accepted as the canonical typed packet. Conversely, every
+successful inclusion at a represented checkpoint has the exact native storage,
+receipt, ledger, and message-history effects and performs the source's adjacent
+commit/reveal steps. The latter theorem requires only consistency of any
+recoverable frozen value with the source binding; it also covers declines and
+expiry when no value can be recovered. These are endpoint laws, not a premise
+that an entire public-message execution already simulates its source.
+
+This image remains an instruction subset, not whole-program compilation.
+Chance, initial default resolution, publicly forced execution, automatic
+occurrence selection, coherent whole-image allocation, assembled source-policy
+correspondence, and unilateral deviation simulation remain to be integrated.
+Local soundness of a resolved conditional instruction does not establish these
+whole-run properties or certify that an opaque binding already represents a
+legal source choice.
+
+`VegasTests/ConditionalApplicationImage.lean` uses a checked three-node source
+with an unrestricted initial binding and an accounted optional publication.
+It exercises generated code through the shared native runner: successful
+opening, unregistered and wrong-typed preparation, late registration, voluntary
+decline, clock-enabled expiry, invalid openings, and replay. Its concrete runs
+do not replace the still-required randomized and unilateral whole-run laws.
 
 `ChoiceController` samples a choice at its first encoded private command or
 public submission and retains the value in the principal's own chronological

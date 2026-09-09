@@ -110,16 +110,19 @@ def secondAddress : Nat := secondCode.endpoint.publicationNode
 
 abbrev compiled := compileCore source.prog source.fresh compilerInitial
 
-def initialMemory : Vegas.ApplicationImage.Memory simpleExpr :=
+def initialMemory : Vegas.ApplicationImage.Memory Player simpleExpr :=
   Vegas.ApplicationImage.Memory.initial compiled.graph
 
 theorem initial_represents : initialMemory.Represents (Config.initial compiled.graph) :=
   Vegas.ApplicationImage.Memory.initial_represents compiled.graph
 
-def initialExecution : image.application.State :=
-  MessageApplication.State.initial image.application initialMemory
+def initialState : Vegas.ApplicationImage.State Player simpleExpr :=
+  Vegas.ApplicationImage.State.initial initialMemory
 
-def firstMessage : Message Player (Vegas.ApplicationImage.Payload simpleExpr) :=
+def initialExecution : image.application.State :=
+  MessageApplication.State.initial image.application initialState
+
+def firstMessage : Message Player (Vegas.ApplicationImage.Payload Player simpleExpr) :=
   ⟨(0, 0), .choice firstAddress ⟨.bool, true⟩⟩
 
 def firstSubmitted : image.application.State :=
@@ -128,7 +131,7 @@ def firstSubmitted : image.application.State :=
 def firstIncluded : image.application.State :=
   image.application.includePending firstSubmitted (0, 0)
 
-def secondMessage : Message Player (Vegas.ApplicationImage.Payload simpleExpr) :=
+def secondMessage : Message Player (Vegas.ApplicationImage.Payload Player simpleExpr) :=
   ⟨(1, 0), .choice secondAddress ⟨.option .bool, some false⟩⟩
 
 def secondSubmitted : image.application.State :=
@@ -141,10 +144,10 @@ def acceptedActions : List image.application.Action :=
   [.submit 0 firstMessage.payload, .include (0, 0),
     .submit 1 secondMessage.payload, .include (1, 0)]
 
-theorem image_lookup_first : image.lookup firstAddress = some firstCode := by
+theorem image_lookup_first : image.lookup firstAddress = some (.publicChoice firstCode) := by
   rfl
 
-theorem image_lookup_second : image.lookup secondAddress = some secondCode := by
+theorem image_lookup_second : image.lookup secondAddress = some (.publicChoice secondCode) := by
   rfl
 
 theorem accepted_run :
@@ -158,42 +161,42 @@ theorem accepted_run :
 stored at the choice and publication fields, and both native receipts succeed. -/
 theorem accepted_postconditions :
     finalExecution.receipts = [((0, 0), true), ((1, 0), true)] ∧
-      finalExecution.application.store 0 = some ⟨.bool, true⟩ ∧
-      finalExecution.application.store 1 = some ⟨.bool, true⟩ ∧
-      finalExecution.application.store 2 = some ⟨.bool, true⟩ ∧
-      finalExecution.application.store 3 = some ⟨.option .bool, some false⟩ ∧
-      finalExecution.application.store 4 = some ⟨.option .bool, some false⟩ ∧
-      finalExecution.application.done 0 = true ∧
-      finalExecution.application.done 1 = true ∧
-      finalExecution.application.done 2 = true ∧
-      finalExecution.application.done 3 = true := by
+      finalExecution.application.memory.store 0 = some ⟨.bool, true⟩ ∧
+      finalExecution.application.memory.store 1 = some ⟨.bool, true⟩ ∧
+      finalExecution.application.memory.store 2 = some ⟨.bool, true⟩ ∧
+      finalExecution.application.memory.store 3 = some ⟨.option .bool, some false⟩ ∧
+      finalExecution.application.memory.store 4 = some ⟨.option .bool, some false⟩ ∧
+      finalExecution.application.memory.done 0 = true ∧
+      finalExecution.application.memory.done 1 = true ∧
+      finalExecution.application.memory.done 2 = true ∧
+      finalExecution.application.memory.done 3 = true := by
   refine ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 theorem unknown_address_rejected :
-    image.handle initialMemory
+    image.handle initialState
       ⟨(0, 7), .choice 99 ⟨.bool, true⟩⟩ = none := by
   apply image.handle_unknown
   rfl
 
 theorem wrong_dynamic_type_rejected :
-    image.handle initialMemory
+    image.handle initialState
       ⟨(0, 7), .choice firstAddress ⟨.option .bool, some true⟩⟩ = none := by
-  apply image.handle_wrong_type initialMemory firstAddress firstCode
+  apply image.handle_wrong_type initialState firstAddress firstCode
   · exact image_lookup_first
   · decide
 
 theorem guarded_value_rejected :
-    image.handle initialMemory
+    image.handle initialState
       ⟨(0, 7), .choice firstAddress ⟨.bool, false⟩⟩ = none := by
-  change image.handle initialMemory
+  change image.handle initialState
     ⟨(0, 7), .choice firstAddress ⟨firstCode.guard.ty, false⟩⟩ = none
-  rw [image.handle_choice initialMemory firstAddress firstCode image_lookup_first]
+  rw [image.handle_choice initialState firstAddress firstCode image_lookup_first]
   rfl
 
 theorem completed_endpoint_rejects_other_legal_value :
-    image.handle (initialMemory.publish secondCode (some false))
+    image.handle (initialState.publish secondCode (some false))
       ⟨(1, 7), .choice secondAddress ⟨.option .bool, none⟩⟩ = none := by
-  exact image.handle_choice_after_publication initialMemory secondAddress secondCode
+  exact image.handle_choice_after_publication initialState secondAddress secondCode
     image_lookup_second (1, 7) (some false) none
 
 def firstReplayed : image.application.State :=
@@ -219,7 +222,7 @@ theorem replay_cannot_overwrite :
       replayIncluded.pool.ledger = [firstMessage, firstMessage] := by
   refine ⟨rfl, rfl, rfl⟩
 
-def rejectedMessage : Message Player (Vegas.ApplicationImage.Payload simpleExpr) :=
+def rejectedMessage : Message Player (Vegas.ApplicationImage.Payload Player simpleExpr) :=
   ⟨(0, 0), .choice firstAddress ⟨.bool, false⟩⟩
 
 def rejectedSubmitted : image.application.State :=
@@ -234,18 +237,18 @@ def rejectedIncluded : image.application.State :=
   image.application.includePending rejectedDelivered (0, 0)
 
 theorem delivered_rejection_stays_known :
-    rejectedIncluded.application = initialMemory ∧
+    rejectedIncluded.application = initialState ∧
       rejectedIncluded.receipts = [((0, 0), false)] ∧
       rejectedIncluded.pool.inbox 1 = [rejectedMessage] := by
   have hlookup : rejectedDelivered.pool.lookup (0, 0) = some rejectedMessage := by
     rfl
-  have hreject : image.handle initialMemory rejectedMessage = none := by
+  have hreject : image.handle initialState rejectedMessage = none := by
     exact guarded_value_rejected
   have hincluded := MessagePool.includeApplication_reject rejectedDelivered.pool
-    initialMemory (0, 0) rejectedMessage image.handle hlookup hreject
+    initialState (0, 0) rejectedMessage image.handle hlookup hreject
   unfold rejectedIncluded
   simp only [MessageApplication.includePending, Vegas.ApplicationImage.application]
-  rw [show rejectedDelivered.application = initialMemory by rfl, hincluded]
+  rw [show rejectedDelivered.application = initialState by rfl, hincluded]
   refine ⟨rfl, rfl, ?_⟩
   rfl
 

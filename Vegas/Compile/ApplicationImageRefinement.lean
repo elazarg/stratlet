@@ -9,8 +9,8 @@ import Vegas.Compile.PublicChoiceImage
 /-! # Public-memory refinement for generated application instructions
 
 The represented graph state is proof-only. Public memory may omit sealed
-values, including values of completed opaque commitments in a future image
-extension. Values it does contain must agree with the represented store, and
+values, including values of completed opaque commitments. Values it does
+contain must agree with the represented store, and
 all public graph fields have matching typed readouts. This relation does not
 claim that the public memory reveals precisely the source observations.
 -/
@@ -23,7 +23,7 @@ variable {P : Type} [DecidableEq P] {L : IExpr} {G : Graph P L}
 
 /-- Operational public memory represents completion and available values;
 it does not provide the compiler's proof-only hidden source witnesses. -/
-structure Memory.Represents (memory : Memory L) (cfg : Config G) : Prop where
+structure Memory.Represents (memory : Memory P L) (cfg : Config G) : Prop where
   completed : ∀ node : Fin G.nodeCount,
     memory.done node.val = true ↔ node ∈ cfg.done
   outside : ∀ node, G.nodeCount ≤ node → memory.done node = false
@@ -52,7 +52,7 @@ theorem Memory.initial_represents (graph : Graph P L) :
 /-- Completing a generated pair preserves the common memory relation. Field
 and node addresses must come from the represented graph; arbitrary hand-written
 images are not granted an allocation or coherence guarantee. -/
-theorem Memory.Represents.publish {memory : Memory L} {cfg : Config G}
+theorem Memory.Represents.publish {memory : Memory P L} {cfg : Config G}
     (hrep : memory.Represents cfg) (code : PublicChoiceCode P L)
     (choice publication : Fin G.nodeCount)
     (hchoice : code.endpoint.choiceNode = choice.val)
@@ -96,6 +96,29 @@ theorem Memory.Represents.publish {memory : Memory L} {cfg : Config G}
       · simpa [Memory.publish, Config.completeNode, hchoiceField, hpublicationField,
           Store.getAs, Store.set, hpub, hchoose] using hrep.publicFields ref href
 
+/-- A resolved conditional pair preserves the same public-memory relation.
+The private snapshot is separate from this storage postcondition; both encoded
+opening and encoded decline use the compiler-allocated copy/publication fields. -/
+theorem State.publishConditional_represents (state : State P L) (cfg : Config G)
+    (hrep : state.memory.Represents cfg) (code : ConditionalCode P L)
+    (choice publication : Fin G.nodeCount)
+    (hchoice : code.endpoint.choiceNode = choice.val)
+    (hpublication : code.endpoint.publicationNode = publication.val)
+    (hchoiceField : code.choiceField = G.nodeTarget choice)
+    (hpublicationField : code.publicationField = G.nodeTarget publication)
+    (result : Option (L.Val code.secretTy)) :
+    (state.publishConditional code result).memory.Represents
+      ((cfg.completeNode choice ⟨code.guard.ty, code.encoding.symm result⟩).completeNode
+        publication ⟨code.guard.ty, code.encoding.symm result⟩) := by
+  let pair : PublicChoiceCode P L := {
+    endpoint := ⟨code.endpoint.owner, code.endpoint.choiceNode,
+      code.endpoint.publicationNode, code.endpoint.requires⟩
+    guard := code.guard
+    choiceField := code.choiceField
+    publicationField := code.publicationField }
+  exact hrep.publish pair choice publication hchoice hpublication
+    hchoiceField hpublicationField (code.encoding.symm result)
+
 /-- A legal generated inclusion preserves public-memory representation and
 advances the represented graph by its certified choice/reveal macro. This
 provides the postcondition needed by a following generated instruction. -/
@@ -105,19 +128,20 @@ theorem include_source_choice_represents
     (fresh : FreshBindings prog) (state : ToEventGraph.BuildState P L Γ)
     (cfg : Config (ToEventGraph.compileCore prog fresh state).graph)
     (env : VEnv L site.context) (execution : image.application.State)
-    (hrep : execution.application.Represents cfg)
+    (hrep : execution.application.memory.Represents cfg)
     (heligible : site.PubliclyValidatable fresh state)
     (hagrees : (site.siteState fresh state).Agrees cfg.store env)
     (hreachable : Reachable (ToEventGraph.compileCore prog fresh state).graph cfg)
-    (hready : (site.runtimeSite fresh state).ready execution.application.done = true)
+    (hready : (site.runtimeSite fresh state).ready execution.application.memory.done = true)
     (address serial : Nat)
-    (hcode : image.lookup address = some (site.code fresh state))
+    (hcode : image.lookup address = some (.publicChoice (site.code fresh state)))
     (value : L.Val site.ty)
     (hlookup : execution.pool.lookup (site.owner, serial) =
       some ⟨(site.owner, serial), .choice address ⟨site.ty, value⟩⟩)
     (hlegal : evalGuard site.guard value ((env.toView site.owner).eraseEnv) = true) :
-    (image.application.includePending execution (site.owner, serial)).application.Represents
-        (site.completePublication fresh state cfg value) ∧
+    (image.application.includePending execution
+        (site.owner, serial)).application.memory.Represents
+      (site.completePublication fresh state cfg value) ∧
       Reachable (ToEventGraph.compileCore prog fresh state).graph
         (site.completePublication fresh state cfg value) := by
   have hincluded := image.include_source_choice site fresh state cfg.store env execution
@@ -127,7 +151,7 @@ theorem include_source_choice_represents
   · exact hrep.publish (site.code fresh state)
       (site.choiceNode fresh state) (site.publicationNode fresh state) rfl rfl rfl rfl value
   · exact site.completePublication_reachable fresh state cfg env hagrees
-      execution.application.done hrep.completed hready value hlegal hreachable
+      execution.application.memory.done hrep.completed hready value hlegal hreachable
 
 end Vegas.ApplicationImage
 
@@ -135,3 +159,8 @@ end Vegas.ApplicationImage
 [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.ApplicationImage.include_source_choice_represents
+
+/-- info: 'Vegas.ApplicationImage.State.publishConditional_represents' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.ApplicationImage.State.publishConditional_represents
