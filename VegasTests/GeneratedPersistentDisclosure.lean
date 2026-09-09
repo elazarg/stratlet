@@ -200,7 +200,7 @@ private theorem signal_distribution (reads : ReadEnv simpleExpr signalCode.dist.
     signalCode.dist.eval reads = fairCoin.denote := by
   rfl
 
-private theorem checkpoint_sample_law (secret : Bool) :
+theorem checkpoint_sample_law (secret : Bool) :
     image.sample (checkpoint secret).application 3 =
       fairCoin.denote.map ((checkpoint secret).application.sample signalCode) := by
   have hreadable : (ReadEnv.ofStoreExec? (checkpoint secret).application.memory.store

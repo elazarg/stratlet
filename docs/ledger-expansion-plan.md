@@ -266,8 +266,9 @@ The conditional-publication compiler component supplies the local resolution
 edge: generated metadata, source/validator correspondence in both directions,
 and execution by the actual paired graph kernels. Structural application plans
 integrate these instructions, with arbitrary-traffic support refinement and
-source public-outcome witnesses for completed executions. Whole-application
-controller assembly and exact randomized laws remain open. The next strategic
+source public-outcome witnesses for completed executions. Structural source-profile
+lifting supplies reference runtime strategies; its general exact randomized
+execution law remains open. The next strategic
 gate includes the prefix establishing the original binding, all subsequent
 player choices, persistent quitting, and settlement under the stated services;
 starting a proof at an already represented disclosure checkpoint does not
@@ -309,9 +310,15 @@ registration and submission invocations. `ApplicationImageBindingInclusion`
 connects actual recorded inclusion to the cached snapshot. The initialized
 `GeneratedBindingPolicy` prefix has the exact arbitrary randomized source
 snapshot law and a draw-independent environment observation under its specified
-inclusion script. General dispatch and arbitrary-interleaving readout/provenance
-remain to be supplied; a local source-matching readout is not itself a proof
-that a generated whole-program policy maintains it.
+inclusion script. `ApplicationPlan.liftProfile` supplies structural source-order
+dispatch in the full image, and `ApplicationPolicyLocality` proves coordinatewise
+dependence on source policies. `GeneratedApplicationPolicy` composes the binding,
+the forced marker, and chance under that same lifted whole-source profile, with
+successful inclusions and an exact six-invocation joint law. These are reference
+strategies for the open protocol, not generated player software. The next general
+proof must maintain a source-prefix relation covering accepted values, cache
+provenance, and every declared source observation. A local source-matching readout
+is not itself a proof that a whole-program policy maintains it.
 Compose the local laws across initialization, both disclosure sites, the
 intervening response, and the stated service assumptions. This must use actual
 policy invocations, not just the specified raw-action executions.
@@ -341,9 +348,9 @@ public default, and reconstructs the complete declared source view. Native routi
 wrong-tag raw messages and rejects their application effect. The complete pure
 benchmark and initialized service proofs use this assembly, with all three
 strategic kernels projected from the written source profile.
-Whole-application controller generation, randomized full-profile laws, and the
-public-runtime strategic comparison remain open; these local components do
-not establish intermediate-observation equivalence.
+Randomized full-profile laws and the public-runtime strategic comparison remain
+open; the structural lifting and local components do not establish
+intermediate-observation equivalence.
 
 Generated chance instructions use the exact `EventDist.eval` kernel, with an
 address-only environment command and no reroll after completion. This assumes
@@ -352,8 +359,8 @@ Conditional endpoints are certified independently of whether a site performs
 the unique accounting discharge. Their private guard dependencies prevent
 treating later optional copies as ordinary publicly validated choices. The
 persistent-disclosure instance exercises the generated repeated endpoints and
-whole-run support invariant; its generated randomized policy assembly remains
-part of the composition gate above.
+whole-run support invariant; execution of its structurally lifted randomized
+profile through both disclosure sites remains part of the composition gate above.
 Initial sealed-input provisioning/defaults and automatic execution of publicly
 forced choices remain additional gates, not assumptions supplied by accounting.
 

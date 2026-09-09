@@ -38,6 +38,8 @@ import Vegas.Compile.ApplicationImageRegistration
 import Vegas.Compile.ApplicationImageBindingInclusion
 import Vegas.Compile.BindingImageController
 import Vegas.Compile.BindingImageExecution
+import Vegas.Compile.ApplicationPolicy
+import Vegas.Compile.ApplicationPolicyLocality
 import Vegas.Compile.ApplicationImageRefinement
 import Vegas.Compile.BindingImageRefinement
 import Vegas.Compile.ApplicationImageOutcome

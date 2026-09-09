@@ -490,10 +490,11 @@ service snapshots occur only in its proof, not in the readout's inputs.
 
 Snapshot correspondence is not implied by the public accepted handle. The
 runtime permits acceptance of an unprepared handle followed by a registration;
-that later value cannot open the frozen handle. Generated controller assembly
+that later value cannot open the frozen handle. The reference strategy lifting
 must establish registration before binding submission, rather than infer
-snapshot correspondence from the subsequent history. Whole-image controller
-dispatch, availability, and this ordering invariant remain separate obligations.
+snapshot correspondence from the subsequent history. Its structural dispatch
+is defined; whole-run readout availability and this ordering invariant remain
+separate proof obligations.
 `ApplicationImageRegistration` proves that, from
 the canonical empty-service initialization, every principal's earliest recorded
 registration equals its current preparation-table entry. This holds for all
@@ -503,8 +504,9 @@ correspondence when acceptance preceded preparation.
 The same module's post-binding continuation theorem starts with a cached value
 and the native binding update that snapshots it. Every supported later policy
 run preserves both the cache entry and the exact accepted snapshot, even with
-arbitrary further registrations. Connecting that update to a successful
-generated binding submission/inclusion remains part of controller assembly.
+arbitrary further registrations. `ApplicationImageBindingInclusion` connects
+an actual recorded inclusion to that snapshot. Proving successful inclusion at
+every binding reached by the reference strategy remains a composition obligation.
 The public initializer filters out sealed initial fields and establishes the
 representation relation. The mixed-type checked program in
 `VegasTests/ApplicationImage.lean` exercises generated Boolean and optional
@@ -625,8 +627,23 @@ arbitrary randomized source law of frozen snapshots. The environment's full
 pool/application observation is independent of that draw both while the binding
 packet is pending and after its inclusion.
 The inclusion is prescribed, not derived from fairness. This prefix result
-does not establish general controller dispatch, arbitrary-interleaving source
-readout invariants, settlement, or whole-profile/deviation correspondence.
+does not establish arbitrary-interleaving source readout invariants, settlement,
+or whole-profile/deviation correspondence.
+
+`ApplicationPlan.liftProfile` constructs reference runtime policies structurally
+from a whole source behavioral profile. It retains the full generated image
+through recursion and advances in source order on public completion flags.
+Other players wait at an unresolved instruction; chance is invoked separately
+by the environment. This is a mathematical strategy lifting, not emitted player
+software or a restriction on the open protocol's raw strategies.
+`ApplicationPolicyLocality` proves that a player's lifted policy depends only on
+that player's source policy, for every application plan and ambient image.
+`VegasTests/GeneratedApplicationPolicy.lean` uses this same lift through original
+binding, the subsequent guarded public marker, and actual application chance.
+The six-invocation prefix has the exact joint law of the arbitrary source initial
+choice and the source coin, retaining complete histories and native traces.
+Both inclusions are checked successful. This remains a specified-service prefix
+law, not a general whole-program law, settlement theorem, or deviation comparison.
 
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.

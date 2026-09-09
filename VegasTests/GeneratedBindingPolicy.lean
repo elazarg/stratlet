@@ -77,7 +77,7 @@ def included (secret : Bool) : image.application.PolicyExecution :=
         .include (0, 0)⟩]
     nativeTrace := (submitted secret).nativeTrace ++ [.include (0, 0)] }
 
-private theorem initial_readout : ∃ reads,
+theorem initial_readout : ∃ reads,
     image.ownerReadout? (0 : TestPlayer)
         (eventGuardOf (decisionSiteState site source.fresh compilerInitial)
           0 (.constBool true (Γ := [(0, .bool)]))).choiceReads

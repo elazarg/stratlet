@@ -68,6 +68,28 @@ A direct game-form interpretation has the same locality obligation: strategy
 arguments contain exactly the principal's available information, not global
 execution state. Bypassing `InformationModel` cannot bypass this requirement.
 
+### Protocol compilation and strategy lifting
+
+The compiler produces an open protocol. Strategic preservation additionally
+uses a mathematical map from source strategies to reference runtime strategies.
+These are separate constructions: the strategy map is part of the proof, not
+player software emitted by Vegas. It does not restrict the protocol's action
+alphabet or require participants to follow a particular client.
+
+A lifted strategy implements a source choice using the target's available
+actions, such as local commitment preparation and public handle submission.
+Its source policy and native local information determine its choices. The map
+must be coordinatewise: changing a source player's strategy leaves the lifted
+opponents unchanged. Unilateral preservation then compares arbitrary admitted
+runtime deviations against those lifted opponents, not just deviations that
+the strategy map produces.
+
+The public-application lifting follows written source order using public
+completion flags. This is a choice of reference strategy, not a serial runtime
+restriction. An alternative concurrent lifting requires its own probability
+and information proofs. The sample-once `ChoiceController` is a helper for
+defining runtime policies; its name does not imply a deployed player controller.
+
 ## 2. Data associated with a compilation stage
 
 The following are responsibilities, not mandatory fields of one large record.
@@ -550,10 +572,10 @@ Its source-view equality theorem separates availability from cache/snapshot
 correspondence. First-write-wins registration makes the first recorded value
 the relevant private memory, but acceptance may precede registration and freeze
 an absent value. Consequently, a canonical handle plus a later cache entry does
-not establish correspondence. Source-program controller assembly must establish
+not establish correspondence. Source-profile lifting must establish
 preparation before binding submission and maintain that provenance. Whole-image
-dispatch and availability of every declared source observation remain to be
-proved for the generated assembly.
+dispatch is defined by `ApplicationPlan.liftProfile`; availability of every
+declared source observation remains to be proved across its execution.
 
 Whole-program randomized laws should compose segment laws from every related
 native checkpoint, retaining both an exact outcome law and a support invariant
@@ -628,9 +650,10 @@ Retry cadence remains explicit: retries are real public traffic, not erased
 stuttering. The disclosure responder submits once. A separate non-Vegas
 regression invokes a stochastic retrying controller twice before inclusion and
 checks that both pending messages and command history contain the same draw.
-Completion still requires the separate service/deadline theorem. Whole-image
-controller generation, randomized full-profile laws, and unilateral deviation
-simulation remain open; a local first-emission law does not establish them.
+Completion still requires the separate service/deadline theorem. The structural
+whole-image strategy lift has coordinatewise locality, but randomized full-profile
+laws and unilateral deviation simulation remain open; a local first-emission
+law does not establish them.
 
 Conditional openings already have generated metadata in
 `ConditionalPublicationSite.runtimeSite`; consume it rather than introduce another

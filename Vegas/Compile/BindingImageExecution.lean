@@ -81,8 +81,10 @@ theorem bindingPolicy_after_registration
     simp
 
 /-- The full law of two consecutive owner invocations: one source-kernel
-sample is registered and its canonical handle is then submitted. This is an
-equality of complete policy executions, not only a value-cache marginal. -/
+sample is registered and its canonical handle is then submitted. The policy
+need only select this controller at the initial observation, which private
+registration preserves; it may dispatch elsewhere after public completion.
+The equality retains complete executions, not only a value-cache marginal. -/
 theorem bindingPolicy_two_invocations_source_law
     (site : SourceDecisionSite who prog Δ name ty guard)
     (fresh : FreshBindings prog) (build : BuildState P L Γ)
@@ -92,7 +94,11 @@ theorem bindingPolicy_two_invocations_source_law
     (players : P → image.application.PlayerPolicy)
     (environment : image.application.EnvironmentPolicy)
     (execution : image.application.PolicyExecution)
-    (hpolicy : players who = site.bindingPolicy fresh build image sourcePolicy)
+    (hpolicy : ∀ history,
+      players who history
+          (MessageApplication.State.observe image.application execution.native who) =
+        site.bindingPolicy fresh build image sourcePolicy history
+          (MessageApplication.State.observe image.application execution.native who))
     (env : VEnv L Δ)
     (reads : ReadEnv L (eventGuardOf (decisionSiteState site fresh build) who guard).choiceReads)
     (hresolved : (site.bindingCode fresh build (site.compiledField fresh build)).resolved
@@ -118,16 +124,24 @@ theorem bindingPolicy_two_invocations_source_law
               (.submit (.binding
                 (site.bindingCode fresh build (site.compiledField fresh build)).node
                 (who, site.compiledField fresh build))) := by
-  simp only [MessageApplication.runPolicies, MessageApplication.invoke, hpolicy]
-  rw [site.bindingPolicy_first_registration_source_law fresh build image sourcePolicy
+  simp only [MessageApplication.runPolicies, MessageApplication.invoke]
+  rw [hpolicy, site.bindingPolicy_first_registration_source_law fresh build image sourcePolicy
     _ _ env reads hresolved hready hcache hreadout hview, FinDist.bind_map,
     FinDist.bind_bind]
   apply FinDist.bind_congr
   intro chosen _
   apply FinDist.bind_congr
   intro registered hregistered
-  rw [site.bindingPolicy_after_registration fresh build image sourcePolicy execution
-    registered chosen.1 hcache hresolved hready hsubmitted hregistered]
+  have hobserve := registration_preserves_observation image who who _ _
+    execution registered hregistered
+  have hcommand := site.bindingPolicy_after_registration fresh build image sourcePolicy execution
+    registered chosen.1 hcache hresolved hready hsubmitted hregistered
+  have hselected : players who (registered.principalHistory who)
+      (MessageApplication.State.observe image.application registered.native who) =
+        site.bindingPolicy fresh build image sourcePolicy (registered.principalHistory who)
+          (MessageApplication.State.observe image.application registered.native who) := by
+    rw [hobserve, hpolicy]
+  rw [hselected, hcommand]
   simp
 
 end SourceDecisionSite
