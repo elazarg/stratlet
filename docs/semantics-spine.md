@@ -12,7 +12,7 @@ does not establish strategic preservation through public-message execution.
 |---|---|---|
 | Source | `VegasCore P L Γ` | typed protocol syntax and visibility |
 | Written-order source game | `sourceGameForm prog env` | source-site policies, visible environments, exact terminal-environment law |
-| Checked source | `WFProgram P L` | freshness, reveals, live guards |
+| Checked source | `WFProgram P L` | freshness, sealed-resource accounting, live guards |
 | Machine IR | `Machine.Program P L` | typed graph, reified node/payoff code, primitive graph execution |
 | Exact probability | `IExpr.evalLaw`, `EventDist.evalLaw` | normalized rational tables retained through compilation |
 | Payoff compilation | `Machine.compile_sourcePayoffOfTerminal` | exact terminal source/machine payoff equality |

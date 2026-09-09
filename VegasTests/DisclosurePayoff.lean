@@ -5,6 +5,7 @@ Authors: VegasCore contributors
 -/
 
 import VegasTests.DisclosureCorrespondence
+import VegasTests.DisclosureAccounting
 
 /-! # Compiled public payoffs for the disclosure process
 
@@ -41,9 +42,23 @@ theorem legalWithPayoffs (payouts : Payouts) : Legal (sourceWithPayoffs payouts)
         · intro _; exact ⟨false, rfl⟩
         · trivial
 
+/-- Checked admission uses the same conditional-publication plan for every
+public payoff list; the source choices and their information are unchanged. -/
+def checkedWithPayoffs (payouts : Payouts) : WFProgram TestPlayer simpleExpr where
+  core := sourceWithPayoffs payouts
+  accounted := DisclosureAccounting.optionalPlanWithPayoffs payouts
+  legal := legalWithPayoffs payouts
+
+instance finiteDomainsWithPayoffs (payouts : Payouts) :
+    FiniteDomains (checkedWithPayoffs payouts) where
+  context := inferInstanceAs (FiniteVCtx ([] : VCtx TestPlayer simpleExpr))
+  program := {
+    proof := .commit inferInstance (.commit inferInstance (.reveal inferInstance
+      (.sample inferInstance (.commit inferInstance (.reveal inferInstance
+        (.commit inferInstance (.reveal inferInstance .ret))))))) }
+
 def programWithPayoffs (payouts : Payouts) : Machine.Program TestPlayer simpleExpr :=
-  Machine.ofCompiled (ToEventGraph.compile (sourceWithPayoffs payouts))
-    (ToEventGraph.compile_guardLive _ (legalWithPayoffs payouts))
+  Machine.compile (checkedWithPayoffs payouts)
 
 theorem programWithPayoffs_graph (payouts : Payouts) :
     (programWithPayoffs payouts).graph = graph := rfl

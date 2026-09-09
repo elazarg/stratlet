@@ -726,8 +726,9 @@ binding/chance/open-or-quit/reply game and an eight-node implementation graph.
 actual compiled evaluator. The sealed-offer instance in `SealedOfferRuntime.lean`
 preserves an equilibrium and a nonnegative buyer guarantee against arbitrary
 seller request-controller mixtures under admitted public-data scheduling.
-The source language is unchanged. This lower-level graph is not a `WFProgram`
-and is not proved equivalent to the richer Kotlin fixture; its private equality
+The source language is unchanged. The disclosure instance supplies a
+checked `CommitmentAccounting` plan and compiles through `Machine.compile`.
+It is not proved equivalent to the richer Kotlin fixture; its private equality
 guard and request validation are ideal. See [the paper scope](docs/paper-scope.md)
 for the precise stopping condition and [the quitting compilation contract](docs/quitting-compilation-contract.md)
 for the frontend and runtime obligations.
@@ -810,11 +811,15 @@ The typed core has four protocol constructors:
 
 Visibility is carried in the context type. A commit guard cannot read data its
 owner cannot observe, and terminal payoff expressions cannot mention sealed
-state. `WFProgram` proves fresh bindings, reveal completeness, and live guards.
+state. `WFProgram` proves fresh bindings, live guards, and explicit accounting
+of every sealed name by a literal reveal or certified conditional publication.
+Continuation guards govern later use of retained knowledge and persistent
+quitting; runtime realization is proved separately.
 
-The language does not yet express deposits, transfers, participant addresses,
-timeouts, aborts, or failure to reveal. A blockchain backend cannot silently
-invent those behaviors and still claim exact game preservation.
+Source nonresponse consequences can be represented by guarded choices and
+their continuations. Deposits, transfers, authentication, clocks, and failed
+message handling require target-specific implementations. A backend must
+relate those mechanisms to the specified source choices and outcomes.
 
 ## Probability
 

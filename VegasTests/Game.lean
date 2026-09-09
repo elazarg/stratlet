@@ -108,7 +108,9 @@ noncomputable def coinProgram : WFProgram TestPlayer simpleExpr where
       env := VEnv.empty simpleExpr
       wctx := by simp
       fresh := by simp [coinCore, FreshBindings, Fresh] }
-  reveals := by simp [coinCore, RevealComplete, SealedVars]
+  accounted := CommitmentAccounting.ofRevealComplete coinCore
+    (by simp [coinCore, FreshBindings, Fresh]) [] (by simp)
+    (by simp [coinCore, RevealComplete])
   legal := by
     unfold coinCore
     change True
@@ -166,7 +168,9 @@ noncomputable def emptyProgram : WFProgram TestPlayer simpleExpr where
       env := VEnv.empty simpleExpr
       wctx := by simp
       fresh := by simp [emptyCore, FreshBindings] }
-  reveals := by simp [emptyCore, RevealComplete, SealedVars]
+  accounted := CommitmentAccounting.ofRevealComplete emptyCore
+    (by simp [emptyCore, FreshBindings]) [] (by simp)
+    (by simp [emptyCore, RevealComplete])
   legal := by trivial
 
 noncomputable def emptyMachine : Machine.Program TestPlayer simpleExpr :=
@@ -226,7 +230,8 @@ noncomputable def matchingPenniesProgram :
       env := VEnv.empty simpleExpr
       wctx := by simp
       fresh := by simp [matchingPenniesCore, FreshBindings, Fresh] }
-  reveals := by decide
+  accounted := CommitmentAccounting.ofRevealComplete matchingPenniesCore
+    (by simp [matchingPenniesCore, FreshBindings, Fresh]) [] (by simp) (by decide)
   legal := by
     unfold matchingPenniesCore
     constructor

@@ -611,12 +611,15 @@ Checked evidence:
   changing the original Boolean leaves this environment unchanged.
 - Neither the public graph observation nor any responder decision footprint
   directly exposes the original sealed field, at any graph configuration.
-- The term fails `RevealComplete`. No existing `WFProgram` requirement is
-  removed, and this term is not covered merely by applying a theorem quantified
-  over `WFProgram`.
+- The term's original binding is not literally revealed on every branch. Its
+  checked version instead supplies a `CommitmentAccounting` certificate for
+  the conditional-publication site. This accounts for the sealed resource; it
+  does not prove confidentiality, erasure, persistent quitting, or realization.
 
-`OptionalDisclosure.not_checked` verifies that no `WFProgram` has this exact
-graph-program input. `VegasTests/DisclosureTrace.lean` additionally identifies
+`OptionalDisclosure.not_reveal_complete` records the narrower fact that the
+program is not universally literal-reveal complete. Its checked accounting plan
+admits the conditional publication without weakening that fact.
+`VegasTests/DisclosureTrace.lean` additionally identifies
 the unique ready node, internal/strategic phases, active player, and terminal
 phase along its eight-node configuration spine. These facts do not classify
 all reachable histories or establish a policy correspondence.
@@ -750,5 +753,5 @@ it does not yet construct a graph history from the source-law witness.
 The guard removes choice but leaves the administrative source events present.
 There is no proof here that the public-message runtime can execute them without
 the owner, or that their traffic can be erased from observations. The program
-still fails `RevealComplete` and is not a `WFProgram`. An explicit disposition
-representation and its checked lowering remain necessary integration work.
+still fails literal `RevealComplete`; its accounting plan certifies the
+conditional publication at the source boundary, not its runtime realization.

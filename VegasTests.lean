@@ -19,6 +19,7 @@ import VegasTests.OptionalDisclosure
 import VegasTests.PersistentDisclosure
 import VegasTests.PersistentDisclosurePolicy
 import VegasTests.PersistentDisclosureSource
+import VegasTests.DisclosureAccounting
 import VegasTests.DisclosureTrace
 import VegasTests.DisclosureBinding
 import VegasTests.DisclosureCheckpoint

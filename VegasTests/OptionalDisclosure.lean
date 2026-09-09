@@ -16,8 +16,8 @@ The marker makes the public coin causally later than the initial binding.
 
 This is a concrete encoding probe, not a frontend correctness theorem or a
 real commitment protocol. In particular, the private equality guard is ideal.
-The stronger `WFProgram` reveal-completeness discipline rejects this term;
-graph well-formedness and guard liveness do not require that discipline.
+Strict literal reveal-completeness rejects this term. A separate accounting
+certificate can instead record the explicit optional resolution.
 -/
 
 noncomputable section
@@ -82,14 +82,7 @@ def program : Machine.Program TestPlayer simpleExpr :=
 
 theorem not_reveal_complete : ¬ RevealComplete [] core := by decide
 
-/-- A live lower-level encoding does not thereby satisfy checked-source admission. -/
-theorem not_checked : ¬ ∃ checked : WFProgram TestPlayer simpleExpr,
-    checked.core = source := by
-  rintro ⟨checked, hcore⟩
-  have hreveals := checked.reveals
-  rw [hcore] at hreveals
-  exact not_reveal_complete hreveals
-
+/-- The retained original binding has no direct reveal site. -/
 theorem original_not_revealed : 0 ∉ RevealedSources core := by decide
 
 theorem opened_sources : RevealedSources core = [1, 4, 6] := by decide
@@ -278,10 +271,6 @@ theorem different_openings_after_signals (secret : Bool) :
 /-- info: 'VegasTests.OptionalDisclosure.source_execution' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms VegasTests.OptionalDisclosure.source_execution
-
-/-- info: 'VegasTests.OptionalDisclosure.not_checked' depends on axioms: [propext, Classical.choice, Quot.sound] -/
-#guard_msgs (whitespace := lax) in
-#print axioms VegasTests.OptionalDisclosure.not_checked
 
 /-- info: 'VegasTests.OptionalDisclosure.original_absent_from_response' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in

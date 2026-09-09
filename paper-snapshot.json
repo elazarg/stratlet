@@ -23,16 +23,16 @@
     "main.tex": "541a3d854cf999e9094a47aca65df97e26c497ca261c4df8466a5c5aa040c558",
     "sections/01-introduction.tex": "5279314daa59fbcbfe36491c2415bfc7eb30b5337e7f950cdd040cf509c169c4",
     "sections/02-game-programs.tex": "c93e07217d1c3a13ef8fa120ae7d14d03b66739662c46c7c1264f0eea4b530a0",
-    "sections/03-language-graph.tex": "634bb53168917e8b082621a0ccaba2d871610dbefc1e8aafb38cc5f56334715b",
+    "sections/03-language-graph.tex": "13d4d2aace7dc32f320cf41894ded679789c87cf5ddae6c3cf21cd4071ada1fe",
     "sections/04-strategic-semantics.tex": "6557a3bbeb7cd0b931b44cc2812fd4b8586cf4ecde5d0ae4cd68547f220ab51b",
     "sections/05-correctness.tex": "2e79a8dc12b2b0b9dc2aef8069b0142f37b54fb7dd94de603821f490fabf63b9",
     "sections/06-runtime.tex": "2c276728cc95b210fdda49335888f4940f7f75007612aa84245080c5e79572eb",
-    "sections/07-application.tex": "320f20c4f83a4175cd265749632cbc02679934ae406d1cea32636362bba4310b",
-    "sections/07-artifacts.tex": "747ac1b26c13fc142aa1e72613695aa054cbeffbf7c2bc73242d49f87524b552",
+    "sections/07-application.tex": "d6a09dfd71a3c1466b3e5820fe7e7c3eb7235fdf9c0a6c154058d09be91037e2",
+    "sections/07-artifacts.tex": "90b80fcc28cf3d39b5976463ad5ffe35021af627f73f6374aee906d06a96ad3f",
     "sections/08-related.tex": "7c35941b991d2dffcf9d2d8a5ffec835a295c9b35a1cc21cc6a4d3ac9a5f2849",
     "sections/09-conclusion.tex": "1127746ce28763c779aea5f09cb31b4b5bd809e7b1d06ce61b4be3fdfa99d5da",
     "sections/10-quitting.tex": "fce00dc8cdf71031544c42d8431e8d19b583866080fd066e74daac5f01026555",
     "vegas-paper.bib": "634fa06d2a9e6e5c2c4ec22456f0f8e296b2034804d5fa2ac853deac189ff70b"
   },
-  "revision": "a7ea2bf4cec3d6eeb7a5d1a038b13093d4970284"
+  "revision": "e72f0773be8f9e06c6d69c652036699f7bec637e"
 }

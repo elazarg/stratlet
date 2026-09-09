@@ -209,8 +209,10 @@ An ordinary optional choice is a candidate abstraction of disclosure-or-quitting
 Public quitting, opaque malformed commitments, and cryptographic/application
 opening failures are not identified until a strategic comparison justifies
 their different observation times, signaling opportunities, and retry rights.
-General handlers remain frontend constructs. Retain the checked-source
-`RevealComplete` restriction; weaker graph construction is not source acceptance.
+General handlers remain frontend constructs. Checked-source admission requires
+an inspectable `CommitmentAccounting` plan: each sealed name has a literal
+reveal or a certified conditional-publication site. Weaker graph construction
+alone is not source acceptance.
 The [quitting compilation contract](quitting-compilation-contract.md) separates
 source obligations from representation and runtime proof obligations.
 Binding, information, and quit persistence are proof obligations of the

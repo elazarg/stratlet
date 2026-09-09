@@ -37,8 +37,9 @@ persistent abandonment remain outside this finite source game.
 
 1. Keep the source language and its well-formedness discipline unchanged.
    Follow the [quitting compilation contract](quitting-compilation-contract.md):
-   a lower-level optional-copy graph needs a strategic implementation proof,
-   not admission as a source `WFProgram` by removing reveal-completeness.
+   conditional publication needs both its checked `CommitmentAccounting`
+   certificate and a separate strategic implementation proof. Accounting does
+   not supply quitting persistence or runtime realization.
 2. Prove the optional-disclosure pattern's full graph-information and policy-law
    correspondence, including administrative marker choices, hidden bindings,
    chance, later source quitting, response, and off-path legal policies.

@@ -255,10 +255,11 @@ existing guards eliminate later freedom, and `PublicForcedChoice` proves that
 a publicly determined source choice can be selected without consulting its
 owner's current policy. The actual written-order source law is checked in
 `PersistentDisclosureSource`, including arbitrary whole-program profiles.
-This does not complete runtime resolution. The remaining next obligations are
-owner-independent execution of those forced steps with correct observations,
-and explicit checked accounting for the earlier binding retained on quitting.
-The probe is not admitted by the existing `WFProgram` predicate.
+This does not complete runtime resolution. `CommitmentAccounting` admits the
+retained binding through its certified conditional-publication site. The
+remaining obligations are owner-independent execution of forced steps with
+correct observations and a runtime codec preserving the same-owner typed
+binding. Accounting alone supplies neither mechanism.
 
 Choose a finite checked core program with two real players, source-defined
 nonresponse outcomes, and a later decision that can expose an information

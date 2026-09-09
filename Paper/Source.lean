@@ -6,6 +6,7 @@ Authors: VegasCore contributors
 
 import Vegas.Game.SourceCorrelated
 import Vegas.Scheduled.SourceCorrespondence
+import Vegas.Core.AccountingIntegrity
 
 /-! # Paper-facing independent-source correspondence claims -/
 
@@ -14,7 +15,25 @@ namespace Vegas.Paper.Source
 open GameTheory GameTheory.Math.Probability GameTheory.Protocol
 open Vegas.EventGraph
 
-variable {Player : Type} [DecidableEq Player] [Fintype Player] {L : IExpr}
+variable {Player : Type} [DecidableEq Player] {L : IExpr}
+
+theorem committed_binding_accounted (source : WFProgram Player L) (name : VarId)
+    (hname : name ∈ CommittedVars source.core.prog) :
+    name ∈ RevealedSources source.core.prog ∨
+      name ∈ source.accounted.dispositions :=
+  source.committed_source_resolved name hname
+
+theorem initial_binding_accounted (source : WFProgram Player L) (name : VarId)
+    (hname : name ∈ SealedVars source.core.Γ) :
+    name ∈ RevealedSources source.core.prog ∨
+      name ∈ source.accounted.dispositions :=
+  source.initial_sealed_source_resolved name hname
+
+theorem binding_resolutions_nodup (source : WFProgram Player L) :
+    source.accounted.resolvedSources.Nodup :=
+  source.resolutions_nodup
+
+variable [Fintype Player]
 
 theorem native_honest_law (source : WFProgram Player L)
     (profile : SourceBehavioralProfile source.core.prog) :
@@ -230,6 +249,16 @@ theorem scheduled_request_approximate_nash_iff (source : WFProgram Player L)
 /-- info: 'Vegas.Paper.Source.native_coarse_correlated_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.Source.native_coarse_correlated_iff
+
+/-- info: 'Vegas.Paper.Source.committed_binding_accounted' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Source.committed_binding_accounted
+/-- info: 'Vegas.Paper.Source.initial_binding_accounted' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Source.initial_binding_accounted
+/-- info: 'Vegas.Paper.Source.binding_resolutions_nodup' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Source.binding_resolutions_nodup
 
 /-- info: 'Vegas.Paper.Source.scheduled_honest_law' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in

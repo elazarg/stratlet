@@ -29,7 +29,7 @@ layer is not a commitment to reproduce the Kotlin language.
 result is well typed by construction, administrative lets are substituted,
 and each surface yield becomes a nullable commitment followed by a reveal.
 This does not admit the result as a `WFProgram`; the caller must separately
-provide the global scope, freshness, reveal-completeness, and legality evidence
+provide global scope, freshness, commitment-accounting, and legality evidence
 required there. Nor does the translation currently have an operational-law or
 unilateral-strategy-preservation theorem.
 
@@ -98,16 +98,21 @@ proving this representation adequate is work, not a premise supplied by its
 option type.
 
 The remaining obligations concern the encoding's strategic semantics and the
-hypotheses of existing theorems. `WFProgram` retains `RevealComplete`: every
-original sealed binding is opened, not merely an optional public copy.
+hypotheses of existing theorems. `WFProgram` requires an inspectable
+`CommitmentAccounting` plan. Every initial or newly committed sealed name is
+accounted for either by a literal reveal or by a certified conditional-opening
+site. At that site it publishes either the explicit decline code `none` or
+exactly the original bound value, and `none` is legal in every declared
+environment.
 The graph compiler does not require this condition; it takes `GraphProgram`
-with scope/freshness evidence. The current well-formedness documentation also
-states that reveal-completeness is not needed for graph progress. That weaker
-compiler prerequisite is not a replacement for the checked-source discipline.
-Do not drop it to admit an encoding, or disclose the original secret on the
-quit branch to satisfy it. `ToEventGraph.compile_guardLive` takes exactly
-`GraphProgram` and `Legal`; `Machine.ofCompiled` therefore accepts the probe
-without weakening `WFProgram`. The existing nullable-yield lowering and staged
+with scope/freshness evidence, and graph progress does not require accounting.
+That weaker compiler prerequisite is not a replacement for checked-source
+admission.
+Continuation guards govern later use of retained knowledge and persistent
+role-wide quitting. Runtime realization is proved separately.
+`ToEventGraph.compile_guardLive` takes exactly
+`GraphProgram` and `Legal`; checked instances additionally provide their
+accounting plans before using `Machine.compile`. The existing nullable-yield lowering and staged
 quitting examples are components, not a proof of general handler lowering.
 
 The executable `HiddenReserve.vg` fixture makes the discrepancy concrete:
@@ -119,11 +124,10 @@ quit status does not disclose the old hidden reserve in retained history.
 The executable source and its optional-disclosure tests supply this evidence;
 it is not a Lean theorem about the Kotlin evaluator.
 
-The existing Lean obstruction is precise: a commitment-preserving encoding
-with no reveal site for that binding contradicts
-`WFProgram.committed_source_revealed`; `OptionalDisclosure.not_checked`
-instantiates this conflict for the proposed optional-copy encoding. This is
-not an impossibility theorem for every encoding or coarser outcome comparison.
+The checked-source boundary therefore rejects a sealed binding for which the
+plan supplies neither a literal reveal nor a certified conditional publication.
+This is resource accounting, not an impossibility theorem for other typed
+representations or coarser outcome comparisons.
 Adding a final unconditional reveal would change the source's confidentiality
 and would still require the adversary to supply that opening at runtime.
 The source-resolution integration therefore needs an explicit design decision
@@ -199,9 +203,9 @@ source transition. It does not authorize an external actor to register or send
 messages as the owner, remove an observable event, or guarantee service.
 
 Thus ordinary guards suffice to remove later freedom in this concrete source
-pattern. Implementing the forced steps without the quitter's cooperation and
-accounting for the retained original secret remain separate obligations. The
-probe still fails `RevealComplete`; no source-admission rule is changed.
+pattern. Its conditional-opening certificate also accounts for the retained
+binding at checked-source admission. Implementing the forced steps without the
+quitter's cooperation remains a separate runtime obligation.
 
 The successful-disclosure branch needs a different argument: its uniquely
 determined payload can still be private. `PublicForcedChoice` therefore cannot

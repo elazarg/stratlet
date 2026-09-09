@@ -162,11 +162,4 @@ theorem original_absent_from_public (cfg : Config graph) :
 
 theorem not_reveal_complete : ¬RevealComplete [] core := by decide
 
-theorem not_checked : ¬∃ checked : WFProgram Player simpleExpr,
-    checked.core = source := by
-  rintro ⟨checked, hcore⟩
-  have hreveals := checked.reveals
-  rw [hcore] at hreveals
-  exact not_reveal_complete hreveals
-
 end VegasTests.PersistentDisclosure

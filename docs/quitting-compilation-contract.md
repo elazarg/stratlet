@@ -46,9 +46,11 @@ not a valid implementation of quitting. The file's introductory no-handler
 optionality comment also disagrees with its implemented implicit-burn default;
 use executable behavior and tests as evidence, not that summary comment.
 
-In Lean, `RevealComplete` is a syntactic eventual-opening discipline on the
-minimal core. It is retained in `WFProgram`. It does not prove correspondence
-with Kotlin handlers or completeness of cryptographic failure handling.
+In Lean, `RevealComplete` remains the syntactic universal-literal-opening
+predicate. `WFProgram` instead carries `CommitmentAccounting`, under which each
+sealed name has a literal reveal or a certified conditional-publication site.
+Neither predicate proves correspondence with Kotlin handlers, confidentiality,
+erasure, role-wide quitting, or completeness of cryptographic failure handling.
 `GraphProgram` and `Machine.ofCompiled` already support lower-level graph
 construction with weaker prerequisites. An implementation graph may retain
 auxiliary secrets, but freshness and liveness alone do not certify it as a
@@ -133,12 +135,14 @@ checked by `DisclosureCorrespondence`, `DisclosurePayoff`, and
 `SealedOfferRuntime`. They retain the restricted, non-frontend boundary below.
 The remaining realization work is step 4, not a change to source admission.
 
-1. Keep the source language and `WFProgram` admission fixed. Use the existing
-   lower-level graph boundary for encoding experiments.
+1. Keep the source language and `WFProgram` admission fixed. Conditional
+   publication requires an inspectable accounting plan; that plan does not
+   establish the frontend or runtime correspondence.
 2. Finish one optional-disclosure comparison: initial binding, public chance,
    source disclosure/quitting, public resolution, and a recipient response.
    Identify full information states and policies, including off-path histories
-   and administrative choices. Justify auxiliary hidden bindings by that proof.
+   and administrative choices. Account for auxiliary hidden bindings with the
+   typed plan and justify their strategic behavior separately.
 3. Compose with the existing runtime certificate without changing payoffs or
    opponents. The Kotlin fixture has additional initial/reply quitting and
    different settlements; include them or retain a restricted, non-frontend result.
@@ -146,7 +150,7 @@ The remaining realization work is step 4, not a change to source admission.
    classification and a named delivery/cryptographic model. Reuse generic
    strategic interfaces rather than adding Vegas-specific failure syntax.
 
-The optional-copy probe is not a checked `WFProgram`, a Kotlin lowering theorem,
-or a verified commitment implementation. If a richer source feature cannot be
-faithfully encoded in the current checked core subset, that integration gate
-remains open. Reclassifying the probe as well-formed would not close it.
+The optional-copy instance is a checked `WFProgram` through its certified
+conditional-opening plan. It is still not a Kotlin lowering theorem or a
+verified commitment implementation. Checked resource accounting does not close
+either integration gate.

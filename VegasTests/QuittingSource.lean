@@ -73,7 +73,8 @@ def source : WFProgram TestPlayer simpleExpr where
       env := VEnv.empty simpleExpr
       wctx := by simp
       fresh := by simp [core, FreshBindings, Fresh] }
-  reveals := by decide
+  accounted := CommitmentAccounting.ofRevealComplete core
+    (by simp [core, FreshBindings, Fresh]) [] (by simp) (by decide)
   legal := by
     unfold core
     constructor

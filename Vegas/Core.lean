@@ -4,7 +4,10 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
+import Vegas.Core.Accounting
+import Vegas.Core.AccountingIntegrity
 import Vegas.Core.Basic
+import Vegas.Core.ConditionalOpening
 import Vegas.Core.ExprSimple
 import Vegas.Core.Finite
 import Vegas.Core.FiniteDomain
