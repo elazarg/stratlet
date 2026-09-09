@@ -297,14 +297,21 @@ They also check endpoint separation and waiting after a recorded second choice.
 These are local laws for supplied histories, not a theorem that a generated
 whole-program policy run reaches those histories and checkpoints.
 
-The next composition invariant must establish private registration before
-binding acceptance, then maintain cache/snapshot correspondence and availability
-of every source-visible field. Acceptance of an unprepared handle followed by
+The composition invariant must establish private registration before binding
+acceptance, then maintain cache/snapshot correspondence and availability of
+every source-visible field. Acceptance of an unprepared handle followed by
 registration is permitted operationally and does not satisfy that invariant.
 `ApplicationImageRegistration` supplies the unconditional history/preparation
 invariant and preservation of an already cached-and-bound snapshot under all
-later policy commands. The missing construction arranges that binding through
-the generated player's actual submission and inclusion path.
+later policy commands. `BindingImageController` and `BindingImageExecution`
+generate the two-phase source policy and prove the full law of consecutive
+registration and submission invocations. `ApplicationImageBindingInclusion`
+connects actual recorded inclusion to the cached snapshot. The initialized
+`GeneratedBindingPolicy` prefix has the exact arbitrary randomized source
+snapshot law and a draw-independent environment observation under its specified
+inclusion script. General dispatch and arbitrary-interleaving readout/provenance
+remain to be supplied; a local source-matching readout is not itself a proof
+that a generated whole-program policy maintains it.
 Compose the local laws across initialization, both disclosure sites, the
 intervening response, and the stated service assumptions. This must use actual
 policy invocations, not just the specified raw-action executions.
@@ -341,13 +348,12 @@ not establish intermediate-observation equivalence.
 Generated chance instructions use the exact `EventDist.eval` kernel, with an
 address-only environment command and no reroll after completion. This assumes
 ideal unbiased entropy, to be realized by a separate target edge.
-The next source-width step is conditional endpoints certified independently of
-whether that site performs the unique accounting discharge. This is
-needed for later optional copies of a retained binding: checked accounting
-already permits them as ordinary commit/reveal pairs, but their private guard
-dependency prevents treating them as ordinary publicly validated choices.
-The retained-binding extension should instantiate the existing persistent
-disclosure program, retaining the shared interpreter and whole-run invariant.
+Conditional endpoints are certified independently of whether a site performs
+the unique accounting discharge. Their private guard dependencies prevent
+treating later optional copies as ordinary publicly validated choices. The
+persistent-disclosure instance exercises the generated repeated endpoints and
+whole-run support invariant; its generated randomized policy assembly remains
+part of the composition gate above.
 Initial sealed-input provisioning/defaults and automatic execution of publicly
 forced choices remain additional gates, not assumptions supplied by accounting.
 

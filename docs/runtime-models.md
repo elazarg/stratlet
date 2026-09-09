@@ -601,6 +601,33 @@ and that an already recorded second choice is not sampled again. These are local
 controller laws; they do not establish the whole-program policy-prefix invariant
 or a service guarantee.
 
+`BindingImageController` generates the original binding's two-phase policy
+from its source decision occurrence and compiler-allocated field. It samples
+the source kernel into local ideal-service registration, then submits the
+canonical opaque handle. For arbitrary histories its supported commands are
+wait, correctly typed local registration, or that handle submission. An
+ill-typed first registration prevents resampling, and a recorded handle
+submission prevents another submission. This does not impose a private
+network channel: the public packet is a separate message-pool action.
+`BindingImageExecution` proves `SourceDecisionSite.bindingPolicy_two_invocations_source_law`,
+retaining the complete law of two consecutive ready owner invocations. Its
+premises include an available source-matching readout and empty registration
+and submission caches. The latter are distinct conditions for arbitrary
+supplied histories.
+`ApplicationImageBindingInclusion` connects an actual recorded environment
+inclusion to the cached accepted snapshot and preserves that snapshot through
+arbitrary subsequent policies.
+
+`VegasTests/GeneratedBindingPolicy.lean` instantiates these results at the
+first decision of the persistent-disclosure source. From empty initialization,
+two generated owner invocations and a specified inclusion have the exact
+arbitrary randomized source law of frozen snapshots. The environment's full
+pool/application observation is independent of that draw both while the binding
+packet is pending and after its inclusion.
+The inclusion is prescribed, not derived from fairness. This prefix result
+does not establish general controller dispatch, arbitrary-interleaving source
+readout invariants, settlement, or whole-profile/deviation correspondence.
+
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.
 This includes absent and ill-typed snapshots and requires no well-formed-image
