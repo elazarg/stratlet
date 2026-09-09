@@ -52,6 +52,7 @@ import Vegas.Compile.PublicChoiceSourceCoupling
 import Vegas.Compile.BindingSourceCoupling
 import Vegas.Compile.BindingPhaseExecution
 import Vegas.Compile.ConditionalSourceCoupling
+import Vegas.Compile.ConditionalExpirationSourceCoupling
 import Vegas.Compile.ConditionalSnapshot
 import Vegas.Compile.ConditionalPhaseExecution
 import Vegas.Compile.ApplicationPolicy
@@ -64,6 +65,8 @@ import Vegas.Compile.ApplicationBindingForward
 import Vegas.Compile.ApplicationPublicChoiceForward
 import Vegas.Compile.ApplicationConditionalForward
 import Vegas.Compile.ApplicationForwardLaw
+import Vegas.Compile.ApplicationMessageRequirement
+import Vegas.Compile.ApplicationWithholding
 import Vegas.Compile.ApplicationPolicyFreshness
 import Vegas.Compile.ApplicationCacheSeparation
 import Vegas.Compile.ApplicationPolicyCache

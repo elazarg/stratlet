@@ -28,11 +28,11 @@
     "sections/05-correctness.tex": "2e79a8dc12b2b0b9dc2aef8069b0142f37b54fb7dd94de603821f490fabf63b9",
     "sections/06-runtime.tex": "cb240a095394e67fbf4908143379b8d4863ffa12c9d23d10d8922ff4777fb1b7",
     "sections/07-application.tex": "d6a09dfd71a3c1466b3e5820fe7e7c3eb7235fdf9c0a6c154058d09be91037e2",
-    "sections/07-artifacts.tex": "01e07f77595a4ae3a7a1917b83733e5f8ae4d5932a40f4d494972cbaf0597304",
+    "sections/07-artifacts.tex": "c25d111dc497b83737493ca08e65ba3bddc85cdae8f1709d981a95e7bade1535",
     "sections/08-related.tex": "7c35941b991d2dffcf9d2d8a5ffec835a295c9b35a1cc21cc6a4d3ac9a5f2849",
     "sections/09-conclusion.tex": "1127746ce28763c779aea5f09cb31b4b5bd809e7b1d06ce61b4be3fdfa99d5da",
     "sections/10-quitting.tex": "fce00dc8cdf71031544c42d8431e8d19b583866080fd066e74daac5f01026555",
     "vegas-paper.bib": "634fa06d2a9e6e5c2c4ec22456f0f8e296b2034804d5fa2ac853deac189ff70b"
   },
-  "revision": "bb86a2f63b5765b49b96f29e5121600c935e2780"
+  "revision": "5d85d62ee7f4b90921b1ff7fa287c7676453f15c"
 }

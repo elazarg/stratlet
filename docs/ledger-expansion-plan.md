@@ -22,8 +22,8 @@ The acceptance inventory has two axes:
 
 | Requirement | Public-message path | Required endpoint |
 | --- | --- | --- |
-| Independent source meaning | Source-to-graph connection, terminal native support, local source-decision laws, and an exact completion/public-outcome law for a complete binding/disclosure program under arbitrary source profiles | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
-| Source coverage | Structural binding/chance/public-choice/conditional-publication protocol compilation, whole-run support refinement, whole-source strategy lifting, and local readout availability at ready represented states | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
+| Independent source meaning | Source-to-graph connection, terminal native support, and an exact completion/public-outcome law for every eligible application plan under arbitrary source profiles and the generated reference service | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
+| Source coverage | Structural binding/chance/public-choice/conditional-publication compilation, arbitrary-traffic support refinement, whole-source strategy lifting and reference execution, with explicit initial-read and binding-origin eligibility | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
 | Hostile interaction | Raw traffic, local delivery, replay, addressed public inclusion, ideal binding/hiding; initialized disclosure settlement against arbitrary opposing policies under the stated slotted service | Whole interaction, failure, deadline and observation behavior under the theorem's complete player/environment policy classes. |
 | Strategic comparison | Release-time hiding/choice independence and selective-publication obstruction | Compiled-profile law plus arbitrary unilateral-deviation comparison, with the corresponding source-outcome bounds and equilibrium results. |
 | Substantive application | The private-window sealed offer and a public-message compiled-prefix fixture | The generated protocol application and handlers use the same public-message compiler path; reference strategies and their guarantees are related separately. |
@@ -105,6 +105,47 @@ separate service and its proof, rather than additional invocation steps silently
 inserted into this exact script.
 Arbitrary environments retain the safety guarantees for runs that finish;
 they do not imply completion or equality with the terminating source law.
+
+### Resolution and open deviations
+
+`ApplicationPlan.withholding_no_source_public_law` establishes a code-level
+obstruction to upgrading the reference law by service assumptions alone.
+Generated binding and ordinary-public-choice nodes require an owner-authored
+message. Replacing that owner by permanent waiting leaves the program unfinished
+under every environment policy and finite invocation schedule. The theorem
+retains completion in the outcome; it does not rule out weaker observations or
+an extended implementation with genuine source-certified fallbacks.
+
+Conditional publication already supplies such an entry point.
+`ConditionalPublicationSite.expiry_include_source_coupling` relates an actual
+included, overdue expiry packet from any sender to the existing source decline
+and exact source continuation. The packet must actually be submitted: the
+environment's inclusion capability cannot author it.
+
+The implementation order is:
+
+1. Generate fallback metadata for a supported binding/public-choice slice from
+   an explicit source-resolution certificate. `Legal` provides some legal
+   action, not the programmer's specified nonresponse consequence. Keep this
+   certificate and backend eligibility separate from core syntax and WF.
+2. Represent an accepted opaque commitment and a public fallback as distinct
+   dispositions. A fallback neither forges an owner's message nor overwrites
+   its private preparation. Adapt opening verification and reference readout
+   to the accepted disposition, including recovery from an unsubmitted cache.
+3. Prove handler/source continuation for those fallbacks. Couple this with
+   observation-local request production, a public clock, and admitted inclusion
+   capacity. Specify who supplies permissionless transactions and what happens
+   when a valid ordinary request competes with expiry.
+4. Compare arbitrary player replacements on that same execution. Start with a
+   final conditional disclosure under an actual resolving phase, then compose
+   across prior bindings, chance, and later decisions. A support witness for
+   each terminal result does not provide one legal source-policy law.
+
+No point in this sequence restricts deviators to canonical payloads or lifted
+policies. Unopenable bindings, malformed requests, replay, and silence must be
+handled by the implementation and the comparison. The observation issue for
+an opening delivered before a losing inclusion is recorded in
+[timeout compilation](timeout-compilation.md#deviation-law-proof-targets).
 
 Prefer focused replacement and extraction to a rewrite without a demonstrated
 semantic need. There is no API compatibility requirement: update all consumers

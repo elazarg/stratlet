@@ -52,6 +52,12 @@ original source profile throughout the shared policy runner; it does not
 simulate arbitrary public-message deviations. The mixed-feature regression is
 `VegasTests/GeneratedApplicationSourceLaw.lean`, and the paper-facing statement
 is `Paper.Source.public_application_reference_law` in the `Vegas` namespace.
+`ApplicationWithholding` proves that a waiting owner prevents completion at
+generated binding and ordinary-choice sites under every service policy;
+`ConditionalExpirationSourceCoupling` proves the existing conditional-expiry
+handler implements source decline. Both have generated-program regressions
+and separate paper audit statements. They distinguish handler availability
+from the service needed to supply and include a resolution request.
 `lake --wfail build Paper` is the focused paper-proof build. Do not run `lake
 update` to reproduce a pinned revision: it may resolve different dependencies.
 The cache download is a build optimization, not evidence that our theorem

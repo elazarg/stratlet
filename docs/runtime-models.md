@@ -857,6 +857,25 @@ The theorem is a whole-program reference execution law, not fairness under a
 different environment, settlement against deviating players, or a unilateral
 strategy-correspondence result.
 
+`ApplicationPlan.withholding_no_source_public_law` makes one failure of a
+stronger statement explicit. The generated binding and ordinary-choice node
+blocks require an owner-authored message. Under a unilateral permanent-wait
+replacement, the completion marginal is `pure false` for every environment
+policy and every finite invocation schedule. This follows from generated
+node-block disjointness and retained-message provenance, including replay and
+recipient-local delivery. It is an obstruction for the present instruction
+set and completion-sensitive decoder, not an impossibility for timeout-enabled
+compilation or a failure of delivery fairness.
+
+`ConditionalPublicationSite.expiry_include_source_coupling` supplies the
+positive local contrast: after the source prefix has established the accepted
+binding, an actually pending, overdue conditional-expiry request from any
+sender is accepted and continues through the source's certified decline.
+The shared policy interpreter records its actual inclusion. No opening
+snapshot or private readout is assumed. Binding and ordinary-choice fallback
+entry points, request production, and a whole-run resolution service remain
+separate obligations.
+
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.
 This includes absent and ill-typed snapshots and requires no well-formed-image

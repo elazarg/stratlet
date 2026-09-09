@@ -9,6 +9,8 @@ import Vegas.Scheduled.SourceCorrespondence
 import Vegas.Core.AccountingIntegrity
 import Vegas.Compile.ApplicationPlanOutcome
 import Vegas.Compile.ApplicationForwardLaw
+import Vegas.Compile.ApplicationWithholding
+import Vegas.Compile.ConditionalExpirationSourceCoupling
 
 /-! # Paper-facing independent-source correspondence claims -/
 
@@ -115,6 +117,67 @@ theorem public_application_reference_law (source : WFProgram Player L)
               (ToEventGraph.initialState source.core.Γ source.core.env
                 source.core.wctx))).symm) terminal).erasePubEnv) :=
   plan.service_source_public_law source deadlineOf profile hinitial horigins
+
+/-- A missing authenticated submission cannot be supplied by scheduling.
+The generated code's submission requirement is an inspectable static premise. -/
+theorem public_application_withholding (source : WFProgram Player L)
+    (plan : ApplicationPlan source.accounted source.core.fresh
+      (ToEventGraph.BuildState.fromInitial
+        (ToEventGraph.initialState source.core.Γ source.core.env source.core.wctx)))
+    (deadlineOf : Nat → Nat) (node : Nat) (who : Player)
+    (required : (plan.image deadlineOf).RequiresSubmission node who)
+    (hnode : node < (ToEventGraph.compile source.core).graph.nodeCount)
+    (profile : SourceBehavioralProfile source.core.prog)
+    (environment : (plan.image deadlineOf).application.EnvironmentPolicy)
+    (schedule : List (@Interaction.MessageApplication.Invocation Player)) :
+    (((plan.image deadlineOf).application.runPolicies
+      (Profile.update
+        (sig := Interaction.MessageApplication.policySignature Player
+          (plan.image deadlineOf).application)
+        (plan.liftProfile deadlineOf profile) who (fun _ _ => FinDist.pure .wait))
+      environment schedule (plan.initialExecution deadlineOf)).map
+        (fun out => out.native.application.memory.finished
+          (ToEventGraph.compile source.core).graph.nodeCount)) = FinDist.pure false :=
+  plan.withholding_finished_law source deadlineOf node who required hnode
+    (plan.liftProfile deadlineOf profile) environment schedule
+
+/-- An included overdue expiry at a generated conditional endpoint implements
+the existing source decline, with no requirement that its sender be the owner. -/
+theorem public_application_conditional_expiry
+    {Γ : VCtx Player L} {name publicName : VarId} {who : Player} {ty : L.Ty}
+    (guard : L.Expr ((name, ty) :: eraseVCtx (viewVCtx who Γ)) L.bool)
+    (tail : VegasCore Player L ((publicName, .pub ty) :: (name, .sealed who ty) :: Γ))
+    (spec : ConditionalOpening guard)
+    (fresh : FreshBindings (.commit name who guard (.reveal publicName who name .here tail)))
+    (build : ToEventGraph.BuildState Player L Γ) (sourceSlot deadline : Nat)
+    (current : ToEventGraph.CoupledAt
+      (ToEventGraph.compileCore (.commit name who guard (.reveal publicName who name .here tail))
+        fresh build).graph build)
+    (image : ApplicationImage Player L)
+    (execution included : image.application.PolicyExecution)
+    (hrefines : execution.native.application.Refines current.current.graph.1)
+    (haccepted : execution.native.application.memory.accepted
+      (build.fieldOf spec.binding) = some (who, sourceSlot))
+    (hoverdue : deadline < execution.native.application.memory.clock)
+    (address : Nat)
+    (hcode : image.lookup address = some (.conditional
+      ((ConditionalPublicationSite.atHead name publicName who guard tail spec).code
+        fresh build sourceSlot deadline)))
+    (id : Interaction.MessageId Player)
+    (hlookup : execution.native.pool.lookup id = some ⟨id, .conditional address .expire⟩)
+    (hincluded : included ∈
+      (image.application.environmentPolicyStep execution (.include id)).support) :
+    ∃ next : ToEventGraph.CoupledAt
+        (ToEventGraph.compileCore (.commit name who guard (.reveal publicName who name .here tail))
+          fresh build).graph
+        (((build.addCommitEvent name who guard fresh.1).1).addRevealEvent
+          publicName who .here fresh.2.1).1,
+      next.current.source = (current.current.source.cons (spec.encoding.symm none)).cons
+        (spec.encoding.symm none) ∧
+        included.native.application.Refines next.current.graph.1 :=
+  (ConditionalPublicationSite.expiry_include_source_coupling guard tail spec fresh build
+    sourceSlot deadline current image execution included hrefines haccepted hoverdue
+    address hcode id hlookup hincluded).2.2.2
 
 variable [Fintype Player]
 
@@ -379,5 +442,15 @@ theorem scheduled_request_approximate_nash_iff (source : WFProgram Player L)
 [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.Source.public_application_reference_law
+
+/-- info: 'Vegas.Paper.Source.public_application_withholding' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Source.public_application_withholding
+
+/-- info: 'Vegas.Paper.Source.public_application_conditional_expiry' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Source.public_application_conditional_expiry
 
 end Vegas.Paper.Source

@@ -476,6 +476,12 @@ uniform bound is `2*w + 4` cycles). Neither an arbitrary environment nor the
 inclusion predicate alone supplies the required opportunity guarantees.
 The first source endpoint may use pure compiled policies with behavioral source
 replacements, but draft-level coverage requires randomized source profiles too.
+The generic `ApplicationImage` has conditional-publication expiration, but it
+does not have fallback endpoints for opaque binding or ordinary public choice.
+Thus its source-ordered serial service cannot totalize refusal at those heads.
+The concrete `DisclosureState` fixture has separate initial-binding and response
+fallbacks; results for that fixture must not be generalized to every emitted
+application image without corresponding instructions and resolution proofs.
 
 After settlement and exact unchanged-player choices, reconstruct laws rather
 than choosing an independent source witness for each supported outcome:
@@ -487,9 +493,35 @@ than choosing an independent source witness for each supported outcome:
   existing decoder's `false` witness and permit only decline.
 - For a responder replacement, retain the unchanged owner's initial and
   disclosure laws and reconstruct a response kernel depending on signal and
-  actual publication. With a randomized honest binding, this requires proving
-  conditional independence from that binding given those public inputs; a
-  fixed-secret example cannot establish that information-flow property.
+  actual publication. Correlation with a randomized hidden binding is not by
+  itself a counterexample to equality of the public terminal decoder: if the
+  binding remains sealed, that correlation can disappear under public
+  projection. Conditional independence from the binding is required for a
+  richer latent or full-environment law, or when a later public result exposes
+  the same binding. A fixed-secret example cannot establish that obligation.
+
+A candidate public-law witness would use two conditional publications of one
+randomized binding. The first opening packet is delivered to the responder, but
+expiration wins and records decline; the responder conditions its reply on the
+packet's value; a later source-certified copy publishes that same binding. This
+requires the later copy's guard to permit opening after the earlier decline.
+The generic `conditionalCopy` plan constructor can carry such an independently
+certified guard and account for the new copy, but no checked source instance or
+whole-run law currently realizes this witness. In particular, the existing
+persistent-quitting fixture forces every later copy to decline after the first
+decline, so it is not this example.
+
+A service that lets expiration defeat an unchanged owner's selected opening
+already fails full compiled-profile source preservation at the first
+publication. The responder's source-unavailable observation is a further
+public-law issue only if it affects a later compared result, such as the
+separately certified publication above. It is not by itself a responder-only
+counterexample under a premise that already preserves the unchanged owner's
+source choice. A positive comparison must exclude or explicitly compare an
+opening-visible-before-expiry race when that observation survives into its
+claimed outcome or payoff. It need not forbid every such delivery when the
+chosen public projection erases the observation and all of its downstream
+effects.
 
 Finite-law disintegration can construct these kernels once their factorization
 properties are proved. Zero-mass observations need legal fallback policies.

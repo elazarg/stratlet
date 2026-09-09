@@ -74,6 +74,12 @@ and cannot reroll after completion. They assume ideal unbiased entropy; the
 environment selects the invocation time, not the sampled value. Sealed-input
 provisioning, completion under withholding or competing expiry, and strategic
 correspondence for arbitrary public-message deviations remain separate obligations.
+The missing fallback handlers matter independently of service: permanent
+waiting at a generated binding or ordinary-choice site prevents completion
+under every environment and finite schedule. Conditional expiry, when actually
+submitted and included after its deadline, has a checked source-decline
+continuation; the general binding and ordinary-choice handlers have no such
+fallback yet.
 Generated-controller readout uses public resolved values and the owner's private
 registration history. The forward proof derives available reads and
 cache/accepted-snapshot agreement throughout the generated run; registering
