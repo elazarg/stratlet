@@ -156,23 +156,9 @@ theorem responder_initial_cycle (response : Bool → Option Bool → Bool)
       serviceCycle execution).support) :
     next.native.application.accepted.isSome = true ∧
       next.native.application.markerDone = true ∧ next.native.application.signal.isSome = true := by
-  rw [serviceCycle, MessageApplication.runPolicies_append] at hnext
-  simp only [FinDist.support_bind, Set.mem_iUnion] at hnext
-  obtain ⟨arrived, harrived, hnext⟩ := hnext
-  rw [MessageApplication.runPolicies_append] at hnext
-  simp only [FinDist.support_bind, Set.mem_iUnion] at hnext
-  obtain ⟨drained, hdrained, hnext⟩ := hnext
+  obtain ⟨arrived, drained, harrived, hdrained, htail, hcapacity, hslots, htailPhase⟩ :=
+    service_cycle_parts players selector execution next hphase hempty hnext
   have hpublic := service_arrivals_public players selector execution arrived hphase harrived
-  have hcapacity := service_arrival_bound players selector execution arrived hempty harrived
-  have harrivalHistory := (application window).runPolicies_environmentHistory_length players
-    (serviceEnvironment selector) serviceArrivals execution arrived harrived
-  have harrivalCount : serviceArrivals.countP MessageApplication.Invocation.isEnvironment = 2 :=
-    by decide
-  rw [harrivalCount] at harrivalHistory
-  have hslots : ∀ offset < 8, inclusionSlots (arrived.environmentHistory.length + offset) := by
-    intro offset hoffset
-    dsimp [inclusionSlots]
-    omega
   have hbound : drained.native.application.accepted.isSome = true := by
     cases haccepted : execution.native.application.accepted with
     | some binding =>
@@ -202,17 +188,10 @@ theorem responder_initial_cycle (response : Bool → Option Bool → Bool)
         rw [show arrived.native.application.clock = execution.native.application.clock from
           congrArg PublicState.clock hpublic.1]
         exact hexpired
-  have hdrainHistory := (application window).runPolicies_environmentHistory_length players
-    (serviceEnvironment selector) (List.replicate 8 .environment) arrived drained hdrained
-  have hdrainCount :
-      (List.replicate 8 (@MessageApplication.Invocation.environment TestPlayer)).countP
-        MessageApplication.Invocation.isEnvironment = 8 := by decide
-  rw [hdrainCount] at hdrainHistory
-  have htailPhase : drained.environmentHistory.length % 13 = 10 := by omega
   have hpreserved :=
-    service_tail_preserves_milestones players selector drained next htailPhase hnext
+    service_tail_preserves_milestones players selector drained next htailPhase htail
   exact ⟨by rw [hpreserved.1]; exact hbound,
-    service_tail_establishes_marker_signal players selector drained next htailPhase hbound hnext⟩
+    service_tail_establishes_marker_signal players selector drained next htailPhase hbound htail⟩
 
 /-- From the actual game initialization, an unchanged responder guarantees
 initial binding and the public signal by cycle `window + 2`, against every

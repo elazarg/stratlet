@@ -348,9 +348,9 @@ and reserved capacity drains the queue even under arbitrary player policies.
 The service clock advances once per complete cycle. Stable pending resolvers
 also have application-progress proofs for initial binding, ordinary response,
 and all three expiration calls. These phase results start with an already
-pending, ready request. Initialized settlement with the responder unchanged is
-also checked below. Unchanged source choices and settlement with only the owner
-unchanged remain open.
+pending, ready request. Initialized settlement with either player unchanged is
+also checked below. The owner's source choices are preserved with a positive
+window; preservation of an unchanged responder's selected reply remains open.
 The instance does not yet provide the whole-program timeout contract below.
 
 #### Service settlement guarantees and remaining targets
@@ -380,7 +380,18 @@ The complete-cycle bounds and their status are:
 | --- | --- | --- |
 | Both compiled pure controllers | 3 | Proof target |
 | Arbitrary owner, unchanged responder | `2*w + 4` | Checked for all `w` |
-| Unchanged owner, arbitrary responder | `w + 3` | Proof target |
+| Unchanged owner, arbitrary responder | `w + 3` | Checked for `w >= 1` |
+
+`DisclosureOwnerSettlement.owner_settles_by_cycle` proves the owner-side bound.
+Its first two cycles also preserve the owner's secret and selected optional
+publication (`owner_choice_by_two_cycles`); `owner_choices_preserved` carries
+those exact values through all subsequent supported service cycles. Registration
+precedes the actual binding submission, the initial deadline is not overdue
+during first-cycle inclusion, and the publication deadline is not overdue during
+second-cycle inclusion when `w >= 1`. Pool-wide provenance proves that any
+owner-authored publication packet is the one selected by the unchanged policy.
+It covers pending, ledger, delivered, and sent copies, so the argument includes
+replay rather than excluding it by a scheduler restriction.
 
 The one-cycle lag between observing resolution and acting explains the window
 condition. With `w = 0`, an expiration can be eligible in the same inclusion
@@ -431,8 +442,9 @@ the controller's view/command law. Its responder instance connects the broader
 one-shot flags to exact publication-expiration and response requests. These
 facts discharge the history obligations of the initialized settlement theorem;
 they do not imply that the responder's chosen value wins a timeout race.
-Settlement with the owner unchanged and exact unchanged-player choices remain
-obligations before deriving the strategic laws.
+The corresponding owner-response-expiration instance discharges the owner-side
+history obligation. Preservation of an unchanged responder's exact selected
+reply remains an obligation before deriving the strategic laws.
 
 #### Deviation-law proof targets
 

@@ -626,9 +626,28 @@ every supported execution after at least `2 * window + 4` complete cycles has
 a native outcome. The proof uses the exact controller history, an immutable
 signal time origin, publication resolution by `2 * window + 3`, and one response
 cycle. It holds even for a zero window. This is a one-sided termination theorem,
-not preservation of the responder's chosen value: a competing expiration may
-resolve a phase first. Completion with only the owner unchanged and exclusion
-of timeout races remain separate obligations.
+not preservation of the responder's chosen value: its proof permits a competing
+expiration to resolve a phase first.
+
+`DisclosureOwnerSettlement.owner_settles_by_cycle` supplies the other side:
+for a positive window, the unchanged owner guarantees an outcome by
+`window + 3` cycles against every responder policy and admitted selector.
+`owner_choices_preserved` also identifies the owner's actual selected secret
+and opening or decline after every cycle count at least two. The first cycle
+freezes the registered secret; the second includes the selected publication
+before expiration is eligible. Both stages start from initialization. Full
+pool provenance excludes stale conflicting owner-authored publication packets,
+including packets retained for later replay. This does not restrict the
+responder's raw messages or the selector's payload inspection.
+
+`MessageApplicationPolicyInvariant` supplies policy-sensitive execution
+invariant lifting, including native state and command histories. Its retained
+message predicate is preserved through submission, delivery, inclusion, and
+replay. The disclosure proofs instantiate it before and after the public signal;
+they do not replace the runtime with a second evaluator. The remaining
+example-specific operational obligation is preservation of an unchanged
+responder's selected reply. Termination on both sides and preservation of the
+owner's choices do not establish the full strategic outcome-law comparison.
 
 `Interaction/MessageApplicationPolicyHistory.lean` supplies the reusable
 history fact: if a principal's policy satisfies a law of its observed view and

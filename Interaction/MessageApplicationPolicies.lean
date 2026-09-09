@@ -242,6 +242,27 @@ theorem playerStep_environmentHistory [DecidableEq Principal]
   subst next
   rfl
 
+/-- Environment-only invocation phases preserve all principal command histories. -/
+theorem runPolicies_environment_principalHistory [DecidableEq Principal]
+    (players : Principal → app.PlayerPolicy) (environment : app.EnvironmentPolicy)
+    (count : Nat) (execution next : app.PolicyExecution)
+    (hnext : next ∈ (app.runPolicies players environment
+      (List.replicate count .environment) execution).support) :
+    next.principalHistory = execution.principalHistory := by
+  induction count generalizing execution with
+  | zero =>
+      simp only [List.replicate_zero, runPolicies, FinDist.mem_support_pure] at hnext
+      subst next
+      rfl
+  | succ count ih =>
+      simp only [List.replicate_succ, runPolicies,
+        FinDist.support_bind, Set.mem_iUnion] at hnext
+      obtain ⟨middle, hmiddle, htail⟩ := hnext
+      simp only [invoke, FinDist.support_bind, Set.mem_iUnion] at hmiddle
+      obtain ⟨command, _, hstep⟩ := hmiddle
+      exact (ih middle htail).trans (app.environmentStep_principalHistory
+        execution command middle hstep)
+
 /-- Environment policy memory counts its own invocations, including waits,
 independently of intervening player commands and application success. -/
 theorem runPolicies_environmentHistory_length [DecidableEq Principal]

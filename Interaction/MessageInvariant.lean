@@ -34,6 +34,16 @@ def Satisfies (safe : Message Principal Payload → Prop)
     Satisfies safe (MessagePool.empty Principal Payload) := by
   simp [Satisfies, MessagePool.empty]
 
+/-- A pointwise consequence of a retained-message predicate also holds at
+every pending, included, delivered, and sent copy. -/
+theorem Satisfies.mono {weaker : Message Principal Payload → Prop}
+    (h : Satisfies safe pool) (himp : ∀ message, safe message → weaker message) :
+    Satisfies weaker pool := by
+  exact ⟨fun message hmem => himp message (h.1 message hmem),
+    fun message hmem => himp message (h.2.1 message hmem),
+    fun who message hmem => himp message (h.2.2.1 who message hmem),
+    fun who message hmem => himp message (h.2.2.2 who message hmem)⟩
+
 theorem Satisfies.submit [DecidableEq Principal] (h : Satisfies safe pool)
     (sender : Principal) (payload : Payload)
     (hnew : safe ⟨(sender, pool.nextSerial sender), payload⟩) :

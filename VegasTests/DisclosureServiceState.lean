@@ -26,6 +26,49 @@ theorem serviceSchedule_add (first second : Nat) :
     serviceSchedule (first + second) = serviceSchedule first ++ serviceSchedule second := by
   simp only [serviceSchedule, List.replicate_add, List.flatten_append]
 
+/-- A supported service cycle decomposes into its actual arrival, inclusion,
+and fixed-tail executions, with the capacity and phase facts needed by local
+application proofs. No application-resolution premise is included. -/
+theorem service_cycle_parts (players : TestPlayer → (application window).PlayerPolicy)
+    (selector : (application window).EnvironmentPolicy)
+    (execution next : (application window).PolicyExecution)
+    (hphase : execution.environmentHistory.length % 13 = 0)
+    (hempty : execution.native.pool.pending = [])
+    (hnext : next ∈ ((application window).runPolicies players (serviceEnvironment selector)
+      serviceCycle execution).support) :
+    ∃ arrived drained,
+      arrived ∈ ((application window).runPolicies players (serviceEnvironment selector)
+        serviceArrivals execution).support ∧
+      drained ∈ ((application window).runPolicies players (serviceEnvironment selector)
+        (List.replicate 8 .environment) arrived).support ∧
+      next ∈ ((application window).runPolicies players (serviceEnvironment selector)
+        (List.replicate 3 .environment) drained).support ∧
+      arrived.native.pool.pending.length ≤ 8 ∧
+      (∀ offset < 8, inclusionSlots (arrived.environmentHistory.length + offset)) ∧
+      drained.environmentHistory.length % 13 = 10 := by
+  rw [serviceCycle, MessageApplication.runPolicies_append] at hnext
+  simp only [FinDist.support_bind, Set.mem_iUnion] at hnext
+  obtain ⟨arrived, harrived, hnext⟩ := hnext
+  rw [MessageApplication.runPolicies_append] at hnext
+  simp only [FinDist.support_bind, Set.mem_iUnion] at hnext
+  obtain ⟨drained, hdrained, hnext⟩ := hnext
+  have harrivalHistory := (application window).runPolicies_environmentHistory_length players
+    (serviceEnvironment selector) serviceArrivals execution arrived harrived
+  have harrivalCount : serviceArrivals.countP MessageApplication.Invocation.isEnvironment = 2 :=
+    by decide
+  rw [harrivalCount] at harrivalHistory
+  have hdrainHistory := (application window).runPolicies_environmentHistory_length players
+    (serviceEnvironment selector) (List.replicate 8 .environment) arrived drained hdrained
+  have hdrainCount :
+      (List.replicate 8 (@MessageApplication.Invocation.environment TestPlayer)).countP
+        MessageApplication.Invocation.isEnvironment = 8 := by decide
+  rw [hdrainCount] at hdrainHistory
+  refine ⟨arrived, drained, harrived, hdrained, hnext,
+    service_arrival_bound players selector execution arrived hempty harrived, ?_, by omega⟩
+  intro offset hoffset
+  dsimp [inclusionSlots]
+  omega
+
 /-- Every supported complete run has a supported prefix at the selected cycle
 boundary and a continuation from that very policy execution, including its
 native state and all principal and environment histories. -/

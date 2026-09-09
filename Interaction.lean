@@ -7,6 +7,7 @@ import Interaction.MessageApplicationLaws
 import Interaction.MessageApplicationPolicies
 import Interaction.MessageApplicationPolicyLaws
 import Interaction.MessageApplicationPolicyHistory
+import Interaction.MessageApplicationPolicyInvariant
 import Interaction.MessageApplicationService
 import Interaction.MessageApplicationProgress
 import Interaction.MessageApplicationArrival

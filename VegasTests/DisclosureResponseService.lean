@@ -158,23 +158,9 @@ theorem responder_response_cycle (response : Bool → Option Bool → Bool)
     (hnext : next ∈ ((application window).runPolicies players (serviceEnvironment selector)
       serviceCycle execution).support) :
     next.native.application.response.isSome = true := by
-  rw [serviceCycle, MessageApplication.runPolicies_append] at hnext
-  simp only [FinDist.support_bind, Set.mem_iUnion] at hnext
-  obtain ⟨arrived, harrived, hnext⟩ := hnext
-  rw [MessageApplication.runPolicies_append] at hnext
-  simp only [FinDist.support_bind, Set.mem_iUnion] at hnext
-  obtain ⟨drained, hdrained, hnext⟩ := hnext
+  obtain ⟨arrived, drained, harrived, hdrained, htail, hcapacity, hslots, htailPhase⟩ :=
+    service_cycle_parts players selector execution next hphase hempty hnext
   have hpublic := service_arrivals_public players selector execution arrived hphase harrived
-  have hcapacity := service_arrival_bound players selector execution arrived hempty harrived
-  have harrivalHistory := (application window).runPolicies_environmentHistory_length players
-    (serviceEnvironment selector) serviceArrivals execution arrived harrived
-  have harrivalCount : serviceArrivals.countP MessageApplication.Invocation.isEnvironment = 2 :=
-    by decide
-  rw [harrivalCount] at harrivalHistory
-  have hslots : ∀ offset < 8, inclusionSlots (arrived.environmentHistory.length + offset) := by
-    intro offset hoffset
-    dsimp [inclusionSlots]
-    omega
   have hresolved : drained.native.application.response.isSome = true := by
     cases hresponse : execution.native.application.response with
     | some value =>
@@ -222,14 +208,7 @@ theorem responder_response_cycle (response : Bool → Option Bool → Bool)
               execution.native.application.publication from
               congrArg PublicState.publication hpublic.1]
           exact hpublication
-  have hdrainHistory := (application window).runPolicies_environmentHistory_length players
-    (serviceEnvironment selector) (List.replicate 8 .environment) arrived drained hdrained
-  have hdrainCount :
-      (List.replicate 8 (@MessageApplication.Invocation.environment TestPlayer)).countP
-        MessageApplication.Invocation.isEnvironment = 8 := by decide
-  rw [hdrainCount] at hdrainHistory
-  have htailPhase : drained.environmentHistory.length % 13 = 10 := by omega
-  rw [(service_tail_preserves_milestones players selector drained next htailPhase hnext).2.2]
+  rw [(service_tail_preserves_milestones players selector drained next htailPhase htail).2.2]
   exact hresolved
 
 end VegasTests.OptionalDisclosure.DisclosureState

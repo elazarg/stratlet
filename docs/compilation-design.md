@@ -339,6 +339,12 @@ edge. Its example-specific work has a finite acceptance gate:
    lifting use the shared runtime. The instance discharges application-specific
    obligations without maintaining a second evaluator.
 
+The initialized disclosure instance has checked termination guarantees with
+either player unchanged and, with a positive timeout window, preservation of
+the unchanged owner's binding and publication. It still needs preservation of
+an unchanged responder's selected reply. The checked terms and their explicit
+service bounds are documented in [timeout-compilation.md](timeout-compilation.md).
+
 After this gate, the next implementation task is generation of the public
 application and controllers from checked source programs. Disclosure becomes
 a regression instance of that compiler. Randomized outcome-law and unilateral

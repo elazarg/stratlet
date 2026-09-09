@@ -73,6 +73,47 @@ theorem service_arrivals_public
   rw [hcount] at hoffset
   omega
 
+/-- A request emitted by the owner at the first invocation of the service
+arrival phase remains pending through the phase's later player traffic and
+delivery-only environment work. -/
+theorem service_owner_arrival (payload : Payload)
+    (players : TestPlayer → (application window).PlayerPolicy)
+    (selector : (application window).EnvironmentPolicy)
+    (execution next : (application window).PolicyExecution)
+    (hphase : execution.environmentHistory.length % 13 = 0)
+    (hrequest : players 0 (execution.principalHistory 0)
+      (MessageApplication.State.observe (application window) execution.native 0) =
+        FinDist.pure (.submit payload))
+    (hnext : next ∈ ((application window).runPolicies players (serviceEnvironment selector)
+      serviceArrivals execution).support) :
+    ∃ serial, ⟨(0, serial), payload⟩ ∈ next.native.pool.pending := by
+  let rest : List (@MessageApplication.Invocation TestPlayer) := serviceArrivals.drop 1
+  have hschedule : serviceArrivals = .player 0 :: rest := rfl
+  rw [hschedule] at hnext
+  simp only [MessageApplication.runPolicies, FinDist.support_bind, Set.mem_iUnion] at hnext
+  obtain ⟨after, hafter, hnext⟩ := hnext
+  simp only [MessageApplication.invoke, hrequest, FinDist.pure_bind] at hafter
+  have hpending : ⟨(0, execution.native.pool.nextSerial 0), payload⟩ ∈
+      after.native.pool.pending := by
+    have hnative : after.native ∈
+        (((application window).playerStep 0 execution (.submit payload)).map
+          MessageApplication.PolicyExecution.native).support := by
+      rw [FinDist.support_map]
+      exact ⟨after, hafter, rfl⟩
+    rw [MessageApplication.playerStep_native] at hnative
+    simp only [MessageApplication.PlayerCommand.toAction, MessageApplication.step,
+      FinDist.mem_support_pure] at hnative
+    rw [hnative]
+    simp [MessagePool.submit]
+  have htail := service_communication_phase players selector rest after next (by
+    intro offset hoffset
+    have hhistory := (application window).playerStep_environmentHistory 0 execution
+      (.submit payload) after hafter
+    rw [hhistory]
+    simp [rest, serviceArrivals, MessageApplication.Invocation.isEnvironment] at hoffset ⊢
+    omega) hnext
+  exact ⟨execution.native.pool.nextSerial 0, htail.2.subset hpending⟩
+
 private theorem owner_pair_preserves_responder_history
     (players : TestPlayer → (application window).PlayerPolicy)
     (environment : (application window).EnvironmentPolicy)
