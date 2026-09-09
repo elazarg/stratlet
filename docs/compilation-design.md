@@ -371,7 +371,7 @@ The checked terms and their explicit service bounds are documented in
 [timeout-compilation.md](timeout-compilation.md).
 
 After this gate, the next implementation task is generation of the public
-application and controllers from checked source programs. Disclosure becomes
+application and reference strategy lifting from checked source programs. Disclosure becomes
 a regression instance of that compiler. Randomized outcome-law and unilateral
 deviation adequacy remain required, and should be developed at the reusable
 compilation boundary rather than as prerequisites for further bespoke variants
@@ -486,7 +486,7 @@ conditional instruction and use the same refinement theorem. Publication
 preserves the original accepted handle and frozen snapshot; a later endpoint
 can consult them again, subject to its own guard and readiness conditions.
 Neither source syntax nor source accounting is extended. The certificate does not
-prove that a commitment was prepared or accepted: initialization, controller
+prove that a commitment was prepared or accepted: initialization, lifted-strategy
 provenance, and service must establish that availability separately.
 `GeneratedPersistentDisclosure` compiles the unchanged ten-node source through
 both derivation cases. Its exact native execution law opens the original
@@ -496,12 +496,13 @@ does not exercise replacement of an existing preparation.
 A separate execution checks that an earlier decline rejects a later opening
 and still permits a completing decline. Completed opening runs instantiate the
 general written-order source public-outcome theorem. These concrete laws use
-specified raw actions, not generated whole-program behavioral controllers.
+specified raw actions, not whole-program lifted behavioral strategies.
 The public initializer also does not provision
 sealed initial inputs. A whole-program entry must either account for that
-provisioning or explicitly require no sealed initial inputs. Generated controller
-dispatch, complete initialization, and whole-profile execution laws remain
-obligations. Public terminal readout and arbitrary-traffic support refinement
+provisioning or explicitly require no sealed initial inputs. Structural reference
+strategy dispatch is supplied by `ApplicationPlan.liftProfile`; complete
+initialization and whole-profile execution laws remain obligations.
+Public terminal readout and arbitrary-traffic support refinement
 are supplied by `ApplicationImageOutcome` and `ApplicationPlanRefinement`.
 The local refinement uses a checked lookup of the emitted instruction,
 public-validator eligibility, snapshot consistency, public-store agreement,
@@ -574,20 +575,26 @@ the relevant private memory, but acceptance may precede registration and freeze
 an absent value. Consequently, a canonical handle plus a later cache entry does
 not establish correspondence. Source-profile lifting must establish
 preparation before binding submission and maintain that provenance. Whole-image
-dispatch is defined by `ApplicationPlan.liftProfile`; availability of every
-declared source observation remains to be proved across its execution.
+dispatch is defined by `ApplicationPlan.liftProfile`.
 
 `ApplicationPlan.runPolicies_lifted_registeredBindings` establishes binding
 provenance for any one principal following the structural lift, with arbitrary
 other players, environment, and finite invocation list. From empty preparation
 and message histories and no accepted handles, every accepted handle belonging
-to that principal has a recorded private value equal to its frozen snapshot.
+to that principal has a recorded private value equal to its frozen snapshot
+and carrying the type of its allocated graph field.
 The native proof maintains registered-handle provenance across pending, sent,
 delivered, and included copies, including replay. The stronger `RegisteredBindings`
 predicate supplies cache existence and implies the readout's `RegistrationMatches`.
-It does not provision sealed initial inputs or prove that every source-visible
-field has the correct runtime type. Those availability obligations and the
-source-prefix probability coupling are the next composition steps.
+`ApplicationPlan.runPolicies_memory_covers` independently proves that every
+completed event field has either stored data or an accepted canonical handle,
+under arbitrary policies. Together with native refinement and graph readiness,
+these facts prove successful loading of every declared choice input in
+`ApplicationPlan.runPolicies_ownerReadout?_of_ready`. Initial fields in that
+footprint must be public; sealed initial-input provisioning remains separate.
+The source-view theorem additionally identifies the recovered values with a
+supplied related source environment. Establishing that environment and the
+source-prefix probability coupling throughout execution remains the next step.
 
 Whole-program randomized laws should compose segment laws from every related
 native checkpoint, retaining both an exact outcome law and a support invariant

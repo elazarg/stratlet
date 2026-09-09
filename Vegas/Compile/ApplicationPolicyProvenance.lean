@@ -12,8 +12,10 @@ import Vegas.Compile.ApplicationImageProvenance
 One player's structurally lifted source policy suffices to maintain agreement
 between its recorded private registrations and accepted native snapshots.
 All other players and the environment may use arbitrary runtime strategies.
-This proves a premise of the native-to-source readout law throughout actual
-execution; successful loading and source-state correspondence remain separate.
+The retained registrations are also typed by their fields in the plan's final
+compiled graph. This proves a premise of the native-to-source readout law
+throughout actual execution; successful loading and source-state
+correspondence remain separate.
 -/
 
 noncomputable section
@@ -45,10 +47,17 @@ theorem runPolicies_lifted_registeredBindings
       (PolicyExecution.initial (plan.image deadlineOf).application
         (MessageApplication.State.initial (plan.image deadlineOf).application
           (ApplicationImage.State.initial memory)))).support) :
-    (plan.image deadlineOf).RegisteredBindings owner (next.principalHistory owner)
-      next.native.application := by
+    (plan.image deadlineOf).RegisteredBindings owner
+      (fun slot typed => ∃ spec : FieldSpec P L,
+        (compileCore prog fresh state).graph.field? slot = some spec ∧
+          typed.ty = spec.ty)
+      (next.principalHistory owner) next.native.application := by
   apply (plan.image deadlineOf).runPolicies_registeredBindings_of_registered_submissions
-    memory hempty owner players environment ?_ schedule next hnext
+    memory hempty owner
+    (fun slot typed => ∃ spec : FieldSpec P L,
+      (compileCore prog fresh state).graph.field? slot = some spec ∧
+        typed.ty = spec.ty)
+    players environment ?_ schedule next hnext
   intro history view address handle hcommand
   rw [howner] at hcommand
   exact plan.liftProfileIn_binding_submission (plan.image deadlineOf) deadlineOf

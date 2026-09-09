@@ -219,7 +219,7 @@ success/rejection receipts, before that principal sends an opening. The
 retained carrier must already exclude its opening messages and the common
 trace must contain no further commands from that principal. This is a raw
 noninterference theorem; lifting it to adaptive policy laws and proving an
-emitted controller's disclosure discipline are additional obligations.
+reference strategy's disclosure discipline are additional obligations.
 
 ### Source correspondence still required
 

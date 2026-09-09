@@ -18,9 +18,9 @@ original binding can fall back to the owner's private registration cache.
 
 The executable readout uses no source environment or private service state.
 Its correctness theorem requires cache/snapshot correspondence and operational
-availability. Those are controller-composition obligations, not consequences
-of native refinement for arbitrary player policies. Slots equal source fields
-in the structural application compiler.
+availability. These are strategy-lifting obligations, not consequences of
+native refinement for arbitrary player policies. Slots equal source fields in
+the structural application compiler.
 -/
 
 noncomputable section

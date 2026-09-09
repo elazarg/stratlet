@@ -22,11 +22,11 @@ The acceptance inventory has two axes:
 
 | Requirement | Public-message path | Required endpoint |
 | --- | --- | --- |
-| Independent source meaning | Source-to-graph connection, terminal native support, local source-decision laws, and exact independent-source law for the generated pure disclosure policies under a specified inclusion script | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
-| Source coverage | Structural binding/chance/public-choice/conditional-publication compilation with whole-run support refinement; source-generated disclosure controllers in a program-specific phase assembly | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
+| Independent source meaning | Source-to-graph connection, terminal native support, local source-decision laws, and exact independent-source law for the lifted pure disclosure reference policies under a specified inclusion script | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
+| Source coverage | Structural binding/chance/public-choice/conditional-publication protocol compilation, whole-run support refinement, whole-source strategy lifting, and local readout availability at ready represented states | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
 | Hostile interaction | Raw traffic, local delivery, replay, addressed public inclusion, ideal binding/hiding; initialized disclosure settlement against arbitrary opposing policies under the stated slotted service | Whole interaction, failure, deadline and observation behavior under the theorem's complete player/environment policy classes. |
 | Strategic comparison | Release-time hiding/choice independence and selective-publication obstruction | Compiled-profile law plus arbitrary unilateral-deviation comparison, with the corresponding source-outcome bounds and equilibrium results. |
-| Substantive application | The private-window sealed offer and a public-message compiled-prefix fixture | The application, its emitted controllers/handlers, and its guarantees use the same public-message compiler path. |
+| Substantive application | The private-window sealed offer and a public-message compiled-prefix fixture | The generated protocol application and handlers use the same public-message compiler path; reference strategies and their guarantees are related separately. |
 | Further lowering | Separate local backend proofs | A named generated-handler path instantiates that application semantics; subsequent realization obligations are explicit. |
 
 An obstruction must identify the incompatible property/model pair and guide
@@ -39,6 +39,12 @@ admitted censorship or withholding contradicts it.
 Build the shared operational/strategic runtime connection before expanding
 backend breadth. Keep the minimal Vegas core and its well-formedness discipline.
 Do not reproduce the rich Kotlin language in Lean.
+
+The compiled artifact tower consists of protocol representations: graphs,
+public-message applications, contracts, wire formats, and target code. Lifting a
+source profile constructs reference runtime strategies for proofs in parallel
+with that tower. It neither emits client software nor removes arbitrary native
+policies from the deviation space.
 
 The first delivery is a public-message model with recipient-local observations,
 a real core-to-model compiler slice, and checked strategic evidence about that
@@ -192,10 +198,10 @@ have an exact-law embedding, and its ideal pre-disclosure hiding theorem
 permits adaptive opponent and wire-observing environment policies. The finite
 invocation list remains fixed. `PendingPolicies` handles continuations without
 owner invocations and retains a distinguishing cleartext response.
-`PendingRelease` includes the owner's register/submit/open controller from
+`PendingRelease` supplies the owner's register/submit/open reference policy from
 empty and permits further owner invocations. It compares the first public
 release-enabled snapshot of each full native trace; execution continues after
-that snapshot. The generic compiled-controller theorem checks all graph
+that snapshot. The generic reference-policy theorem checks all graph
 prerequisites before submitting an opening. The release readout is not a
 different stopped runtime or conditioning on successful release.
 `WFProgram.sealed_policy_source` transports native source-support correctness
@@ -208,7 +214,8 @@ opening. Unreached release remains a separate outcome marker.
 `PendingWithholdingSource` proves a concrete publication-law obstruction
 against every independent source profile: the bound opponent can selectively
 withhold after learning the honest opening, while every terminal source result
-contains its public binding. A canonical-controller continuation succeeds at
+contains its public binding. A canonical reference-policy continuation succeeds
+at
 the same reached prefix and service horizon. This is an obstruction for the
 specified publication readout, not a universal failure of weaker comparisons.
 
@@ -291,8 +298,8 @@ by expiration can leave an intended `some value` in history while the accepted
 transaction represents `none`.
 
 `GeneratedPersistentDisclosureController` instantiates that readout and the
-generated conditional controller at the second site. The local laws recover the
-arbitrary randomized source decision at the concrete opened and declined native
+conditional reference-policy combinator at the second site. The local laws
+recover the arbitrary randomized source decision at the concrete opened and declined native
 checkpoints, under the original-registration and empty-second-cache premises.
 They also check endpoint separation and waiting after a recorded second choice.
 These are local laws for supplied histories, not a theorem that a generated
@@ -305,7 +312,7 @@ registration is permitted operationally and does not satisfy that invariant.
 `ApplicationImageRegistration` supplies the unconditional history/preparation
 invariant and preservation of an already cached-and-bound snapshot under all
 later policy commands. `BindingImageController` and `BindingImageExecution`
-generate the two-phase source policy and prove the full law of consecutive
+construct the two-phase reference policy and prove the full law of consecutive
 registration and submission invocations. `ApplicationImageBindingInclusion`
 connects actual recorded inclusion to the cached snapshot. The initialized
 `GeneratedBindingPolicy` prefix has the exact arbitrary randomized source
@@ -320,11 +327,15 @@ probability proof must maintain a source-prefix relation covering accepted value
 and every declared source observation. `ApplicationPolicyProvenance` establishes
 the cache/snapshot component generally: if one player follows the lift, every
 accepted handle belonging to it retains its first private registration, under
-arbitrary opponents, environment, and finite invocation list. This also supplies
-cache existence for accepted bindings. Typed availability of the complete source
-view, including the separate initial-input provisioning issue, remains open.
-A local source-matching readout is not itself a proof that a whole-program policy
-maintains it.
+arbitrary opponents, environment, and finite invocation list. It also supplies
+cache existence and graph-field type agreement for accepted bindings.
+`ApplicationImageCoverage` proves that completed event fields have stored data
+or accepted canonical handles under arbitrary policies. `SourceReadoutAvailability`
+combines these execution invariants with native refinement and graph readiness:
+the lifted owner can load the complete choice footprint, provided its initial
+fields are public. The loader receives no source environment. Sealed initial-input
+provisioning remains separate, and the source-prefix probability coupling must
+still establish the source environment whose view the readout reconstructs.
 Compose the local laws across initialization, both disclosure sites, the
 intervening response, and the stated service assumptions. This must use actual
 policy invocations, not just the specified raw-action executions.
@@ -335,20 +346,22 @@ and the shared `PublicChoice` endpoint performs authentication, readiness, and
 validation. The disclosure response handler directly instantiates it, with
 checked local source steps and equality of the decoded native and graph
 updates. Validation uses only actual guard dependencies, whose publicness and
-native store agreement are separate obligations. `PublicChoiceSite.controller`
-adapts arbitrary source decision kernels to a shared sample-once controller,
-with an exact first-submission law at matching source observations. Its first
+native store agreement are separate obligations. `PublicChoiceSite.controller`,
+used by the proof-level strategy lift, adapts arbitrary source decision kernels
+to a shared sample-once controller, with an exact first-submission law at matching
+source observations. Its first
 real submission records the draw in own command history; subsequent polls can
-wait or retry that value. Disclosure's native responder uses this component,
-and its first ready invocation records the source response law. The existing
+wait or retry that value. Disclosure's reference native responder policy uses
+this component, and its first ready invocation records the source response law. The existing
 deterministic settlement guarantees remain checked specializations.
 The shared sample-once mechanism also handles private registration commands.
 Choice encodings enforce canonicality; endpoint tags separately establish
 disjoint decoding and dispatch. `ConditionalOpeningController` composes the
 certified source value equivalence with addressed opening/decline requests and
 proves their local source law and acceptance conditions. The concrete disclosure
-owner composes source-generated private registration, opaque binding submission,
-and this addressed opening controller. It retains the initial value in its own
+reference owner strategy composes source-profile-derived private registration,
+opaque binding submission, and this addressed opening policy. It retains the
+initial value in its own
 command history, reconstructs the opening view from that cache or an accepted
 public default, and reconstructs the complete declared source view. Native routing admits
 wrong-tag raw messages and rejects their application effect. The complete pure
@@ -394,7 +407,7 @@ give it control of their sampled value. For every potentially silent source
 decision, supply an executable legal fallback or preserve unresolved execution.
 Uniqueness of a legal action is sufficient for one resolution technique, not a
 necessary condition for implementing a designated fallback.
-The emitted controller must check disclosure fences before submitting an
+The lifted reference strategy must check disclosure fences before submitting an
 opening, not only before its application effect is accepted: recipient delivery
 can reveal the payload before inclusion. Retain the actual clock, receipts,
 and local message histories in the policy game while proving the comparison.
@@ -406,19 +419,21 @@ prefixes, exact completion flags, and written-source support for completed
 outcomes. The complete run from empty also has the independent AST's exact
 terminal-environment law for pure source rules and a specified inclusion
 script, with the retained secret included in the readout. This proves
-settlement for those scripted compiled runs, not under arbitrary controllers
+settlement for those scripted compiled runs, not under arbitrary native policies
 or service policies. Initial and response nonparticipation have source-correct
 permissionless expiration handlers, with complete native execution laws for
 an absent owner and an absent responder. Initial expiration records a public
-default without changing private preparation. Concrete pure controllers drive
-these expirations and recover from public defaults. The slotted service admits
+default without changing private preparation. Concrete pure reference policies
+drive these expirations and recover from public defaults. The slotted service
+admits
 player reactions after delivery and before inclusion, and its capacity theorem
 drains the pool under arbitrary player policies. Under this service and a
 positive window, initialized settlement and exact unchanged-player choices are
-checked with either deterministic compiled controller unchanged. This meets
+checked with either deterministic reference policy unchanged. This meets
 the [operational integration gate](compilation-design.md#disclosure-integration-exit-gate).
-Generate the public application and controllers from checked programs, keeping
-disclosure as a regression instance. Randomized source-profile laws and
+Generate the public protocol application from checked programs and separately
+construct and relate reference strategy lifts, keeping disclosure as a regression
+instance. Randomized source-profile laws and
 unilateral-deviation simulation belong at that reusable compilation edge and
 remain unproved for the public service. The
 [initial-default design](timeout-compilation.md#initial-defaults-and-privately-prepared-commitments)
@@ -438,7 +453,8 @@ their claimed values while pending. Choose the exact admitted source program
 before adding a general protocol/phase language; the independent one-slot
 experiment is not such a program and does not discharge this gate.
 
-Prove the release discipline from the emitted controller and application.
+Prove the release discipline from the reference strategy and generated protocol
+application.
 Source textual order alone does not imply that both parties' choices become
 irrevocable before either opening packet can be observed. An owner/slot binding
 check must reject handles used for a different owner/node and replacement after
@@ -455,14 +471,15 @@ payout semantics, for example `none` in an optional choice whose legality is
 proved. The minimal core has no timeout constructor; the interface's timeout
 action must select that value, not manufacture a new source branch.
 
-Keep the concrete emitted controller and application transition available for
-execution. Prove their connection to the independent source game, not merely
+Keep the concrete reference policy and generated application transition
+available for execution. Prove their connection to the independent source game, not merely
 to a new hand-defined runtime-aware game. Any graph-level example that does not
 satisfy core admission must be labeled as such and cannot discharge this gate.
 
 Use a named service instance, with nonzero delivery delay and at least two
 admissible inclusion orders. A zero-cost instance is acceptable if explicit.
-Give source timeout resolution a real transition and controller/driver. The
+Give source timeout resolution a real transition and a reference policy or
+environment driver. The
 service assumptions must be feasible and must hold under all deviations in
 the statement, including allowed spam and late submissions.
 
@@ -482,8 +499,9 @@ prefix/pending theorem and cannot be presented as an unconditional terminal law.
 
 **Proof obligations**
 
-1. The compiler's emitted requests and controller actions are executable and
-   information-local; the controller uses no hidden scheduler state.
+1. The lifted reference strategy's requests and actions are executable and
+   information-local; the strategy uses no hidden scheduler state. This is a
+   proof obligation for the lift, not a claim that it is emitted client software.
 2. Actual application execution and decoding agree with the source outcome
    interpretation on completed runs.
 3. Compiled-profile law correspondence holds under the stated services.
@@ -502,7 +520,7 @@ assume that every negative control refutes every solution concept.
 **Gate**
 
 One actual core-to-public-message compiler path has checked strategic evidence,
-with full controller quantifiers for the property claimed. If exact law or
+with full native-policy quantifiers for the property claimed. If exact law or
 Nash preservation fails, record the necessary condition or weaker result.
 Do not replace the source meaning or declare all failures equivalent to quit.
 If the only result is an obstruction, choose and test a revised service

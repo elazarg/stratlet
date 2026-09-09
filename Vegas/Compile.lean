@@ -37,6 +37,9 @@ import Vegas.Compile.ApplicationImageReadout
 import Vegas.Compile.ApplicationImageRegistration
 import Vegas.Compile.ApplicationImageBindingInclusion
 import Vegas.Compile.ApplicationImageProvenance
+import Vegas.Compile.ApplicationImageCoverage
+import Vegas.Compile.ApplicationImageReadoutAvailability
+import Vegas.Compile.SourceReadoutAvailability
 import Vegas.Compile.BindingImageController
 import Vegas.Compile.BindingImageExecution
 import Vegas.Compile.ApplicationPolicy

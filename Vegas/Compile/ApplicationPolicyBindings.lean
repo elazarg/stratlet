@@ -24,6 +24,34 @@ open EventGraph ToEventGraph Interaction Interaction.MessageApplication
 
 variable {P : Type} [DecidableEq P] {L : IExpr}
 
+private theorem compiledField_spec
+    {who : P} {Γ Δ : VCtx P L} {prog : VegasCore P L Γ}
+    {name : VarId} {ty : L.Ty}
+    {guard : L.Expr ((name, ty) :: eraseVCtx (viewVCtx who Δ)) L.bool}
+    (site : SourceDecisionSite who prog Δ name ty guard)
+    (fresh : FreshBindings prog) (state : BuildState P L Γ) :
+    ∃ spec : FieldSpec P L,
+      (compileCore prog fresh state).graph.field?
+          (site.compiledField fresh state) = some spec ∧
+        spec.ty = ty := by
+  rcases decisionSite_compiledRow site fresh state with ⟨node, hnode, hrow⟩
+  have hnodeEq : node = site.compiledNode fresh state := by
+    apply Fin.ext
+    exact hnode
+  rw [hnodeEq] at hrow
+  have hsource := site.bindingCode_sourceField fresh state
+    (site.compiledField fresh state)
+  change (compileCore prog fresh state).graph.nodeTarget
+      (site.compiledNode fresh state) = site.compiledField fresh state at hsource
+  let event := (decisionSiteState site fresh state).commitEvent who guard
+  let spec : FieldSpec P L :=
+    { ty := event.ty, owner := event.owner,
+      source := .event (site.compiledNode fresh state) }
+  refine ⟨spec, ?_, rfl⟩
+  rw [← hsource]
+  simpa only [spec, event] using
+    (compileCore prog fresh state).graph.field?_nodeTarget hrow
+
 private theorem binding_submission_has_registration
     {who : P} {Γ Δ : VCtx P L} {prog : VegasCore P L Γ}
     {name : VarId} {ty : L.Ty}
@@ -37,8 +65,12 @@ private theorem binding_submission_has_registration
     (address : Nat) (handle : CommitmentHandle P Nat)
     (hcommand : .submit (.binding address handle) ∈
       (site.bindingPolicy fresh state image sourcePolicy history view).support) :
-    handle.1 = who ∧ ∃ value : TypedValue L,
-      image.registrationCache handle.2 history = some value := by
+    handle = (who, site.compiledField fresh state) ∧
+      ∃ value : TypedValue L,
+        image.registrationCache handle.2 history = some value ∧
+          ∃ spec : FieldSpec P L,
+            (compileCore prog fresh state).graph.field? handle.2 = some spec ∧
+              value.ty = spec.ty := by
   cases hcache : image.registrationCache (site.compiledField fresh state) history with
   | none =>
       let controller := site.registrationController fresh state image sourcePolicy
@@ -48,6 +80,16 @@ private theorem binding_submission_has_registration
       exact False.elim (controller.not_supported_of_decode_none image.application history view
         (.submit (.binding address handle)) (by simp) rfl hsupported)
   | some registered =>
+      have htype : registered.ty = ty := by
+        cases hdecode : registered.as? ty with
+        | none =>
+            have hwait := site.bindingPolicy_wrong_typed_registration_waits
+              fresh state image sourcePolicy history view registered hcache hdecode
+            rw [hwait] at hcommand
+            simp at hcommand
+        | some value =>
+            have heq := registered.eq_mk_of_as?_eq_some ty value hdecode
+            exact congrArg TypedValue.ty heq
       rcases site.bindingPolicy_supported_command fresh state image sourcePolicy
           history view (.submit (.binding address handle)) hcommand with
         hwait | hregister | hbinding
@@ -55,7 +97,9 @@ private theorem binding_submission_has_registration
       · obtain ⟨value, hvalue⟩ := hregister
         cases hvalue
       · cases hbinding
-        exact ⟨rfl, ⟨registered, hcache⟩⟩
+        obtain ⟨spec, hfield, hspecType⟩ := compiledField_spec site fresh state
+        exact ⟨rfl, ⟨registered, hcache, spec, hfield,
+          htype.trans hspecType.symm⟩⟩
 
 /-- Any opaque binding packet supported by the structural source-profile
 lifting is authenticated as the invoked principal and refers to a slot whose
@@ -71,7 +115,10 @@ theorem liftProfileIn_binding_submission
     (hcommand : .submit (.binding address handle) ∈
       (plan.liftProfileIn image deadlineOf profile player history view).support) :
     handle.1 = player ∧ ∃ value : TypedValue L,
-      image.registrationCache handle.2 history = some value := by
+      image.registrationCache handle.2 history = some value ∧
+        ∃ spec : FieldSpec P L,
+          (compileCore prog fresh state).graph.field? handle.2 = some spec ∧
+            value.ty = spec.ty := by
   induction plan generalizing player with
   | ret => simp [liftProfileIn] at hcommand
   | sample next ih =>
@@ -86,8 +133,10 @@ theorem liftProfileIn_binding_submission
       · split at hcommand
         · rename_i howner
           subst player
-          exact binding_submission_has_registration
-            _ _ _ _ _ _ _ _ _ hcommand
+          obtain ⟨hhandle, value, hcache, spec, hfield, htype⟩ :=
+            binding_submission_has_registration
+              _ _ _ _ _ _ _ _ _ hcommand
+          exact ⟨congrArg Prod.fst hhandle, value, hcache, spec, hfield, htype⟩
         · simp at hcommand
   | publicChoice publicGuard next ih
   | conditional publicGuard next ih

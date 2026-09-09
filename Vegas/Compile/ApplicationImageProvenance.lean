@@ -10,7 +10,8 @@ import Vegas.Compile.ApplicationImageRegistration
 /-! # Accepted-binding provenance for an individual runtime policy
 
 A policy that submits its binding handles only after private registration
-retains that registration in every accepted snapshot. Other principals and
+retains that registration and any supplied slot/value predicate in every
+accepted snapshot. Other principals and
 the environment remain arbitrary, including replay, inclusion, and clocks.
 The invariant includes every message carrier: an old delivered packet may
 be replayed after its original pending copy has been included.
@@ -29,24 +30,26 @@ open EventGraph Interaction Interaction.MessageApplication
 variable {P : Type} [DecidableEq P] {L : IExpr}
 
 /-- Every accepted handle belonging to this owner has a recorded private
-registration, and that first recorded value is exactly its frozen snapshot.
-This supplies cache existence as well as agreement; it says nothing about
-unaccepted handles or the source-level type of the recorded value. -/
+registration satisfying `valid`, and that first recorded value is exactly its
+frozen snapshot. The compiler instantiates `valid` with field/type agreement.
+No condition is imposed on unaccepted handles. -/
 def RegisteredBindings (image : ApplicationImage P L) (owner : P)
+    (valid : Nat → TypedValue L → Prop)
     (history : List image.application.PlayerEntry) (native : State P L) : Prop :=
   ∀ field handle, native.memory.accepted field = some handle → handle.1 = owner →
     ∃ value, image.registrationCache handle.2 history = some value ∧
-      native.frozen field = some value
+      native.frozen field = some value ∧ valid handle.2 value
 
 /-- Accepted-registration provenance supplies the snapshot agreement used
 by the owner-local source readout, without assuming a cache value exists. -/
 theorem RegisteredBindings.registrationMatches
     {image : ApplicationImage P L} {owner : P}
+    {valid : Nat → TypedValue L → Prop}
     {history : List image.application.PlayerEntry} {native : State P L}
-    (hbindings : image.RegisteredBindings owner history native) :
+    (hbindings : image.RegisteredBindings owner valid history native) :
     image.RegistrationMatches owner history native := by
   intro field value _ haccepted hcache
-  obtain ⟨stored, hstored, hfrozen⟩ := hbindings field (owner, field) haccepted rfl
+  obtain ⟨stored, hstored, hfrozen, _⟩ := hbindings field (owner, field) haccepted rfl
   exact hfrozen.trans (congrArg some (Option.some.inj (hstored.symm.trans hcache)))
 
 /-- At an accepted canonical private field, the executable owner-local
@@ -54,56 +57,63 @@ readout recovers the exact frozen snapshot using only command history.
 The snapshot appears in this equation's proof, not in the loader's inputs. -/
 theorem RegisteredBindings.ownerReadStore_accepted
     {image : ApplicationImage P L} {owner : P}
+    {valid : Nat → TypedValue L → Prop}
     {history : List image.application.PlayerEntry} {native : State P L}
-    (hbindings : image.RegisteredBindings owner history native)
+    (hbindings : image.RegisteredBindings owner valid history native)
     (field : Nat) (hprivate : native.memory.store field = none)
     (haccepted : native.memory.accepted field = some (owner, field)) :
     image.ownerReadStore owner history native.memory field = native.frozen field := by
-  obtain ⟨value, hcache, hfrozen⟩ := hbindings field (owner, field) haccepted rfl
+  obtain ⟨value, hcache, hfrozen, _⟩ := hbindings field (owner, field) haccepted rfl
   simp only [ownerReadStore, hprivate, if_pos haccepted, hcache, hfrozen]
 
-private def PreparedMessage (owner : P) (prepared : IdealCommitments P Nat (TypedValue L))
+private def PreparedMessage (owner : P) (valid : Nat → TypedValue L → Prop)
+    (prepared : IdealCommitments P Nat (TypedValue L))
     (message : Message P (Payload P L)) : Prop :=
   message.sender = owner → ∀ address handle, message.payload = .binding address handle →
-    ∃ value, prepared.lookup handle = some value
+    ∃ value, prepared.lookup handle = some value ∧ valid handle.2 value
 
-private def PreparedSnapshots (owner : P) (state : State P L) : Prop :=
+private def PreparedSnapshots (owner : P) (valid : Nat → TypedValue L → Prop)
+    (state : State P L) : Prop :=
   ∀ field handle, state.memory.accepted field = some handle → handle.1 = owner →
-    ∃ value, state.prepared.lookup handle = some value ∧ state.frozen field = some value
+    ∃ value, state.prepared.lookup handle = some value ∧
+      state.frozen field = some value ∧ valid handle.2 value
 
 private structure BindingProvenance (image : ApplicationImage P L) (owner : P)
+    (valid : Nat → TypedValue L → Prop)
     (state : image.application.State) : Prop where
-  messages : state.pool.Satisfies (PreparedMessage owner state.application.prepared)
-  snapshots : PreparedSnapshots owner state.application
+  messages : state.pool.Satisfies (PreparedMessage owner valid state.application.prepared)
+  snapshots : PreparedSnapshots owner valid state.application
 
 private theorem provenance_register (image : ApplicationImage P L) (owner : P)
+    (valid : Nat → TypedValue L → Prop)
     (state : image.application.State) (who : P) (slot : Nat) (value : TypedValue L)
-    (hstate : BindingProvenance image owner state) :
-    BindingProvenance image owner
+    (hstate : BindingProvenance image owner valid state) :
+    BindingProvenance image owner valid
       { state with application := state.application.register who slot value } := by
   constructor
   · apply hstate.messages.mono
     intro message hmessage howner address handle hbinding
-    obtain ⟨stored, hstored⟩ := hmessage howner address handle hbinding
+    obtain ⟨stored, hstored, hvalid⟩ := hmessage howner address handle hbinding
     exact ⟨stored, IdealCommitments.lookup_sealValue_of_eq_some
-      state.application.prepared who slot value handle stored hstored⟩
+      state.application.prepared who slot value handle stored hstored, hvalid⟩
   · intro field handle haccepted howner
-    obtain ⟨stored, hstored, hfrozen⟩ := hstate.snapshots field handle haccepted howner
+    obtain ⟨stored, hstored, hfrozen, hvalid⟩ := hstate.snapshots field handle haccepted howner
     exact ⟨stored, IdealCommitments.lookup_sealValue_of_eq_some
-      state.application.prepared who slot value handle stored hstored, hfrozen⟩
+      state.application.prepared who slot value handle stored hstored, hfrozen, hvalid⟩
 
 private theorem snapshots_handle (image : ApplicationImage P L) (owner : P)
+    (valid : Nat → TypedValue L → Prop)
     (state next : State P L) (message : Message P (Payload P L))
-    (hsnapshots : PreparedSnapshots owner state)
-    (hmessage : PreparedMessage owner state.prepared message)
+    (hsnapshots : PreparedSnapshots owner valid state)
+    (hmessage : PreparedMessage owner valid state.prepared message)
     (hnext : image.handle state message = some next) :
-    PreparedSnapshots owner next := by
+    PreparedSnapshots owner valid next := by
   obtain ⟨hprepared, hunchanged | hbinding⟩ :=
     image.handle_binding_effect state next message hnext
   · intro field handle haccepted howner
     rw [hunchanged.1] at haccepted
-    obtain ⟨value, hvalue, hfrozen⟩ := hsnapshots field handle haccepted howner
-    exact ⟨value, hprepared ▸ hvalue, hunchanged.2 ▸ hfrozen⟩
+    obtain ⟨value, hvalue, hfrozen, hvalid⟩ := hsnapshots field handle haccepted howner
+    exact ⟨value, hprepared ▸ hvalue, hunchanged.2 ▸ hfrozen, hvalid⟩
   · obtain ⟨address, code, binding, hpayload, hsender, hbinding, rfl⟩ := hbinding
     intro field handle haccepted howner
     by_cases hfield : field = code.sourceField
@@ -115,17 +125,18 @@ private theorem snapshots_handle (image : ApplicationImage P L) (owner : P)
       have hsenderOwner : message.sender = owner := by
         rw [hbinding] at howner
         exact hsender.trans howner
-      obtain ⟨value, hvalue⟩ := hmessage hsenderOwner address binding hpayload
-      exact ⟨value, hvalue, by simpa only [State.bind, if_pos] using hvalue⟩
+      obtain ⟨value, hvalue, hvalid⟩ := hmessage hsenderOwner address binding hpayload
+      exact ⟨value, hvalue, by simpa only [State.bind, if_pos] using hvalue, hvalid⟩
     · have hprior : state.memory.accepted field = some handle := by
         simpa only [State.bind, if_neg hfield] using haccepted
-      obtain ⟨value, hvalue, hfrozen⟩ := hsnapshots field handle hprior howner
-      exact ⟨value, hvalue, by simpa only [State.bind, if_neg hfield] using hfrozen⟩
+      obtain ⟨value, hvalue, hfrozen, hvalid⟩ := hsnapshots field handle hprior howner
+      exact ⟨value, hvalue, by simpa only [State.bind, if_neg hfield] using hfrozen, hvalid⟩
 
 private theorem provenance_include (image : ApplicationImage P L) (owner : P)
+    (valid : Nat → TypedValue L → Prop)
     (state : image.application.State) (id : MessageId P)
-    (hstate : BindingProvenance image owner state) :
-    BindingProvenance image owner (image.application.includePending state id) := by
+    (hstate : BindingProvenance image owner valid state) :
+    BindingProvenance image owner valid (image.application.includePending state id) := by
   cases hlookup : state.pool.lookup id with
   | none =>
       rw [MessageApplication.includePending_missing _ _ _ hlookup]
@@ -142,18 +153,19 @@ private theorem provenance_include (image : ApplicationImage P L) (owner : P)
             message hhandle).1
           constructor
           · simpa only [hprepared] using hstate.messages.includePending id
-          · exact snapshots_handle image owner state.application application message
+          · exact snapshots_handle image owner valid state.application application message
               hstate.snapshots hmessage hhandle
 
 private theorem provenance_playerStep (image : ApplicationImage P L) (owner : P)
+    (valid : Nat → TypedValue L → Prop)
     (execution next : image.application.PolicyExecution) (who : P)
     (command : image.application.PlayerCommand)
-    (hstate : BindingProvenance image owner execution.native)
+    (hstate : BindingProvenance image owner valid execution.native)
     (hsubmit : ∀ payload, command = .submit payload →
-      PreparedMessage owner execution.native.application.prepared
+      PreparedMessage owner valid execution.native.application.prepared
         ⟨(who, execution.native.pool.nextSerial who), payload⟩)
     (hnext : next ∈ (image.application.playerStep who execution command).support) :
-    BindingProvenance image owner next.native := by
+    BindingProvenance image owner valid next.native := by
   cases command with
   | privateCommand command =>
       cases command with
@@ -162,7 +174,7 @@ private theorem provenance_playerStep (image : ApplicationImage P L) (owner : P)
             MessageApplication.advance, MessageApplication.step, ApplicationImage.application,
             FinDist.pure_bind, FinDist.mem_support_pure] at hnext
           subst next
-          exact provenance_register image owner execution.native who slot value hstate
+          exact provenance_register image owner valid execution.native who slot value hstate
   | submit payload =>
       simp only [MessageApplication.playerStep, PlayerCommand.toAction,
         MessageApplication.advance, MessageApplication.step, FinDist.pure_bind,
@@ -182,11 +194,12 @@ private theorem provenance_playerStep (image : ApplicationImage P L) (owner : P)
       exact hstate
 
 private theorem provenance_environmentStep (image : ApplicationImage P L) (owner : P)
+    (valid : Nat → TypedValue L → Prop)
     (execution next : image.application.PolicyExecution)
     (command : image.application.EnvironmentPolicyCommand)
-    (hstate : BindingProvenance image owner execution.native)
+    (hstate : BindingProvenance image owner valid execution.native)
     (hnext : next ∈ (image.application.environmentPolicyStep execution command).support) :
-    BindingProvenance image owner next.native := by
+    BindingProvenance image owner valid next.native := by
   have hnative : next.native ∈
       ((image.application.environmentPolicyStep execution command).map
         PolicyExecution.native).support := by
@@ -203,7 +216,7 @@ private theorem provenance_environmentStep (image : ApplicationImage P L) (owner
       simp only [EnvironmentPolicyCommand.toAction, MessageApplication.step,
         FinDist.mem_support_pure] at hnative
       rw [hnative]
-      exact provenance_include image owner execution.native id hstate
+      exact provenance_include image owner valid execution.native id hstate
   | wait =>
       simp only [EnvironmentPolicyCommand.toAction, FinDist.mem_support_pure] at hnative
       rw [hnative]
@@ -234,38 +247,41 @@ private registration and pending messages start empty. -/
 theorem runPolicies_registeredBindings_of_registered_submissions
     (image : ApplicationImage P L) (memory : Memory P L)
     (hempty : ∀ field, memory.accepted field = none)
-    (owner : P) (players : P → image.application.PlayerPolicy)
+    (owner : P) (valid : Nat → TypedValue L → Prop)
+    (players : P → image.application.PlayerPolicy)
     (environment : image.application.EnvironmentPolicy)
     (hbinding : ∀ history view address handle,
       .submit (.binding address handle) ∈ (players owner history view).support →
-        handle.1 = owner ∧ ∃ value, image.registrationCache handle.2 history = some value)
+        handle.1 = owner ∧ ∃ value,
+          image.registrationCache handle.2 history = some value ∧ valid handle.2 value)
     (schedule : List (@Invocation P)) (next : image.application.PolicyExecution)
     (hnext : next ∈ (image.application.runPolicies players environment schedule
       (PolicyExecution.initial image.application
         (MessageApplication.State.initial image.application (State.initial memory)))).support) :
-    image.RegisteredBindings owner (next.principalHistory owner) next.native.application := by
+    image.RegisteredBindings owner valid (next.principalHistory owner)
+      next.native.application := by
   let invariant (execution : image.application.PolicyExecution) :=
-    image.RegistrationConsistent execution ∧ BindingProvenance image owner execution.native
+    image.RegistrationConsistent execution ∧ BindingProvenance image owner valid execution.native
   have hinvariant : invariant next := by
     apply image.application.runPolicies_execution_invariant invariant players environment
       ?_ ?_ schedule _ next ?_ hnext
     · intro execution who command final hstate hcommand hfinal
       refine ⟨image.playerStep_registrationConsistent execution final who command hstate.1 hfinal,
-        provenance_playerStep image owner execution final who command hstate.2 ?_ hfinal⟩
+        provenance_playerStep image owner valid execution final who command hstate.2 ?_ hfinal⟩
       intro payload hsubmit howner address handle hpayload
       change who = owner at howner
       subst who
       subst command
       change payload = .binding address handle at hpayload
       subst payload
-      obtain ⟨hhandle, value, hcache⟩ := hbinding _ _ address handle hcommand
-      refine ⟨value, ?_⟩
+      obtain ⟨hhandle, value, hcache, hvalid⟩ := hbinding _ _ address handle hcommand
+      refine ⟨value, ?_, hvalid⟩
       have heq : handle = (owner, handle.2) := Prod.ext hhandle rfl
       rw [heq, ← hstate.1 owner handle.2]
       exact hcache
     · intro execution command final hstate _ hfinal
       exact ⟨image.environmentStep_registrationConsistent execution final command hstate.1 hfinal,
-        provenance_environmentStep image owner execution final command hstate.2 hfinal⟩
+        provenance_environmentStep image owner valid execution final command hstate.2 hfinal⟩
     · constructor
       · intro who slot
         rfl
@@ -276,9 +292,9 @@ theorem runPolicies_registeredBindings_of_registered_submissions
             State.initial, hempty] at haccepted
           contradiction
   intro field handle haccepted howner
-  obtain ⟨value, hprepared, hfrozen⟩ :=
+  obtain ⟨value, hprepared, hfrozen, hvalid⟩ :=
     hinvariant.2.snapshots field handle haccepted howner
-  refine ⟨value, ?_, hfrozen⟩
+  refine ⟨value, ?_, hfrozen, hvalid⟩
   rw [hinvariant.1 owner handle.2]
   have heq : handle = (owner, handle.2) := Prod.ext howner rfl
   exact (congrArg (fun reference => next.native.application.prepared.lookup reference)

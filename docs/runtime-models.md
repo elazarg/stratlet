@@ -648,20 +648,46 @@ law, not a general whole-program law, settlement theorem, or deviation compariso
 `Vegas/Compile/ApplicationPolicyProvenance.lean` proves
 `ApplicationPlan.runPolicies_lifted_registeredBindings`. For any structural plan,
 one principal's lifted source strategy ensures that every accepted handle owned
-by that principal has a first private registration equal to its frozen snapshot.
+by that principal has a first private registration equal to its frozen snapshot
+and typed according to its allocated graph field.
 The result starts with empty preparation and message histories and no accepted
 handles. All other principal policies, environment policies, and finite invocation
 lists are arbitrary; delivery, replay, inclusion, clock advancement, and invalid
 traffic remain available. The runtime invariant covers every retained message
 carrier, not just pending requests. It supplies both cache existence and the
-`RegistrationMatches` premise used by owner-local readout. It supplies neither
-typed availability of all source fields nor provisioning of sealed initial inputs.
+`RegistrationMatches` premise used by owner-local readout. It does not by itself
+establish availability of other fields or provision sealed initial inputs.
 This is a general safety theorem about the lifted player, not an outcome-law or
 equilibrium theorem and not a constraint on the open protocol's adversaries.
 `VegasTests/ApplicationPolicyProvenance.lean` applies it to the multistage prefix
 and checks its policy boundary: an unrestricted policy can submit an unprepared
 handle, have it accepted, and register afterward. That actual run violates
 `RegistrationMatches`, since its new local value cannot repair the empty snapshot.
+
+`ApplicationImageCoverage` proves a complementary native invariant: every
+completed event field has a stored value or an accepted canonical handle at its
+allocated address. It follows from generated instruction allocation and is
+preserved by arbitrary native and policy executions; no lifted-player or service
+premise is required. `SourceReadoutAvailability` combines this coverage, typed
+registration provenance, graph readiness, and native refinement to conclude that
+the executable owner-local loader succeeds on the complete source-choice footprint.
+The plan-level theorem obtains both execution invariants from initialization with
+one lifted player and arbitrary opponents, environment, and finite invocation list.
+The matching graph state and readiness remain explicit hypotheses, not policy inputs.
+Under source-view agreement the recovered environment is exactly the source view.
+`VegasTests/GeneratedReadoutAvailability.lean` exercises this theorem at the first
+conditional decision after the actual binding/marker/chance prefix. It derives
+the represented graph state and readiness from that run and obtains full local
+readout success through the general theorem, including the earlier private binding.
+
+Initial fields in the requested footprint must be public for this availability
+theorem. `VegasTests/ApplicationReadoutAvailability.lean` checks the boundary:
+public inputs load by the general theorem; a sealed initial field has a source
+value but no value in the owner's native readout under the public-only initializer,
+despite refinement, completed-field coverage, and vacuous binding provenance.
+This is an initialization limitation, not an impossibility of private-input
+provisioning. General source-prefix probability coupling, service-driven completion,
+and arbitrary unilateral-deviation correspondence remain unproved for this path.
 
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.

@@ -23,18 +23,22 @@ comparisons between them. A plausible artifact path is:
 
 ```text
 checked minimal core
-  -> event graph and compiled player controllers
+  -> event graph
   -> public-message application using abstract services
-  -> transaction-facing contract and client controllers
-  -> deployed EVM bytecode and client controllers
+  -> transaction-facing contract
+  -> deployed EVM bytecode
   -> the same artifact inside a named Ethereum ledger/network model
 ```
 
-Every stage has native execution, control, observations, and outcomes. Its game
-interpretation uses that execution rather than a separately maintained runner.
-FOSG and other game formats remain optional analysis exports. The client stays
-part of the compiled implementation: private values, opening witnesses, local
-memory, and submission decisions cannot migrate into public contract storage.
+Every protocol representation has native execution, control, observations,
+and outcomes. Its game interpretation uses that execution rather than a
+separately maintained runner. FOSG and other game formats remain optional
+analysis exports. Reference strategies are constructed and related in parallel
+with this artifact tower; they are not client software emitted by the protocol
+compiler, and arbitrary native deviations remain available. A reference
+strategy's private values, opening witnesses, local memory, and submission
+decisions cannot migrate into public contract storage merely to simplify its
+proof.
 
 Cryptographic proofs may realize selected ideal services under named
 assumptions, relating their behavior rather than merely substituting an
@@ -42,8 +46,8 @@ implementation. They do not form a separate strategic tower. The eventual
 target is a pinned protocol version and an explicit adversary, environment,
 observation, and utility scope, not a
 moving claim about "current Ethereum". Model correctness, realization under
-security assumptions, and verification of deployed client binaries are
-distinct deliverables.
+security assumptions, and verification of any separately implemented actor
+software are distinct deliverables.
 
 There are two dimensions of development:
 
@@ -204,7 +208,7 @@ Use the smallest mechanism that exposes the relevant operational behavior:
 - **Separate representations and lowering passes** for transaction envelopes,
   storage layouts, calldata, bytecode, and tentative chain execution.
 
-A small action language may become useful once several real clients need
+A small action language may become useful once several runtime consumers need
 extensible event syntax. There is no reason yet to introduce a general-purpose
 effect DSL, reproduce the rich Vegas frontend, or encode all future details in
 one inductive type. Equally, a large dependent configuration record that
@@ -237,22 +241,23 @@ concrete replay tests are a starting point, not a public-message strategic
 preservation theorem. The full checked scope belongs in the runtime inventory.
 
 The bounded instance supplies polling-local player policies and explicit
-environment policies under a fixed invocation list. Its opening controller
-may poll throughout that schedule; ideal hiding compares the first public
+environment policies under a fixed invocation list. Its reference opening
+policy may poll throughout that schedule; ideal hiding compares the first public
 release-enabled snapshot of the full execution, whose later suffix still runs.
-The compiled nullable example includes private registration and handle
-submission from empty, and retains a cleartext negative control. The next
-compiler comparison must connect source policies to the whole interaction,
+The nullable proof fixture includes a reference policy that performs private
+registration and handle submission from empty, and retains a cleartext negative
+control. The next compiler comparison must connect source policies to the whole
+interaction,
 including post-release behavior, over that same runner. Preserve
 authoring, withholding, malformed traffic, and replay. Distinguish the author
 of an envelope from its broadcaster. A player's additional builder or network
 capabilities must belong to that player's deviation scope, not be concealed
 inside a fixed external environment.
 
-The release-cut theorem establishes adaptive ideal hiding for this controller
-instance. The extracted opponent value is independent of the protected input,
-is identified with its compiled source field, and remains fixed through later
-execution. Selective disclosure remains possible: a native policy can bind
+The release-cut theorem establishes adaptive ideal hiding for this reference
+strategy instance. The extracted opponent value is independent of the
+protected input, is identified with its compiled source field, and remains
+fixed through later execution. Selective disclosure remains possible: a native policy can bind
 the same value in advance and disclose only after favorable observed input.
 The checked publication-law obstruction distinguishes this pending case from
 the source's published nullable decline.
@@ -397,8 +402,8 @@ An important test before claiming reorganization support is an opening
 observed in a block that later leaves the canonical chain. Application state
 may roll back; recipient
 knowledge persists. Finalized storage alone is therefore not an adequate
-strategic observation projection. A plausible compiled discipline waits for
-the relevant commitments to finalize before releasing openings, with explicit
+strategic observation projection. A plausible reference-strategy discipline
+waits for the relevant commitments to finalize before releasing openings, with explicit
 deadline margins and security assumptions. Its adequacy still needs proof.
 
 No opcode-correctness theorem establishes inclusion or finality. Under
@@ -446,10 +451,12 @@ behavior from the richer instance.
 GameTheory owns generic policies, deviations, probability, comparisons,
 composition, and utility transport. Runtime libraries own executable messages,
 effects, and service models. Ledger/EVM libraries own transactions, VM and
-chain semantics. Vegas owns the emitted artifacts and their correspondence
-with the unchanged minimal source. The rich frontend remains independently
-owned. Missing generic interfaces should be reported and developed upstream,
-not copied into a Vegas-specific abstraction.
+chain semantics. Vegas owns the generated protocol artifacts and their
+correspondence with the unchanged minimal source. Source-to-runtime reference
+strategy lifting is a parallel proof construction, not part of those artifacts.
+The rich frontend remains independently owned. Missing generic interfaces
+should be reported and developed upstream, not copied into a Vegas-specific
+abstraction.
 
 Before widening the supported source fragment substantially, exercise:
 
