@@ -46,21 +46,26 @@ private theorem environmentStep_signal_fixed_of_some (state next : DisclosureSta
 private theorem responder_publication_emit_ready
     (response : Bool → Option Bool → Bool)
     (history : List (application window).PlayerEntry) (view : (application window).View)
-    (hemit : .submit (.publish .expire) ∈ (responderPolicy response history view).support) :
+    (hemit : .submit (.publish .expire) ∈
+      (responderPolicy (pureResponseDecision response) history view).support) :
     view.application.signal.isSome = true ∧ view.application.publication = none ∧
       view.application.signalAt + window < view.application.clock := by
   unfold responderPolicy at hemit
-  simp only [FinDist.mem_support_pure] at hemit
-  split at hemit <;> try contradiction
   split at hemit
-  · split at hemit <;> cases hemit
+  · simp at hemit
   · split at hemit
-    · split at hemit <;> try contradiction
-      rename_i hexpired
-      simp only [Bool.and_eq_true, decide_eq_true_eq] at hexpired
-      simp_all
-    · split at hemit <;> cases hemit
-    · contradiction
+    · simp only [FinDist.mem_support_pure] at hemit
+      split at hemit <;> cases hemit
+    · split at hemit
+      · simp only [FinDist.mem_support_pure] at hemit
+        split at hemit <;> try contradiction
+        rename_i hexpired
+        simp only [Bool.and_eq_true, decide_eq_true_eq] at hexpired
+        simp_all
+      · rw [responseController_pure_eq] at hemit
+        simp only [FinDist.mem_support_pure] at hemit
+        split at hemit <;> cases hemit
+      · simp at hemit
 
 /-- In every policy run from the actual empty state, the unchanged responder's
 exact publication-expiration history entry is backed by native state: either
@@ -69,7 +74,7 @@ pending while the signal deadline is overdue. -/
 theorem responder_publication_expiration_submission
     (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (next : (application window).PolicyExecution)

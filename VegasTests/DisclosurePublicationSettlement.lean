@@ -29,7 +29,7 @@ owner traffic. The accounting premise is a local request-history obligation,
 not an assumption that the cycle itself terminates the application. -/
 theorem responder_publication_cycle (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (selector : (application window).EnvironmentPolicy)
     (hselector : (application window).InclusionService (fun _ => True) selector)
     (execution next : (application window).PolicyExecution)
@@ -106,7 +106,7 @@ adaptive inclusion selector. The result includes earlier one-shot submissions
 and does not assume any particular publication value. -/
 theorem responder_publication_by_cycle (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (selector : (application window).EnvironmentPolicy)
     (hselector : (application window).InclusionService (fun _ => True) selector)
     (cycles : Nat) (hcycles : 2 * window + 3 ≤ cycles)

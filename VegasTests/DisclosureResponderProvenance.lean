@@ -36,16 +36,14 @@ private theorem responder_command_before_publication
     (history : List (application window).PlayerEntry) (view : (application window).View)
     (command : (application window).PlayerCommand)
     (hpublication : view.application.publication = none)
-    (hcommand : command ∈ (responderPolicy response history view).support) :
+    (hcommand : command ∈ (responderPolicy (pureResponseDecision response) history view).support) :
     ∀ value, command ≠ .submit (.respond value) := by
   intro value heq
   subst command
-  have hemit : responderPolicy response history view = FinDist.pure (.submit (.respond value)) := by
-    unfold responderPolicy at hcommand ⊢
-    simp only [FinDist.mem_support_pure] at hcommand
-    rw [← hcommand]
-  have hrelease := responder_submit_requires_release response history view value hemit
-  simpa [hpublication] using hrelease.2
+  obtain ⟨_, _, _, hpublished, _⟩ :=
+    responder_response_support response history view value hcommand
+  rw [hpublication] at hpublished
+  cases hpublished
 
 private theorem responder_emitted_response_eq
     (response : Bool → Option Bool → Bool)
@@ -53,28 +51,14 @@ private theorem responder_emitted_response_eq
     (signal : Bool) (publication : Option Bool) (value : Bool)
     (hsignal : view.application.signal = some signal)
     (hpublication : view.application.publication = some publication)
-    (hemit : .submit (.respond value) ∈ (responderPolicy response history view).support) :
+    (hemit : .submit (.respond value) ∈
+      (responderPolicy (pureResponseDecision response) history view).support) :
     value = response signal publication := by
-  unfold responderPolicy at hemit
-  simp only [FinDist.mem_support_pure] at hemit
-  cases hresponse : view.application.response with
-  | some current =>
-      rw [hresponse] at hemit
-      simp only [Option.isSome_some, if_true] at hemit
-      cases hemit
-  | none =>
-      rw [hresponse] at hemit
-      simp only [Option.isSome_none, Bool.false_eq_true, if_false] at hemit
-      cases haccepted : view.application.accepted with
-      | none =>
-          simp only [haccepted] at hemit
-          split at hemit <;> cases hemit
-      | some binding =>
-          simp only [haccepted, hsignal, hpublication] at hemit
-          split at hemit
-          · cases hemit
-          · exact Payload.respond.inj
-              (MessageApplication.PlayerCommand.submit.inj hemit)
+  obtain ⟨actualSignal, actualPublication, hsignal', hpublication', hvalue⟩ :=
+    responder_response_support response history view value hemit
+  have hsignalEq := Option.some.inj (hsignal'.symm.trans hsignal)
+  have hpublicationEq := Option.some.inj (hpublication'.symm.trans hpublication)
+  simpa only [hsignalEq, hpublicationEq] using hvalue
 
 private theorem playerStep_signal_publication
     (who : TestPlayer) (execution next : (application window).PolicyExecution)
@@ -223,7 +207,7 @@ submissions both in responder history and throughout the full message pool. -/
 theorem responder_prePublication_provenance
     (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (next : (application window).PolicyExecution)
@@ -296,7 +280,7 @@ packet in the full pool equals the unchanged responder's public-input choice. -/
 theorem responder_choice_policy_provenance
     (response : Bool → Option Bool → Bool) (signal : Bool) (publication : Option Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (execution next : (application window).PolicyExecution)
@@ -422,7 +406,7 @@ packets moved by replay, delivery, or inclusion. -/
 theorem responder_initialized_choice_provenance
     (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (next : (application window).PolicyExecution)

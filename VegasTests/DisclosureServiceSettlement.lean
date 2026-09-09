@@ -30,7 +30,7 @@ controller history all start at the actual initialized game state. No
 positive-window premise is needed for this termination statement. -/
 theorem responder_settles_by_cycle (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (selector : (application window).EnvironmentPolicy)
     (hselector : (application window).InclusionService (fun _ => True) selector)
     (cycles : Nat) (hcycles : 2 * window + 4 ≤ cycles)

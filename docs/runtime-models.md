@@ -458,6 +458,26 @@ application chance are composed as separate kernels. Every supported policy
 outcome follows a supported native execution of its recorded action trace;
 application invariants therefore lift to arbitrary supported policy runs.
 
+`ChoiceController` samples an immediately public choice at its first submission
+and retains the value in the principal's own chronological command history.
+Subsequent invocations wait or retry that value according to an explicit retry
+policy. `ChoiceControllerHistory` expresses the full first-invocation law as
+the decision kernel followed by the native submission step, derives its exact
+cache law, and proves cache retention through arbitrary later invocations.
+The sample is recorded at submission, independently of delivery or acceptance.
+The non-Vegas stochastic regression checks two pre-inclusion polls: both pending
+requests and both history entries contain one shared draw, not two independent
+samples.
+
+`Vegas/Compile/PublicChoiceController.lean` adapts source decision kernels to
+this controller using the generated endpoint and the complete declared choice
+readout. Disclosure's composite responder uses the adapter after publication;
+its timeout branches remain part of that same policy. The native readout uses
+only public application fields, and the first ready invocation records exactly
+the source response law. Deterministic service guarantees instantiate pure
+source kernels. These local sampling and memory laws supply neither a complete
+randomized source-profile law nor deviation simulation for the public runtime.
+
 `SealedTimeout.messageApplication` instantiates this carrier with the timed
 sealed handler. Its state and action translations have both roundtrips, its
 player/environment views agree, and every finite native run has exactly the

@@ -375,30 +375,69 @@ theorems, not whole-program randomized or strategic correspondence. Endpoint
 and validator evaluation is executable on supplied metadata and stores; the
 current metadata construction uses the noncomputable compiler elaboration.
 
-The next generation step is the companion observation-local controller from
-the source decision kernel, sampling once and retaining the selected request
-across polling. Then assemble these components into whole public applications.
+`Interaction.ChoiceController` supplies the companion sample-once controller.
+For an immediately public choice, the first submission records the draw in
+the principal's actual chronological command history. An endpoint-specific
+codec recovers that earliest value; cached invocations wait or resubmit its
+encoding without invoking the decision kernel. The concrete codec must reject
+other endpoints. `ChoiceControllerHistory` expresses the complete first-invocation
+law as a kernel draw followed by the actual native submission step, derives its
+cached-value law, and proves retention through every supported continuation of
+the native runner. Cache retention alone does not constrain arbitrary future
+commands; the controller's separate submission law establishes retry fidelity.
+An arbitrary supplied history may already contain a recognized value. A
+whole-application proof must establish the provenance of each site's first
+submission and separation from every other site's codec before treating that
+cached value as a source-policy draw.
 
-For an immediately public choice, the existing policy carrier can retain the
-draw in its own chronological command history: sample at the first submission,
-then recover the earliest submission for this site. A site-tagged codec must
-distinguish it from other endpoints. The generic history/cache combinator
-belongs in `Interaction`, with abstract payload and value types; Vegas supplies
-the source kernel and certified observation readout. That readout may use both
-current local observations and remembered own commands, and must reconstruct
-the full source decision view, not merely the guard's validation dependencies.
-Source environments and graph configurations remain proof-facing.
+`PublicChoiceSite.controller` supplies the source kernel and generated readiness
+test. Its readout receives only the current local observation and own command
+history, reconstructing the full source decision view rather than just the
+guard's validation dependencies. Source environments and represented graph
+stores occur only in the correctness proofs. The first-submission theorem
+equates the emitted law with the source kernel under matching readouts.
 
-The controller acceptance gate is an exact first-emission law and preservation
-of its selected value through every supported later invocation. Retry cadence
-is explicit: retries are real public traffic, not erased stuttering. Start with
-the current one-submission behavior and prove its law before adding a retrying
-instance. Completion still requires the separate service/deadline theorem.
+Disclosure's actual responder delegates its response phase to this generated
+controller and accepts arbitrary randomized source response kernels. Its native
+readout reconstructs the fixed marker, public signal, and resolved publication;
+it does not read the sealed binding. `DisclosureControllerHistory` identifies
+the complete first ready invocation law with the source response kernel followed
+by native submission, and derives the corresponding recorded-value law.
+The deterministic service theorems instantiate this controller with pure source
+kernels and retain their settlement and choice guarantees.
+
+Retry cadence remains explicit: retries are real public traffic, not erased
+stuttering. The disclosure responder submits once. A separate non-Vegas
+regression invokes a stochastic retrying controller twice before inclusion and
+checks that both pending messages and command history contain the same draw.
+Completion still requires the separate service/deadline theorem. Whole public
+application generation, randomized full-profile laws, and unilateral deviation
+simulation remain open; a local first-emission law does not establish them.
 
 Conditional openings already have generated metadata in
 `ConditionalOpeningSite.runtimeSite`; consume it rather than introduce another
 site table. These local generation steps do not themselves establish strategic
 equivalence between atomic publication and intermediate graph observations.
+
+The next owner-controller component uses that metadata and the existing source
+decision kernel for conditional publication. Whole-application assembly must
+give each endpoint a distinct wire address: a binding handle alone cannot
+distinguish two publication decisions about the same binding, and a bare decline
+payload carries no site identity. Generate a routing tag from the endpoint's
+node identity and check it at dispatch. The local-choice codec must recognize
+only that site's voluntary opening or decline, not a permissionless expiration
+request that happens to produce the same public result.
+
+Initial sealed choice requires the corresponding private-registration path:
+sample the source kernel into a real slot-scoped private command, recover that
+draw from own history, and submit the opaque binding without sampling again.
+Its correctness must relate the recorded command, service lookup, and accepted
+binding snapshot. The conditional-opening controller then reconstructs its
+source view from that retained choice and public observations. Compose these
+controllers by phase within `MessageApplication.PlayerPolicy`; retain
+`SourceBehavioralProfile` as the source carrier. No new evaluator or strategy
+carrier is needed for these components. General settlement and deviation laws
+must subsequently cover their assembled execution, not just ready checkpoints.
 
 ## 6. Ownership and dependencies
 

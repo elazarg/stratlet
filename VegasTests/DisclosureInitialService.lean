@@ -51,21 +51,26 @@ theorem environmentStep_clock_mono (state next : DisclosureState)
 
 theorem responder_initial_emit_ready (response : Bool → Option Bool → Bool)
     (history : List (application window).PlayerEntry) (view : (application window).View)
-    (hemit : .submit Payload.expireInitial ∈ (responderPolicy response history view).support) :
+    (hemit : .submit Payload.expireInitial ∈
+      (responderPolicy (pureResponseDecision response) history view).support) :
     view.application.accepted = none ∧ window < view.application.clock := by
   unfold responderPolicy at hemit
-  simp only [FinDist.mem_support_pure] at hemit
-  split at hemit <;> try contradiction
   split at hemit
-  · rename_i haccepted
-    split at hemit <;> try contradiction
-    rename_i hexpired
-    simp only [Bool.and_eq_true, decide_eq_true_eq] at hexpired
-    exact ⟨haccepted, hexpired.1⟩
+  · simp at hemit
   · split at hemit
-    · split at hemit <;> cases hemit
-    · split at hemit <;> cases hemit
-    · cases hemit
+    · rename_i haccepted
+      simp only [FinDist.mem_support_pure] at hemit
+      split at hemit <;> try contradiction
+      rename_i hexpired
+      simp only [Bool.and_eq_true, decide_eq_true_eq] at hexpired
+      exact ⟨haccepted, hexpired.1⟩
+    · split at hemit
+      · simp only [FinDist.mem_support_pure] at hemit
+        split at hemit <;> cases hemit
+      · rw [responseController_pure_eq] at hemit
+        simp only [FinDist.mem_support_pure] at hemit
+        split at hemit <;> cases hemit
+      · simp at hemit
 
 theorem initialExpirySubmitted_iff (history : List (application window).PlayerEntry) :
     initialExpirySubmitted history = true ↔
@@ -84,7 +89,7 @@ expiration in every native policy run. No fairness or invocation assumption is
 used: after submission, the authored request is pending or binding has resolved. -/
 theorem responder_initial_submission (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (next : (application window).PolicyExecution)
@@ -141,7 +146,7 @@ binding and signal if any earlier one-shot expiration remains accounted for.
 The owner and the admitted inclusion selector may both be adversarial. -/
 theorem responder_initial_cycle (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (selector : (application window).EnvironmentPolicy)
     (hselector : (application window).InclusionService (fun _ => True) selector)
     (execution next : (application window).PolicyExecution)
@@ -199,7 +204,7 @@ owner policy and every admitted adaptive inclusion selector. This is the first
 application milestone, not complete disclosure/response settlement. -/
 theorem responder_initial_by_cycle (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (selector : (application window).EnvironmentPolicy)
     (hselector : (application window).InclusionService (fun _ => True) selector)
     (cycles : Nat) (hcycles : window + 2 ≤ cycles)

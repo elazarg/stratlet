@@ -29,7 +29,7 @@ in scope. -/
 theorem responder_response_cycle_choice (response : Bool → Option Bool → Bool)
     (signal : Bool) (publication : Option Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (selector : (application window).EnvironmentPolicy)
     (hselector : (application window).InclusionService (fun _ => True) selector)
     (cycles : Nat) (execution next : (application window).PolicyExecution)
@@ -63,7 +63,8 @@ theorem responder_response_cycle_choice (response : Bool → Option Bool → Boo
   have haccepted := hinvariant.2.1 (hinvariant.2.2.1 (by simp [hsignal]))
   obtain ⟨binding, hbinding⟩ := Option.isSome_iff_exists.mp haccepted
   obtain ⟨serial, hpending⟩ := responder_response_arrival response players hresponder selector
-    execution arrived hphase binding signal publication hbinding hsignal hpublication
+    execution arrived hphase binding signal publication hbinding
+    (hinvariant.2.2.1 (by simp [hsignal])) hsignal hpublication
     hresponse hnotSubmitted harrived
   have hsafe := responder_initialized_choice_provenance response players
     hresponder (serviceEnvironment selector) (serviceSchedule cycles) execution hprefix

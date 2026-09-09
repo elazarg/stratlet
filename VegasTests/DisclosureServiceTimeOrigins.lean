@@ -281,7 +281,7 @@ publication resolver. -/
 theorem responder_signal_overdue_by_cycle
     (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (selector : (application window).EnvironmentPolicy)
     (hselector : (application window).InclusionService (fun _ => True) selector)
     (cycles : Nat) (hcycles : 2 * window + 2 ≤ cycles)

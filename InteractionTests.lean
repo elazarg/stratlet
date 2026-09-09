@@ -1,6 +1,7 @@
 import InteractionTests.Pending
 import InteractionTests.Commitment
 import InteractionTests.ConditionalPublication
+import InteractionTests.ChoiceController
 import InteractionTests.MessageApplication
 import InteractionTests.SealedPolicies
 import InteractionTests.TimeoutGate

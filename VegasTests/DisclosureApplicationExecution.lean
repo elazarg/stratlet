@@ -115,9 +115,16 @@ theorem honest_policy_data (window : Nat) (secret : Bool)
     MessageApplication.State.environmentView, observe]
   all_goals try rw [MessageApplication.runPolicies]
   all_goals simp only [MessageApplication.invoke, honestPlayers, responderPolicy,
-    MessageApplication.State.observe, Fin.isValue, responseSubmitted, one_ne_zero, ↓reduceIte,
-    Option.isSome_none,
-    List.any_nil, Bool.false_eq_true, FinDist.pure_bind, MessageApplication.playerStep,
+    MessageApplication.State.observe, Fin.isValue, one_ne_zero,
+    ↓reduceIte, Option.isSome_none, Bool.false_eq_true]
+  all_goals rw [responseController_pure_eq]
+  all_goals simp only [application, observe, PublicChoice.ready, responseEndpoint_choiceNode,
+    responseEndpoint_publicationNode, responseEndpoint_requires,
+    responseGraphPrerequisites_eq, PublicState.done,
+    MessageApplication.SubmissionCodec.cachedValue_nil, Option.isSome_some, Option.isSome_none,
+    Option.isNone_none, Bool.not_false, Bool.and_self, ↓reduceIte,
+    List.all_cons, List.all_nil, Option.getD_some,
+    FinDist.pure_bind, MessageApplication.playerStep,
     MessageApplication.advance, MessageApplication.PlayerCommand.toAction, MessageApplication.step,
     List.cons_append, List.nil_append]
   all_goals try rw [MessageApplication.runPolicies]
@@ -134,8 +141,8 @@ theorem honest_policy_data (window : Nat) (secret : Bool)
     done, Option.isSome_none,
     Bool.not_false, Bool.and_self, List.all_cons, Option.isSome_some, List.all_nil, and_self,
     MessageApplication.State.environmentView, observe]
+  all_goals unfold policyData?
   all_goals try simp only [MessageApplication.runPolicies, Fin.isValue, FinDist.map_pure,
-    policyData?,
     outcome?, Option.bind_eq_bind, Option.bind_some, Option.isSome_some, ↓reduceIte, data,
     boundValue?, DisclosureBinding.value?,
     Option.getD_some]

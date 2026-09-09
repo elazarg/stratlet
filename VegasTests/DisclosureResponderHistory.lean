@@ -39,7 +39,7 @@ private def ResponderHistoryLaw (response : Bool → Option Bool → Bool)
 private theorem responder_command_law (response : Bool → Option Bool → Bool)
     (history : List (application window).PlayerEntry) (view : (application window).View)
     (command : (application window).PlayerCommand)
-    (hcommand : command ∈ (responderPolicy response history view).support) :
+    (hcommand : command ∈ (responderPolicy (pureResponseDecision response) history view).support) :
     ResponderCommandLaw response view command := by
   cases hresponse : view.application.response with
   | some value =>
@@ -78,11 +78,10 @@ private theorem responder_command_law (response : Bool → Option Bool → Bool)
                   simp [ResponderCommandLaw]
             | some publication =>
                 simp only [responderPolicy, hresponse, Option.isSome_none,
-                  Bool.false_eq_true, if_false, haccepted, hsignal, hpublication,
-                  FinDist.mem_support_pure] at hcommand
+                  Bool.false_eq_true, if_false, haccepted, hsignal, hpublication] at hcommand
+                rw [responseController_pure_eq] at hcommand
+                simp only [FinDist.mem_support_pure] at hcommand
                 split at hcommand
-                · subst command
-                  simp [ResponderCommandLaw]
                 · subst command
                   constructor
                   · intro request hrequest
@@ -91,12 +90,26 @@ private theorem responder_command_law (response : Bool → Option Bool → Bool)
                     refine ⟨signal, publication, hsignal, hpublication, ?_⟩
                     injection hvalue with hpayload
                     injection hpayload with hvalue
-                    exact hvalue.symm
+                    simpa only [hsignal, hpublication, Option.getD_some] using hvalue.symm
+                · subst command
+                  simp [ResponderCommandLaw]
+
+/-- Every supported response submission carries the pure source policy's value
+at the public signal and publication in the actual local view. -/
+theorem responder_response_support (response : Bool → Option Bool → Bool)
+    (history : List (application window).PlayerEntry) (view : (application window).View)
+    (value : Bool)
+    (hemit : .submit (.respond value) ∈
+      (responderPolicy (pureResponseDecision response) history view).support) :
+    ∃ signal publication,
+      view.application.signal = some signal ∧
+        view.application.publication = some publication ∧ value = response signal publication :=
+  (responder_command_law response history view _ hemit).2 value rfl
 
 private theorem responder_history_law
     (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (next : (application window).PolicyExecution)
@@ -116,7 +129,7 @@ publication flag denotes an exact publication-expiration submission. -/
 theorem responder_publicationSubmitted_exact
     (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (next : (application window).PolicyExecution)
@@ -143,7 +156,7 @@ the public signal and publication stored in that history entry's view. -/
 theorem responder_responseSubmitted_exact
     (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (next : (application window).PolicyExecution)

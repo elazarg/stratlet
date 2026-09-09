@@ -18,6 +18,8 @@ import Interaction.Deadline
 import Interaction.IdealCommitments
 import Interaction.ConditionalPublication
 import Interaction.PublicChoice
+import Interaction.ChoiceController
+import Interaction.ChoiceControllerHistory
 import Interaction.SealedProgram
 import Interaction.SealedProgramLaws
 import Interaction.SealedExecution

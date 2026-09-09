@@ -4,7 +4,7 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
-import VegasTests.DisclosureApplication
+import VegasTests.DisclosurePublicChoiceController
 
 /-! # Information-local controllers for the disclosure application -/
 
@@ -46,6 +46,20 @@ def responseSubmitted (history : List (application window).PlayerEntry) : Bool :
     match entry.command with
     | .submit (.respond _) => true
     | _ => false
+
+theorem response_cache_none_iff (history : List (application window).PlayerEntry) :
+    responseCodec.cachedValue (application window) history = none ↔
+      responseSubmitted history = false := by
+  induction history with
+  | nil => simp [responseSubmitted]
+  | cons entry history ih =>
+      rcases entry with ⟨view, command⟩
+      cases command with
+      | submit payload => cases payload <;>
+          simp_all [MessageApplication.SubmissionCodec.cachedValue, responseCodec,
+            responseSubmitted]
+      | privateCommand command | replay id | wait =>
+          simpa [MessageApplication.SubmissionCodec.cachedValue, responseSubmitted] using ih
 
 def initialExpirySubmitted (history : List (application window).PlayerEntry) : Bool :=
   history.any fun entry =>
@@ -89,27 +103,27 @@ def ownerPolicy (secret : Bool) (complete : Bool → Bool → Bool) :
 /-- The responder drives the owner's initial and disclosure timeouts, and
 responds only to the actual resolved publication. Every call uses its own
 principal capability; no owner-authored timeout message is synthesized. -/
-def responderPolicy (response : Bool → Option Bool → Bool) :
-    (application window).PlayerPolicy := fun history view => FinDist.pure <|
-  if view.application.response.isSome then .wait else
+def responderPolicy (response : ResponseDecision) :
+    (application window).PlayerPolicy := fun history view =>
+  if view.application.response.isSome then FinDist.pure .wait else
   match view.application.accepted with
   | none =>
-      if window < view.application.clock && !initialExpirySubmitted history then
-        .submit .expireInitial else .wait
+      FinDist.pure (if window < view.application.clock && !initialExpirySubmitted history then
+        .submit .expireInitial else .wait)
   | some _ =>
       match view.application.signal, view.application.publication with
       | some _, none =>
-          if view.application.signalAt + window < view.application.clock &&
-              !publicationSubmitted history then .submit (.publish .expire) else .wait
-      | some signal, some publication =>
-          if responseSubmitted history then .wait
-          else .submit (.respond (response signal publication))
-      | _, _ => .wait
+          FinDist.pure (if view.application.signalAt + window < view.application.clock &&
+              !publicationSubmitted history then .submit (.publish .expire) else .wait)
+      | some _, some _ =>
+          (responseController response (fun _ _ => false)).policy
+            (application window) history view
+      | _, _ => FinDist.pure .wait
 
 def honestPlayers (secret : Bool) (complete : Bool → Bool → Bool)
     (response : Bool → Option Bool → Bool) : TestPlayer → (application window).PlayerPolicy
   | 0 => ownerPolicy secret complete
-  | 1 => responderPolicy response
+  | 1 => responderPolicy (pureResponseDecision response)
 
 /-- A specified inclusion script for the honest-law benchmark. It invokes
 the same timeout-capable controllers, but performs no clock advances. -/
@@ -179,7 +193,8 @@ theorem responder_expires_initial (response : Bool → Option Bool → Bool)
     (hresponse : view.application.response = none)
     (hexpired : window < view.application.clock)
     (hnotSubmitted : initialExpirySubmitted history = false) :
-    responderPolicy response history view = FinDist.pure (.submit .expireInitial) := by
+    responderPolicy (pureResponseDecision response) history view =
+      FinDist.pure (.submit .expireInitial) := by
   simp [responderPolicy, haccepted, hresponse, hexpired, hnotSubmitted]
 
 theorem responder_expires_publication (response : Bool → Option Bool → Bool)
@@ -191,20 +206,26 @@ theorem responder_expires_publication (response : Bool → Option Bool → Bool)
     (hresponse : view.application.response = none)
     (hexpired : view.application.signalAt + window < view.application.clock)
     (hnotSubmitted : publicationSubmitted history = false) :
-    responderPolicy response history view = FinDist.pure (.submit (.publish .expire)) := by
+    responderPolicy (pureResponseDecision response) history view =
+      FinDist.pure (.submit (.publish .expire)) := by
   simp [responderPolicy, haccepted, hsignal, hpublication, hresponse, hexpired, hnotSubmitted]
 
 theorem responder_submits_after_release (response : Bool → Option Bool → Bool)
     (signal : Bool) (publication : Option Bool)
     (history : List (application window).PlayerEntry) (view : (application window).View)
     (binding : DisclosureBinding) (haccepted : view.application.accepted = some binding)
+    (hmarker : view.application.markerDone = true)
     (hsignal : view.application.signal = some signal)
     (hpublication : view.application.publication = some publication)
     (hresponse : view.application.response = none)
     (hnotSubmitted : responseSubmitted history = false) :
-    responderPolicy response history view =
+    responderPolicy (pureResponseDecision response) history view =
       FinDist.pure (.submit (.respond (response signal publication))) := by
-  simp [responderPolicy, haccepted, hsignal, hpublication, hresponse, hnotSubmitted]
+  simp only [responderPolicy, hresponse, Option.isSome_none, Bool.false_eq_true,
+    if_false, haccepted, hsignal, hpublication]
+  exact responseController_first_pure response history view binding signal publication
+    ((response_cache_none_iff history).2 hnotSubmitted) haccepted hmarker hsignal
+    hpublication hresponse
 
 /-- Publication is emitted only after the binding and public signal. -/
 theorem owner_publish_requires_release (secret : Bool) (complete : Bool → Bool → Bool)
@@ -229,18 +250,22 @@ theorem owner_publish_requires_release (secret : Bool) (complete : Bool → Bool
 outside the reachable honest path. Timeout calls have different payloads. -/
 theorem responder_submit_requires_release (response : Bool → Option Bool → Bool)
     (history : List (application window).PlayerEntry) (view : (application window).View)
-    (value : Bool) (hemit : responderPolicy response history view =
+    (value : Bool) (hemit : responderPolicy (pureResponseDecision response) history view =
       FinDist.pure (.submit (.respond value))) :
     view.application.signal.isSome = true ∧
       view.application.publication.isSome = true := by
   unfold responderPolicy at hemit
-  have hcommand := pure_injective hemit
-  split at hcommand <;> try contradiction
-  split at hcommand
-  · split at hcommand <;> cases hcommand
-  · split at hcommand
-    · split at hcommand <;> cases hcommand
-    · simp_all
-    · contradiction
+  split at hemit
+  · have hcommand := pure_injective hemit
+    cases hcommand
+  · split at hemit
+    · have hcommand := pure_injective hemit
+      split at hcommand <;> cases hcommand
+    · split at hemit
+      · have hcommand := pure_injective hemit
+        split at hcommand <;> cases hcommand
+      · simp_all
+      · have hcommand := pure_injective hemit
+        cases hcommand
 
 end VegasTests.OptionalDisclosure.DisclosureState

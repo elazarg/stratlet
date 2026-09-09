@@ -22,23 +22,22 @@ private theorem responder_emits_response_only_when_ready
     (history : List (application window).PlayerEntry)
     (view : (application window).View) (value : Bool)
     (hemit : .submit (.respond value) ∈
-      (responderPolicy response history view).support) :
+      (responderPolicy (pureResponseDecision response) history view).support) :
     view.application.publication.isSome = true ∧
       view.application.response = none := by
   unfold responderPolicy at hemit
-  simp only [FinDist.mem_support_pure] at hemit
   split at hemit
-  · cases hemit
-  split at hemit
-  · split at hemit <;> cases hemit
-  split at hemit
-  · split at hemit <;> cases hemit
+  · simp at hemit
   · split at hemit
-    · cases hemit
-    · constructor
-      · simp_all
-      · cases responseState : view.application.response <;> simp_all
-  · cases hemit
+    · simp only [FinDist.mem_support_pure] at hemit
+      split at hemit <;> cases hemit
+    · split at hemit
+      · simp only [FinDist.mem_support_pure] at hemit
+        split at hemit <;> cases hemit
+      · constructor
+        · simp_all
+        · cases responseState : view.application.response <;> simp_all
+      · simp at hemit
 
 /-- An exact response recorded in the unchanged responder's history is either
 resolved or remains as an exact authored pending envelope at a valid response
@@ -46,7 +45,7 @@ checkpoint. No delivery or inclusion fairness is assumed. -/
 theorem responder_response_submission (response : Bool → Option Bool → Bool)
     (value : Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (environment : (application window).EnvironmentPolicy)
     (schedule : List (@MessageApplication.Invocation TestPlayer))
     (next : (application window).PolicyExecution)
@@ -125,7 +124,7 @@ pending-or-resolved accounting theorem. The actual service schedule supplies
 the responder's invocation opportunities; no additional delivery premise is needed. -/
 theorem responder_response_cycle (response : Bool → Option Bool → Bool)
     (players : TestPlayer → (application window).PlayerPolicy)
-    (hresponder : players 1 = responderPolicy response)
+    (hresponder : players 1 = responderPolicy (pureResponseDecision response))
     (selector : (application window).EnvironmentPolicy)
     (hselector : (application window).InclusionService (fun _ => True) selector)
     (execution next : (application window).PolicyExecution)
@@ -176,7 +175,8 @@ theorem responder_response_cycle (response : Bool → Option Bool → Bool)
                   | some binding =>
                     obtain ⟨serial, hpending⟩ := responder_response_arrival response players
                       hresponder selector execution arrived hphase binding signal publication
-                      acceptedState signalState publicationState hresponse hflag harrived
+                      acceptedState (hinvariant.2.2.1 hsignal) signalState publicationState
+                      hresponse hflag harrived
                     exact ⟨response signal publication, serial, hpending⟩
         obtain ⟨value, serial, hpending⟩ := hpending
         apply response_phase_resolves serial value players inclusionSlots

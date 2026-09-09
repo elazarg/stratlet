@@ -276,10 +276,16 @@ and the shared `PublicChoice` endpoint performs authentication, readiness, and
 validation. The disclosure response handler directly instantiates it, with
 checked local source steps and equality of the decoded native and graph
 updates. Validation uses only actual guard dependencies, whose publicness and
-native store agreement are separate obligations. Whole-application generation,
-sample-once source controllers, and the public-runtime strategic comparison
-remain open; these local macros do not establish intermediate-observation
-equivalence.
+native store agreement are separate obligations. `PublicChoiceSite.controller`
+adapts arbitrary source decision kernels to a shared sample-once controller,
+with an exact first-submission law at matching source observations. Its first
+real submission records the draw in own command history; subsequent polls can
+wait or retry that value. Disclosure's native responder uses this component,
+and its first ready invocation records the source response law. The existing
+deterministic settlement guarantees remain checked specializations.
+Whole-application generation, randomized full-profile laws, and the
+public-runtime strategic comparison remain open; these local components do
+not establish intermediate-observation equivalence.
 
 `MessageApplication` supplies the common receipt-bearing execution and
 observation-local policy boundary, with fixed application chance kernels.
