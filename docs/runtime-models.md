@@ -601,6 +601,43 @@ phase resolution rather than a particular chosen value. They begin with a ready
 request already pending; controller submission deadlines and timeout-race
 exclusion remain unproved.
 
+`Interaction/MessageApplicationArrival.lean` proves that player preparation,
+submission, replay, and recipient delivery retain pending envelopes during a
+delivery-only environment phase. `MessageApplicationSubmission` relates an
+exact submission in a principal's history to a ready pending authored envelope
+or an established milestone. Its premises are local application-kernel
+preservation, request acceptance, and emission readiness on invariant states;
+the history theorem itself assumes neither fairness nor invocation opportunity.
+
+`DisclosureInitialService.responder_initial_by_cycle` connects these results
+to the actual controller and service game from initialization. For every owner
+policy, every admitted adaptive inclusion selector, and every cycle count at
+least `window + 2`, the unchanged responder guarantees an accepted initial
+binding, a completed marker, and a sampled public signal. An earlier submitted
+initial expiration is accounted for by the history theorem; otherwise the
+controller submits during the cycle. The service tail invokes the actual
+chance kernel, without selecting its sampled value. This is an initial-phase
+progress theorem. It does not identify the selected binding with an unchanged
+owner's source choice.
+
+`DisclosureServiceSettlement.responder_settles_by_cycle` proves complete
+initialized settlement against every owner policy with the responder unchanged:
+every supported execution after at least `2 * window + 4` complete cycles has
+a native outcome. The proof uses the exact controller history, an immutable
+signal time origin, publication resolution by `2 * window + 3`, and one response
+cycle. It holds even for a zero window. This is a one-sided termination theorem,
+not preservation of the responder's chosen value: a competing expiration may
+resolve a phase first. Completion with only the owner unchanged and exclusion
+of timeout races remain separate obligations.
+
+`Interaction/MessageApplicationPolicyHistory.lean` supplies the reusable
+history fact: if a principal's policy satisfies a law of its observed view and
+chosen command, every entry recorded in its local history satisfies that law.
+The responder instantiation identifies publication-expiration requests and
+responses at the views where they were selected. Together with the submission
+bridge, this accounts for one-shot flags without assuming requests remain
+pending or that they have already succeeded.
+
 `DisclosureServiceReaction` checks that a delivered cleartext packet can induce
 value-dependent outgoing traffic while the ledger is still empty. The opaque
 packet control checks this particular receiver, not arbitrary-receiver hiding.

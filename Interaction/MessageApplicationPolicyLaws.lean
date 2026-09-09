@@ -120,6 +120,25 @@ theorem runPolicies_initial_native_support [DecidableEq Principal]
 
 /-- Any application invariant preserved by the native hooks holds throughout
 every supported policy run from an invariant initial application state. -/
+theorem runPolicies_application_invariant [DecidableEq Principal]
+    (invariant : app.Application → Prop)
+    (hprivate : ∀ application who command, invariant application →
+      invariant (app.privateStep application who command))
+    (hhandler : ∀ application message next, invariant application →
+      app.handle application message = some next → invariant next)
+    (henvironment : ∀ application command next, invariant application →
+      next ∈ (app.environmentStep application command).support → invariant next)
+    (players : Principal → app.PlayerPolicy) (environment : app.EnvironmentPolicy)
+    (schedule : List (@Invocation Principal)) (execution next : app.PolicyExecution)
+    (hinitial : invariant execution.native.application)
+    (hnext : next ∈ (app.runPolicies players environment schedule execution).support) :
+    invariant next.native.application := by
+  obtain ⟨actions, _, hrun⟩ :=
+    runPolicies_native_support app players environment schedule execution next hnext
+  exact app.run_application_invariant invariant hprivate hhandler henvironment
+    execution.native next.native actions hinitial hrun
+
+/-- Native application invariants hold from canonical policy initialization. -/
 theorem runPolicies_initial_application_invariant [DecidableEq Principal]
     (invariant : app.Application → Prop)
     (hprivate : ∀ application who command, invariant application →
@@ -134,8 +153,7 @@ theorem runPolicies_initial_application_invariant [DecidableEq Principal]
     (hnext : next ∈ (app.runPolicies players environment schedule
       (PolicyExecution.initial app initial)).support) :
     invariant next.native.application := by
-  exact app.run_application_invariant invariant hprivate hhandler henvironment
-    initial next.native next.nativeTrace hinitial
-    (runPolicies_initial_native_support app players environment schedule initial next hnext)
+  exact app.runPolicies_application_invariant invariant hprivate hhandler henvironment
+    players environment schedule (PolicyExecution.initial app initial) next hinitial hnext
 
 end Interaction.MessageApplication

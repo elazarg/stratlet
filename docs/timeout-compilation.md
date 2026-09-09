@@ -348,31 +348,61 @@ and reserved capacity drains the queue even under arbitrary player policies.
 The service clock advances once per complete cycle. Stable pending resolvers
 also have application-progress proofs for initial binding, ordinary response,
 and all three expiration calls. These phase results start with an already
-pending, ready request. The remaining proof must establish timely controller
-submission, unchanged source choices, and settlement under unilateral deviations.
+pending, ready request. Initialized settlement with the responder unchanged is
+also checked below. Unchanged source choices and settlement with only the owner
+unchanged remain open.
 The instance does not yet provide the whole-program timeout contract below.
 
-#### Service settlement proof targets
+#### Service settlement guarantees and remaining targets
 
 For the slotted service, number cycles from one. From clock-zero initialization,
 `DisclosureServiceClock.service_schedule_clock` gives clock `c` after `c`
 complete cycles, independently of player policies and admitted inclusion choices.
 The service capacity theorem gives an empty queue at each cycle boundary.
-The following are mathematical proof targets, not exported Lean settlement
-results. For a window `w >= 1`, the proposed complete-cycle bounds are:
+The initial milestone is also checked: with the unchanged responder, every
+owner policy and admitted selector reaches initial binding, marker, and public
+signal by cycle `w + 2` (`DisclosureInitialService.responder_initial_by_cycle`).
+This result starts at game initialization and covers earlier one-shot timeout
+submissions. It holds even at `w = 0`; preserving an unchanged player's chosen
+value requires the stronger timely-opportunity argument below.
+`DisclosureServiceTimeOrigins.responder_signal_overdue_by_cycle` proves the
+signal deadline is overdue by `2*w + 2`: the sampling origin precedes the clock
+at its cycle boundary and survives all continuations. The exact publication
+request history and the next responder opportunity then give publication by
+`2*w + 3`. `DisclosureServiceSettlement.responder_settles_by_cycle` supplies the
+last response cycle and proves that a native outcome exists by `2*w + 4`, from
+initialization and against arbitrary owner policies and admitted selectors.
+No positive-window assumption is required for this termination result.
 
-| Policies | Settlement bound |
-| --- | --- |
-| Both compiled pure controllers | 3 |
-| Arbitrary owner, unchanged responder | `2*w + 4` |
-| Unchanged owner, arbitrary responder | `w + 3` |
+The complete-cycle bounds and their status are:
+
+| Policies | Settlement bound | Status |
+| --- | --- | --- |
+| Both compiled pure controllers | 3 | Proof target |
+| Arbitrary owner, unchanged responder | `2*w + 4` | Checked for all `w` |
+| Unchanged owner, arbitrary responder | `w + 3` | Proof target |
 
 The one-cycle lag between observing resolution and acting explains the window
 condition. With `w = 0`, an expiration can be eligible in the same inclusion
 phase as an unchanged player's first normal publication or response. Ordering
-expiration first can select the default. This race needs a checked negative
-control, and the positive proof must exclude it without restricting the
-deviator's raw commands.
+expiration first can select the default. `DisclosureServiceRace` checks the
+local ordering effect: an actual native run reaches a state with a valid opening
+and an overdue expiration pending. Opening-first accepts the chosen value;
+an admitted payload-sensitive selector instead includes expiration first in
+the actual eight-slot inclusion phase and fixes publication to decline. This
+is a reachable native prelude followed by a serviced phase, not a whole-run
+compiled-profile counterexample. The positive proof must exclude such a race
+at an unchanged player's first opportunity without restricting the deviator's
+raw commands.
+
+Delivery and inclusion guarantees are environment assumptions. Eventual
+inclusion alone does not put a player's response ahead of an effective timeout.
+Preservation of that player's source choice needs a deadline-relative
+observation and inclusion opportunity; termination also needs clock progress
+and submission of a resolver. These are separate premises. The concrete slotted
+service supplies bounded opportunities, while the controller proofs establish
+that unchanged players use them. Its service guarantee applies under player
+deviations and does not assume that a deviating player submits a request.
 
 `Interaction/MessageApplicationProgress.lean` proves the inclusion-phase
 invariant: the concrete resolver envelope remains pending, or its application
@@ -390,10 +420,19 @@ instances start from a pending request with the required phase invariant and
 deadline. A competing call may establish the milestone first; the conclusion
 therefore asserts resolution, not preservation of the request's chosen value.
 Ledger membership alone would not suffice: it neither implies acceptance nor
-distinguishes earlier publication from a pending replay. Controller history
-must still connect a one-shot submission flag to a pending-or-resolved state.
-Timely submission and exact unchanged-player choices remain obligations before
-deriving the bounds or strategic laws.
+distinguishes earlier publication from a pending replay.
+`Interaction/MessageApplicationSubmission.lean` connects an exact submission
+history entry to a pending-or-resolved state under local preservation and
+acceptance premises. Its emission condition is required on invariant application
+states. The initial-expiration, publication-expiration, and ordinary-response
+instances discharge these premises from initialization. The shared
+`MessageApplicationPolicyHistory` theorem proves that recorded commands satisfy
+the controller's view/command law. Its responder instance connects the broader
+one-shot flags to exact publication-expiration and response requests. These
+facts discharge the history obligations of the initialized settlement theorem;
+they do not imply that the responder's chosen value wins a timeout race.
+Settlement with the owner unchanged and exact unchanged-player choices remain
+obligations before deriving the strategic laws.
 
 #### Deviation-law proof targets
 

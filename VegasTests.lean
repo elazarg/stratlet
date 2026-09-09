@@ -38,6 +38,17 @@ import VegasTests.DisclosureServiceReaction
 import VegasTests.DisclosureServiceClock
 import VegasTests.DisclosureServiceResolution
 import VegasTests.DisclosureResponseResolution
+import VegasTests.DisclosureServiceMilestones
+import VegasTests.DisclosureServiceArrivals
+import VegasTests.DisclosureInitialService
+import VegasTests.DisclosurePublicationService
+import VegasTests.DisclosureResponderHistory
+import VegasTests.DisclosureResponseService
+import VegasTests.DisclosureServiceState
+import VegasTests.DisclosureServiceTimeOrigins
+import VegasTests.DisclosurePublicationSettlement
+import VegasTests.DisclosureServiceSettlement
+import VegasTests.DisclosureServiceRace
 import VegasTests.DisclosureResolutionGuard
 import VegasTests.DisclosureLaw
 import VegasTests.DisclosureSites

@@ -293,6 +293,18 @@ Validation, conflicts, rejection, retries, and receipts are transitions. A
 message delivered to a recipient remains known after contract rollback unless
 the observation model has a justified forgetting mechanism.
 
+Source reconstruction at the public commitment layer is proof-facing. A relation
+between native application state and graph configurations may supply a hidden
+source-value witness, including for an accepted permanently unopenable binding.
+Runtime handlers operate on their actual stored resources and public metadata;
+the reconstruction witness is neither stored as an executable graph value nor
+consulted by readiness, validation, or guard code. An earlier graph interpreter
+can own its graph configuration directly because it executes typed source
+choices. The later opaque-message layer needs a simulation relation instead.
+Generalization to later uses of an unopened value requires implementable
+validation, an explicit stronger service, or a source-eligibility proof that
+the relevant continuations are independent of the reconstruction witness.
+
 For bounded experiments, resource bounds and observation horizons are explicit
 parameters. `Pending` remains a native result at a prefix cutoff; it is not
 silently decoded into a source quit or assigned zero utility. Proving a law
@@ -311,6 +323,31 @@ services, but each service exposes its public traffic, capabilities, failure
 behavior, and security assumptions. Ideal value hiding does not imply hiding
 submission existence, timing, malformed traffic, or selective opening. Do not
 give an ideal commitment an undeclared atomic-delivery or forced-reveal power.
+
+### Disclosure integration exit gate
+
+The optional-disclosure instance is the operational integration test for this
+edge. Its example-specific work has a finite acceptance gate:
+
+1. From initialization, either unchanged player guarantees completion against
+   arbitrary behavior by the other player under explicit service assumptions.
+   Already-pending requests and application resolution are conclusions, not
+   global liveness premises.
+2. The same service and deadline conditions preserve each unchanged player's
+   source choices; expiration cannot preempt its intended action.
+3. Request-history accounting, delivery/inclusion progress, and invariant
+   lifting use the shared runtime. The instance discharges application-specific
+   obligations without maintaining a second evaluator.
+
+After this gate, the next implementation task is generation of the public
+application and controllers from checked source programs. Disclosure becomes
+a regression instance of that compiler. Randomized outcome-law and unilateral
+deviation adequacy remain required, and should be developed at the reusable
+compilation boundary rather than as prerequisites for further bespoke variants
+of the example. Additional disclosure variants, optimized bounds, and richer
+cryptographic mechanisms are outside this gate unless they expose an obligation
+needed by that compiler edge. An abstraction failure redirects work to the
+edge itself; it is not a reason to expand the fixture indefinitely.
 
 ## 6. Ownership and dependencies
 

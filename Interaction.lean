@@ -6,8 +6,11 @@ import Interaction.MessageApplication
 import Interaction.MessageApplicationLaws
 import Interaction.MessageApplicationPolicies
 import Interaction.MessageApplicationPolicyLaws
+import Interaction.MessageApplicationPolicyHistory
 import Interaction.MessageApplicationService
 import Interaction.MessageApplicationProgress
+import Interaction.MessageApplicationArrival
+import Interaction.MessageApplicationSubmission
 import Interaction.DependencyGate
 import Interaction.DependencyGateLaws
 import Interaction.Deadline

@@ -185,6 +185,18 @@ theorem environmentStep_native [DecidableEq Principal]
   cases hcommand : command.toAction <;>
     simp [environmentPolicyStep, advance, hcommand, FinDist.map_bind]
 
+theorem playerStep_history_self [DecidableEq Principal]
+    (who : Principal) (execution : app.PolicyExecution) (command : app.PlayerCommand)
+    (next : app.PolicyExecution)
+    (hnext : next ∈ (app.playerStep who execution command).support) :
+    next.principalHistory who = execution.principalHistory who ++
+      [⟨State.observe app execution.native who, command⟩] := by
+  simp only [playerStep, FinDist.support_bind, Set.mem_iUnion] at hnext
+  obtain ⟨advanced, _, hnext⟩ := hnext
+  simp only [FinDist.mem_support_pure] at hnext
+  subst next
+  simp
+
 theorem playerStep_other_history [DecidableEq Principal]
     (who other : Principal) (hne : other ≠ who)
     (execution : app.PolicyExecution) (command : app.PlayerCommand)

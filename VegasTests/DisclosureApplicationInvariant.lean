@@ -74,6 +74,14 @@ theorem outcome_isSome_iff_terminal (state : DisclosureState)
     cases hresponseState : state.response <;>
     simp_all [outcome?]
 
+/-- A response completes the native outcome; the phase invariant supplies
+the signal and publication on which that response depends. -/
+theorem outcome_isSome_iff_response (state : DisclosureState) (hinvariant : Invariant state) :
+    state.outcome?.isSome = true ↔ state.response.isSome = true := by
+  rw [outcome_isSome_iff_terminal state hinvariant]
+  change Terminal graph (cfg state.data state.phase) ↔ state.response.isSome = true
+  rw [terminal_iff, ← response_isSome_iff_phase_terminal]
+
 theorem privateStep_invariant (state : DisclosureState) (who : TestPlayer)
     (command : Nat × Bool) (hinvariant : Invariant state) :
     Invariant (privateStep state who command) := by
@@ -256,6 +264,25 @@ theorem environmentStep_binding (state : DisclosureState) (command : Environment
       simp only [environmentStep, FinDist.mem_support_pure] at hnext
       subst next
       split <;> exact ⟨rfl, rfl⟩
+
+/-- Environment work does not resolve or change a publication. -/
+theorem environmentStep_publication (state next : DisclosureState)
+    (command : EnvironmentCommand)
+    (hnext : next ∈ (environmentStep state command).support) :
+    next.publication = state.publication := by
+  cases command with
+  | marker | advance clock =>
+      simp only [environmentStep, FinDist.mem_support_pure] at hnext
+      split at hnext <;> subst next <;> rfl
+  | sample =>
+      simp only [environmentStep] at hnext
+      split at hnext
+      · simp only [FinDist.support_map, Set.mem_image] at hnext
+        obtain ⟨signal, _, rfl⟩ := hnext
+        rfl
+      · simp only [FinDist.mem_support_pure] at hnext
+        subst next
+        rfl
 
 /-- Once publication resolves, accepted calls preserve both its value and the
 response window's origin. Repeated or failed traffic cannot restart that window. -/
