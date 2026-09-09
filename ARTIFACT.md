@@ -42,11 +42,9 @@ update` to reproduce a pinned revision: it may resolve different dependencies.
 The cache download is a build optimization, not evidence that our theorem
 statements have been checked; run the build afterward.
 
-On memory-constrained or busy machines, limit the build process's worker pool.
-In PowerShell, run `$env:LEAN_NUM_THREADS = '2'` before `lake --wfail build`;
-in a POSIX shell, run `LEAN_NUM_THREADS=2 lake --wfail build`. This controls
-build concurrency, not proof limits or warning suppression. A parallel clean
-build can exhaust memory even when the incremental development build passes.
+Build concurrency is a machine-specific resource setting. The commands above
+use the defaults; lower concurrency may help when a rebuild exhausts available
+memory.
 
 The manuscript is a **separate repository**, not a submodule fetched by those
 commands. `paper-snapshot.json` pins the manuscript revision and SHA-256 digest

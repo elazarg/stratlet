@@ -98,6 +98,26 @@ theorem mem_run_support_iff (state final : app.State) (actions : List app.Action
         cases h with
         | cons hstep htail => exact ⟨_, hstep, htail⟩
 
+/-- An inclusion preserves an application invariant when every accepted
+handler does. Missing messages and rejected calls leave the application intact. -/
+theorem includePending_application_invariant (invariant : app.Application → Prop)
+    (hhandler : ∀ application message next, invariant application →
+      app.handle application message = some next → invariant next)
+    (state : app.State) (id : MessageId Principal) (hstate : invariant state.application) :
+    invariant (app.includePending state id).application := by
+  cases hlookup : state.pool.lookup id with
+  | none =>
+      rw [app.includePending_missing state id hlookup]
+      exact hstate
+  | some message =>
+      cases hresult : app.handle state.application message with
+      | none =>
+          rw [app.includePending_reject state id message hlookup hresult]
+          exact hstate
+      | some result =>
+          rw [app.includePending_accept state id message result hlookup hresult]
+          exact hhandler _ _ _ hstate hresult
+
 /-- Application invariants need preservation by every accepted handler and
 every supported fixed-kernel result, not just by honest messages. -/
 theorem step_application_invariant (invariant : app.Application → Prop)
@@ -121,18 +141,7 @@ theorem step_application_invariant (invariant : app.Application → Prop)
   | «include» id =>
       simp only [step, FinDist.mem_support_pure] at hnext
       subst next
-      cases hlookup : state.pool.lookup id with
-      | none =>
-          rw [app.includePending_missing state id hlookup]
-          exact hstate
-      | some message =>
-          cases hresult : app.handle state.application message with
-          | none =>
-              rw [app.includePending_reject state id message hlookup hresult]
-              exact hstate
-          | some result =>
-              rw [app.includePending_accept state id message result hlookup hresult]
-              exact hhandler _ _ _ hstate hresult
+      exact app.includePending_application_invariant invariant hhandler state id hstate
   | environment command =>
       simp only [step, FinDist.support_map, Set.mem_image] at hnext
       obtain ⟨application, hsupported, rfl⟩ := hnext

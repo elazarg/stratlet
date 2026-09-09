@@ -35,6 +35,9 @@ import VegasTests.DisclosureExpiration
 import VegasTests.DisclosureInitialExpiration
 import VegasTests.DisclosureService
 import VegasTests.DisclosureServiceReaction
+import VegasTests.DisclosureServiceClock
+import VegasTests.DisclosureServiceResolution
+import VegasTests.DisclosureResponseResolution
 import VegasTests.DisclosureResolutionGuard
 import VegasTests.DisclosureLaw
 import VegasTests.DisclosureSites

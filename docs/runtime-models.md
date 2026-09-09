@@ -587,6 +587,20 @@ including replay and malformed submissions. Every complete cycle, and every
 finite sequence of cycles from empty, drains the pending pool for all player
 policies. This is resource accounting under a fixed phase discipline, not
 Ethereum service, application settlement, or source-choice preservation.
+`DisclosureServiceClock` proves that the public clock advances exactly once
+per complete cycle under these same policy quantifiers.
+
+`Interaction/MessageApplicationProgress.lean` turns reserved inclusion capacity
+into application progress when a concrete pending resolver has stable readiness,
+resolves on selection, and establishes a persistent milestone. This is a theorem
+about the shared policy runner, with local native-inclusion premises.
+`DisclosureServiceResolution` and `DisclosureResponseResolution` prove those
+premises for initial binding, ordinary response, and all three overdue expiration
+calls. Competing messages may resolve the phase first, so these results guarantee
+phase resolution rather than a particular chosen value. They begin with a ready
+request already pending; controller submission deadlines and timeout-race
+exclusion remain unproved.
+
 `DisclosureServiceReaction` checks that a delivered cleartext packet can induce
 value-dependent outgoing traffic while the ledger is still empty. The opaque
 packet control checks this particular receiver, not arbitrary-receiver hiding.

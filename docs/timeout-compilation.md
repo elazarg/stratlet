@@ -345,16 +345,21 @@ nonresponse handler. The forced marker and chance are environment-triggered
 fixed application work. Pure timeout-driving controllers and an instantiated
 slotted inclusion service are available. Players can react to pending delivery,
 and reserved capacity drains the queue even under arbitrary player policies.
-The remaining proof must connect this capacity result to timely source-choice
-opportunity, actual application progress, and settlement under unilateral
-deviations. The instance does not yet provide the whole-program timeout contract below.
+The service clock advances once per complete cycle. Stable pending resolvers
+also have application-progress proofs for initial binding, ordinary response,
+and all three expiration calls. These phase results start with an already
+pending, ready request. The remaining proof must establish timely controller
+submission, unchanged source choices, and settlement under unilateral deviations.
+The instance does not yet provide the whole-program timeout contract below.
 
 #### Service settlement proof targets
 
-For the slotted service, number cycles from one; the intended cycle invariant
-gives clock `c - 1` at the start of cycle `c`, and clock `c` and an empty queue
-at its end. The following are mathematical proof targets, not exported Lean
-settlement results. For a window `w >= 1`, the proposed complete-cycle bounds are:
+For the slotted service, number cycles from one. From clock-zero initialization,
+`DisclosureServiceClock.service_schedule_clock` gives clock `c` after `c`
+complete cycles, independently of player policies and admitted inclusion choices.
+The service capacity theorem gives an empty queue at each cycle boundary.
+The following are mathematical proof targets, not exported Lean settlement
+results. For a window `w >= 1`, the proposed complete-cycle bounds are:
 
 | Policies | Settlement bound |
 | --- | --- |
@@ -369,16 +374,26 @@ expiration first can select the default. This race needs a checked negative
 control, and the positive proof must exclude it without restricting the
 deviator's raw commands.
 
-The key inclusion-phase invariant is: the concrete resolver envelope is still
-pending, or its application milestone already holds. Milestones must be
-preserved by interfering includes. While a milestone is false, removing that
-resolver must establish it; its readiness, authority, and deadline conditions
-must therefore remain valid. Queue clearance then implies the milestone.
-Ledger membership alone is insufficient: it neither implies acceptance nor
-distinguishes earlier publication from a pending replay. This invariant also
-justifies the controllers' one-shot submission flags. Clock progression,
-milestone persistence, controller history, and exact unchanged-player choices
-remain separate obligations before deriving the bounds or strategic laws.
+`Interaction/MessageApplicationProgress.lean` proves the inclusion-phase
+invariant: the concrete resolver envelope remains pending, or its application
+milestone already holds. Its local premises require milestone persistence,
+readiness preserved up to resolution, and resolution when that envelope is
+selected. Sufficient reserved inclusion capacity then implies the milestone,
+including for randomized selectors that inspect payloads. The result uses the
+existing native policy runner and permits arbitrary competing pending messages.
+It does not permit new arrivals during the reserved inclusion phase.
+
+`DisclosureServiceResolution` and `DisclosureResponseResolution` discharge
+those local premises for canonical initial binding, ordinary response, and
+overdue initial, publication, and response expiration. These application
+instances start from a pending request with the required phase invariant and
+deadline. A competing call may establish the milestone first; the conclusion
+therefore asserts resolution, not preservation of the request's chosen value.
+Ledger membership alone would not suffice: it neither implies acceptance nor
+distinguishes earlier publication from a pending replay. Controller history
+must still connect a one-shot submission flag to a pending-or-resolved state.
+Timely submission and exact unchanged-player choices remain obligations before
+deriving the bounds or strategic laws.
 
 #### Deviation-law proof targets
 

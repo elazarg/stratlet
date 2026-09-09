@@ -201,6 +201,43 @@ theorem include_pending_length (state : MessagePool Principal Payload)
   rw [include_pending_of_lookup state id message hlookup]
   exact removeFirst_length_of_find id state.pending message hlookup
 
+private theorem mem_removeFirst_or_selected (id : MessageId Principal)
+    (messages : List (Message Principal Payload)) (candidate selected : Message Principal Payload)
+    (hfind : messages.find? (fun message => message.id = id) = some selected)
+    (hmem : candidate ∈ messages) :
+    candidate ∈ removeFirst id messages ∨ candidate = selected := by
+  induction messages with
+  | nil => simp at hmem
+  | cons first rest ih =>
+      by_cases hfirst : first.id = id
+      · have hselected : first = selected := by simpa [List.find?, hfirst] using hfind
+        simp only [List.mem_cons] at hmem
+        rcases hmem with rfl | hmem
+        · exact Or.inr hselected
+        · exact Or.inl (by simpa [removeFirst, hfirst] using hmem)
+      · have hrest : rest.find? (fun message => message.id = id) = some selected := by
+          simpa [List.find?, hfirst] using hfind
+        simp only [List.mem_cons] at hmem
+        rcases hmem with rfl | hmem
+        · exact Or.inl (by simp [removeFirst, hfirst])
+        · rcases ih hrest hmem with hretained | hselected
+          · exact Or.inl (by simp [removeFirst, hfirst, hretained])
+          · exact Or.inr hselected
+
+/-- An included identifier either leaves this exact envelope pending or
+selects it. This also holds for duplicate identifiers and replayed copies. -/
+theorem pending_retained_or_selected (state : MessagePool Principal Payload)
+    (id : MessageId Principal) (candidate : Message Principal Payload)
+    (hmem : candidate ∈ state.pending) :
+    candidate ∈ (state.includePending id).state.pending ∨ state.lookup id = some candidate := by
+  cases hlookup : state.lookup id with
+  | none => exact Or.inl (by simpa [includePending, hlookup, Result.invalid] using hmem)
+  | some selected =>
+      have hretained := mem_removeFirst_or_selected id state.pending candidate selected hlookup hmem
+      rcases hretained with hretained | rfl
+      · exact Or.inl (by simpa [includePending, hlookup] using hretained)
+      · exact Or.inr rfl
+
 theorem include_preserves_inbox (state : MessagePool Principal Payload)
     (id : MessageId Principal) (who : Principal) :
     (includePending state id).state.inbox who = state.inbox who := by
