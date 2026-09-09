@@ -619,7 +619,7 @@ def stepInstruction (program : Assembly) (env : ExecutionEnv)
       | some value => advance state instruction (value :: state.stack)
       | none => fault state
   | .swap index =>
-      let target := index + 1
+      let target := (index : Nat) + 1
       match state.stack, state.stack[target]? with
       | top :: _, some value =>
           let swapped := (state.stack.set target top).set 0 value
@@ -747,6 +747,40 @@ def stepInstruction (program : Assembly) (env : ExecutionEnv)
               (readBytes env.codeBytes source.toNat size.toNat) }
       | _ => fault state
   | .keccak256 | .invalid => fault state
+
+/-- `SWAPn` exchanges the stack top with the item at natural depth `n`.
+The instruction index is zero-based, so its target depth is one greater. -/
+theorem stepInstruction_swap_exact (program : Assembly) (env : ExecutionEnv)
+    (state : ExecutionState) (index : Fin 16) (top value : Word)
+    (rest : List Word)
+    (hvalue : (top :: rest)[(index : Nat) + 1]? = some value) :
+    stepInstruction program env (.swap index)
+        { state with stack := top :: rest } =
+      advance { state with stack := top :: rest } (.swap index)
+        (((top :: rest).set ((index : Nat) + 1) top).set 0 value) := by
+  simp [stepInstruction, hvalue]
+
+/-- `SWAP16` reaches the seventeenth stack item rather than wrapping its
+`Fin 16` instruction index back to the top. -/
+theorem stepInstruction_swap16_boundary (program : Assembly)
+    (env : ExecutionEnv) (state : ExecutionState) :
+    let stack := (List.range 17).map fun value => BitVec.ofNat 256 value
+    let result := stepInstruction program env (.swap ⟨15, by decide⟩)
+      { state with stack := stack }
+    result.stack[0]? = some (BitVec.ofNat 256 16) ∧
+      result.stack[16]? = some (BitVec.ofNat 256 0) := by
+  constructor <;> rfl
+
+/-- A `SWAP16` with only sixteen stack items faults at the exact underflow
+boundary. -/
+theorem stepInstruction_swap16_underflow (program : Assembly)
+    (env : ExecutionEnv) (state : ExecutionState) :
+    stepInstruction program env (.swap ⟨15, by decide⟩)
+        { state with
+          stack := (List.range 16).map fun value => BitVec.ofNat 256 value } =
+      fault { state with
+        stack := (List.range 16).map fun value => BitVec.ofNat 256 value } := by
+  rfl
 
 /-- Execute one fetched EVM instruction. Terminal states are stable. -/
 def step (program : Assembly) (env : ExecutionEnv)
