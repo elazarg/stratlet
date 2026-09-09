@@ -430,6 +430,59 @@ interface, and general deviation adequacy remain open. The fixed schedule is
 not a model of arbitrary asynchronous activation or player-owned builder
 capabilities.
 
+### Shared message applications and fixed chance kernels
+
+`Interaction/MessageApplication.lean` supplies a receipt-bearing message runtime
+parameterized by application state, payloads, principal-local commands,
+environment commands, and player/environment projections. Native inclusion uses
+`MessagePool.includeApplication`: acceptance installs the returned application
+state, rejection retains its prior state, and both publish the existing message
+and a receipt. A missing message produces neither publication nor receipt.
+Previously delivered messages remain in recipient inboxes.
+
+Private commands are scoped to the invoked principal. Environment commands
+invoke an application-supplied `FinDist` kernel without modifying the pool or
+inclusion receipts. This supports a fixed chance law whose invocation time is
+environment-controlled. A concrete application must prevent early sampling and
+rerolling, and must not expose a command that selects the chance outcome.
+The fixed-kernel law does not remove selection effects from adaptive stopping
+or a failure to trigger the draw. There is no automatic clock advance, timeout,
+or progress guarantee.
+
+`MessageApplicationPolicies` derives a game from this same transition law.
+Policies see their explicit projections and own sampled command histories;
+the environment additionally sees the complete pool. Public receipts are part
+of both observation interfaces. A fixed finite invocation list remains an
+analysis parameter, not an observed global counter. Policy randomization and
+application chance are composed as separate kernels. Every supported policy
+outcome follows a supported native execution of its recorded action trace;
+application invariants therefore lift to arbitrary supported policy runs.
+
+`SealedTimeout.messageApplication` instantiates this carrier with the timed
+sealed handler. Its state and action translations have both roundtrips, its
+player/environment views agree, and every finite native run has exactly the
+mapped timed execution law. `WFProgram.sealed_timeout_message_policy_source`
+uses that correspondence for arbitrary shared player/environment policies:
+their outcomes decode to reachable graph prefixes, and terminal decoded
+prefixes reconstruct written-source executions, bindings, and payout
+evaluation. This remains a support theorem, not source-policy backtranslation
+or an outcome-law comparison. The final-expiration policy is unchanged.
+
+`InteractionTests/MessageApplication.lean` exercises a separate lottery
+application with no Vegas imports. It checks acceptance, rejection, retained
+delivery, missing-message stutters, principal-scoped private operations, a
+fixed fair draw, and completion disabling further draws. Its policy-game
+regression checks that deterministic controllers retain the application's
+chance law. Hiding of its private prediction is a projection equality, not a
+cryptographic-security theorem.
+The untimed receipt-free sealed instance remains a distinct weaker model;
+extra receipt observations are not silently erased from the shared game.
+
+The remaining integration is a whole source-generated application with chance,
+conditional publication, and continued execution after quitting. The shared
+carrier supplies its execution and policy machinery; it does not implement
+those source continuations or establish their strategic comparison.
+
 ### Source-certified conditional publication
 
 `Interaction.ConditionalPublication` classifies opening, owner decline, and

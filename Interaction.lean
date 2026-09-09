@@ -2,6 +2,10 @@ import Interaction.MessagePool
 import Interaction.MessageReplay
 import Interaction.MessageInvariant
 import Interaction.TransactionalInclusion
+import Interaction.MessageApplication
+import Interaction.MessageApplicationLaws
+import Interaction.MessageApplicationPolicies
+import Interaction.MessageApplicationPolicyLaws
 import Interaction.DependencyGate
 import Interaction.DependencyGateLaws
 import Interaction.Deadline
@@ -27,3 +31,4 @@ import Interaction.SealedTimeoutLaws
 import Interaction.SealedTimeoutHiding
 import Interaction.SealedTimeoutPolicies
 import Interaction.SealedTimeoutPolicyLaws
+import Interaction.SealedTimeoutApplication

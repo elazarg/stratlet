@@ -73,6 +73,16 @@ def State.observe (state : State Principal Value) (who : Principal) : View Princ
   ⟨state.pool.observe who, state.application.events, state.application.resolution,
     state.clock, state.receipts⟩
 
+structure EnvironmentView (Principal : Type uPrincipal) (Value : Type uValue) where
+  pool : MessagePool Principal (Payload Principal Value)
+  events : List (SealedProgram.Event Principal Value)
+  resolution : DeadlineResolution
+  clock : Nat
+  receipts : List (MessageId Principal × Bool)
+
+def State.environmentView (state : State Principal Value) : EnvironmentView Principal Value :=
+  ⟨state.pool, state.application.events, state.application.resolution, state.clock, state.receipts⟩
+
 /-- The checkpoint is ready according to the original program's public rule
 and accepted commitment, without inspecting the service's hidden value. -/
 def ready [DecidableEq Principal] (timed : SealedTimeout Principal)

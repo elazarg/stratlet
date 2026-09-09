@@ -48,16 +48,6 @@ inductive EnvironmentCommand (Principal : Type uPrincipal) where
   | advance (clock : Nat)
   | wait
 
-structure EnvironmentView (Principal : Type uPrincipal) (Value : Type uValue) where
-  pool : MessagePool Principal (Payload Principal Value)
-  events : List (SealedProgram.Event Principal Value)
-  resolution : DeadlineResolution
-  clock : Nat
-  receipts : List (MessageId Principal × Bool)
-
-def State.environmentView (state : State Principal Value) : EnvironmentView Principal Value :=
-  ⟨state.pool, state.application.events, state.application.resolution, state.clock, state.receipts⟩
-
 structure EnvironmentEntry (Principal : Type uPrincipal) (Value : Type uValue) where
   beforeView : EnvironmentView Principal Value
   command : EnvironmentCommand Principal

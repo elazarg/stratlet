@@ -270,9 +270,22 @@ player choices, persistent quitting, and settlement under the stated services;
 starting a proof at an already represented disclosure checkpoint does not
 complete that gate.
 
-Integrate through the existing message execution and application boundary,
-generalizing the application parameter where the second concrete client needs
-it. Do not add a separate optional-disclosure runner or policy evaluator.
+`MessageApplication` supplies the common receipt-bearing execution and
+observation-local policy boundary, with fixed application chance kernels.
+The timed sealed instance has exact state/action/observation/run correspondence,
+and its shared policy game retains checked source-prefix support. A separately
+specified lottery exercises the same machinery without Vegas imports. These
+clients establish runtime reuse, not the full non-Vegas strategic comparison
+required by R3.
+
+Integrate conditional publication and source continuation through this shared
+application boundary. Do not add a separate optional-disclosure runner or
+policy evaluator. Chance triggers must invoke the source's fixed law, check
+readiness, and prevent rerolling; environment control of their timing does not
+give it control of their sampled value. For every potentially silent source
+decision, supply an executable legal fallback or preserve unresolved execution.
+Uniqueness of a legal action is sufficient for one resolution technique, not a
+necessary condition for implementing a designated fallback.
 The emitted controller must check disclosure fences before submitting an
 opening, not only before its application effect is accepted: recipient delivery
 can reveal the payload before inclusion. Retain the actual clock, receipts,
