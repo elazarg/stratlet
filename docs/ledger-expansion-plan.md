@@ -52,6 +52,39 @@ execution. A weaker positive result or a precise obstruction is acceptable
 evidence at a research gate. A disconnected runtime, a restated preservation
 hypothesis, or a trace example alone is not completion.
 
+### Whole-program forward-law checkpoint
+
+The next composition theorem should relate the independent source denotation
+to the shared application's public terminal readout. Its proof-side checkpoint
+should carry:
+
+- The original plan/profile's `ProfileContinuation` to the current suffix.
+- The exact source/graph prefix (`CoupledAt`) and native `State.Refines`.
+- Support in an initialized run under the same original lifted profile.
+- `RemainingCachesEmpty` for the unexecuted suffix.
+- Canonical accepted handles for every generated binding before the current
+  source prefix.
+
+The initialized-run witness already supplies message-identifier freshness,
+memory coverage, registration consistency, and typed registration provenance.
+These should be derived, not stored again in the checkpoint. Static binding
+origins locate an earlier binding for each conditional; the dynamic accepted
+prefix supplies its handle. The checked snapshot bridge then recovers the
+source value without a separate evolving snapshot-value invariant.
+
+First prove one structural head step using the existing phase laws, preserving
+this checkpoint for each supported successor. Compose with the source
+denotation's existing equations and the shared runner's append/bind laws.
+The terminal statement compares public-outcome distributions; sealed source
+values remain witnesses and need not be decoded from public runtime memory.
+
+This equality requires a source-ordered service contract: invoke chance at
+sample heads, invoke the current owner, and include its freshly submitted
+envelope, uniformly over supported branches. Specify that contract on the
+existing runtime policies and invocations, not through another evaluator.
+Arbitrary environments retain the safety guarantees for runs that finish;
+they do not imply completion or equality with the terminating source law.
+
 Prefer focused replacement and extraction to a rewrite without a demonstrated
 semantic need. There is no API compatibility requirement: update all consumers
 and remove obsolete definitions when their replacements are checked. Keep the
