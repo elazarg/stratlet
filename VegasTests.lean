@@ -28,6 +28,7 @@ import VegasTests.GeneratedPersistentDisclosure
 import VegasTests.GeneratedPersistentDisclosureController
 import VegasTests.GeneratedBindingPolicy
 import VegasTests.GeneratedApplicationPolicy
+import VegasTests.ApplicationPolicyProvenance
 import VegasTests.DisclosureTrace
 import VegasTests.DisclosureBinding
 import VegasTests.DisclosureCheckpoint

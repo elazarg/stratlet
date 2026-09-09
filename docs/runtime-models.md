@@ -492,9 +492,9 @@ Snapshot correspondence is not implied by the public accepted handle. The
 runtime permits acceptance of an unprepared handle followed by a registration;
 that later value cannot open the frozen handle. The reference strategy lifting
 must establish registration before binding submission, rather than infer
-snapshot correspondence from the subsequent history. Its structural dispatch
-is defined; whole-run readout availability and this ordering invariant remain
-separate proof obligations.
+snapshot correspondence from the subsequent history. Structural dispatch is
+defined, and its accepted-binding provenance is proved below. Whole-run readout
+availability and exact source-profile laws remain separate proof obligations.
 `ApplicationImageRegistration` proves that, from
 the canonical empty-service initialization, every principal's earliest recorded
 registration equals its current preparation-table entry. This holds for all
@@ -644,6 +644,24 @@ The six-invocation prefix has the exact joint law of the arbitrary source initia
 choice and the source coin, retaining complete histories and native traces.
 Both inclusions are checked successful. This remains a specified-service prefix
 law, not a general whole-program law, settlement theorem, or deviation comparison.
+
+`Vegas/Compile/ApplicationPolicyProvenance.lean` proves
+`ApplicationPlan.runPolicies_lifted_registeredBindings`. For any structural plan,
+one principal's lifted source strategy ensures that every accepted handle owned
+by that principal has a first private registration equal to its frozen snapshot.
+The result starts with empty preparation and message histories and no accepted
+handles. All other principal policies, environment policies, and finite invocation
+lists are arbitrary; delivery, replay, inclusion, clock advancement, and invalid
+traffic remain available. The runtime invariant covers every retained message
+carrier, not just pending requests. It supplies both cache existence and the
+`RegistrationMatches` premise used by owner-local readout. It supplies neither
+typed availability of all source fields nor provisioning of sealed initial inputs.
+This is a general safety theorem about the lifted player, not an outcome-law or
+equilibrium theorem and not a constraint on the open protocol's adversaries.
+`VegasTests/ApplicationPolicyProvenance.lean` applies it to the multistage prefix
+and checks its policy boundary: an unrestricted policy can submit an unprepared
+handle, have it accepted, and register afterward. That actual run violates
+`RegistrationMatches`, since its new local value cannot repair the empty snapshot.
 
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.

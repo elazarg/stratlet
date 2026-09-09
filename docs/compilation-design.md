@@ -577,6 +577,18 @@ preparation before binding submission and maintain that provenance. Whole-image
 dispatch is defined by `ApplicationPlan.liftProfile`; availability of every
 declared source observation remains to be proved across its execution.
 
+`ApplicationPlan.runPolicies_lifted_registeredBindings` establishes binding
+provenance for any one principal following the structural lift, with arbitrary
+other players, environment, and finite invocation list. From empty preparation
+and message histories and no accepted handles, every accepted handle belonging
+to that principal has a recorded private value equal to its frozen snapshot.
+The native proof maintains registered-handle provenance across pending, sent,
+delivered, and included copies, including replay. The stronger `RegisteredBindings`
+predicate supplies cache existence and implies the readout's `RegistrationMatches`.
+It does not provision sealed initial inputs or prove that every source-visible
+field has the correct runtime type. Those availability obligations and the
+source-prefix probability coupling are the next composition steps.
+
 Whole-program randomized laws should compose segment laws from every related
 native checkpoint, retaining both an exact outcome law and a support invariant
 for the next segment. A proof-only relation tracks the source cursor and

@@ -225,6 +225,72 @@ def policy (controller : ChoiceController app Value Input) : app.PlayerPolicy :=
           else
             FinDist.pure .wait
 
+/-- With retries disabled, every supported controller command either waits or
+satisfies a predicate established for every value in the active source
+kernel. -/
+theorem supported_wait_or_safe
+    (controller : ChoiceController app Value Input)
+    (safe : app.PlayerCommand → Prop)
+    (history : List app.PlayerEntry) (view : app.View)
+    (command : app.PlayerCommand)
+    (hretry : controller.retry history view = false)
+    (hkernel : ∀ input value, value ∈ (controller.kernel input).support →
+      safe (controller.codec.encode value))
+    (hcommand : command ∈ (controller.policy app history view).support) :
+    command = .wait ∨ safe command := by
+  unfold policy at hcommand
+  split at hcommand
+  · exact Or.inl (FinDist.mem_support_pure.mp hcommand)
+  · split at hcommand
+    · simp only [hretry, Bool.and_false, Bool.false_eq_true, if_false,
+        FinDist.mem_support_pure] at hcommand
+      exact Or.inl hcommand
+    · split at hcommand
+      · split at hcommand
+        · rw [FinDist.support_map] at hcommand
+          obtain ⟨value, hvalue, rfl⟩ := hcommand
+          exact Or.inr (hkernel _ value hvalue)
+        · exact Or.inl (FinDist.mem_support_pure.mp hcommand)
+      · exact Or.inl (FinDist.mem_support_pure.mp hcommand)
+
+/-- Every supported command either waits or is the canonical encoding of some
+controller value. -/
+theorem supported_wait_or_encoded
+    (controller : ChoiceController app Value Input)
+    (history : List app.PlayerEntry) (view : app.View)
+    (command : app.PlayerCommand)
+    (hcommand : command ∈ (controller.policy app history view).support) :
+    command = .wait ∨ ∃ value, command = controller.codec.encode value := by
+  unfold policy at hcommand
+  split at hcommand
+  · exact Or.inl (FinDist.mem_support_pure.mp hcommand)
+  · split at hcommand
+    · split at hcommand
+      · exact Or.inr ⟨_, FinDist.mem_support_pure.mp hcommand⟩
+      · exact Or.inl (FinDist.mem_support_pure.mp hcommand)
+    · split at hcommand
+      · split at hcommand
+        · rw [FinDist.support_map] at hcommand
+          obtain ⟨value, _, rfl⟩ := hcommand
+          exact Or.inr ⟨value, rfl⟩
+        · exact Or.inl (FinDist.mem_support_pure.mp hcommand)
+      · exact Or.inl (FinDist.mem_support_pure.mp hcommand)
+
+/-- A non-wait command outside the controller codec's decoding domain cannot
+belong to the controller policy's support. -/
+theorem not_supported_of_decode_none
+    (controller : ChoiceController app Value Input)
+    (history : List app.PlayerEntry) (view : app.View)
+    (command : app.PlayerCommand) (hactive : command ≠ .wait)
+    (hdecode : controller.codec.decode command = none)
+    (hcommand : command ∈ (controller.policy app history view).support) : False := by
+  rcases controller.supported_wait_or_encoded app history view command hcommand with
+    hwait | ⟨value, hencoded⟩
+  · exact hactive hwait
+  · have hdecoded := congrArg controller.codec.decode hencoded
+    rw [hdecode, controller.codec.decode_encode] at hdecoded
+    contradiction
+
 theorem policy_of_resolved (controller : ChoiceController app Value Input)
     (history : List app.PlayerEntry) (view : app.View)
     (hresolved : controller.resolved view = true) :

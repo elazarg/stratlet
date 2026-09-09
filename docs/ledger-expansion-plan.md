@@ -316,9 +316,15 @@ dependence on source policies. `GeneratedApplicationPolicy` composes the binding
 the forced marker, and chance under that same lifted whole-source profile, with
 successful inclusions and an exact six-invocation joint law. These are reference
 strategies for the open protocol, not generated player software. The next general
-proof must maintain a source-prefix relation covering accepted values, cache
-provenance, and every declared source observation. A local source-matching readout
-is not itself a proof that a whole-program policy maintains it.
+probability proof must maintain a source-prefix relation covering accepted values
+and every declared source observation. `ApplicationPolicyProvenance` establishes
+the cache/snapshot component generally: if one player follows the lift, every
+accepted handle belonging to it retains its first private registration, under
+arbitrary opponents, environment, and finite invocation list. This also supplies
+cache existence for accepted bindings. Typed availability of the complete source
+view, including the separate initial-input provisioning issue, remains open.
+A local source-matching readout is not itself a proof that a whole-program policy
+maintains it.
 Compose the local laws across initialization, both disclosure sites, the
 intervening response, and the stated service assumptions. This must use actual
 policy invocations, not just the specified raw-action executions.

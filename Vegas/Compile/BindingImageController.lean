@@ -31,32 +31,6 @@ open EventGraph ToEventGraph Interaction Interaction.MessageApplication
 
 variable {P : Type} [DecidableEq P] {L : IExpr}
 
-private theorem ChoiceController.supported_wait_or_safe
-    {Principal Value Input : Type} {app : MessageApplication Principal}
-    (controller : ChoiceController app Value Input)
-    (safe : app.PlayerCommand → Prop)
-    (history : List app.PlayerEntry) (view : app.View)
-    (command : app.PlayerCommand)
-    (hretry : controller.retry history view = false)
-    (hkernel : ∀ input value, value ∈ (controller.kernel input).support →
-      safe (controller.codec.encode value))
-    (hcommand : command ∈ (controller.policy app history view).support) :
-    command = .wait ∨ safe command := by
-  unfold ChoiceController.policy at hcommand
-  split at hcommand
-  · exact Or.inl (FinDist.mem_support_pure.mp hcommand)
-  · split at hcommand
-    · simp only [hretry, Bool.and_false, Bool.false_eq_true, if_false,
-        FinDist.mem_support_pure] at hcommand
-      exact Or.inl hcommand
-    · split at hcommand
-      · split at hcommand
-        · rw [FinDist.support_map] at hcommand
-          obtain ⟨value, hvalue, rfl⟩ := hcommand
-          exact Or.inr (hkernel _ value hvalue)
-        · exact Or.inl (FinDist.mem_support_pure.mp hcommand)
-      · exact Or.inl (FinDist.mem_support_pure.mp hcommand)
-
 namespace BindingCode
 
 /-- The unique opaque binding packet for this instruction. -/
@@ -259,6 +233,7 @@ theorem bindingPolicy_supported_command
   cases hcache : image.registrationCache (site.compiledField fresh build) history with
   | none =>
       have hsafe := ChoiceController.supported_wait_or_safe
+        image.application
         (site.registrationController fresh build image sourcePolicy)
         (fun command => ∃ value : L.Val ty, command = .privateCommand (.register
           (site.compiledField fresh build) ⟨ty, value⟩))
@@ -274,6 +249,7 @@ theorem bindingPolicy_supported_command
       · exact Or.inr (Or.inl hregister)
   | some registered =>
       have hsafe := ChoiceController.supported_wait_or_safe
+        image.application
         ((site.bindingCode fresh build
           (site.compiledField fresh build)).submissionController image ty)
         (fun command => command = .submit (.binding

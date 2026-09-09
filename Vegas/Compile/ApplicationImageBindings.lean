@@ -79,6 +79,88 @@ theorem handle_binding (image : ApplicationImage P L) (state : State P L)
       else none := by
   simp [ApplicationImage.handle, hcode, Message.sender]
 
+/-- Every successful message handler preserves private preparation. It either
+leaves both binding tables unchanged or is an authenticated canonical binding
+update. This classifies the actual dynamic handler without assuming that a
+binding instruction was selected. -/
+theorem handle_binding_effect (image : ApplicationImage P L)
+    (state next : State P L) (message : Message P (Payload P L))
+    (hnext : image.handle state message = some next) :
+    next.prepared = state.prepared ∧
+      ((next.memory.accepted = state.memory.accepted ∧ next.frozen = state.frozen) ∨
+        ∃ (address : Nat) (code : BindingCode P)
+          (handle : CommitmentHandle P Nat),
+          message.payload = .binding address handle ∧
+          message.sender = code.owner ∧
+          handle = (code.owner, code.sourceSlot) ∧
+          next = state.bind code handle) := by
+  rcases message with ⟨id, payload⟩
+  cases payload with
+  | malformed data => simp [ApplicationImage.handle] at hnext
+  | choice address typed =>
+      cases hlookup : image.lookup address with
+      | none => simp [ApplicationImage.handle, hlookup] at hnext
+      | some instruction =>
+          cases instruction with
+          | sample code => simp [ApplicationImage.handle, hlookup] at hnext
+          | bind code => simp [ApplicationImage.handle, hlookup] at hnext
+          | conditional code => simp [ApplicationImage.handle, hlookup] at hnext
+          | publicChoice code =>
+              simp only [ApplicationImage.handle, hlookup, Option.bind_eq_bind,
+                Option.bind_some] at hnext
+              cases htyped : typed.as? code.guard.ty with
+              | none => simp [htyped] at hnext
+              | some value =>
+                  simp only [htyped, Option.bind_some] at hnext
+                  cases hresolved : code.endpoint.resolve? state.memory.done
+                      (code.guard.validate state.memory.store) ⟨id, value⟩ with
+                  | none => simp [hresolved] at hnext
+                  | some accepted =>
+                      simp only [hresolved, Option.bind_some] at hnext
+                      cases hnext
+                      exact ⟨rfl, Or.inl ⟨rfl, rfl⟩⟩
+  | binding address handle =>
+      cases hlookup : image.lookup address with
+      | none => simp [ApplicationImage.handle, hlookup] at hnext
+      | some instruction =>
+          cases instruction with
+          | sample code => simp [ApplicationImage.handle, hlookup] at hnext
+          | publicChoice code => simp [ApplicationImage.handle, hlookup] at hnext
+          | conditional code => simp [ApplicationImage.handle, hlookup] at hnext
+          | bind code =>
+              simp only [ApplicationImage.handle, hlookup, Option.bind_eq_bind,
+                Option.bind_some] at hnext
+              split at hnext
+              · rename_i hadmitted
+                cases hnext
+                exact ⟨rfl, Or.inr ⟨address, code, handle, rfl,
+                  hadmitted.1, hadmitted.2.1, rfl⟩⟩
+              · contradiction
+  | conditional address payload =>
+      cases hlookup : image.lookup address with
+      | none => simp [ApplicationImage.handle, hlookup] at hnext
+      | some instruction =>
+          cases instruction with
+          | sample code => simp [ApplicationImage.handle, hlookup] at hnext
+          | publicChoice code => simp [ApplicationImage.handle, hlookup] at hnext
+          | bind code => simp [ApplicationImage.handle, hlookup] at hnext
+          | conditional code =>
+              simp only [ApplicationImage.handle, hlookup, Option.bind_eq_bind,
+                Option.bind_some] at hnext
+              cases hdecoded : code.decode payload with
+              | none => simp [hdecoded] at hnext
+              | some decoded =>
+                  simp only [hdecoded, Option.bind_some] at hnext
+                  cases hresolved : code.endpoint.resolve? state.memory.clock
+                      (state.verify code) (state.memory.accepted code.sourceField)
+                      state.memory.done (code.canOpen state.memory.store)
+                      ⟨id, decoded⟩ with
+                  | none => simp [hresolved] at hnext
+                  | some result =>
+                      simp only [hresolved, Option.bind_some] at hnext
+                      cases hnext
+                      exact ⟨rfl, Or.inl ⟨rfl, rfl⟩⟩
+
 /-- Public binding admission and the resulting public memory reveal nothing
 about preparation or frozen values. This local equation does not erase later
 owner-chosen opening traffic or claim full-run strategic correspondence. -/

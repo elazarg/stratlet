@@ -5,6 +5,7 @@ Authors: VegasCore contributors
 -/
 
 import Vegas.Compile.ApplicationImageReadout
+import Vegas.Compile.ApplicationImageBindings
 import Vegas.Compile.ApplicationImageInvariants
 import Vegas.Compile.ApplicationImageSamples
 import Interaction.ChoiceControllerHistory
@@ -113,77 +114,6 @@ private theorem registration_after_register
         intro heq
         exact hslot (Prod.mk.inj heq).2)).symm
 
-private theorem handle_prepared
-    (image : ApplicationImage P L) (state next : State P L)
-    (message : Message P (Payload P L))
-    (hnext : image.handle state message = some next) :
-    next.prepared = state.prepared := by
-  cases message with
-  | mk id payload =>
-      cases payload with
-      | malformed data => simp [ApplicationImage.handle] at hnext
-      | choice address typed =>
-          cases hlookup : image.lookup address with
-          | none => simp [ApplicationImage.handle, hlookup] at hnext
-          | some instruction =>
-              cases instruction with
-              | sample code => simp [ApplicationImage.handle, hlookup] at hnext
-              | bind code => simp [ApplicationImage.handle, hlookup] at hnext
-              | conditional code => simp [ApplicationImage.handle, hlookup] at hnext
-              | publicChoice code =>
-                  simp only [ApplicationImage.handle, hlookup, Option.bind_eq_bind,
-                    Option.bind_some] at hnext
-                  cases htyped : typed.as? code.guard.ty with
-                  | none => simp [htyped] at hnext
-                  | some value =>
-                      simp only [htyped, Option.bind_some] at hnext
-                      cases hresolved : code.endpoint.resolve? state.memory.done
-                          (code.guard.validate state.memory.store) ⟨id, value⟩ with
-                      | none => simp [hresolved] at hnext
-                      | some accepted =>
-                          simp only [hresolved, Option.bind_some] at hnext
-                          cases hnext
-                          rfl
-      | binding address bindingHandle =>
-          cases hlookup : image.lookup address with
-          | none => simp [ApplicationImage.handle, hlookup] at hnext
-          | some instruction =>
-              cases instruction with
-              | sample code => simp [ApplicationImage.handle, hlookup] at hnext
-              | publicChoice code => simp [ApplicationImage.handle, hlookup] at hnext
-              | conditional code => simp [ApplicationImage.handle, hlookup] at hnext
-              | bind code =>
-                  simp only [ApplicationImage.handle, hlookup, Option.bind_eq_bind,
-                    Option.bind_some] at hnext
-                  split at hnext
-                  · cases hnext
-                    rfl
-                  · contradiction
-      | conditional address payload =>
-          cases hlookup : image.lookup address with
-          | none => simp [ApplicationImage.handle, hlookup] at hnext
-          | some instruction =>
-              cases instruction with
-              | sample code => simp [ApplicationImage.handle, hlookup] at hnext
-              | publicChoice code => simp [ApplicationImage.handle, hlookup] at hnext
-              | bind code => simp [ApplicationImage.handle, hlookup] at hnext
-              | conditional code =>
-                  simp only [ApplicationImage.handle, hlookup, Option.bind_eq_bind,
-                    Option.bind_some] at hnext
-                  cases hdecoded : code.decode payload with
-                  | none => simp [hdecoded] at hnext
-                  | some decoded =>
-                      simp only [hdecoded, Option.bind_some] at hnext
-                      cases hresolved : code.endpoint.resolve? state.memory.clock
-                          (state.verify code) (state.memory.accepted code.sourceField)
-                          state.memory.done (code.canOpen state.memory.store)
-                          ⟨id, decoded⟩ with
-                      | none => simp [hresolved] at hnext
-                      | some result =>
-                          simp only [hresolved, Option.bind_some] at hnext
-                          cases hnext
-                          rfl
-
 omit [DecidableEq P] in
 private theorem sample_prepared
     (image : ApplicationImage P L) (state next : State P L) (address : Nat)
@@ -208,7 +138,7 @@ private theorem includePending_prepared
           rw [image.application.includePending_reject state id message hlookup hhandle]
       | some next =>
           rw [image.application.includePending_accept state id message next hlookup hhandle]
-          exact handle_prepared image state.application next message hhandle
+          exact (image.handle_binding_effect state.application next message hhandle).1
 
 private theorem environmentStep_prepared
     (image : ApplicationImage P L)
@@ -257,7 +187,9 @@ private theorem environmentStep_prepared
           rw [← heq]
           exact sample_prepared image execution.native.application sampled address hsampled
 
-private theorem playerStep_registrationConsistent
+/-- Every player command preserves agreement between private history and the
+preparation table, including commands selected by an arbitrary policy. -/
+theorem playerStep_registrationConsistent
     (image : ApplicationImage P L)
     (execution next : image.application.PolicyExecution) (who : P)
     (command : image.application.PlayerCommand)
@@ -300,7 +232,9 @@ private theorem playerStep_registrationConsistent
       · simp only [if_neg howner]
         exact hconsistent owner slot
 
-private theorem environmentStep_registrationConsistent
+/-- Environment commands change neither the owner-local registration record
+nor its corresponding preparation-table entry. -/
+theorem environmentStep_registrationConsistent
     (image : ApplicationImage P L)
     (execution next : image.application.PolicyExecution)
     (command : image.application.EnvironmentPolicyCommand)
