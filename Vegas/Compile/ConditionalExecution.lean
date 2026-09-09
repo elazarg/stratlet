@@ -60,27 +60,19 @@ theorem completePublication_reachable
   let chosen := site.data.specification.encoding.symm result
   have hreadiness := G.conditionalPublication_ready cfg site.data.owner sourceSlot
     choice publication deadline accepted done hcompleted hready
-  have htype : (G.nodeRow publication).ty = site.data.copyTy :=
-    publicationNode_type site fresh state
-  let value : L.Val (G.nodeRow publication).ty := cast (congrArg L.Val htype.symm) chosen
-  have hvalue : (⟨(G.nodeRow publication).ty, value⟩ : TypedValue L) =
-      ⟨site.data.copyTy, chosen⟩ := by
-    apply TypedValue.eq_mk_of_as?_eq_some
-    simp [TypedValue.as?, htype, value]
+  let written : TypedValue L := ⟨site.data.copyTy, chosen⟩
   have step : CommitStep G cfg site.data.owner
-      ⟨choice, ⟨(G.nodeRow publication).ty, value⟩⟩ := by
-    rw [hvalue]
+      ⟨choice, written⟩ := by
     exact (decisionSiteState site.data.decision fresh state).sourceCommitStep
       site.data.owner site.data.guard cfg env hagrees choice
       (choiceNode_row site fresh state) hreadiness.1 chosen hlegal
   have hpublication : Ready G
-      (cfg.completeNode choice ⟨(G.nodeRow publication).ty, value⟩) publication :=
+      (cfg.completeNode choice written) publication :=
     publication_ready_after_choice cfg choice publication _
       (publicationNode_ne_choiceNode site fresh state) hreadiness.2.1 hreadiness.2.2
-  have hnext := reachable_choice_publication cfg site.data.owner choice publication value
-    step (publicationNode_sem site fresh state) hpublication hreachable
-  rw [hvalue] at hnext
-  exact hnext
+  exact reachable_choice_publication cfg site.data.owner choice publication written
+    (publicationNode_type site fresh state).symm step
+    (publicationNode_sem site fresh state) hpublication hreachable
 
 /-- A runtime-accepted resolution executes the generated pair of graph nodes
 when the commitment service, completion readout, and opening validator agree

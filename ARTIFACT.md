@@ -37,6 +37,13 @@ the associated ideal hiding and rebroadcast comparisons are separate from
 the manuscript's source-deviation theorem. The checked scope and native
 execution fixtures are documented in
 [runtime models](docs/runtime-models.md).
+`Vegas/Compile/ApplicationPlanOutcome.lean` additionally checks generated
+binding/public-choice/conditional-publication images. From canonical native
+initialization, every completed supported raw or randomized-policy run has
+the public outcome of an actual written-order source execution. The explicit
+backend plan is a premise; progress, sealed-input provisioning, and strategic
+correspondence for public messages are not conclusions. These support claims
+are audited in `Paper/Source.lean` separately from the private-window laws.
 `lake --wfail build Paper` is the focused paper-proof build. Do not run `lake
 update` to reproduce a pinned revision: it may resolve different dependencies.
 The cache download is a build optimization, not evidence that our theorem

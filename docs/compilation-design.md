@@ -420,24 +420,38 @@ repeat, and every emitted instruction is found at its own address. This applies
 to a whole source from an empty node cursor and to compilation of a suffix.
 `ApplicationPlanAllocation` checks the canonical node-to-field equations and
 distinct allocated fields. Binding slots use the source-field allocation;
-conditional instructions use that same field as their source slot. These facts
-do not yet prove the complete predecessor binding relation or its runtime
-snapshot invariant. Arbitrary manually assembled images have no such guarantee.
+conditional instructions use that same field as their source slot.
+`ApplicationPlanOrigin` recovers the original source occurrence and its backend
+certificate from any successful image lookup. `ApplicationImageStateRefinement`
+relates each accepted handle to a present sealed graph field owned by the same
+principal; any recoverable frozen value agrees with that field. An absent or
+ill-typed snapshot remains admissible. Arbitrary manually assembled images have
+no generated-source guarantee.
 
 The derivation has no constructors for chance, unpaired literal reveals, public
 initial defaults, or autonomous execution of publicly forced source choices.
 Those source programs remain valid; this backend needs additional instruction
-implementations to compile them. The public initializer also does not provision
+implementations to compile them. A later optional copy of an already-accounted
+sealed binding is also valid source code: its own commit/reveal pair can be
+accounted independently while its guard still reads the retained original.
+The current backend's conditional case requires an accounting `OpeningSite`,
+so it cannot implement that later copy as a conditional endpoint, and ordinary
+public validation cannot read the retained sealed field. Conditional-runtime
+eligibility must be separated from the unique accounting discharge; neither
+source syntax nor source accounting needs to change. `PersistentDisclosure`
+and `DisclosureAccounting.persistentPlan` exercise this source case.
+The public initializer also does not provision
 sealed initial inputs. A whole-program entry must either account for that
 provisioning or explicitly require no sealed initial inputs. Generated controller
-dispatch, complete initialization and output projection, and the whole-run
-execution-law invariant remain obligations.
+dispatch, complete initialization, and whole-profile execution laws remain
+obligations. Public terminal readout and arbitrary-traffic support refinement
+are supplied by `ApplicationImageOutcome` and `ApplicationPlanRefinement`.
 The local refinement uses a checked lookup of the emitted instruction,
 public-validator eligibility, snapshot consistency, public-store agreement,
 and readiness; it does not assume a strategic correspondence as an image
 certificate. Opaque binding admission itself does not certify the original
-source guard. A whole-run relation must account for unopenable bindings without
-assuming a hidden source choice has already been faithfully installed.
+source guard. The whole-run relation accounts for an unopenable binding by a
+legal proof-only source value; it does not install that value in the runtime.
 
 Original binding guards are a separate compiler condition. Consider a source
 choice `secret : Bool` restricted to `true`, followed by an optional copy whose
@@ -465,8 +479,10 @@ do not discharge this original-binding obligation.
 with its frozen value, including absent or dynamically ill-typed values.
 `run_acceptedSnapshot` and `runPolicies_acceptedSnapshot` prove that both remain
 fixed through arbitrary supported native and policy executions. These are
-runtime invariants for any image. Relating a frozen value to the source binding
-still requires the generated assembly and whole-run relation.
+runtime invariants for any image. For generated plans, `State.Refines` additionally
+connects recoverable snapshots to their original source fields, and
+`ApplicationPlan.run_refines` and `runPolicies_refines` preserve the existence
+of this relation through arbitrary supported runs.
 
 `Memory.Represents` relates public storage and completion flags to a proof-only
 graph configuration. Every stored value agrees, public graph fields have
@@ -474,9 +490,14 @@ matching typed readouts, and completion flags identify exactly the represented
 finite node set. Initialization copies only publicly declared graph fields;
 sealed initial values are omitted, with a checked initial representation.
 Hidden values may be absent from the public store. Generated
-public-choice inclusion preserves this relation and represented reachability,
-using the compiler-allocated node and field addresses. Arbitrary manually
-assembled images receive no field-allocation or coherence guarantee.
+binding, public-choice, and conditional-publication inclusion preserve this
+relation and represented reachability, using the compiler-allocated node and
+field addresses. The concurrent proofs use the instruction's declared reads;
+they do not require unrelated earlier source instructions to be complete.
+`SourceDecisionSite.context_nonempty` and `VEnv.exists_toView_eq` supply hidden
+context inhabitants only to instantiate existing source guard certificates.
+The witnesses are not runtime inputs. Arbitrary manually assembled images
+receive no generated-source guarantee.
 The image controller uses a canonical dynamically typed packet at the same
 generated publication address; another endpoint's packet cannot populate its
 cache. Every supported first ready submission of this controller is accepted
@@ -493,21 +514,26 @@ choice. This relation supplies no executable controller input. Equality of a
 decoded marginal alone is insufficient: different message histories can have
 the same decoded source state but lead to different later policy calls.
 
-The assembly proof should first establish support-level refinement for arbitrary
-accepted packets. Lookup inversion must recover the source occurrence and its
+`ApplicationPlan.handle_refines` establishes support-level refinement for
+arbitrary accepted packets. Lookup inversion recovers the source occurrence and
 backend certificates from the structural derivation. A successful opaque bind
-can be represented by its well-typed frozen value; for an unopenable binding,
-source `Legal` supplies a ghost legal choice. `UnrestrictedBinding` alone is
-insufficient for that existence argument when the value type is empty. Each
-successful handler update must preserve the represented reachable graph state,
-public readouts, and consistency of recoverable frozen values. The shared native
-and policy runners then lift that invariant to complete executions.
+is represented by its well-typed frozen value; for an unopenable binding, source
+`Legal` supplies a ghost legal choice. `UnrestrictedBinding` alone would be
+insufficient for this existence argument when the value type is empty. Each
+successful handler preserves the represented reachable graph state, public
+readouts, and recoverable snapshot consistency. The shared native and policy
+runners lift this invariant to arbitrary supported finite executions, without
+fairness or honest-player premises. This is a support theorem, not a strategy
+translation or equality of distributions.
 
 Source outcomes include sealed terminal bindings. The public application must
 report its actual public terminal bindings, with payout evaluation as one
 projection, rather than reconstruct hidden values from public memory. A
-support-level terminal theorem can provide a ghost source execution witnessing
-that public outcome. Equality of whole-profile outcome laws needs the separate
+terminal theorem in `ApplicationPlanOutcome` supplies an actual written-order
+source execution witnessing that public outcome. It starts at canonical native
+initialization, consumes the whole-run refinement, and uses an executable scan
+of completion flags; it does not assume a source simulation as a premise.
+Equality of whole-profile outcome laws needs the separate
 controller and information proof. In particular, unrestricted clock advancement
 and permissionless expiry can select a legal decline before an honest opening;
 the honest law needs a stated service/deadline condition excluding such
@@ -552,8 +578,8 @@ Retry cadence remains explicit: retries are real public traffic, not erased
 stuttering. The disclosure responder submits once. A separate non-Vegas
 regression invokes a stochastic retrying controller twice before inclusion and
 checks that both pending messages and command history contain the same draw.
-Completion still requires the separate service/deadline theorem. Whole public
-application generation, randomized full-profile laws, and unilateral deviation
+Completion still requires the separate service/deadline theorem. Whole-image
+controller generation, randomized full-profile laws, and unilateral deviation
 simulation remain open; a local first-emission law does not establish them.
 
 Conditional openings already have generated metadata in

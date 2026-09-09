@@ -147,16 +147,19 @@ theorem choice_publication_laws {G : Graph Player L} (cfg : Config G)
 reachable graph state. No intermediate graph event is invented or skipped. -/
 theorem reachable_choice_publication {G : Graph Player L} (cfg : Config G)
     (owner : Player) (choice publication : Fin G.nodeCount)
-    (value : L.Val (G.nodeRow publication).ty)
-    (step : CommitStep G cfg owner ⟨choice, ⟨(G.nodeRow publication).ty, value⟩⟩)
+    (written : TypedValue L)
+    (htype : written.ty = (G.nodeRow publication).ty)
+    (step : CommitStep G cfg owner ⟨choice, written⟩)
     (hsem : (G.nodeRow publication).sem = .reveal (G.nodeTarget choice))
-    (hready : Ready G
-      (cfg.completeNode choice ⟨(G.nodeRow publication).ty, value⟩) publication)
+    (hready : Ready G (cfg.completeNode choice written) publication)
     (hreachable : Reachable G cfg) :
-    Reachable G ((cfg.completeNode choice ⟨(G.nodeRow publication).ty, value⟩).completeNode
-      publication ⟨(G.nodeRow publication).ty, value⟩) := by
+    Reachable G ((cfg.completeNode choice written).completeNode publication written) := by
+  rcases written with ⟨writtenTy, value⟩
+  dsimp only [TypedValue.ty] at htype
+  subst writtenTy
   have hlaws := choice_publication_laws cfg owner choice publication value step hsem hready
-  have hmid : Reachable G (cfg.completeNode choice ⟨(G.nodeRow publication).ty, value⟩) :=
+  have hmid : Reachable G
+      (cfg.completeNode choice ⟨(G.nodeRow publication).ty, value⟩) :=
     Reachable.step hreachable (.commit owner _ step) (by
       change _ ∈ (stepCommit G cfg step).support
       rw [hlaws.1]

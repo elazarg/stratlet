@@ -82,6 +82,49 @@ private theorem public_ref_ne_source_field
   rw [hspec, hsourceOwner] at hpublicOwner
   cases hpublicOwner
 
+/-- At an arbitrary graph checkpoint, the public validator agrees with the
+compiled guard using the verified source field and its actual declared reads.
+No complete source environment or written-order prefix is required. -/
+theorem canOpen_eq_eval
+    (site : plan.OpeningSite) (fresh : FreshBindings prog)
+    (state : BuildState P L Γ) (representedStore publicStore : Store L)
+    (reads : ReadEnv L (site.compiledGuard fresh state).choiceReads)
+    (hreads : ReadEnv.ofStore? representedStore
+      (site.compiledGuard fresh state).choiceReads = some reads)
+    (heligible : site.PubliclyValidatable fresh state)
+    (hpublicStore : ∀ ref,
+      (compileCore prog fresh state).graph.fieldRefPublic ref →
+        Store.getAs publicStore ref.field ref.ty =
+          Store.getAs representedStore ref.field ref.ty)
+    (claimed : L.Val site.data.specification.secretTy)
+    (hclaimed : Store.getAs representedStore (site.sourceField fresh state)
+      site.data.specification.secretTy = some claimed) :
+    site.canOpen fresh state publicStore claimed =
+      (site.compiledGuard fresh state).eval
+        (site.data.specification.encoding.symm (some claimed)) reads := by
+  apply (site.compiledGuard fresh state).validate_eq_eval
+  intro ref href
+  have hread := ReadEnv.ofStore?_read hreads
+    ((site.compiledGuard fresh state).validationReads_subset_choiceReads href)
+  rcases heligible ref href with hsource | hpublic
+  · subst ref
+    calc
+      Store.getAs (site.verificationStore fresh state publicStore claimed)
+          (site.sourceRef fresh state).field (site.sourceRef fresh state).ty =
+          some claimed := by
+            simp [verificationStore, sourceRef, Store.getAs, Store.set, TypedValue.as?]
+      _ = Store.getAs representedStore (site.sourceRef fresh state).field
+          (site.sourceRef fresh state).ty := hclaimed.symm
+      _ = _ := hread
+  · calc
+      Store.getAs (site.verificationStore fresh state publicStore claimed)
+          ref.field ref.ty = Store.getAs publicStore ref.field ref.ty :=
+        Store.getAs_set_ne publicStore
+          (public_ref_ne_source_field site fresh state ref hpublic)
+          ⟨site.data.specification.secretTy, claimed⟩ ref.ty
+      _ = Store.getAs representedStore ref.field ref.ty := hpublicStore ref hpublic
+      _ = _ := hread
+
 /-- The executable predicate is exactly the source guard when the verified
 claim is the represented source value, every other dependency is public, and
 the runtime public store agrees with the represented store on public fields. -/
@@ -103,7 +146,6 @@ theorem canOpen_source
         (site.data.specification.encoding.symm (some claimed))
         ((env.toView site.data.owner).eraseEnv) := by
   let current := decisionSiteState site.data.decision fresh state
-  let guard := site.compiledGuard fresh state
   have havailable := visibleFieldRefs_store_available current site.data.owner
     representedStore hagrees.available
   let reads := ReadEnv.ofStore representedStore
@@ -112,49 +154,22 @@ theorem canOpen_source
       (visibleFieldRefs current site.data.owner) = some reads := by
     unfold ReadEnv.ofStore?
     rw [dif_pos havailable]
-  have hvalidation : guard.validate
-      (site.verificationStore fresh state publicStore claimed)
-      (site.data.specification.encoding.symm (some claimed)) =
-      guard.eval (site.data.specification.encoding.symm (some claimed)) reads := by
-    apply guard.validate_eq_eval
-    intro ref href
-    have hread := ReadEnv.ofStore?_read hreads
-      (guard.validationReads_subset_choiceReads href)
-    rcases heligible ref href with hsource | hpublic
-    · subst ref
-      calc
-        Store.getAs (site.verificationStore fresh state publicStore claimed)
-            (site.sourceRef fresh state).field (site.sourceRef fresh state).ty =
-            some claimed := by
-              simp [verificationStore, sourceRef, Store.getAs, Store.set,
-                TypedValue.as?]
-        _ = some (env.get site.data.specification.binding) := by rw [hclaimed]
-        _ = Store.getAs representedStore (site.sourceRef fresh state).field
-            (site.sourceRef fresh state).ty := by
-              symm
-              simpa [sourceRef, sourceField] using
-                hagrees site.data.specification.binding
-        _ = some (reads.read (site.sourceRef fresh state)
-            (guard.validationReads_subset_choiceReads href)) := hread
-    · calc
-        Store.getAs (site.verificationStore fresh state publicStore claimed)
-            ref.field ref.ty = Store.getAs publicStore ref.field ref.ty := by
-              exact Store.getAs_set_ne publicStore
-                (public_ref_ne_source_field site fresh state ref hpublic)
-                ⟨site.data.specification.secretTy, claimed⟩ ref.ty
-        _ = Store.getAs representedStore ref.field ref.ty := hpublicStore ref hpublic
-        _ = some (reads.read ref
-            (guard.validationReads_subset_choiceReads href)) := hread
-  rw [show site.canOpen fresh state publicStore claimed =
-      guard.validate (site.verificationStore fresh state publicStore claimed)
-        (site.data.specification.encoding.symm (some claimed)) by rfl,
-    hvalidation]
-  dsimp only [guard, compiledGuard]
+  have hvalue : Store.getAs representedStore (site.sourceField fresh state)
+      site.data.specification.secretTy = some claimed := by
+    simpa [sourceField, hclaimed] using hagrees site.data.specification.binding
+  rw [site.canOpen_eq_eval fresh state representedStore publicStore reads hreads
+    heligible hpublicStore claimed hvalue]
+  dsimp only [compiledGuard]
   rw [eventGuardOf_eval_eq_eval,
     viewEnvOfReadEnv_eq_sourceView current site.data.owner representedStore env
       (hagrees.view site.data.owner) reads hreads]
 
 end Vegas.CommitmentAccounting.OpeningSite
+
+/-- info: 'Vegas.CommitmentAccounting.OpeningSite.canOpen_eq_eval' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.CommitmentAccounting.OpeningSite.canOpen_eq_eval
 
 /--
 info: 'Vegas.CommitmentAccounting.OpeningSite.canOpen_source' depends on axioms: [propext,

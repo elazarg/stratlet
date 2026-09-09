@@ -119,6 +119,104 @@ theorem State.publishConditional_represents (state : State P L) (cfg : Config G)
   exact hrep.publish pair choice publication hchoice hpublication
     hchoiceField hpublicationField (code.encoding.symm result)
 
+/-- An actually accepted packet at a generated public-choice endpoint advances
+the represented graph by the corresponding commit/reveal pair. This is a
+checkpoint-local theorem: public dependency agreement and graph coherence are
+enough, so no complete source environment is reconstructed. -/
+theorem State.publicChoice_resolution_refines
+    {Γ : VCtx P L} {prog : VegasCore P L Γ}
+    (site : PublicChoiceSite prog) (fresh : FreshBindings prog)
+    (build : ToEventGraph.BuildState P L Γ)
+    (state : State P L)
+    (cfg : Config (ToEventGraph.compileCore prog fresh build).graph)
+    (hrep : state.memory.Represents cfg)
+    (heligible : site.PubliclyValidatable fresh build)
+    (hreachable : Reachable (ToEventGraph.compileCore prog fresh build).graph cfg)
+    (message : Message P (L.Val site.ty)) (value : L.Val site.ty)
+    (hresolve : (site.code fresh build).endpoint.resolve? state.memory.done
+      ((site.code fresh build).guard.validate state.memory.store) message = some value) :
+    (state.publish (site.code fresh build) value).memory.Represents
+        (site.completePublication fresh build cfg value) ∧
+      Reachable (ToEventGraph.compileCore prog fresh build).graph
+        (site.completePublication fresh build cfg value) := by
+  let G := (ToEventGraph.compileCore prog fresh build).graph
+  let choice := site.choiceNode fresh build
+  let publication := site.publicationNode fresh build
+  let guard := site.compiledGuard fresh build
+  have haccepted := ((site.code fresh build).endpoint.resolve_iff
+    state.memory.done ((site.code fresh build).guard.validate state.memory.store)
+    message value).mp hresolve
+  have hreadiness := G.publicChoice_ready cfg site.owner choice publication
+    state.memory.done hrep.completed haccepted.1
+  have hrow : G.nodes[choice]? = some ((site.siteState fresh build).commitEvent
+      site.owner site.guard) := site.choiceNode_row fresh build
+  have hcoherent : StoreCoherent G cfg :=
+    reachable_storeCoherent (ToEventGraph.compileCore prog fresh build).graphWF hreachable
+  have hnodeWF := (ToEventGraph.compileCore prog fresh build).graphWF choice
+    ((site.siteState fresh build).commitEvent site.owner site.guard) hrow
+  have hguardSem :
+      ((site.siteState fresh build).commitEvent site.owner site.guard).sem =
+        .commit site.owner guard := rfl
+  have hexReads := hcoherent.readEnvOfReady
+    (ToEventGraph.compileCore prog fresh build).graphWF hrow hreadiness.1
+    (refs := guard.choiceReads)
+    (by
+      intro ref href
+      rw [hguardSem]
+      exact Finset.mem_image.mpr ⟨ref, href, rfl⟩)
+    (by
+      intro ref href
+      unfold Graph.nodeWFAt at hnodeWF
+      rw [hguardSem] at hnodeWF
+      rcases hnodeWF.2.2.2 ref href with ⟨spec, hfield, hty, _⟩
+      exact ⟨spec, hfield, hty⟩)
+  rcases hexReads with ⟨reads, hreads⟩
+  have hvalidation : guard.validate state.memory.store value =
+      guard.eval value reads := by
+    apply guard.validate_eq_eval
+    intro ref href
+    calc
+      Store.getAs state.memory.store ref.field ref.ty =
+          Store.getAs cfg.store ref.field ref.ty :=
+        hrep.publicFields ref (heligible ref href)
+      _ = some (reads.read ref (guard.validationReads_subset_choiceReads href)) :=
+        ReadEnv.ofStore?_read hreads
+          (guard.validationReads_subset_choiceReads href)
+  have hguard : guard.eval value reads = true := by
+    rw [← hvalidation]
+    exact haccepted.2.2.1
+  let written : TypedValue L := ⟨site.ty, value⟩
+  have hstep : CommitStep G cfg site.owner
+      ⟨choice, written⟩ := by
+    have hguardType : guard.ty = site.ty := by rfl
+    exact
+      { row := (site.siteState fresh build).commitEvent site.owner site.guard
+        guard := guard
+        row_get := hrow
+        sem_eq := rfl
+        ready := hreadiness.1
+        value := value
+        value_ok := by simp [TypedValue.as?, hguardType, written]
+        env := reads
+        env_ok := hreads
+        guard_ok := hguard }
+  have hne : publication ≠ choice := by
+    intro heq
+    have hval := congrArg Fin.val heq
+    simp only [publication, choice, PublicChoiceSite.publicationNode_val,
+      PublicChoiceSite.choiceNode_val] at hval
+    omega
+  have hpublication : Ready G
+      (cfg.completeNode choice written)
+      publication :=
+    publication_ready_after_choice cfg choice publication _ hne
+      hreadiness.2.1 hreadiness.2.2
+  constructor
+  · exact hrep.publish (site.code fresh build) choice publication rfl rfl rfl rfl value
+  · exact reachable_choice_publication cfg site.owner choice publication written
+      (site.publicationNode_type fresh build).symm hstep
+      (site.publicationNode_sem fresh build) hpublication hreachable
+
 /-- A legal generated inclusion preserves public-memory representation and
 advances the represented graph by its certified choice/reveal macro. This
 provides the postcondition needed by a following generated instruction. -/
@@ -164,3 +262,8 @@ end Vegas.ApplicationImage
 [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.ApplicationImage.State.publishConditional_represents
+
+/-- info: 'Vegas.ApplicationImage.State.publicChoice_resolution_refines' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.ApplicationImage.State.publicChoice_resolution_refines

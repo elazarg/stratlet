@@ -6,7 +6,10 @@ Authors: VegasCore contributors
 
 import Vegas.Compile.ConditionalImage
 import Vegas.Compile.ApplicationImageBindings
+import Vegas.Compile.ApplicationImageOutcome
 import Vegas.Compile.ApplicationPlanAllocation
+import Vegas.Compile.ApplicationPlanRefinement
+import Vegas.Compile.ApplicationSourceOutcome
 import VegasTests.Game
 
 /-! # Generated conditional application image
@@ -236,6 +239,123 @@ theorem honest_run (secret : Bool) :
     MessageApplication.step, FinDist.pure_bind, FinDist.map_pure]
   cases secret <;> rfl
 
+/-- The same native execution decodes to the complete public terminal
+environment. Its two sealed source bindings do not occur in the result type. -/
+theorem honest_run_public_terminal (secret : Bool) :
+    ((image 10).application.run (honestActions secret) (initialExecution 10)).map
+      (fun execution =>
+        compiled.readPublicTerminal? execution.application.memory) =
+      FinDist.pure
+        (some (Env.cons (x := 2) (some secret) (Env.empty Val))) := by
+  simp only [honestActions, MessageApplication.run_cons, MessageApplication.run_nil,
+    MessageApplication.step, FinDist.pure_bind, FinDist.map_pure]
+  cases secret <;> rfl
+
+private theorem honest_run_finished_of_support (secret : Bool)
+    (next : (image 10).application.State)
+    (hnext : next ∈ ((image 10).application.run
+      (honestActions secret) (initialExecution 10)).support) :
+    next.application.memory.finished compiled.graph.nodeCount = true := by
+  cases secret <;>
+    simp only [honestActions, MessageApplication.run_cons,
+      MessageApplication.run_nil, MessageApplication.step, FinDist.pure_bind,
+      FinDist.mem_support_pure] at hnext
+  all_goals
+    subst next
+    rfl
+
+/-- The concrete native run obtains its graph witness from the generated plan,
+then the generic finished-state bridge reconstructs an actual source run and
+its public terminal bindings. -/
+theorem honest_run_source_public_outcome (secret : Bool)
+    (next : (image 10).application.State)
+    (hnext : next ∈ ((image 10).application.run
+      (honestActions secret) (initialExecution 10)).support) :
+    ∃ terminalEnv : VEnv simpleExpr compiled.terminalCtx,
+      SmallStep.Star
+        { ctx := source.Γ, env := source.env, cont := source.prog }
+        { ctx := compiled.terminalCtx, env := terminalEnv,
+          cont := .ret compiled.sourcePayoffs } ∧
+      compiled.readPublicTerminal? next.application.memory =
+        some terminalEnv.erasePubEnv := by
+  obtain ⟨cfg, hrefines⟩ := applicationPlan.run_refines (fun _ => 10)
+    source.env checked.legal (initialExecution 10) next (honestActions secret)
+    ⟨Config.initial compiled.graph, ApplicationImage.State.initial_refines compiled.graph⟩
+    hnext
+  exact source_public_outcome_of_refines source next.application cfg hrefines
+    (honest_run_finished_of_support secret next hnext)
+
+def unopenableDeclineActions : List (image 10).application.Action :=
+  [.submit 0 bindingPayload, .include (0, 0),
+    .submit 0 declinePayload, .include (0, 1)]
+
+private theorem unopenable_decline_finished_of_support
+    (next : (image 10).application.State)
+    (hnext : next ∈ ((image 10).application.run
+      unopenableDeclineActions (initialExecution 10)).support) :
+    next.application.memory.finished compiled.graph.nodeCount = true := by
+  simp only [unopenableDeclineActions, MessageApplication.run_cons,
+    MessageApplication.run_nil, MessageApplication.step, FinDist.pure_bind,
+    FinDist.mem_support_pure] at hnext
+  subst next
+  rfl
+
+/-- The whole-source bridge also covers an accepted but unopenable opaque
+binding followed by the certificate's public decline, rather than relying on
+a recoverable private preparation. -/
+theorem unopenable_decline_source_public_outcome
+    (next : (image 10).application.State)
+    (hnext : next ∈ ((image 10).application.run
+      unopenableDeclineActions (initialExecution 10)).support) :
+    ∃ terminalEnv : VEnv simpleExpr compiled.terminalCtx,
+      SmallStep.Star
+        { ctx := source.Γ, env := source.env, cont := source.prog }
+        { ctx := compiled.terminalCtx, env := terminalEnv,
+          cont := .ret compiled.sourcePayoffs } ∧
+      compiled.readPublicTerminal? next.application.memory =
+        some terminalEnv.erasePubEnv := by
+  obtain ⟨cfg, hrefines⟩ := applicationPlan.run_refines (fun _ => 10)
+    source.env checked.legal (initialExecution 10) next unopenableDeclineActions
+    ⟨Config.initial compiled.graph, ApplicationImage.State.initial_refines compiled.graph⟩
+    hnext
+  exact source_public_outcome_of_refines source next.application cfg hrefines
+    (unopenable_decline_finished_of_support next hnext)
+
+private def terminalPublicMemory (secret : Bool) :
+    ApplicationImage.Memory Player simpleExpr :=
+  { initialMemory with
+    store := initialMemory.store.set 2 ⟨.option .bool, some secret⟩ }
+
+/-- Public terminal decoding fails rather than inventing a missing or
+ill-typed public result. Data at sealed source fields is ignored. -/
+theorem public_terminal_readout_boundary (secret sealedValue : Bool) :
+    compiled.readPublicTerminal? initialMemory = none ∧
+      compiled.readPublicTerminal?
+          { initialMemory with
+            store := initialMemory.store.set 2 ⟨.bool, secret⟩ } = none ∧
+      compiled.readPublicTerminal?
+          { terminalPublicMemory secret with
+            store := (terminalPublicMemory secret).store.set 0 ⟨.bool, sealedValue⟩ } =
+        compiled.readPublicTerminal? (terminalPublicMemory secret) := by
+  constructor
+  · change (Store.getAs initialMemory.store 2 (.option .bool)).bind
+        (fun value => some (Env.cons value (Env.empty Val))) = none
+    rfl
+  constructor
+  · change (Store.getAs (initialMemory.store.set 2 ⟨.bool, secret⟩)
+        2 (.option .bool)).bind
+        (fun value => some (Env.cons value (Env.empty Val))) = none
+    rfl
+  · change (Store.getAs
+        ((terminalPublicMemory secret).store.set 0 ⟨.bool, sealedValue⟩)
+          2 (.option .bool)).bind
+          (fun value => some (Env.cons value (Env.empty Val))) =
+      (Store.getAs (terminalPublicMemory secret).store 2 (.option .bool)).bind
+        (fun value => some (Env.cons value (Env.empty Val)))
+    unfold Store.getAs
+    rw [Store.set_ne]
+    decide
+
 /-- Opaque admission has the same public result whether preparation exists or
 not. The private snapshot alone records openability. -/
 theorem binding_has_no_validity_oracle (secret : Bool) :
@@ -354,3 +474,11 @@ theorem replay_cannot_rerun (secret : Bool) :
   cases secret <;> rfl
 
 end VegasTests.ConditionalApplicationImage
+
+/-! The source/public-outcome regression remains kernel checked. -/
+
+/-- info: 'VegasTests.ConditionalApplicationImage.unopenable_decline_source_public_outcome' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms
+  VegasTests.ConditionalApplicationImage.unopenable_decline_source_public_outcome

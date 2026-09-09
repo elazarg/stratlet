@@ -5,7 +5,10 @@ Authors: VegasCore contributors
 -/
 
 import Vegas.Compile.ConditionalImage
+import Vegas.Compile.ConditionalExecution
 import Vegas.Compile.ApplicationImageBindings
+import Vegas.Compile.ApplicationImageRefinement
+import Vegas.Compile.ApplicationGuardSoundness
 
 /-! # Source refinement for generated conditional instructions
 
@@ -24,6 +27,121 @@ open Vegas.EventGraph Vegas.ToEventGraph Interaction
 variable {P : Type} [DecidableEq P] {L : IExpr}
 variable {Γ : VCtx P L} {pending : Finset VarId} {prog : VegasCore P L Γ}
 variable {plan : CommitmentAccounting pending prog}
+
+/-- An actually resolved generated conditional endpoint advances both the
+public application memory and a represented reachable graph checkpoint.  The
+source environment is needed only to inhabit hidden context for the certified
+decline branch.  A successful opening instead uses the frozen value's weak
+consistency with the represented graph store and the generated public
+validator; no full source-store agreement is assumed. -/
+theorem conditional_resolution_refines
+    (site : plan.OpeningSite) (fresh : FreshBindings prog)
+    (build : BuildState P L Γ) (sourceSlot deadline : Nat)
+    (initial : VEnv L Γ) (legal : Legal prog)
+    (native : ApplicationImage.State P L)
+    (cfg : Config (compileCore prog fresh build).graph)
+    (hrep : native.memory.Represents cfg)
+    (hreachable : Reachable (compileCore prog fresh build).graph cfg)
+    (heligible : site.PubliclyValidatable fresh build)
+    (hbinding : ∀ value,
+      (native.frozen (site.sourceField fresh build)).bind
+          (fun typed => typed.as? site.data.specification.secretTy) = some value →
+        Store.getAs cfg.store (site.sourceField fresh build)
+          site.data.specification.secretTy = some value)
+    (message : Message P
+      (ConditionalPublication.Payload P (L.Val site.data.specification.secretTy)))
+    (result : Option (L.Val site.data.specification.secretTy))
+    (hresolve : (site.code fresh build sourceSlot deadline).endpoint.resolve?
+      native.memory.clock (native.verify (site.code fresh build sourceSlot deadline))
+      (native.memory.accepted (site.sourceField fresh build)) native.memory.done
+      ((site.code fresh build sourceSlot deadline).canOpen native.memory.store)
+      message = some result) :
+    (native.publishConditional (site.code fresh build sourceSlot deadline) result).memory.Represents
+        (site.completePublication fresh build cfg result) ∧
+      Reachable (compileCore prog fresh build).graph
+        (site.completePublication fresh build cfg result) := by
+  let G := (compileCore prog fresh build).graph
+  let choice := site.choiceNode fresh build
+  let publication := site.publicationNode fresh build
+  let guard := site.compiledGuard fresh build
+  let code := site.code fresh build sourceSlot deadline
+  have hruntimeReady := code.endpoint.resolve_success_inversion native.memory.clock
+    (native.verify code) (native.memory.accepted code.sourceField) native.memory.done
+    (code.canOpen native.memory.store) message result hresolve
+  have hreadiness := G.conditionalPublication_ready cfg site.data.owner sourceSlot
+    choice publication deadline (native.memory.accepted code.sourceField)
+    native.memory.done hrep.completed hruntimeReady
+  have hrow : G.nodes[choice]? = some
+      ((decisionSiteState site.data.decision fresh build).commitEvent
+        site.data.owner site.data.guard) := site.choiceNode_row fresh build
+  have hcoherent : StoreCoherent G cfg :=
+    reachable_storeCoherent (compileCore prog fresh build).graphWF hreachable
+  have hnodeWF := (compileCore prog fresh build).graphWF choice
+    ((decisionSiteState site.data.decision fresh build).commitEvent
+      site.data.owner site.data.guard) hrow
+  have hguardSem :
+      ((decisionSiteState site.data.decision fresh build).commitEvent
+        site.data.owner site.data.guard).sem = .commit site.data.owner guard := rfl
+  have hexReads := hcoherent.readEnvOfReady
+    (compileCore prog fresh build).graphWF hrow hreadiness.1
+    (refs := guard.choiceReads)
+    (by
+      intro ref href
+      rw [hguardSem]
+      exact Finset.mem_image.mpr ⟨ref, href, rfl⟩)
+    (by
+      intro ref href
+      unfold Graph.nodeWFAt at hnodeWF
+      rw [hguardSem] at hnodeWF
+      rcases hnodeWF.2.2.2 ref href with ⟨spec, hfield, hty, _⟩
+      exact ⟨spec, hfield, hty⟩)
+  rcases hexReads with ⟨reads, hreads⟩
+  have hguard : guard.eval (site.data.specification.encoding.symm result) reads = true := by
+    cases result with
+    | none => exact site.decline_guard_eval fresh build initial legal reads
+    | some claimed =>
+        have hverified := code.endpoint.resolve_some_verified native.memory.clock
+          (native.verify code) (native.memory.accepted code.sourceField) native.memory.done
+          (code.canOpen native.memory.store) message claimed hresolve
+        have hfrozen : (native.frozen (site.sourceField fresh build)).bind
+            (fun typed => typed.as? site.data.specification.secretTy) = some claimed := by
+          simpa [ApplicationImage.State.verify, code,
+            CommitmentAccounting.OpeningSite.code] using hverified
+        have hclaimed := hbinding claimed hfrozen
+        have hcanOpen := code.endpoint.resolve_some_canOpen native.memory.clock
+          (native.verify code) (native.memory.accepted code.sourceField) native.memory.done
+          (code.canOpen native.memory.store) message claimed hresolve
+        change site.canOpen fresh build native.memory.store claimed = true at hcanOpen
+        rw [site.canOpen_eq_eval fresh build cfg.store native.memory.store reads hreads
+          heligible hrep.publicFields claimed hclaimed] at hcanOpen
+        exact hcanOpen
+  let written : TypedValue L :=
+    ⟨site.data.copyTy, site.data.specification.encoding.symm result⟩
+  have hstep : CommitStep G cfg site.data.owner ⟨choice, written⟩ := by
+    have hguardType : guard.ty = site.data.copyTy := by rfl
+    exact
+      { row := (decisionSiteState site.data.decision fresh build).commitEvent
+          site.data.owner site.data.guard
+        guard := guard
+        row_get := hrow
+        sem_eq := rfl
+        ready := hreadiness.1
+        value := site.data.specification.encoding.symm result
+        value_ok := by simp [TypedValue.as?, hguardType, written]
+        env := reads
+        env_ok := hreads
+        guard_ok := hguard }
+  have hpublication : Ready G (cfg.completeNode choice written) publication :=
+    publication_ready_after_choice cfg choice publication written
+      (site.publicationNode_ne_choiceNode fresh build)
+      hreadiness.2.1 hreadiness.2.2
+  have hnext := reachable_choice_publication cfg site.data.owner choice publication written
+    (site.publicationNode_type fresh build).symm hstep
+    (site.publicationNode_sem fresh build) hpublication hreachable
+  constructor
+  · exact native.publishConditional_represents cfg hrep code choice publication
+      rfl rfl rfl rfl result
+  · exact hnext
 
 /-- A legal source choice produces a canonical dynamically typed packet that
 the generated application image accepts. The frozen premise is deliberately
@@ -166,6 +284,11 @@ end Vegas.CommitmentAccounting.OpeningSite
 depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.CommitmentAccounting.OpeningSite.canonical_request_accepted
+
+/-- info: 'Vegas.CommitmentAccounting.OpeningSite.conditional_resolution_refines'
+depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.CommitmentAccounting.OpeningSite.conditional_resolution_refines
 
 /-- info: 'Vegas.CommitmentAccounting.OpeningSite.include_conditional_source_steps'
 depends on axioms: [propext, Classical.choice, Quot.sound] -/

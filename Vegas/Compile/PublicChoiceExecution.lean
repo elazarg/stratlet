@@ -79,27 +79,18 @@ theorem completePublication_reachable
   let publication := publicationNode site fresh state
   have hreadiness := G.publicChoice_ready cfg site.owner choice publication done
     hcompleted hready
-  have htype : (G.nodeRow publication).ty = site.ty :=
-    publicationNode_type site fresh state
-  let graphValue : L.Val (G.nodeRow publication).ty :=
-    cast (congrArg L.Val htype.symm) value
-  have hvalue : (⟨(G.nodeRow publication).ty, graphValue⟩ : TypedValue L) =
-      ⟨site.ty, value⟩ := by
-    apply TypedValue.eq_mk_of_as?_eq_some
-    simp [TypedValue.as?, htype, graphValue]
+  let written : TypedValue L := ⟨site.ty, value⟩
   have step : CommitStep G cfg site.owner
-      ⟨choice, ⟨(G.nodeRow publication).ty, graphValue⟩⟩ := by
-    rw [hvalue]
+      ⟨choice, written⟩ := by
     exact (siteState site fresh state).sourceCommitStep site.owner site.guard cfg env
       hagrees choice (choiceNode_row site fresh state) hreadiness.1 value hlegal
   have hpublication : Ready G
-      (cfg.completeNode choice ⟨(G.nodeRow publication).ty, graphValue⟩) publication :=
+      (cfg.completeNode choice written) publication :=
     publication_ready_after_choice cfg choice publication _
       (publicationNode_ne_choiceNode site fresh state) hreadiness.2.1 hreadiness.2.2
-  have hnext := reachable_choice_publication cfg site.owner choice publication graphValue
-    step (publicationNode_sem site fresh state) hpublication hreachable
-  rw [hvalue] at hnext
-  exact hnext
+  exact reachable_choice_publication cfg site.owner choice publication written
+    (publicationNode_type site fresh state).symm step
+    (publicationNode_sem site fresh state) hpublication hreachable
 
 /-- Under validator completeness, every legal source value is accepted by its
 canonical owner-authored runtime request at a ready generated site. -/

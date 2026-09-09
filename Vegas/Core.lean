@@ -17,6 +17,7 @@ import Vegas.Core.OpeningSite
 import Vegas.Core.Scope
 import Vegas.Core.SmallStep
 import Vegas.Core.Strategy
+import Vegas.Core.SourceContext
 import Vegas.Core.WellFormed
 
 /-! Checked source syntax, expressions, obligations, source SOS, and source strategies. -/

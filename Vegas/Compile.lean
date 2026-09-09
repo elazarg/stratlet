@@ -21,12 +21,22 @@ import Vegas.Compile.ApplicationImageInvariants
 import Vegas.Compile.ApplicationPlan
 import Vegas.Compile.ApplicationPlanCoverage
 import Vegas.Compile.ApplicationPlanAllocation
+import Vegas.Compile.ApplicationPlanOrigin
+import Vegas.Compile.ApplicationGuardSoundness
+import Vegas.Compile.BindingResolution
 import Vegas.Compile.ConditionalOpeningValidation
 import Vegas.Compile.ConditionalImage
 import Vegas.Compile.ConditionalImageRefinement
 import Vegas.Compile.PublicChoiceImage
 import Vegas.Compile.ApplicationImageController
 import Vegas.Compile.ApplicationImageRefinement
+import Vegas.Compile.BindingImageRefinement
+import Vegas.Compile.ApplicationImageOutcome
+import Vegas.Compile.ApplicationImageStateRefinement
+import Vegas.Compile.PublicationStateRefinement
+import Vegas.Compile.ApplicationPlanRefinement
+import Vegas.Compile.ApplicationSourceOutcome
+import Vegas.Compile.ApplicationPlanOutcome
 import Vegas.Compile.SourceChoiceController
 import Vegas.Compile.PublicGuard
 import Vegas.Compile.DecisionSite
@@ -61,7 +71,9 @@ import Vegas.Compile.SealedTimeoutRefinement
 `Compiler` lowers a `GraphProgram` / `WFProgram` into a canonical
 `EventGraph.Graph` with typed fields, causal dependencies, guarded commit
 nodes, exact finite laws, and terminal payoff projections.
-Public-choice and conditional-publication components connect certified source
-occurrences to shared runtime handlers; whole public-application generation and
-its strategic correspondence remain separate obligations.
+Structural application plans generate binding and publication instructions.
+Arbitrary supported public-message executions refine reachable graph states;
+completed runs have the public outcome of a written-order source execution.
+Whole-profile laws and strategic correspondence for this target remain separate
+obligations.
 -/

@@ -7,6 +7,7 @@ Authors: VegasCore contributors
 import Vegas.Game.SourceCorrelated
 import Vegas.Scheduled.SourceCorrespondence
 import Vegas.Core.AccountingIntegrity
+import Vegas.Compile.ApplicationPlanOutcome
 
 /-! # Paper-facing independent-source correspondence claims -/
 
@@ -32,6 +33,59 @@ theorem initial_binding_accounted (source : WFProgram Player L) (name : VarId)
 theorem binding_resolutions_nodup (source : WFProgram Player L) :
     source.accounted.resolvedSources.Nodup :=
   source.resolutions_nodup
+
+/-- Public-message compilation preserves possible completed public outcomes;
+the source run and runtime initialization are both explicit. -/
+theorem public_application_outcome (source : WFProgram Player L)
+    (plan : ApplicationPlan source.accounted source.core.fresh
+      (ToEventGraph.BuildState.fromInitial
+        (ToEventGraph.initialState source.core.Γ source.core.env source.core.wctx)))
+    (deadlineOf : Nat → Nat)
+    (actions : List (plan.image deadlineOf).application.Action)
+    (next : (plan.image deadlineOf).application.State)
+    (hnext : next ∈ ((plan.image deadlineOf).application.run actions
+      (Interaction.MessageApplication.State.initial (plan.image deadlineOf).application
+        (ApplicationImage.State.initial
+          (ApplicationImage.Memory.initial (ToEventGraph.compile source.core).graph)))).support)
+    (hfinished : next.application.memory.finished
+      (ToEventGraph.compile source.core).graph.nodeCount = true) :
+    ∃ terminalEnv : VEnv L (ToEventGraph.compile source.core).terminalCtx,
+      SmallStep.Star
+        { ctx := source.core.Γ, env := source.core.env, cont := source.core.prog }
+        { ctx := (ToEventGraph.compile source.core).terminalCtx, env := terminalEnv,
+          cont := .ret (ToEventGraph.compile source.core).sourcePayoffs } ∧
+      (ToEventGraph.compile source.core).readPublicTerminal? next.application.memory =
+        some terminalEnv.erasePubEnv :=
+  ApplicationPlan.run_source_public_outcome source plan deadlineOf actions next hnext hfinished
+
+/-- The same public-outcome safety statement quantifies over arbitrary
+randomized policies, without asserting a source-policy correspondence. -/
+theorem public_application_policy_outcome (source : WFProgram Player L)
+    (plan : ApplicationPlan source.accounted source.core.fresh
+      (ToEventGraph.BuildState.fromInitial
+        (ToEventGraph.initialState source.core.Γ source.core.env source.core.wctx)))
+    (deadlineOf : Nat → Nat)
+    (players : Player → (plan.image deadlineOf).application.PlayerPolicy)
+    (environment : (plan.image deadlineOf).application.EnvironmentPolicy)
+    (schedule : List (@Interaction.MessageApplication.Invocation Player))
+    (next : (plan.image deadlineOf).application.PolicyExecution)
+    (hnext : next ∈ ((plan.image deadlineOf).application.runPolicies
+      players environment schedule
+      (Interaction.MessageApplication.PolicyExecution.initial (plan.image deadlineOf).application
+        (Interaction.MessageApplication.State.initial (plan.image deadlineOf).application
+          (ApplicationImage.State.initial
+            (ApplicationImage.Memory.initial (ToEventGraph.compile source.core).graph))))).support)
+    (hfinished : next.native.application.memory.finished
+      (ToEventGraph.compile source.core).graph.nodeCount = true) :
+    ∃ terminalEnv : VEnv L (ToEventGraph.compile source.core).terminalCtx,
+      SmallStep.Star
+        { ctx := source.core.Γ, env := source.core.env, cont := source.core.prog }
+        { ctx := (ToEventGraph.compile source.core).terminalCtx, env := terminalEnv,
+          cont := .ret (ToEventGraph.compile source.core).sourcePayoffs } ∧
+      (ToEventGraph.compile source.core).readPublicTerminal? next.native.application.memory =
+        some terminalEnv.erasePubEnv :=
+  ApplicationPlan.runPolicies_source_public_outcome source plan deadlineOf players environment
+    schedule next hnext hfinished
 
 variable [Fintype Player]
 
@@ -281,5 +335,15 @@ theorem scheduled_request_approximate_nash_iff (source : WFProgram Player L)
 /-- info: 'Vegas.Paper.Source.scheduled_request_approximate_nash_iff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs (whitespace := lax) in
 #print axioms Vegas.Paper.Source.scheduled_request_approximate_nash_iff
+
+/-- info: 'Vegas.Paper.Source.public_application_outcome' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Source.public_application_outcome
+
+/-- info: 'Vegas.Paper.Source.public_application_policy_outcome' depends on axioms:
+[propext, Classical.choice, Quot.sound] -/
+#guard_msgs (whitespace := lax) in
+#print axioms Vegas.Paper.Source.public_application_policy_outcome
 
 end Vegas.Paper.Source

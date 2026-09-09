@@ -527,22 +527,31 @@ unique dispatch addresses; emitted membership gives exact lookup.
 `ApplicationPlanAllocation` proves canonical target fields, no duplicate field
 allocation, and the shared source-field/commitment-slot convention. The checked
 mixed-type and conditional examples use this structural generator and its
-coverage/lookup theorems. These are compiler allocation results, not a
-whole-execution simulation.
+coverage/lookup theorems. `ApplicationPlanOrigin` recovers the source occurrence
+and its eligibility certificates from arbitrary successful dispatch.
+`ApplicationPlanRefinement` then proves that every supported finite native or
+randomized policy run retains a reachable graph witness, matching public storage
+and completion flags and relating accepted snapshots to their sealed source
+fields. Its premises do not restrict messages to generated packets.
 
 Chance, unpaired literal reveals, initial default resolution, and autonomous
 publicly forced execution have no derivation constructors yet. Initial sealed
 inputs also require explicit provisioning; filtering them out of public memory
-does not implement it. A complete initialized program artifact, output
-projection, assembled source-policy correspondence, and unilateral deviation
-simulation remain to be integrated. Local soundness of a conditional instruction
-does not establish these whole-run properties.
+does not implement it. Complete initialization, assembled source-policy
+correspondence, and unilateral deviation simulation remain to be integrated.
+`ApplicationImageOutcome` decodes actual public terminal fields, rejecting
+missing or ill-typed public data and ignoring sealed fields.
+`ApplicationPlanOutcome` starts at the actual empty-pool initialization and
+proves that every completed supported execution has the public outcome of a
+written-order source execution. Completion is tested by a finite scan of native
+flags. This is a whole-run support theorem, not a settlement guarantee or an
+equality of profile laws.
 
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.
 This includes absent and ill-typed snapshots and requires no well-formed-image
 premise. It fixes acceptance-time verification data; source consistency of that
-data belongs to the separate compilation relation.
+data is additionally established by the generated-plan refinement relation.
 
 `VegasTests/ConditionalApplicationImage.lean` uses a checked three-node source
 with an unrestricted initial binding and an accounted optional publication.
