@@ -4,7 +4,7 @@ Released under MIT license as described in the file LICENSE.
 Authors: VegasCore contributors
 -/
 
-import Vegas.Compile.ApplicationImage
+import Vegas.Compile.ApplicationImageSamples
 import Interaction.MessageApplicationLaws
 import Interaction.MessageApplicationPolicyLaws
 
@@ -51,6 +51,12 @@ theorem environmentStep_acceptedSnapshot (image : ApplicationImage P L)
       simp only [application, FinDist.mem_support_pure] at hnext
       subst next
       exact hstate
+  | sample address =>
+      change next ∈ (image.sample state address).support at hnext
+      rcases image.sample_support state address next hnext with rfl |
+        ⟨code, reads, value, _, _, _, _, _, rfl⟩
+      · exact hstate
+      · exact hstate
 
 theorem handle_acceptedSnapshot (image : ApplicationImage P L)
     (field : Nat) (acceptedHandle : CommitmentHandle P Nat)
@@ -70,6 +76,7 @@ theorem handle_acceptedSnapshot (image : ApplicationImage P L)
           | none => simp [ApplicationImage.handle, hlookup] at hnext
           | some instruction =>
               cases instruction with
+              | sample code => simp [ApplicationImage.handle, hlookup] at hnext
               | bind code => simp [ApplicationImage.handle, hlookup] at hnext
               | conditional code => simp [ApplicationImage.handle, hlookup] at hnext
               | publicChoice code =>
@@ -91,6 +98,7 @@ theorem handle_acceptedSnapshot (image : ApplicationImage P L)
           | none => simp [ApplicationImage.handle, hlookup] at hnext
           | some instruction =>
               cases instruction with
+              | sample code => simp [ApplicationImage.handle, hlookup] at hnext
               | publicChoice code => simp [ApplicationImage.handle, hlookup] at hnext
               | conditional code => simp [ApplicationImage.handle, hlookup] at hnext
               | bind code =>
@@ -114,6 +122,7 @@ theorem handle_acceptedSnapshot (image : ApplicationImage P L)
           | none => simp [ApplicationImage.handle, hlookup] at hnext
           | some instruction =>
               cases instruction with
+              | sample code => simp [ApplicationImage.handle, hlookup] at hnext
               | publicChoice code => simp [ApplicationImage.handle, hlookup] at hnext
               | bind code => simp [ApplicationImage.handle, hlookup] at hnext
               | conditional code =>

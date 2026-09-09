@@ -307,26 +307,28 @@ theorem delivered_rejection_stays_known :
   refine ⟨rfl, rfl, ?_⟩
   rfl
 
-def unsupportedSampleCore : VegasCore Player simpleExpr [] :=
+def sampleCore : VegasCore Player simpleExpr [] :=
   .sample 0 (.weighted (b := .bool) fairCoin) (.ret [])
 
-theorem unsupportedSampleFresh : FreshBindings unsupportedSampleCore := by
-  simp [unsupportedSampleCore, FreshBindings, Fresh]
+theorem sampleFresh : FreshBindings sampleCore := by
+  simp [sampleCore, FreshBindings, Fresh]
 
-def unsupportedSampleAccounting : CommitmentAccounting ∅ unsupportedSampleCore := by
-  unfold unsupportedSampleCore
+def sampleAccounting : CommitmentAccounting ∅ sampleCore := by
+  unfold sampleCore
   apply CommitmentAccounting.sample
   exact CommitmentAccounting.ret rfl
 
-def unsupportedSampleState : BuildState Player simpleExpr [] :=
+def sampleState : BuildState Player simpleExpr [] :=
   BuildState.fromInitial (ToEventGraph.initialState [] (VEnv.empty simpleExpr) (by simp))
 
-/-- This is a backend-eligibility failure, not a source rejection: the current
-application plan has no constructor that could silently discard a chance node. -/
-theorem sample_requires_an_instruction :
-    ¬Nonempty (ApplicationPlan unsupportedSampleAccounting unsupportedSampleFresh
-      unsupportedSampleState) := by
-  rintro ⟨plan⟩
-  cases plan
+def samplePlan : ApplicationPlan sampleAccounting sampleFresh sampleState := by
+  unfold sampleAccounting sampleCore
+  apply ApplicationPlan.sample
+  apply ApplicationPlan.ret
+
+/-- A standalone source sample emits an actual chance instruction. -/
+theorem sample_emits_instruction :
+    ∃ code, samplePlan.instructions (fun _ => 0) = [.sample code] := by
+  exact ⟨ApplicationPlan.headSampleCode sampleFresh sampleState, rfl⟩
 
 end VegasTests.ApplicationImage

@@ -16,6 +16,7 @@ import Vegas.Compile.PublicChoiceExecution
 import Vegas.Compile.PublicChoiceValidation
 import Vegas.Compile.PublicChoiceController
 import Vegas.Compile.ApplicationImage
+import Vegas.Compile.ApplicationImageSamples
 import Vegas.Compile.ApplicationImageBindings
 import Vegas.Compile.ApplicationImageInvariants
 import Vegas.Compile.ApplicationPlan
@@ -28,6 +29,8 @@ import Vegas.Compile.ConditionalOpeningValidation
 import Vegas.Compile.ConditionalImage
 import Vegas.Compile.ConditionalImageRefinement
 import Vegas.Compile.PublicChoiceImage
+import Vegas.Compile.SampleImage
+import Vegas.Compile.SampleImageRefinement
 import Vegas.Compile.ApplicationImageController
 import Vegas.Compile.ApplicationImageRefinement
 import Vegas.Compile.BindingImageRefinement
@@ -71,7 +74,7 @@ import Vegas.Compile.SealedTimeoutRefinement
 `Compiler` lowers a `GraphProgram` / `WFProgram` into a canonical
 `EventGraph.Graph` with typed fields, causal dependencies, guarded commit
 nodes, exact finite laws, and terminal payoff projections.
-Structural application plans generate binding and publication instructions.
+Structural application plans generate binding, chance, and publication instructions.
 Arbitrary supported public-message executions refine reachable graph states;
 completed runs have the public outcome of a written-order source execution.
 Whole-profile laws and strategic correspondence for this target remain separate

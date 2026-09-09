@@ -23,7 +23,7 @@ The acceptance inventory has two axes:
 | Requirement | Public-message path | Required endpoint |
 | --- | --- | --- |
 | Independent source meaning | Source-to-graph connection, terminal native support, local source-decision laws, and exact independent-source law for the generated pure disclosure policies under a specified inclusion script | The actual supported source's choices, information, nonresponse consequences, and outcomes are the comparison endpoint. |
-| Source coverage | Structural binding/public-choice/conditional-publication compilation with whole-run support refinement; source-generated disclosure controllers in a program-specific phase assembly | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
+| Source coverage | Structural binding/chance/public-choice/conditional-publication compilation with whole-run support refinement; source-generated disclosure controllers in a program-specific phase assembly | General supported finite typed programs with guards, chance, and multistage dependencies; implementation conditions are explicit and exercised. |
 | Hostile interaction | Raw traffic, local delivery, replay, addressed public inclusion, ideal binding/hiding; initialized disclosure settlement against arbitrary opposing policies under the stated slotted service | Whole interaction, failure, deadline and observation behavior under the theorem's complete player/environment policy classes. |
 | Strategic comparison | Release-time hiding/choice independence and selective-publication obstruction | Compiled-profile law plus arbitrary unilateral-deviation comparison, with the corresponding source-outcome bounds and equilibrium results. |
 | Substantive application | The private-window sealed offer and a public-message compiled-prefix fixture | The application, its emitted controllers/handlers, and its guarantees use the same public-message compiler path. |
@@ -301,14 +301,16 @@ Whole-application controller generation, randomized full-profile laws, and the
 public-runtime strategic comparison remain open; these local components do
 not establish intermediate-observation equivalence.
 
-The next source-width steps are a native chance instruction with the exact
-`EventDist.eval` kernel, and conditional endpoints certified independently of
-whether that site performs the unique accounting discharge. The latter is
+Generated chance instructions use the exact `EventDist.eval` kernel, with an
+address-only environment command and no reroll after completion. This assumes
+ideal unbiased entropy, to be realized by a separate target edge.
+The next source-width step is conditional endpoints certified independently of
+whether that site performs the unique accounting discharge. This is
 needed for later optional copies of a retained binding: checked accounting
 already permits them as ordinary commit/reveal pairs, but their private guard
 dependency prevents treating them as ordinary publicly validated choices.
-These extensions should instantiate the existing optional and persistent
-disclosure programs, retaining the shared interpreter and whole-run invariant.
+The retained-binding extension should instantiate the existing persistent
+disclosure program, retaining the shared interpreter and whole-run invariant.
 Initial sealed-input provisioning/defaults and automatic execution of publicly
 forced choices remain additional gates, not assumptions supplied by accounting.
 

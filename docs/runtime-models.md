@@ -522,6 +522,14 @@ openings, and an unrestricted original guard for opaque bindings. The last
 condition is necessary for the current unvalidated binding instruction: a later
 opening guard need not enforce the original binding's restrictions.
 
+Chance instructions retain the exact graph distribution code and use public
+typed reads. The environment can trigger a ready address but cannot supply a
+sampled value. Successful invocation atomically completes the instruction;
+another invocation cannot redraw. `ApplicationImage.sample_law_refines` proves
+equality with the graph's local distribution and refinement of every supported
+draw. This assumes ideal unbiased entropy. A concrete entropy mechanism and
+whole-profile laws under adaptive invocation timing require separate proofs.
+
 `ApplicationPlanCoverage` proves exact consecutive graph-node coverage and
 unique dispatch addresses; emitted membership gives exact lookup.
 `ApplicationPlanAllocation` proves canonical target fields, no duplicate field
@@ -534,7 +542,7 @@ randomized policy run retains a reachable graph witness, matching public storage
 and completion flags and relating accepted snapshots to their sealed source
 fields. Its premises do not restrict messages to generated packets.
 
-Chance, unpaired literal reveals, initial default resolution, and autonomous
+Unpaired literal reveals, initial default resolution, and autonomous
 publicly forced execution have no derivation constructors yet. Initial sealed
 inputs also require explicit provisioning; filtering them out of public memory
 does not implement it. Complete initialization, assembled source-policy
@@ -546,6 +554,16 @@ proves that every completed supported execution has the public outcome of a
 written-order source execution. Completion is tested by a finite scan of native
 flags. This is a whole-run support theorem, not a settlement guarantee or an
 equality of profile laws.
+
+`VegasTests/GeneratedDisclosure.lean` compiles the complete eight-event optional
+disclosure source through this generator. A concrete message run prepares and
+binds the secret, publishes the forced marker, invokes chance, declines
+disclosure, and publishes a response. Its checked public law retains the exact
+source coin distribution and reports all nodes finished on every supported
+branch. Repeating the chance invocation leaves this law unchanged. A supported
+completed run is then given an actual written-order source witness by the
+general compiler theorem. This is a concrete completion example, not a
+whole-program policy or service theorem.
 
 `ApplicationImageInvariants` proves that every accepted handle and its frozen
 snapshot persist through arbitrary supported native and policy executions.

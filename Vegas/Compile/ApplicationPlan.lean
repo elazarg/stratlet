@@ -6,6 +6,8 @@ Authors: VegasCore contributors
 
 import Vegas.Compile.ConditionalImage
 import Vegas.Compile.PublicChoiceImage
+import Vegas.Compile.SampleImage
+import Vegas.Compile.SourceExecution
 
 /-! # Structural derivations for public-application generation
 
@@ -62,6 +64,14 @@ inductive ApplicationPlan :
       (empty : pending = ∅) (fresh : FreshBindings (.ret payoffs))
       (state : BuildState P L Γ) :
       ApplicationPlan (.ret empty) fresh state
+  | sample {Γ : VCtx P L} {pending : Finset VarId} {name : VarId} {ty : L.Ty}
+      {dist : L.DistExpr (erasePubVCtx Γ) ty}
+      {tail : VegasCore P L ((name, .pub ty) :: Γ)}
+      {accounted : CommitmentAccounting pending tail}
+      {fresh : FreshBindings (.sample name dist tail)} {state : BuildState P L Γ}
+      (next : ApplicationPlan accounted fresh.2
+        (state.addSampleEvent name dist fresh.1).1) :
+      ApplicationPlan (.sample accounted) fresh state
   | binding {Γ : VCtx P L} {pending : Finset VarId} {name : VarId} {who : P}
       {ty : L.Ty} {guard : L.Expr ((name, ty) :: eraseVCtx (viewVCtx who Γ)) L.bool}
       {tail : VegasCore P L ((name, .sealed who ty) :: Γ)}
@@ -103,6 +113,64 @@ inductive ApplicationPlan :
 
 namespace ApplicationPlan
 
+/-- The next source sample, viewed at its canonical node in the final compiled
+graph.  This is a head-occurrence helper, not a source evaluator. -/
+noncomputable def headSampleCode
+    {Γ : VCtx P L} {name : VarId} {ty : L.Ty}
+    {dist : L.DistExpr (erasePubVCtx Γ) ty}
+    {tail : VegasCore P L ((name, .pub ty) :: Γ)}
+    (fresh : FreshBindings (.sample name dist tail)) (state : BuildState P L Γ) :
+    SampleCode L := by
+  let result := compileCore (.sample name dist tail) fresh state
+  let event := state.sampleEvent dist
+  have hprefix : state.nodes ++ [event] <+: result.nodes := by
+    change state.nodes ++ [state.sampleEvent dist] <+:
+      (compileCore tail fresh.2 (state.addSampleEvent name dist fresh.1).1).nodes
+    simpa only [BuildState.addSampleEvent_nodes] using
+      compileCore_nodes_prefix tail fresh.2 (state.addSampleEvent name dist fresh.1).1
+  let next := compiledNext state result event hprefix
+  exact result.graph.sampleCode next.node (eventDistOf state dist)
+
+@[simp] theorem headSampleCode_node
+    {Γ : VCtx P L} {name : VarId} {ty : L.Ty}
+    {dist : L.DistExpr (erasePubVCtx Γ) ty}
+    {tail : VegasCore P L ((name, .pub ty) :: Γ)}
+    (fresh : FreshBindings (.sample name dist tail)) (state : BuildState P L Γ) :
+    (headSampleCode fresh state).node = state.nodes.length := rfl
+
+@[simp] theorem headSampleCode_dist
+    {Γ : VCtx P L} {name : VarId} {ty : L.Ty}
+    {dist : L.DistExpr (erasePubVCtx Γ) ty}
+    {tail : VegasCore P L ((name, .pub ty) :: Γ)}
+    (fresh : FreshBindings (.sample name dist tail)) (state : BuildState P L Γ) :
+    (headSampleCode fresh state).dist = eventDistOf state dist := rfl
+
+@[simp] theorem headSampleCode_outputField
+    {Γ : VCtx P L} {name : VarId} {ty : L.Ty}
+    {dist : L.DistExpr (erasePubVCtx Γ) ty}
+    {tail : VegasCore P L ((name, .pub ty) :: Γ)}
+    (fresh : FreshBindings (.sample name dist tail)) (state : BuildState P L Γ) :
+    (headSampleCode fresh state).outputField = state.nextField := by
+  simp [headSampleCode, Graph.sampleCode, Graph.nodeTarget, BuildResult.graph,
+    compileCore_initialFields, compiledNext, BuildState.nextField, BuildState.nextNode]
+
+/-- The emitted prerequisite list is exactly the final graph's list at the
+source sample's canonical node. -/
+theorem headSampleCode_requires
+    {Γ : VCtx P L} {name : VarId} {ty : L.Ty}
+    {dist : L.DistExpr (erasePubVCtx Γ) ty}
+    {tail : VegasCore P L ((name, .pub ty) :: Γ)}
+    (fresh : FreshBindings (.sample name dist tail)) (state : BuildState P L Γ)
+    (node : Fin (compileCore (.sample name dist tail) fresh state).graph.nodeCount)
+    (hnode : node.val = state.nodes.length) :
+    (headSampleCode fresh state).requires =
+      (compileCore (.sample name dist tail) fresh state).graph.messagePrerequisites node := by
+  unfold headSampleCode
+  dsimp only [Graph.sampleCode]
+  congr 1
+  apply Fin.ext
+  exact hnode.symm
+
 /-- Emit directly into the shared application instruction set. Code generation
 uses the source allocation for both binding fields and private service slots. -/
 def instructions (deadlineOf : Nat → Nat) :
@@ -111,6 +179,12 @@ def instructions (deadlineOf : Nat → Nat) :
       {state : BuildState P L Γ} → ApplicationPlan accounted fresh state →
         List (ApplicationInstruction P L)
   | _, _, _, _, _, _, .ret _ _ _ => []
+  | _, _, _, _, _, _,
+      .sample (pending := pending) (name := name) (dist := dist) (tail := tail)
+        (accounted := accounted)
+        (fresh := fresh) (state := state) next =>
+      .sample (headSampleCode (P := P) fresh state) ::
+        instructions deadlineOf next
   | _, _, _, _, _, _,
       .binding (name := name) (who := who) (guard := guard) (tail := tail)
         (fresh := fresh) (state := state) _ next =>

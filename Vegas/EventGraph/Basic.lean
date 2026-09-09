@@ -349,6 +349,19 @@ theorem ofStoreExec?_isSome_of_ofStore?_eq_some
   rw [dif_pos available]
   rfl
 
+/-- A successful semantic restriction is returned unchanged by the executable
+finite check. Both constructors read the same typed values from the store. -/
+theorem ofStoreExec?_eq_some_of_ofStore?_eq_some
+    {store : Store L} {refs : Finset (FieldRef L)}
+    {env : ReadEnv L refs}
+    (henv : ofStore? store refs = some env) :
+    ofStoreExec? store refs = some env := by
+  obtain ⟨checked, hchecked⟩ := Option.isSome_iff_exists.mp
+    (ofStoreExec?_isSome_of_ofStore?_eq_some henv)
+  have heq : checked = env := Option.some.inj
+    ((ofStore?_eq_some_of_ofStoreExec?_eq_some hchecked).symm.trans henv)
+  simpa only [heq] using hchecked
+
 /-- The proof-facing and executable store restrictions accept exactly the
 same finite read footprints. -/
 theorem ofStoreExec?_isSome_iff_ofStore?_isSome

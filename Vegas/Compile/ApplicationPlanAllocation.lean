@@ -28,6 +28,7 @@ namespace ApplicationInstruction
 /-- Fields allocated to an instruction, including private binding storage.
 An original field consulted by a conditional opening is not allocated again. -/
 def allocatedFields : ApplicationInstruction P L → List Nat
+  | .sample code => [code.outputField]
   | .bind code => [code.sourceField]
   | .publicChoice code => [code.choiceField, code.publicationField]
   | .conditional code => [code.choiceField, code.publicationField]
@@ -35,6 +36,7 @@ def allocatedFields : ApplicationInstruction P L → List Nat
 /-- Compatibility with the compiler's canonical field and private-slot scheme.
 This is an allocation property, not a behavioral correctness certificate. -/
 def AllocatedAt (initialFields : Nat) : ApplicationInstruction P L → Prop
+  | .sample code => code.outputField = initialFields + code.node
   | .bind code =>
       code.sourceField = initialFields + code.node ∧ code.sourceSlot = code.sourceField
   | .publicChoice code =>
@@ -66,6 +68,14 @@ theorem instructions_allocated
       instruction.AllocatedAt state.initialFields.length := by
   induction plan with
   | ret => simp [instructions]
+  | sample next ih =>
+      simp only [instructions, List.mem_cons]
+      intro instruction hmem
+      rcases hmem with rfl | hmem
+      · simp [ApplicationInstruction.AllocatedAt, headSampleCode,
+          Graph.sampleCode, compiledNext, compileCore, Graph.nodeTarget,
+          BuildResult.graph, compileCore_initialFields]
+      · simpa using ih instruction hmem
   | binding unrestricted next ih =>
       simp only [instructions, List.mem_cons]
       intro instruction hmem

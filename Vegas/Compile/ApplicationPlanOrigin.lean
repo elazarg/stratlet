@@ -29,6 +29,12 @@ inductive Origin {Γ : VCtx P L} {pending : Finset VarId} {prog : VegasCore P L 
     (accounted : CommitmentAccounting pending prog) (fresh : FreshBindings prog)
     (state : BuildState P L Γ) (deadlineOf : Nat → Nat) :
     ApplicationInstruction P L → Prop where
+  | sample {code : SampleCode L}
+      (node : Fin (compileCore prog fresh state).graph.nodeCount)
+      (dist : EventDist L)
+      (hsem : ((compileCore prog fresh state).graph.nodeRow node).sem = .sample dist)
+      (hcode : code = (compileCore prog fresh state).graph.sampleCode node dist) :
+      Origin accounted fresh state deadlineOf (.sample code)
   | binding {Δ : VCtx P L} {name : VarId} {who : P} {ty : L.Ty}
       {guard : L.Expr ((name, ty) :: eraseVCtx (viewVCtx who Δ)) L.bool}
       (site : SourceDecisionSite who prog Δ name ty guard)
@@ -55,12 +61,40 @@ theorem instructions_origin
       Origin accounted fresh state deadlineOf instruction := by
   induction plan with
   | ret => simp [instructions]
+  | @sample Γ pending name ty dist tail accounted fresh state next ih =>
+      intro instruction hmem
+      simp only [instructions, List.mem_cons] at hmem
+      rcases hmem with rfl | htail
+      · let result := compileCore (.sample name dist tail) fresh state
+        let event := state.sampleEvent dist
+        have hprefix : state.nodes ++ [event] <+: result.nodes := by
+          change state.nodes ++ [state.sampleEvent dist] <+:
+            (compileCore tail fresh.2 (state.addSampleEvent name dist fresh.1).1).nodes
+          simpa only [BuildState.addSampleEvent_nodes] using
+            compileCore_nodes_prefix tail fresh.2
+              (state.addSampleEvent name dist fresh.1).1
+        let compiled := compiledNext state result event hprefix
+        apply Origin.sample compiled.node (eventDistOf state dist)
+        · rw [compiled.nodeRow_eq]
+        · rfl
+      · cases ih instruction htail with
+        | sample node dist hsem hcode => exact .sample node dist hsem hcode
+        | binding site unrestricted => exact .binding (.sample site) unrestricted
+        | publicChoice site publicGuard =>
+            exact Origin.publicChoice (accounted := .sample accounted)
+              (fresh := fresh) (state := state) (deadlineOf := deadlineOf)
+              { site with decision := .sample site.decision } (by
+                simpa only [PublicChoiceSite.PubliclyValidatable,
+                  PublicChoiceSite.compiledGuard, PublicChoiceSite.siteState,
+                  decisionSiteState, compileCore] using publicGuard)
+        | conditional site publicGuard => exact .conditional (.sample site) publicGuard
   | @binding Γ pending name who ty guard tail newName accounted fresh state unrestricted next ih =>
       intro instruction hmem
       simp only [instructions, List.mem_cons] at hmem
       rcases hmem with rfl | htail
       · exact .binding (.here _ _) unrestricted
       · cases ih instruction htail with
+        | sample node dist hsem hcode => exact .sample node dist hsem hcode
         | binding site unrestricted => exact .binding (.commit site) unrestricted
         | publicChoice site publicGuard =>
             exact Origin.publicChoice (accounted := .commit newName accounted)
@@ -78,6 +112,7 @@ theorem instructions_origin
       rcases hmem with rfl | htail
       · exact .publicChoice _ publicGuard
       · cases ih instruction htail with
+        | sample node dist hsem hcode => exact .sample node dist hsem hcode
         | binding site unrestricted => exact .binding (.commit (.reveal site)) unrestricted
         | publicChoice site publicGuard =>
             exact Origin.publicChoice (accounted := .commit newName (.reveal unresolved accounted))
@@ -95,6 +130,7 @@ theorem instructions_origin
       rcases hmem with rfl | htail
       · exact .conditional _ publicGuard
       · cases ih instruction htail with
+        | sample node dist hsem hcode => exact .sample node dist hsem hcode
         | binding site unrestricted => exact .binding (.commit (.reveal site)) unrestricted
         | publicChoice site publicGuard =>
             exact Origin.publicChoice (accounted := .opening spec unresolved newName accounted)

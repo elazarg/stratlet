@@ -375,7 +375,7 @@ theorems, not whole-program randomized or strategic correspondence. Endpoint
 and validator evaluation is executable on supplied metadata and stores; the
 current metadata construction uses the noncomputable compiler elaboration.
 
-`ApplicationImage` is the shared dispatch artifact for generated public-choice,
+`ApplicationImage` is the shared dispatch artifact for generated chance, public-choice,
 opaque-binding, and conditional-publication instructions. `PublicChoiceSite.code`,
 `SourceDecisionSite.bindingCode`, and `CommitmentAccounting.OpeningSite.code`
 consume source occurrences and the existing compiler allocation. All instruction
@@ -383,6 +383,18 @@ kinds share one address lookup and the same `MessageApplication` interpreter.
 The handler dynamically checks the packet's kind, type, and address before
 invoking the relevant validator. Actual inclusion records the storage effect,
 raw packet, and public acceptance receipt.
+
+Chance instructions retain the graph row's `EventDist` code. An environment
+command supplies only the instruction address; the kernel checks public
+dependencies and typed reads with `ReadEnv.ofStoreExec?`, evaluates that exact
+distribution from public memory, and atomically
+stores the draw and completes the node. Repeated invocations cannot reroll it.
+`ApplicationImage.sample_law_refines` in `SampleImageRefinement` derives
+identical graph and native reads and proves both the exact local law
+and refinement for every supported draw. This is an ideal unbiased entropy
+capability, not a realization by a concrete randomness protocol. Invocation
+timing may depend on observed public data; profile laws and progress require
+their own information and service arguments.
 
 `Memory` is the public projection: typed public storage, completion flags,
 accepted opaque references, and a clock. The operational `State` also contains
@@ -403,11 +415,17 @@ decline, and overdue expiry store the source certificate's encoded result.
 Environment commands advance a monotone public clock. Expiry still requires a
 real included request; this mechanism provides neither service fairness nor
 protection against clock advancement preempting an honest request.
+Generated images currently take immutable absolute deadlines through
+`deadlineOf`. The disclosure benchmark instead arms its publication deadline
+when the public sample executes. Its relative-deadline settlement proofs do
+not transfer to generated images without another argument. A generated service
+theorem must either justify the supplied absolute deadlines or implement and
+verify an explicit deadline-arming policy; adding chance alone supplies neither.
 
 `ApplicationPlan` is a structural backend derivation indexed by the existing
 source, commitment-accounting proof, freshness proof, and compiler cursor.
 It consumes each source operation through an implemented instruction: an opaque
-binding, an ordinary adjacent choice/reveal pair, or an accounted conditional
+binding, a chance step, an ordinary adjacent choice/reveal pair, or an accounted conditional
 pair. It emits directly into `ApplicationImage`; it introduces neither source
 syntax nor another evaluator. Backend certificates are supplied explicitly,
 not inferred by a total automatic checker. No derivation constructor discards
@@ -428,7 +446,7 @@ principal; any recoverable frozen value agrees with that field. An absent or
 ill-typed snapshot remains admissible. Arbitrary manually assembled images have
 no generated-source guarantee.
 
-The derivation has no constructors for chance, unpaired literal reveals, public
+The derivation has no constructors for unpaired literal reveals, public
 initial defaults, or autonomous execution of publicly forced source choices.
 Those source programs remain valid; this backend needs additional instruction
 implementations to compile them. A later optional copy of an already-accounted
@@ -440,6 +458,15 @@ public validation cannot read the retained sealed field. Conditional-runtime
 eligibility must be separated from the unique accounting discharge; neither
 source syntax nor source accounting needs to change. `PersistentDisclosure`
 and `DisclosureAccounting.persistentPlan` exercise this source case.
+The intended certificate is a `ConditionalPublicationSite prog` containing an
+adjacent `PublicChoiceSite prog` and a `ConditionalOpening` certificate for that
+same choice's guard. Node and row metadata should reuse the public-choice site.
+An accounted opening converts to this certificate; an ordinary adjacent copy
+can supply it independently. The application derivation then distinguishes
+discharge of the original binding from ordinary discharge of the new copy,
+while emitting the same conditional instruction. The certificate does not
+prove that a commitment was prepared or accepted: initialization, controller
+provenance, and service must establish that availability separately.
 The public initializer also does not provision
 sealed initial inputs. A whole-program entry must either account for that
 provisioning or explicitly require no sealed initial inputs. Generated controller

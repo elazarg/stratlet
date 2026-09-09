@@ -18,6 +18,9 @@ The shared message runtime supplies submission, local delivery, replay, inclusio
 and receipts. Binding inclusion freezes its verifier without inspecting whether
 the handle can open. Public clock advancement permits explicit expiry requests;
 it supplies neither delivery fairness nor automatic timeout transactions.
+Chance instructions use a fixed exact distribution kernel once their public
+dependencies are ready. The environment selects when to invoke an instruction,
+not its outcome; realizing this entropy capability is a separate target edge.
 -/
 
 namespace Vegas
@@ -42,6 +45,14 @@ structure BindingCode (P : Type) where
   sourceField : Nat
   sourceSlot : Nat
   requires : List Nat
+
+/-- A public chance instruction retaining the source compiler's distribution
+code. The environment can trigger this fixed kernel but cannot supply a draw. -/
+structure SampleCode (L : IExpr) where
+  node : Nat
+  outputField : Nat
+  requires : List Nat
+  dist : EventDist L
 
 /-- Conditional publication of a previously bound value. The source encoding
 determines the stored optional result; guard validation uses the public store
@@ -71,11 +82,13 @@ def ConditionalCode.decode (code : ConditionalCode P L) :
   | .cleartext _ | .malformed => none
 
 inductive ApplicationInstruction (P : Type) (L : IExpr) where
+  | sample (code : SampleCode L)
   | publicChoice (code : PublicChoiceCode P L)
   | bind (code : BindingCode P)
   | conditional (code : ConditionalCode P L)
 
 def ApplicationInstruction.address : ApplicationInstruction P L → Nat
+  | .sample code => code.node
   | .publicChoice code => code.endpoint.publicationNode
   | .bind code => code.node
   | .conditional code => code.endpoint.publicationNode
@@ -108,6 +121,7 @@ inductive PrivateCommand (L : IExpr) where
 
 inductive EnvironmentCommand where
   | advance (clock : Nat)
+  | sample (address : Nat)
 
 /-- The public projection and ideal service state are separate. Frozen values
 are indexed by source field; `memory.accepted` distinguishes an unbound field
@@ -162,6 +176,14 @@ def State.register (state : State P L) (who : P) (slot : Nat)
 def State.advance (state : State P L) (clock : Nat) : State P L :=
   { state with memory := { state.memory with clock := max state.memory.clock clock } }
 
+/-- Install the result of a single chance invocation as public application
+state. The completed flag prevents a subsequent invocation from rerolling. -/
+def State.sample (state : State P L) (code : SampleCode L)
+    (value : L.Val code.dist.ty) : State P L :=
+  { state with memory := { state.memory with
+      store := state.memory.store.set code.outputField ⟨code.dist.ty, value⟩
+      done node := node == code.node || state.memory.done node } }
+
 def State.bind (state : State P L) (code : BindingCode P)
     (handle : CommitmentHandle P Nat) : State P L :=
   { state with
@@ -190,6 +212,20 @@ def State.verify (state : State P L) (code : ConditionalCode P L)
 def lookup (image : ApplicationImage P L) (address : Nat) :
     Option (ApplicationInstruction P L) :=
   image.instructions.find? fun code => code.address == address
+
+/-- Invoke a ready chance instruction atomically. Missing code, unavailable
+public dependencies, and already completed instructions leave state unchanged.
+Neither the environment command nor a player message can select the draw. -/
+noncomputable def sample (image : ApplicationImage P L) (state : State P L)
+    (address : Nat) : FinDist (State P L) :=
+  match image.lookup address with
+  | some (.sample code) =>
+      if !state.memory.done code.node && code.requires.all state.memory.done then
+        match ReadEnv.ofStoreExec? state.memory.store code.dist.reads with
+        | some reads => (code.dist.eval reads).map (state.sample code)
+        | none => FinDist.pure state
+      else FinDist.pure state
+  | _ => FinDist.pure state
 
 /-- Decode the message's claimed type before running the generated guard.
 Unknown addresses, wrong types, and malformed data all remain raw traffic. -/
@@ -231,9 +267,32 @@ noncomputable def application (image : ApplicationImage P L) : MessageApplicatio
     | .register slot value => state.register who slot value
   environmentStep state command := match command with
     | .advance clock => FinDist.pure (state.advance clock)
+    | .sample address => image.sample state address
   handle := image.handle
   observePlayer state _ := state.memory
   observeEnvironment state := state.memory
+
+omit [DecidableEq P] in
+/-- Successful chance invocation has exactly the retained distribution law,
+followed by the public write. No normalized restriction of its support is used. -/
+theorem sample_law (image : ApplicationImage P L) (state : State P L)
+    (address : Nat) (code : SampleCode L)
+    (hcode : image.lookup address = some (.sample code))
+    (hnotDone : state.memory.done code.node = false)
+    (hrequires : code.requires.all state.memory.done = true)
+    (reads : ReadEnv L code.dist.reads)
+    (hreads : ReadEnv.ofStoreExec? state.memory.store code.dist.reads = some reads) :
+    image.sample state address = (code.dist.eval reads).map (state.sample code) := by
+  simp [sample, hcode, hnotDone, hrequires, hreads]
+
+omit [DecidableEq P] in
+/-- A repeated chance invocation cannot redraw or replace an installed value. -/
+theorem sample_after_completion (image : ApplicationImage P L) (state : State P L)
+    (address : Nat) (code : SampleCode L)
+    (hcode : image.lookup address = some (.sample code))
+    (value : L.Val code.dist.ty) :
+    image.sample (state.sample code value) address = FinDist.pure (state.sample code value) := by
+  simp [sample, hcode, State.sample]
 
 theorem handle_choice (image : ApplicationImage P L) (state : State P L)
     (address : Nat) (code : PublicChoiceCode P L)

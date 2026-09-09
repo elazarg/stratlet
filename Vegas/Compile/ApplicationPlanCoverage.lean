@@ -27,6 +27,7 @@ namespace ApplicationInstruction
 conditional publication instructions implement their adjacent choice/reveal
 pair atomically. -/
 def coveredNodes : ApplicationInstruction P L → List Nat
+  | .sample code => [code.node]
   | .bind code => [code.node]
   | .publicChoice code => [code.endpoint.choiceNode, code.endpoint.publicationNode]
   | .conditional code => [code.endpoint.choiceNode, code.endpoint.publicationNode]
@@ -53,6 +54,10 @@ theorem coveredNodes_eq_range
       List.range (compileCore prog fresh state).nodes.length := by
   induction plan with
   | ret => simp [instructions, compileCore]
+  | sample next ih =>
+      simpa [instructions, headSampleCode, ApplicationInstruction.coveredNodes,
+        Graph.sampleCode, compiledNext, compileCore,
+        BuildState.addSampleEvent_nodes, List.range_succ, List.append_assoc] using ih
   | binding unrestricted next ih =>
       simpa [instructions, ApplicationInstruction.coveredNodes, compileCore,
         SourceDecisionSite.bindingCode, SourceDecisionSite.compiledNode,
@@ -100,6 +105,10 @@ private theorem instructionAddresses_sublist
   | nil => exact List.Sublist.slnil
   | cons instruction tail ih =>
       cases instruction with
+      | sample code =>
+          simpa [ApplicationInstruction.address,
+            ApplicationInstruction.coveredNodes] using
+              List.Sublist.cons_cons code.node ih
       | bind code =>
           simpa [ApplicationInstruction.address,
             ApplicationInstruction.coveredNodes] using
@@ -157,6 +166,23 @@ theorem image_lookup_of_mem
     (plan.image deadlineOf).lookup instruction.address = some instruction := by
   exact lookup_eq_some_of_mem_of_addresses_nodup (plan.instructions deadlineOf)
     instruction (plan.instructionAddresses_nodup deadlineOf) hmem
+
+/-- A source-head sample is dispatched at the compiler cursor with its
+retained distribution code. No search through the emitted suffix is needed. -/
+theorem image_lookup_sample
+    {Γ : VCtx P L} {pending : Finset VarId} {name : VarId} {ty : L.Ty}
+    {dist : L.DistExpr (erasePubVCtx Γ) ty}
+    {tail : VegasCore P L ((name, .pub ty) :: Γ)}
+    {accounted : CommitmentAccounting pending tail}
+    {fresh : FreshBindings (.sample name dist tail)} {state : BuildState P L Γ}
+    (next : ApplicationPlan accounted fresh.2
+      (state.addSampleEvent name dist fresh.1).1) (deadlineOf : Nat → Nat) :
+    ((ApplicationPlan.sample (fresh := fresh) next).image deadlineOf).lookup state.nodes.length =
+      some (.sample (headSampleCode fresh state)) := by
+  change ((ApplicationPlan.sample (fresh := fresh) next).image deadlineOf).lookup
+    (ApplicationInstruction.sample (P := P) (headSampleCode fresh state)).address = _
+  apply (ApplicationPlan.sample (fresh := fresh) next).image_lookup_of_mem deadlineOf
+  exact List.mem_cons_self
 
 end ApplicationPlan
 

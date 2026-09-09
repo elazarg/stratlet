@@ -52,14 +52,17 @@ The separate conditional-publication compiler component relates accepted
 opening/decline/expiration to certified source choices and the corresponding
 compiled graph steps. It checks opening legality separately from commitment
 verification; whole-program public-runtime strategy correspondence remains open.
-Structural `ApplicationPlan` derivations generate binding, public-choice, and
+Structural `ApplicationPlan` derivations generate binding, chance, public-choice, and
 conditional-publication instructions with their backend eligibility conditions.
 Arbitrary supported native and randomized policy executions preserve a reachable
 graph witness. A completed run's executable public readout has an actual
 written-order source execution witness. These support theorems impose no
 fairness assumption, but prove neither settlement nor equality of profile laws.
-Chance instructions, sealed-input provisioning, and whole-program controller
-assembly remain outside this generated fragment.
+Chance instructions retain the source distribution, require public dependencies,
+and cannot reroll after completion. They assume ideal unbiased entropy; the
+environment selects the invocation time, not the sampled value. Sealed-input
+provisioning and whole-program controller assembly remain outside this generated
+fragment.
 The `Interaction` library provides a native pool and explicit ideal commitment
 service. A certified homogeneous commit/reveal backend connects actual
 checked core programs, through their event graphs, to this public-message
